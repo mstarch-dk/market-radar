@@ -89,5 +89,47 @@ def info(ticker: str):
     typer.echo(json.dumps(out, indent=1, default=str))
 
 
+BUNDLE_FILES = ("holdings.csv", "transactions.csv")
+
+
+@app.command(name="bundle-holdings")
+def bundle_holdings():
+    """Print imports/holdings.csv + transactions.csv as base64 (for the HOLDINGS_BUNDLE secret).
+
+    Usage: uv run radar bundle-holdings | gh secret set HOLDINGS_BUNDLE
+    """
+    import base64
+    import io
+    import zipfile
+
+    from .config import IMPORTS
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name in BUNDLE_FILES:
+            z.write(IMPORTS / name, name)
+    typer.echo(base64.b64encode(buf.getvalue()).decode())
+
+
+@app.command(name="unbundle-holdings")
+def unbundle_holdings():
+    """Restore holdings from the HOLDINGS_BUNDLE environment variable (used in CI)."""
+    import base64
+    import io
+    import os
+    import zipfile
+
+    from .config import IMPORTS
+
+    data = os.environ.get("HOLDINGS_BUNDLE", "").strip()
+    if not data:
+        typer.echo("HOLDINGS_BUNDLE not set – running without holdings.")
+        return
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(data))) as z:
+        for name in BUNDLE_FILES:
+            (IMPORTS / name).write_bytes(z.read(name))
+    typer.echo(f"Restored {', '.join(BUNDLE_FILES)}.")
+
+
 if __name__ == "__main__":
     app()

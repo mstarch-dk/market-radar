@@ -1,6 +1,12 @@
 .venv/
 __pycache__/
-data/
 reports/
+
+# local data: prices and caches are re-downloadable; rank snapshots are kept for month-over-month changes
+data/*
+!data/snapshots/
+
+# personal holdings stay local (CI gets them from the HOLDINGS_BUNDLE secret)
 imports/*
 !imports/README.md
+!imports/positivliste.xlsx
