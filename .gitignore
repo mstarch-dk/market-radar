@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+data/
+reports/
+imports/*
+!imports/README.md

@@ -1,0 +1,33 @@
+from functools import cache
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+CONFIG = ROOT / "config"
+DATA = ROOT / "data"
+IMPORTS = ROOT / "imports"
+REPORTS = ROOT / "reports"
+TEMPLATES = ROOT / "templates"
+
+PRICES_FILE = DATA / "prices.parquet"
+FRED_FILE = DATA / "fred.parquet"
+SNAPSHOTS = DATA / "snapshots"
+HOLDINGS_FILE = IMPORTS / "holdings.csv"
+TRANSACTIONS_FILE = IMPORTS / "transactions.csv"
+POSITIVE_LIST_FILE = IMPORTS / "positivliste.xlsx"
+
+
+def _load(name: str) -> dict:
+    with open(CONFIG / name, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+@cache
+def settings() -> dict:
+    return _load("settings.yaml")
+
+
+@cache
+def universe_config() -> dict:
+    return _load("universe.yaml")

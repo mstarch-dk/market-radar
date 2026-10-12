@@ -1,0 +1,18 @@
+history_years: 3          # price history fetched for new tickers
+constituents_max_age_days: 30
+
+rotation:
+  window: 14               # weeks used to normalise RS-Ratio / RS-Momentum
+  tail: 8                  # weeks of trail shown on the rotation graph
+
+momentum:
+  top_n: 20                # leaders shown per region
+  min_history_days: 200
+
+regime:
+  vix_calm: 18
+  vix_stress: 25
+  breadth_strong: 60       # % of stocks above 200-day average
+  breadth_weak: 40
+
+snapshot_min_gap_days: 5   # compare against a snapshot at least this old
