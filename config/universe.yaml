@@ -69,6 +69,8 @@ etf_groups:
       - {ticker: EWD,  name: Sweden}
       - {ticker: ENOR, name: Norway}
       - {ticker: EFNL, name: Finland}
+      - {ticker: EWY,  name: South Korea,         ucits_name: iShares MSCI Korea (Dist),         isin: IE00B0M63391}
+      - {ticker: EWT,  name: Taiwan,              ucits_name: iShares MSCI Taiwan (Dist),        isin: IE00B0M63623}
 
   themes:
     label: Themes
@@ -82,6 +84,7 @@ etf_groups:
       - {ticker: NLR,  name: Nuclear energy,      ucits: NUKL.DE, ucits_name: VanEck Uranium & Nuclear Tech.,    isin: IE000M7V94E1}
       - {ticker: BOTZ, name: Robotics & AI,       ucits: RBOT.L,  ucits_name: iShares Automation & Robotics Acc, isin: IE00BYZK4552}
       - {ticker: CIBR, name: Cybersecurity,       ucits: ISPY.L,  ucits_name: L&G Cyber Security,                isin: IE00BYPLS672}
+      - {ticker: IGV,  name: Software}
       - {ticker: SKYY, name: Cloud computing,     ucits: WCLD.L,  ucits_name: WisdomTree Cloud Computing,        isin: IE00BJGWQN72}
       - {ticker: ICLN, name: Clean energy,        ucits: INRG.L,  ucits_name: iShares Global Clean Energy,       isin: IE00B1XNHC34}
       - {ticker: TAN,  name: Solar}
@@ -91,9 +94,24 @@ etf_groups:
       - {ticker: IBB,  name: Biotech,             ucits: BTEC.L,  ucits_name: iShares Nasdaq US Biotechnology,   isin: IE00BYXG2H39}
       - {ticker: PHO,  name: Water,               ucits: IH2O.L,  ucits_name: iShares Global Water,              isin: IE00B1TXK627}
       - {ticker: PAVE, name: US infrastructure}
+      - {ticker: GRID, name: Grid & electrification,                ucits_name: First Trust Smart Grid Infrastructure, isin: IE000J80JTL1}
       - {ticker: ITB,  name: Homebuilders}
       - {ticker: KRE,  name: US regional banks}
       - {ticker: TLT,  name: Long US treasuries}
+
+  factors:
+    label: Factors & style
+    region: US
+    # Which kind of stock the market is paying for. Read in pairs: IWF vs IWD, SPHB vs SPLV.
+    items:
+      - {ticker: MTUM, name: Momentum,            ucits_name: iShares MSCI World Momentum,       isin: IE00BP3QZ825}
+      - {ticker: QUAL, name: Quality}
+      - {ticker: USMV, name: Min volatility}
+      - {ticker: VLUE, name: Value}
+      - {ticker: IWF,  name: Growth (Russell 1000)}
+      - {ticker: IWD,  name: Value (Russell 1000)}
+      - {ticker: SPHB, name: High beta}
+      - {ticker: SPLV, name: Low volatility}
 
 stock_groups:
   us:
@@ -115,6 +133,9 @@ stock_groups:
               VOLV-B.ST, ATCO-A.ST, INVE-B.ST, ERIC-B.ST, ABB.ST, SAND.ST, HM-B.ST, ASSA-B.ST,
               EVO.ST, SEB-A.ST, SAAB-B.ST, EQNR.OL, DNB.OL, KOG.OL, MOWI.OL, NHY.OL,
               NOKIA.HE, NESTE.HE, KNEBV.HE, SAMPO.HE, WRT1V.HE]
+  asia:
+    label: Asia (semis & leaders)
+    tickers: [2330.TW, 005930.KS, 000660.KS, 8035.T, 6857.T, 7011.T, 6501.T, 0700.HK, 9988.HK, 1211.HK]
 
 macro:
   yahoo:
