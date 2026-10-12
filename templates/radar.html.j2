@@ -58,6 +58,8 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .new { color: var(--accent); font-weight: 600; font-size: 11px; }
 .note { color: var(--ink-2); font-size: 13px; max-width: 900px; }
 .flag { margin-right: 4px; }
+details.why { margin-top: 4px; font-size: 12px; color: var(--ink-2); } details.why summary { cursor: pointer; color: var(--ink-3); }
+details.why ul { margin: 4px 0 0; padding-left: 4px; list-style: none; white-space: normal; min-width: 360px; }
 @media (max-width: 600px) { header, nav, main { padding-left: 16px; padding-right: 16px; } .grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -222,13 +224,21 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   <h2>{{ title }} ({{ rows|length }})</h2>
   <div class="card tbl-wrap"><table class="sortable">
     <thead><tr><th class="l">Name</th><th>Score</th><th>1m</th><th>3m</th><th>Rel 3m</th><th>6m</th><th>From high</th>
-      {% if status == "holding" %}<th>Since buy (DKK)</th><th>ACWI (DKK)</th>{% elif status == "sold" %}<th>Sold</th><th>Since sell</th>{% endif %}<th class="l">Flags</th></tr></thead>
+      {% if status == "holding" %}<th>Since buy (DKK)</th><th>ACWI (DKK)</th><th>Stop</th><th>Target</th>{% elif status == "sold" %}<th>Sold</th><th>Since sell</th>{% endif %}<th class="l">Flags</th></tr></thead>
     <tbody>{% for r in rows %}
       <tr><td>{{ r.name or r.symbol }} <span class="muted">{{ r.symbol }}</span></td><td data-v="{{ r.score if r.score is not none else '' }}">{{ r.score|num(0) }}</td>
       {{ pc(r.r1m) }}{{ pc(r.r3m) }}{{ pc(r.rel_r3m) }}{{ pc(r.r6m) }}{{ pc(r.from_high) }}
-      {% if status == "holding" %}{{ pc(r.since_buy) }}{{ pc(r.bench_since_buy) }}{% elif status == "sold" %}<td>{{ r.last_sell_date or "–" }}</td>{{ pc(r.since_sell) }}{% endif %}
-      <td class="l">{% for f in r.flags %}<span class="pill flag">{{ f }}</span>{% endfor %}</td></tr>
+      {% if status == "holding" %}{{ pc(r.since_buy) }}{{ pc(r.bench_since_buy) }}{% set lv = r.levels %}
+      {% if lv %}<td data-v="{{ lv.stop_pct }}">{{ lv.stop|num }} <span class="muted">{{ lv.stop_pct|pct }}</span></td>
+      <td data-v="{{ lv.tp_pct if lv.tp_pct is not none else '' }}">{% if lv.take_profit is not none %}{{ lv.take_profit|num }} <span class="muted">{{ lv.tp_pct|pct }}</span>{% else %}–{% endif %}</td>
+      {% else %}<td class="muted">–</td><td class="muted">–</td>{% endif %}{% elif status == "sold" %}<td>{{ r.last_sell_date or "–" }}</td>{{ pc(r.since_sell) }}{% endif %}
+      <td class="l">{% for f in r.flags %}<span class="pill flag">{{ f }}</span>{% endfor %}{% if status == "holding" and r.levels %}{% for f in r.levels.flags %}<span class="pill st-risk-off">{{ f }}</span>{% endfor %}
+        <details class="why"><summary>why (k {{ r.levels.k|num(2) }})</summary><ul>{% for x in r.levels.reasons %}
+          <li><span class="{{ 'neg' if x.effect < 0 else 'pos' if x.effect > 0 else 'muted' }}">{{ '▼' if x.effect < 0 else '▲' if x.effect > 0 else '•' }}</span> <b>{{ x.signal }}</b>: {{ x.detail }}</li>{% endfor %}
+          {% set a = r.levels.analyst %}{% if a and a.target_mean is defined and a.target_mean is not none %}<li class="muted">Analysts ({{ a.fetched }}): {{ a.rec_key or "?" }}, {{ a.n_analysts|num(0) }} opinions, targets {{ a.target_low|num }}–{{ a.target_high|num }}, mean {{ a.target_mean|num }} ({{ a.upside|pct }})</li>{% endif %}
+        </ul></details>{% endif %}</td></tr>
     {% endfor %}</tbody></table></div>
+  {% if status == "holding" %}<p class="note muted">Stop and target are a mechanical rule, not advice. Stop = highest close since entry − k × ATR(14), where k starts at 3 and each signal (▲ more room, ▼ tighter) moves it: momentum score, 50/200-day trend, extension above the 50-day, the radar's macro regime and analyst consensus. Target = the lower of 2 × the stop width (k × ATR) above the price and the analysts' mean target (needs at least 5 analysts). Broad index funds get no levels. Thresholds live in config/settings.yaml (<code>stops:</code>).</p>{% endif %}
   {% endif %}
   {% endfor %}
   {% endif %}

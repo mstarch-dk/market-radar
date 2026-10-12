@@ -30,3 +30,21 @@ sectors:
   cluster_ratio: 1.5       # ... and at least this multiple of its share of the region
 
 snapshot_min_gap_days: 5   # compare against a snapshot at least this old
+
+stops:                     # rule-based stop / take-profit for holdings (signals/levels.py)
+  atr_days: 14
+  k_base: 3.0              # stop = highest close since entry - k x ATR
+  k_min: 1.5
+  k_max: 3.5
+  k_step: 0.5              # each signal moves k by this (Mixed regime / target cuts by half)
+  strong_score: 80         # momentum percentile that earns more room
+  extended_vs_sma50: 0.25  # price this far above the 50d = extended, tighter stop
+  reward_risk: 2.0         # take-profit candidate: last + 2 x stop distance
+  near_atr: 1.0            # "near stop" / "near target" within this many ATRs
+  min_analysts: 5          # analyst targets need at least this many opinions
+  target_cut: 0.05         # mean target change over 30 days beyond +-5% is a signal
+  info_anchor_days: 63     # `radar info` for a non-held ticker anchors on this window's high
+  include: []              # theme funds outside etf_groups that should get levels too (broad index funds don't)
+
+analyst:
+  max_age_days: 7          # re-fetch Yahoo consensus for holdings/watchlist after this
