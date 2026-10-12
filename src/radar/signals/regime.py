@@ -49,8 +49,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         s = fred["BAMLH0A0HYM2"].dropna()
         avg = s.iloc[-126:].mean()
         st = ON if s.iloc[-1] < avg * 0.97 else OFF if s.iloc[-1] > avg * 1.03 else NEUTRAL
-        out.append(_ind("Credit (US HY spread)", f"{s.iloc[-1]:.2f}%", st,
-                        f"6m average {avg:.2f}% – tightening spreads support risk"))
+        trend = "widening (stress building)" if s.iloc[-1] > avg else "tightening (supports risk)"
+        out.append(_ind("Credit (US HY spread)", f"{s.iloc[-1]:.2f}%", st, f"vs 6m average {avg:.2f}%: {trend}"))
 
     if "T10Y2Y" in fred:
         s = fred["T10Y2Y"].dropna()
