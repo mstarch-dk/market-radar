@@ -93,10 +93,10 @@ BUNDLE_FILES = ("holdings.csv", "transactions.csv")
 
 
 @app.command(name="bundle-holdings")
-def bundle_holdings():
-    """Print imports/holdings.csv + transactions.csv as base64 (for the HOLDINGS_BUNDLE secret).
+def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help="Store it directly as the HOLDINGS_BUNDLE GitHub secret")):
+    """Pack imports/holdings.csv + transactions.csv as base64 for the HOLDINGS_BUNDLE secret.
 
-    Usage: uv run radar bundle-holdings | gh secret set HOLDINGS_BUNDLE
+    Usage: uv run radar bundle-holdings --set-secret   (needs the GitHub CLI, signed in)
     """
     import base64
     import io
@@ -108,7 +108,14 @@ def bundle_holdings():
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for name in BUNDLE_FILES:
             z.write(IMPORTS / name, name)
-    typer.echo(base64.b64encode(buf.getvalue()).decode())
+    data = base64.b64encode(buf.getvalue()).decode("ascii")
+    if not set_secret:
+        typer.echo(data)
+        return
+    import subprocess
+
+    # passed on stdin, not through a shell pipe, so console encodings (e.g. PowerShell's BOM) can't corrupt it
+    subprocess.run(["gh", "secret", "set", "HOLDINGS_BUNDLE"], input=data.encode("ascii"), check=True)
 
 
 @app.command(name="unbundle-holdings")
@@ -121,7 +128,10 @@ def unbundle_holdings():
 
     from .config import IMPORTS
 
-    data = os.environ.get("HOLDINGS_BUNDLE", "").strip()
+    import re
+
+    # keep only base64 characters: tolerates BOMs/CRLF/whitespace added by shells when the secret was set
+    data = re.sub(r"[^A-Za-z0-9+/=]", "", os.environ.get("HOLDINGS_BUNDLE", ""))
     if not data:
         typer.echo("HOLDINGS_BUNDLE not set – running without holdings.")
         return

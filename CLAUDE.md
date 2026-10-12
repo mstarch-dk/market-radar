@@ -7,6 +7,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar update` / `uv run radar report`: the two halves of `run`
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: replays BUY/SELL transactions into `imports/holdings.csv` and `imports/transactions.csv`
 - `uv run radar info <TICKER>`: JSON radar context for one ticker
+- `uv run radar bundle-holdings --set-secret`: refresh the HOLDINGS_BUNDLE secret used by the monthly GitHub Actions brief (run after each Yahoo import)
 
 ## Skills
 - `/market-brief` → `briefs/YYYY-MM-DD.md`
