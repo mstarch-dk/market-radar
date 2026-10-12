@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from jinja2 import Environment, FileSystemLoader
 
-from . import snapshot, universe
+from . import external, snapshot, universe
 from .config import REPORTS, TEMPLATES, settings, universe_config
 from .ingest import load_fred, load_prices, wide
 from .signals import momentum, regime, rotation
@@ -214,6 +214,24 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     return df.sort_values(["_o", "_k"]).drop(columns=["_o", "_k"])
 
 
+def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_ratio: float) -> list[dict]:
+    """Industries (then sectors) over-represented among a region's momentum leaders.
+
+    `expected` is the count the group's share of the whole region would predict; a cluster needs at least
+    `min_count` names and `min_ratio` x expected. A sector already fully covered by an industry cluster is skipped.
+    """
+    out, covered = [], set()
+    for level in ("industry", "sector"):
+        for name, g in top[top[level] != ""].groupby(level):
+            base = (universe_df[level] == name).mean() * len(top)
+            if len(g) < min_count or len(g) < min_ratio * base or set(g["ticker"]) <= covered:
+                continue
+            out.append({"level": level, "name": name, "count": len(g), "expected": round(base, 1),
+                        "new": int(g["new"].sum()), "tickers": list(g["ticker"])})
+            covered |= set(g["ticker"])
+    return sorted(out, key=lambda c: -c["count"] / max(c["expected"], 0.5))
+
+
 # ---------------- main ----------------
 
 def build() -> dict:
@@ -231,7 +249,13 @@ def build() -> dict:
     # --- regime
     groups = universe.stock_groups()
     labels = universe.stock_group_labels()
-    inds, breadth = regime.indicators(closes, fred, bench, groups, labels, universe.macro_yahoo()["VIX"], cfg["regime"])
+    ext = ucfg.get("external", {})
+    cli_raw = external.load_oecd_cli()
+    cli = external.cli_table(cli_raw, ext.get("oecd_cli", {})) if not cli_raw.empty else pd.DataFrame()
+    fs_hist = external.load_factset()
+    fs = fs_hist.iloc[-1].to_dict() if not fs_hist.empty else None
+    macro = universe.macro_yahoo()
+    inds, breadth = regime.indicators(closes, fred, bench, groups, labels, macro, cfg["regime"], cli, fs)
     overall = regime.overall(inds)
     b = closes[bench].dropna()
     regime_charts = [
@@ -242,10 +266,25 @@ def build() -> dict:
     ]
     if "BAMLH0A0HYM2" in fred:
         regime_charts.append(chart_lines({"HY spread %": fred["BAMLH0A0HYM2"]}, "US high-yield credit spread (%)"))
-    vix = universe.macro_yahoo()["VIX"]
+    hl = regime.net_highs_lows(closes, sorted({t for ts in groups.values() for t in ts}))
+    if not hl.empty:
+        band = cfg["regime"]["highs_lows_band"]
+        regime_charts.append(chart_lines({"Net new highs %": hl}, "New 52w highs minus new lows (% of stocks, 10d avg)",
+                                         fmt=".1f", hlines=(-band, 0, band)))
+    vix = macro["VIX"]
     if vix in closes:
         regime_charts.append(chart_lines({"VIX": closes[vix]}, "Volatility – VIX", fmt=".1f",
                                          hlines=(cfg["regime"]["vix_calm"], cfg["regime"]["vix_stress"])))
+    if macro.get("VIX3M") in closes:
+        regime_charts.append(chart_lines({"VIX/VIX3M": closes[vix] / closes[macro["VIX3M"]]},
+                                         "VIX term structure (above 1 = inverted, stress)", hlines=(1,)))
+    if macro.get("Copper") in closes and macro.get("Gold") in closes:
+        regime_charts.append(chart_lines({"Copper/gold": closes[macro["Copper"]] / closes[macro["Gold"]] * 1000},
+                                         "Copper/gold ratio (×1000): growth vs defence"))
+    if not cli_raw.empty:
+        order = [a for a in ext.get("oecd_cli", {}) if a in cli_raw.columns]
+        regime_charts.append(chart_lines({ext["oecd_cli"][a]: cli_raw[a] for a in order[:4]},
+                                         "OECD leading indicators (100 = trend)", hlines=(100,), days=2000))
 
     # --- rotation (sectors, regions, themes)
     insts = universe.etfs()
@@ -264,6 +303,18 @@ def build() -> dict:
         tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
         ratio, mom = rotation.rrg(closes, bench, tickers, rc["window"], rc["tail"])
         rrg_charts[key] = chart_rrg(ratio, mom, names, f"{g['label']} vs ACWI – last {rc['tail']} weeks")
+    rrg_local_charts = {}
+    rot["quadrant_local"] = None
+    for key, lb in universe.group_benchmarks().items():
+        tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
+        if lb["ticker"] not in closes.columns or not tickers:
+            continue
+        ratio, mom = rotation.rrg(closes, lb["ticker"], tickers, rc["window"], rc["tail"])
+        rrg_local_charts[key] = chart_rrg(ratio, mom, names, f"{ucfg['etf_groups'][key]['label']} vs {lb['name']} "
+                                                             f"– last {rc['tail']} weeks")
+        local_q = {t: rotation.quadrant(ratio[t].iloc[-1], mom[t].iloc[-1]) for t in tickers}
+        mask = rot["group"] == key
+        rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)
     group_tables = {key: _records(rot[rot["group"] == key]) for key in ucfg["etf_groups"]}
 
     # --- momentum
@@ -271,9 +322,12 @@ def build() -> dict:
     lead = momentum.leaders(closes, volumes, groups, mc["min_history_days"])
     display = universe.names(sorted(set(lead["ticker"]) | set(universe.holdings()["symbol"].dropna())))
     lead["name"] = lead["ticker"].map(display)
+    sec = universe.sectors(list(lead["ticker"]))
+    lead["sector"] = lead["ticker"].map(sec["sector"])
+    lead["industry"] = lead["ticker"].map(sec["industry"])
     mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"])
     top_n = mc["top_n"]
-    momentum_tables, entrants, dropped = {}, {}, {}
+    momentum_tables, entrants, dropped, clusters = {}, {}, {}, {}
     for region, df in lead.groupby("region"):
         top = df[df["rank"] <= top_n].copy()
         prev_top = set(mprev[(mprev["group"] == region) & (mprev["rank"] <= top_n)]["ticker"]) if mprev is not None else None
@@ -281,6 +335,7 @@ def build() -> dict:
         momentum_tables[region] = _records(top)
         entrants[region] = [t for t, n in zip(top["ticker"], top["new"]) if n]
         dropped[region] = sorted(prev_top - set(top["ticker"])) if prev_top is not None else []
+        clusters[region] = _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"])
 
     # --- me
     me = _me_table(closes, volumes, lead, bench, mc["min_history_days"])
@@ -290,6 +345,17 @@ def build() -> dict:
     # --- snapshots (after comparing with previous ones)
     snapshot.save("rotation", rot.rename(columns={"rs_score": "score"}), today)
     snapshot.save("momentum", lead, today)
+
+    # --- positioning & cycle (non-price data)
+    cot = external.load_cot()
+    poscfg = cfg["positioning"]
+    cot_tab = (external.cot_table(cot, poscfg["lookback_weeks"], poscfg["extreme_pct"])
+               if not cot.empty else pd.DataFrame())
+    fs_ctx = None
+    if fs is not None:
+        fs_ctx = {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in fs.items()}
+        fs_ctx["report_date"] = fs["report_date"].date().isoformat()
+        fs_ctx["history"] = _records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
 
     # --- stale / missing data check
     last_dates = prices.groupby("ticker")["date"].max()
@@ -305,6 +371,9 @@ def build() -> dict:
         "momentum_prev": mprev_d.isoformat() if mprev_d else None, "top_n": top_n,
         "me": _records(me) if not me.empty else [], "positive_list_loaded": isins is not None, "stale": stale,
         "positive_list_year": pl_year,
+        "rrg_local_charts": rrg_local_charts, "clusters": clusters,
+        "cot": _records(cot_tab) if not cot_tab.empty else [], "cli": _records(cli) if not cli.empty else [],
+        "factset": fs_ctx,
     }
 
     env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=True)
@@ -318,13 +387,15 @@ def build() -> dict:
     summary = {
         "asof": ctx["asof"], "regime": overall, "indicators": inds,
         "rotation": {
-            key: [{k: r[k] for k in ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change", "ucits", "ucits_name", "isin", "positive_list")}
+            key: [{k: r[k] for k in ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change", "quadrant_local", "ucits", "ucits_name", "isin", "positive_list")}
                   for r in rows] for key, rows in group_tables.items()},
-        "momentum_top10": {r: [{k: x[k] for k in ("ticker", "name", "score", "r3m", "r6m", "from_high", "new")} for x in rows[:10]]
+        "momentum_top10": {r: [{k: x[k] for k in ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new")} for x in rows[:10]]
                            for r, rows in momentum_tables.items()},
         "momentum_new_entrants": entrants, "momentum_dropped_out": dropped,
         "me": [{k: x.get(k) for k in ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "from_high", "since_buy", "bench_since_buy", "last_sell_date", "since_sell", "flags")}
                for x in ctx["me"]],
+        "momentum_clusters": clusters,
+        "positioning_cot": ctx["cot"], "leading_indicators": ctx["cli"], "earnings_factset": fs_ctx,
         "stale_tickers": stale,
     }
     (REPORTS / "summary.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")

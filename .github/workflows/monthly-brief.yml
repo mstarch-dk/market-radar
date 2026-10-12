@@ -29,6 +29,9 @@ jobs:
       - name: Install
         run: uv sync --locked
 
+      - name: Test
+        run: uv run pytest -q
+
       - name: Restore holdings
         env:
           HOLDINGS_BUNDLE: ${{ secrets.HOLDINGS_BUNDLE }}

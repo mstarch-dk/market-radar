@@ -71,6 +71,7 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   <button data-tab="rotation">Sector rotation</button>
   <button data-tab="themes">Themes &amp; ETFs</button>
   <button data-tab="momentum">Momentum leaders</button>
+  <button data-tab="positioning">Positioning &amp; cycle</button>
   <button data-tab="me">My holdings &amp; watchlist</button>
   <button data-tab="data">Data notes</button>
 </nav>
@@ -103,13 +104,16 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   Rank change is compared with the snapshot from {{ rotation_prev or "– (no earlier snapshot yet)" }}.</p>
   {% for key in ["us_sectors", "eu_sectors", "regions"] %}
     <h2>{{ etf_groups[key] }}</h2>
-    <div class="grid">
-      <div class="chart">{{ rrg_charts[key]|safe }}</div>
+    {% set local = key in rrg_local_charts %}
+    {% if local %}<div class="grid"><div class="chart">{{ rrg_charts[key]|safe }}</div><div class="chart">{{ rrg_local_charts[key]|safe }}</div></div><div style="height:16px"></div>{% endif %}
+    <div class="{{ '' if local else 'grid' }}">
+      {% if not local %}<div class="chart">{{ rrg_charts[key]|safe }}</div>{% endif %}
       <div class="card tbl-wrap"><table class="sortable">
-        <thead><tr><th class="l">Name</th><th>#</th><th>Δ rank</th><th class="l">Quadrant</th><th>Rel 1m</th><th>Rel 3m</th><th>Rel 6m</th><th>Abs 3m</th><th>&gt;200d</th></tr></thead>
+        <thead><tr><th class="l">Name</th><th>#</th><th>Δ rank</th><th class="l">Quadrant</th>{% if local %}<th class="l">vs home mkt</th>{% endif %}<th>Rel 1m</th><th>Rel 3m</th><th>Rel 6m</th><th>Abs 3m</th><th>&gt;200d</th></tr></thead>
         <tbody>{% for r in group_tables[key] %}
           <tr><td title="{{ r.ticker }}">{{ r.name }} <span class="muted">{{ r.ticker }}</span></td><td data-v="{{ r.rank }}">{{ r.rank }}</td>
           <td data-v="{{ r.rank_change if r.rank_change is not none else '' }}">{{ chg(r.rank_change) }}</td><td class="l">{{ quad(r.quadrant) }}</td>
+          {% if local %}<td class="l">{{ quad(r.quadrant_local or "n/a") }}</td>{% endif %}
           {{ pc(r.rel_r1m) }}{{ pc(r.rel_r3m) }}{{ pc(r.rel_r6m) }}{{ pc(r.r3m) }}<td>{{ "✓" if r.above200 else "✗" }}</td></tr>
         {% endfor %}</tbody></table></div>
     </div>
@@ -145,15 +149,63 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   Momentum is a starting point for research, not a buy list. Check the story behind each move.</p>
   {% for region, rows in momentum_tables.items() %}
     <h2>{{ region_labels[region] }}</h2>
+    {% if clusters[region] %}<p class="note"><b>Clusters in the top {{ top_n }}:</b>
+      {% for c in clusters[region] %}{{ c.name }} <span class="muted">({{ c.level }})</span> {{ c.count }} names vs ~{{ c.expected }} expected{% if c.new %}, <span class="new">{{ c.new }} NEW</span>{% endif %}{{ "; " if not loop.last }}{% endfor %}</p>{% endif %}
     {% if dropped[region] %}<p class="note muted">Dropped out of top {{ top_n }}: {{ dropped[region]|join(", ") }}</p>{% endif %}
     <div class="card tbl-wrap"><table class="sortable">
-      <thead><tr><th class="l">Company</th><th>Score</th><th>1m</th><th>3m</th><th>6m</th><th>12-1m</th><th>From 52w high</th><th>Vol 20d/120d</th><th>Trend</th></tr></thead>
+      <thead><tr><th class="l">Company</th><th class="l">Industry</th><th>Score</th><th>1m</th><th>3m</th><th>6m</th><th>12-1m</th><th>From 52w high</th><th>Vol 20d/120d</th><th>Trend</th></tr></thead>
       <tbody>{% for r in rows %}
-        <tr><td>{{ r.name }} <span class="muted">{{ r.ticker }}</span> {% if r.new %}<span class="new">NEW</span>{% endif %}</td><td data-v="{{ r.score }}">{{ r.score|num(0) }}</td>
+        <tr><td>{{ r.name }} <span class="muted">{{ r.ticker }}</span> {% if r.new %}<span class="new">NEW</span>{% endif %}</td><td class="l muted" title="{{ r.sector }}">{{ r.industry or "–" }}</td><td data-v="{{ r.score }}">{{ r.score|num(0) }}</td>
         {{ pc(r.r1m) }}{{ pc(r.r3m) }}{{ pc(r.r6m) }}{{ pc(r.r12_1) }}{{ pc(r.from_high) }}
         <td data-v="{{ r.vol_surge }}">{{ r.vol_surge|num(2) }}×</td><td>{{ "✓" if r.trend_ok else "✗" }}</td></tr>
       {% endfor %}</tbody></table></div>
   {% endfor %}
+</section>
+
+<!-- POSITIONING & CYCLE -->
+<section id="positioning">
+  <p class="note">Data that doesn't come from prices, so it can lead or confirm what the rotation and momentum tabs show. Sources: FactSet Earnings Insight (weekly), OECD Composite Leading Indicators (monthly, about 2 months' lag) and the CFTC Commitments of Traders (weekly; Tuesday positions published on Friday).</p>
+
+  <h2>Earnings revisions (S&amp;P 500, FactSet)</h2>
+  {% if factset %}
+  <div class="card">
+    <div class="hero">
+      <div><div class="sub">{{ factset.quarter or "Current quarter" }} growth estimate</div><div class="big">{{ factset.growth_now|num(1) }}%</div>
+        <div class="sub">{{ factset.growth_start|num(1) }}% at quarter start</div></div>
+      <div><div class="sub">Forward P/E</div><div class="big">{{ factset.fwd_pe|num(1) }}</div>
+        <div class="sub">5y avg {{ factset.fwd_pe_5y|num(1) }} · 10y avg {{ factset.fwd_pe_10y|num(1) }}</div></div>
+      <div><div class="sub">EPS guidance</div><div class="big"><span class="pos">+{{ factset.guidance_pos|num(0) }}</span> / <span class="neg">−{{ factset.guidance_neg|num(0) }}</span></div>
+        <div class="sub">positive / negative</div></div>
+      <div><div class="sub">Next calendar year growth</div><div class="big">{{ factset.cy_next_growth|num(1) }}%</div></div>
+    </div>
+    <p class="note">Sectors with upward revisions: <b>{{ factset.rev_up_sectors or "–" }}</b>. Downward revisions: <b>{{ factset.rev_down_sectors or "–" }}</b>.
+    <span class="muted">Report {{ factset.report_date }}. The full key pages are saved in data/factset_latest.txt.</span></p>
+  </div>
+  {% else %}<p class="note muted">No FactSet data yet. Run <code>radar update</code>.</p>{% endif %}
+
+  <h2>Leading indicators (OECD CLI)</h2>
+  {% if cli %}
+  <div class="card tbl-wrap"><table>
+    <thead><tr><th class="l">Area</th><th>CLI</th><th>3m change</th><th class="l">Phase</th><th>As of</th></tr></thead>
+    <tbody>{% for r in cli %}
+      <tr><td>{{ r.label }}</td><td>{{ r.cli|num(2) }}</td><td class="{{ r.chg_3m|sign }}">{{ "%+.2f"|format(r.chg_3m) }}</td>
+      <td class="l"><span class="pill {{ 'st-risk-on' if r.phase == 'Expansion' else 'st-risk-off' if r.phase == 'Contraction' else 'st-neutral' }}">{{ r.phase }}</span></td><td>{{ r.asof[:7] }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  <p class="note muted">100 = long-term trend. Expansion: above 100 and rising. Slowdown: above 100 and falling. Contraction: below 100 and falling. Recovery: below 100 and rising.</p>
+  {% else %}<p class="note muted">No OECD data yet.</p>{% endif %}
+
+  <h2>Futures positioning (CFTC)</h2>
+  {% if cot %}
+  <div class="card tbl-wrap"><table class="sortable">
+    <thead><tr><th class="l">Market</th><th class="l">Trader group</th><th>Net % of OI</th><th>4w change</th><th>3y percentile</th><th class="l">Flag</th><th>As of</th></tr></thead>
+    <tbody>{% for r in cot %}
+      <tr><td>{{ r.market }}</td><td class="l">{{ r.group }}</td><td data-v="{{ r.net_pct_oi }}">{{ "%+.1f"|format(r.net_pct_oi) }}%</td>
+      <td class="{{ r.chg_4w|sign }}" data-v="{{ r.chg_4w if r.chg_4w is not none else '' }}">{{ "–" if r.chg_4w is none else "%+.1f"|format(r.chg_4w) }}</td>
+      <td data-v="{{ r.percentile }}">{{ r.percentile|num(0) }}</td>
+      <td class="l">{% if r.flag %}<span class="pill flag">{{ r.flag }}</span>{% endif %}</td><td>{{ r.asof }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  <p class="note muted">Net position (long − short) as a % of open interest, ranked against the last 3 years. Asset managers are slow, trend-following money. Leveraged funds (hedge funds) and managed money (CTAs) are fast money; their extremes tend to be contrarian. A "3y high" or "3y low" flag means the reading is in the top or bottom 10% of its own 3-year range (a 3y low can still be net long). That isn't a timing signal on its own, but it tells you which way a reversal would hurt most.</p>
+  {% else %}<p class="note muted">No CFTC data yet.</p>{% endif %}
 </section>
 
 <!-- ME -->

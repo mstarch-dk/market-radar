@@ -15,8 +15,26 @@ def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S
     if res["missing"]:
         typer.echo(f"No data for {len(res['missing'])}: {', '.join(res['missing'])}")
     universe.names(tickers)  # warm the name cache
+    universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
     ingest.update_fred(list(universe.macro_fred()))
     typer.echo("Macro (FRED) updated.")
+    update_external()
+
+
+def update_external():
+    """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
+    from . import external
+
+    steps = {
+        "CFTC positioning": lambda: f"{external.update_cot()} new rows",
+        "OECD leading indicators": external.update_oecd_cli,
+        "FactSet earnings insight": lambda: f"report {d}" if (d := external.update_factset()) else "no new report",
+    }
+    for label, step in steps.items():
+        try:
+            typer.echo(f"{label}: {step()}.")
+        except Exception as e:  # network/format problems shouldn't block the price radar
+            typer.echo(f"{label}: FAILED ({type(e).__name__}: {e}); using cached data.")
 
 
 @app.command(name="report")

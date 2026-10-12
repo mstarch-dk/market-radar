@@ -41,6 +41,11 @@ def etfs() -> list[Instrument]:
     return out
 
 
+def group_benchmarks() -> dict[str, dict]:
+    """ETF groups with a home-market benchmark (key -> {ticker, name}), used for an extra RRG."""
+    return {k: g["benchmark"] for k, g in universe_config()["etf_groups"].items() if g.get("benchmark")}
+
+
 def _spy_holdings() -> pd.DataFrame:
     resp = requests.get(SPY_HOLDINGS, headers=UA, timeout=60)
     resp.raise_for_status()
@@ -89,6 +94,29 @@ def names(tickers: list[str]) -> dict[str, str]:
             cached |= dict(ex.map(lookup, missing))
         pd.DataFrame(list(cached.items()), columns=["ticker", "name"]).to_csv(cache_file, index=False)
     return {t: out.get(t) or cached.get(t, t) for t in tickers}
+
+
+def sectors(tickers: list[str]) -> pd.DataFrame:
+    """Yahoo sector and industry per stock (cached in data/sectors.csv; ETFs and unknowns stay blank)."""
+    cache_file = DATA / "sectors.csv"
+    cached = pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()         else pd.DataFrame(columns=["ticker", "sector", "industry"])
+    missing = sorted(set(tickers) - set(cached["ticker"]))
+    if missing:
+        import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor
+
+        def lookup(t):
+            try:
+                info = yf.Ticker(t).info
+                return {"ticker": t, "sector": info.get("sector") or "", "industry": info.get("industry") or ""}
+            except Exception:
+                return None  # not cached, so it is retried next run
+        with ThreadPoolExecutor(8) as ex:
+            found = [r for r in ex.map(lookup, missing) if r]
+        cached = pd.concat([cached, pd.DataFrame(found)], ignore_index=True)
+        DATA.mkdir(exist_ok=True)
+        cached.to_csv(cache_file, index=False)
+    return cached.set_index("ticker").reindex(tickers).fillna("")
 
 
 FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", "GBp": "GBPDKK=X",
@@ -267,6 +295,7 @@ def positive_list_flag(isin: str | None, isins: set[str] | None) -> str:
 def all_price_tickers(refresh: bool = False) -> list[str]:
     tickers = {benchmark()}
     tickers |= {e.ticker for e in etfs()}
+    tickers |= {b["ticker"] for b in group_benchmarks().values()}
     for g in stock_groups(refresh).values():
         tickers |= set(g)
     tickers |= set(macro_yahoo().values())

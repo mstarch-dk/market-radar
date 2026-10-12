@@ -14,5 +14,19 @@ regime:
   vix_stress: 25
   breadth_strong: 60       # % of stocks above 200-day average
   breadth_weak: 40
+  highs_lows_band: 3       # net % of stocks at 52w highs: >= +band risk-on, <= -band risk-off
+  vix_term_calm: 0.9       # VIX/VIX3M below this = calm; above 1 = inverted (stress)
+  rates_shock: 0.5         # US 10Y up more than this (pct pts) in 3 months = risk-off
+  copper_gold_band: 0.05   # copper/gold ratio 3m change beyond +-5% votes
+  oil_shock: 0.30          # WTI up more than 30% in 3 months = risk-off
+  revisions_band: 0.5      # FactSet: change in quarter's growth estimate (pct pts) beyond +-band votes
+
+positioning:
+  lookback_weeks: 156      # CFTC percentile window (3 years)
+  extreme_pct: 10          # top/bottom 10% of that window = crowded
+
+sectors:
+  cluster_min: 3           # flag a sector/industry with at least this many names in a region's top N
+  cluster_ratio: 1.5       # ... and at least this multiple of its share of the region
 
 snapshot_min_gap_days: 5   # compare against a snapshot at least this old

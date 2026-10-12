@@ -31,6 +31,7 @@ etf_groups:
   eu_sectors:
     label: Europe sectors (STOXX 600)
     region: Europe
+    benchmark: {ticker: EXSA.DE, name: STOXX 600}   # extra RRG vs the home market, besides ACWI
     items:
       - {ticker: EXV3.DE, name: Technology}
       - {ticker: EXV4.DE, name: Health care}
@@ -120,10 +121,33 @@ macro:
     VIX: ^VIX
     USDDKK: USDDKK=X
     EURDKK: EURDKK=X
+    VIX3M: ^VIX3M            # 3-month VIX: VIX/VIX3M > 1 = stress (inverted term structure)
     Oil (WTI): CL=F
     Copper: HG=F
+    Gold: GC=F               # copper/gold ratio: growth vs. defence
+    Equal-weight S&P: RSP    # RSP/SPY: how broad US leadership is
   fred:                     # public CSV endpoint, no API key needed
     DGS10: US 10Y yield
     T10Y2Y: US 10Y-2Y curve
     BAMLH0A0HYM2: US high-yield spread
     DTWEXBGS: USD broad index
+
+# Non-price data (src/radar/external.py), all free and keyless.
+external:
+  cot:                      # CFTC Commitments of Traders: market name -> CFTC contract code
+    tff:                    # Traders in Financial Futures (asset managers, leveraged funds)
+      S&P 500: "13874A"
+      Nasdaq-100: "209742"
+      Russell 2000: "239742"
+      US 10Y note: "043602"
+      Euro FX: "099741"
+      VIX: "1170E1"
+    disagg:                 # Disaggregated report (managed money)
+      Gold: "088691"
+      WTI crude: "067651"
+      Copper: "085692"
+  oecd_cli:                 # OECD Composite Leading Indicators: area code -> label
+    G20: G20
+    USA: United States
+    G4E: Europe big 4         # DE, FR, IT, UK; OECD no longer publishes euro-area or Danish CLIs
+    CHN: China

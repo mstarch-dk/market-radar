@@ -10,3 +10,6 @@ data/*
 imports/*
 !imports/README.md
 !imports/positivliste.xlsx
+
+# personal reading notes (may quote paid sources such as Bloomberg); local only, so the CI brief does not see them
+notes/
