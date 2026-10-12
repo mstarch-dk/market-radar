@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 from . import external, snapshot, universe
 from .config import REPORTS, TEMPLATES, settings, universe_config
 from .ingest import load_fred, load_prices, wide
-from .signals import momentum, regime, rotation
+from .signals import levels, momentum, regime, rotation
 
 # Reference palette (dataviz skill) – categorical slots in fixed order + quadrant/status colours.
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
@@ -214,6 +214,35 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     return df.sort_values(["_o", "_k"]).drop(columns=["_o", "_k"])
 
 
+def _add_levels(me: pd.DataFrame, closes, highs, lows, insts, rot: pd.DataFrame, regime_label: str, cfg: dict) -> None:
+    """Stop / take-profit levels for held stocks and sector/theme ETFs (broad index funds are left out).
+
+    A stock is a ticker Yahoo gives a sector (funds have none, even when it labels them EQUITY) or one in
+    a stock group. Theme funds outside the ETF groups can be opted in with `stops.include`.
+    """
+    ah = external.load_analyst()
+    equity = set()
+    if not ah.empty and "sector" in ah:
+        latest = ah.sort_values("fetched").groupby("ticker").last()
+        equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
+    equity |= {t for g in universe.stock_groups().values() for t in g}
+    etfs = {t for i in insts if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
+    quadrant = {}
+    for t, u, q in zip(rot["ticker"], rot["ucits"], rot["quadrant"]):
+        quadrant[t] = q
+        if isinstance(u, str):
+            quadrant[u] = q
+    out = []
+    for _, r in me.iterrows():
+        lv = None
+        if r["status"] == "holding" and (r["symbol"] in equity or r["symbol"] in etfs):
+            row = r.to_dict() | {"quadrant": quadrant.get(r["symbol"]),
+                                 "score": None if pd.isna(r["score"]) else r["score"]}
+            lv = levels.for_ticker(r["symbol"], closes, highs, lows, row, r.get("first_trade"), regime_label, ah, cfg)
+        out.append(lv)
+    me["levels"] = out
+
+
 def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_ratio: float) -> list[dict]:
     """Industries (then sectors) over-represented among a region's momentum leaders.
 
@@ -341,6 +370,8 @@ def build() -> dict:
     me = _me_table(closes, volumes, lead, bench, mc["min_history_days"])
     if not me.empty:
         me["name"] = me["symbol"].map(display)
+        _add_levels(me, closes, wide(prices, "high"), wide(prices, "low"), insts, rot, overall["label"],
+                    cfg["stops"])
 
     # --- snapshots (after comparing with previous ones)
     snapshot.save("rotation", rot.rename(columns={"rs_score": "score"}), today)

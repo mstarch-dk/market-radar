@@ -1,4 +1,5 @@
-"""Free non-price data: CFTC positioning, OECD leading indicators, FactSet earnings revisions.
+"""Free non-price data: CFTC positioning, OECD leading indicators, FactSet earnings revisions,
+analyst consensus targets (Yahoo).
 
 Each `update_*` is incremental and writes a parquet file in data/. Fetch failures are the caller's
 to soften (see cli.update): the last cached file stays in place and the report keeps using it.
@@ -223,3 +224,64 @@ def update_factset() -> str | None:
 
 def load_factset() -> pd.DataFrame:
     return pd.read_parquet(FACTSET_FILE) if FACTSET_FILE.exists() else pd.DataFrame()
+
+
+# ---------------- Analyst consensus (Yahoo) ----------------
+
+ANALYST_FILE = DATA / "analyst.parquet"
+ANALYST_FIELDS = {  # Yahoo .info key -> column
+    "currentPrice": "current_price", "currency": "currency", "targetMeanPrice": "target_mean",
+    "targetMedianPrice": "target_median", "targetHighPrice": "target_high", "targetLowPrice": "target_low",
+    "numberOfAnalystOpinions": "n_analysts", "recommendationKey": "rec_key", "recommendationMean": "rec_mean",
+    "sector": "sector",  # empty for funds, which Yahoo sometimes labels EQUITY too
+}
+
+
+def parse_analyst(info: dict | None) -> dict | None:
+    """Consensus fields from a Yahoo `.info` dict. Funds have no targets: only quote_type is set."""
+    if not info or not info.get("quoteType"):
+        return None
+    row = {"quote_type": info["quoteType"]}
+    for key, col in ANALYST_FIELDS.items():
+        v = info.get(key)
+        row[col] = None if v in ("", "none") else v
+    return row
+
+
+def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
+    """Append a dated consensus row per ticker whose last fetch is older than `max_age_days`.
+
+    The history is kept so the levels can tell whether targets are being raised or cut.
+    """
+    import yfinance as yf
+    from concurrent.futures import ThreadPoolExecutor
+
+    existing = load_analyst()
+    today = pd.Timestamp(date.today())
+    last = existing.groupby("ticker")["fetched"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
+    due = [t for t in tickers if t not in last or (today - last[t]).days >= max_age_days]
+    if not due:
+        return "up to date"
+
+    def fetch(t):
+        try:
+            row = parse_analyst(yf.Ticker(t).info)
+        except Exception:
+            return None
+        return row | {"ticker": t, "fetched": today} if row else None
+
+    with ThreadPoolExecutor(8) as ex:
+        rows = [r for r in ex.map(fetch, due) if r]
+    if not rows:
+        raise RuntimeError(f"no data for {len(due)} tickers")
+    new = pd.DataFrame(rows)
+    for col in ("current_price", "target_mean", "target_median", "target_high", "target_low", "n_analysts", "rec_mean"):
+        new[col] = pd.to_numeric(new[col], errors="coerce")
+    df = pd.concat([existing, new], ignore_index=True).drop_duplicates(["ticker", "fetched"], keep="last")
+    DATA.mkdir(exist_ok=True)
+    df.sort_values(["ticker", "fetched"]).to_parquet(ANALYST_FILE, index=False)
+    return f"{len(rows)} of {len(due)} tickers refreshed"
+
+
+def load_analyst() -> pd.DataFrame:
+    return pd.read_parquet(ANALYST_FILE) if ANALYST_FILE.exists() else pd.DataFrame()

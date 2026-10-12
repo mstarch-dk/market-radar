@@ -24,11 +24,15 @@ def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S
 def update_external():
     """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
     from . import external
+    from .config import settings
 
+    h = universe.holdings()
+    mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
     steps = {
         "CFTC positioning": lambda: f"{external.update_cot()} new rows",
         "OECD leading indicators": external.update_oecd_cli,
         "FactSet earnings insight": lambda: f"report {d}" if (d := external.update_factset()) else "no new report",
+        "Analyst targets": lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"]),
     }
     for label, step in steps.items():
         try:
@@ -104,7 +108,46 @@ def info(ticker: str):
     h = universe.holdings()
     hit = h[h["symbol"] == ticker]
     out["my_status"] = hit.iloc[0]["status"] if len(hit) else None
+    out |= _info_levels(ticker, prices, closes, m.to_dict() | {"score": out.get("score_in_region")},
+                        hit.iloc[0]["first_trade"] if out["my_status"] == "holding" else None)
     typer.echo(json.dumps(out, indent=1, default=str))
+
+
+def _info_levels(ticker: str, prices, closes, row: dict, since) -> dict:
+    """Analyst consensus and the stop/take-profit rule for `radar info`.
+
+    The regime comes from the last report's summary.json, so it matches what radar.html shows.
+    """
+    import json
+    import math
+
+    from . import external
+    from .config import REPORTS, settings
+    from .signals import levels
+
+    cfg = settings()
+    try:
+        external.update_analyst([ticker], cfg["analyst"]["max_age_days"])
+    except Exception as e:
+        typer.echo(f"Analyst targets: FAILED ({type(e).__name__}: {e}); using cached data.", err=True)
+    summary = REPORTS / "summary.json"
+    regime_label = json.loads(summary.read_text(encoding="utf-8"))["regime"]["label"] if summary.exists() else None
+    lv = levels.for_ticker(ticker, closes, ingest.wide(prices, "high"), ingest.wide(prices, "low"), row, since,
+                           regime_label, external.load_analyst(), cfg["stops"])
+
+    def rnd(v):
+        if isinstance(v, dict):
+            return {k: rnd(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [rnd(x) for x in v]
+        if hasattr(v, "item"):
+            v = v.item()
+        return (None if math.isnan(v) else round(v, 4)) if isinstance(v, float) else v
+
+    if lv is None:
+        return {"analyst": None, "levels": None}
+    analyst = lv.pop("analyst")
+    return {"analyst": rnd(analyst), "levels": rnd(lv | {"regime": regime_label})}
 
 
 BUNDLE_FILES = ("holdings.csv", "transactions.csv")
