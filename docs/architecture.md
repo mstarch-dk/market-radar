@@ -9,16 +9,19 @@
 - `external.py`: CFTC positioning, OECD leading indicators, the FactSet Earnings Insight PDF, Yahoo analyst consensus for holdings and watchlist, and Yahoo ticker detail (`fetch_detail` / `detail`, cached in `data/profiles/`).
 - `universe.py`: config access, S&P 500 constituents (SSGA SPY holdings), names, currencies, sectors, Yahoo import, positive list.
 - `signals/`: `rotation.py` (RRG), `momentum.py`, `regime.py`, `levels.py` (rule-based trailing ATR stop / take-profit with reasons, for held stocks, theme ETFs and ticker profiles), `technicals.py` (RSI, MACD, Bollinger, volatility, drawdown, beta).
-- `report.py` + `templates/radar.html.j2`: the static dashboard and `summary.json`.
+- `dashboard.py`: every market-wide reading as data (regime with chart series, rotation with RRG tails, momentum leaders, positioning, coverage). `compute()` has no side effects; `load()` reads `reports/dashboard.json` for the API.
+- `report.py`: `radar report` writes `dashboard.json` and the compact `summary.json` (a contract with the skills: its keys don't change without them), then the rank snapshots.
+- `mine.py`: the holdings/watchlist/sold table (DKK return vs a shadow ACWI position, flags, stop levels). `radar run` uses it for summary.json; the API recomputes it live.
+- `userstore.py`: the user's own edits in `userdata/radar.db` (SQLite, versioned with `PRAGMA user_version` + `MIGRATIONS`). Today: watchlist adds/removes, an overlay on the Yahoo import that `universe.holdings()` applies and that survives `import-yahoo`. New stateful data (notes, targets, alarms) gets a new table here.
 - `snapshot.py`: rank history for "new" and "Δ rank".
-- `coverage.py`: per-source freshness and coverage, the update log `data/sources.json`, and blind spots. These feed the "Data & coverage" tab and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
+- `coverage.py`: per-source freshness and coverage, the update log `data/sources.json`, and blind spots. These feed the "Data & coverage" page and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
 - `profile.py`: one ticker's full profile (used by `radar info` and the API).
 - `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).
 
 ## `web/`
-Vite + React + TypeScript app served by `radar serve`. The static `radar.html` and the CI brief don't depend on it.
+Vite + React + TypeScript app served by `radar serve`: the only UI (the old static `radar.html` is gone). The CI brief doesn't depend on it; it reads `summary.json`.
 
 ## Local vs committed
-- `data/`, `reports/`, `imports/*` and `notes/` are gitignored. They hold local data, personal holdings, and the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`).
+- `data/`, `reports/`, `imports/*`, `notes/` and `userdata/` are gitignored. They hold local data, personal holdings, the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`) and the user's edits from the web app. Unlike `data/`, `userdata/` can't be re-downloaded.
 - Exception: `data/snapshots/` is committed, because the CI brief needs the rank history for "new" and "Δ rank". The CI brief commits its own snapshots too.
-- CI: `.github/workflows/monthly-brief.yml` runs the tests, restores holdings from the HOLDINGS_BUNDLE secret, runs `radar run` and writes the brief. There is no CI on pull requests.
+- CI: `.github/workflows/monthly-brief.yml` runs the tests, restores holdings (and the web app's watchlist edits) from the HOLDINGS_BUNDLE secret, runs `radar run` and writes the brief. There is no CI on pull requests.

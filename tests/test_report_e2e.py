@@ -1,7 +1,7 @@
 """report.build() end to end on a small synthetic market whose answers are known in advance.
 
 Unit tests check each calculation; this checks the wiring between them: that the right series reach the
-right signal and land under the right key in summary.json (and that the template still renders).
+right signal and land under the right key in summary.json and dashboard.json.
 """
 import json
 from datetime import date, timedelta
@@ -18,7 +18,6 @@ from world import BUY_AT, IDX, N
 @pytest.fixture
 def summary(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
-    monkeypatch.setattr(snapshot, "SNAPSHOTS", tmp_data / "snapshots")
 
     # snapshots from 10 days ago: LEAD ranked 2nd, and the US top list held S2 and a stock that has left
     old = date.today() - timedelta(days=10)
@@ -28,13 +27,13 @@ def summary(tmp_data, monkeypatch):
                                             "region": "us"}), old)
 
     res = report.build()
-    assert (tmp_data / "reports" / "radar.html").stat().st_size > 10_000
     out = json.loads((tmp_data / "reports" / "summary.json").read_text(encoding="utf-8"))
-    return out | {"_res": res}
+    dash = json.loads((tmp_data / "reports" / "dashboard.json").read_text(encoding="utf-8"))
+    return out | {"_res": res, "_dash": dash}
 
 
 def test_summary_schema(summary):
-    assert set(summary) - {"_res"} == {
+    assert set(summary) - {"_res", "_dash"} == {
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
         "earnings_factset", "stale_tickers", "coverage"}
@@ -89,3 +88,35 @@ def test_coverage(summary):
     assert src["cftc"]["status"] == src["oecd"]["status"] == src["factset"]["status"] == "missing"
     assert cov["regime"]["current"] == len(summary["indicators"]) - 5
     assert cov["blind_spots"] == settings()["coverage"]["blind_spots"]
+
+
+def test_dashboard_matches_the_api_models(summary):
+    from radar import api_models as m
+
+    d = summary["_dash"]
+    head = {"asof": d["asof"], "generated": d["generated"]}
+    m.RegimeView.model_validate(head | d["regime"])
+    m.RotationView.model_validate(head | d["rotation"])
+    m.MomentumView.model_validate(head | d["momentum"])
+    m.PositioningView.model_validate(head | d["positioning"])
+    m.CoverageView.model_validate(head | d["coverage"])
+
+
+def test_dashboard_charts_and_rotation_graph(summary):
+    d = summary["_dash"]
+    acwi = d["regime"]["charts"][0]
+    assert acwi["title"].startswith("Global trend") and [s["name"] for s in acwi["series"]][0] == "ACWI"
+    assert acwi["series"][0]["values"][-1] == pytest.approx(100 * 1.0004 ** (N - 1))
+    assert len(acwi["series"][0]["dates"]) == len(acwi["series"][0]["values"]) == min(N, 365)
+    sectors = next(g for g in d["rotation"]["groups"] if g["key"] == "sectors")
+    trail = {t["ticker"]: t for t in sectors["rrg"]}
+    assert trail["LEAD"]["quadrant"] == "Leading" and trail["LAG"]["quadrant"] == "Lagging"
+    assert len(trail["LEAD"]["tail"]) == settings()["rotation"]["tail"]
+    # every row the summary has, plus the fields only the app shows
+    assert {"rs_ratio", "rs_mom", "r3m", "above200"} <= set(sectors["rows"][0])
+
+
+def test_full_momentum_rows_are_kept(summary):
+    us = next(r for r in summary["_dash"]["momentum"]["regions"] if r["key"] == "us")
+    assert us["label"] == "US" and [r["ticker"] for r in us["rows"]] == ["S1", "S2", "S3", "S4", "S5", "S6"]
+    assert us["rows"][0]["r12_1"] is not None and us["rows"][0]["trend_ok"] is True

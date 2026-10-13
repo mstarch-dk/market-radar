@@ -8,7 +8,7 @@ CONFIG = ROOT / "config"
 DATA = ROOT / "data"
 IMPORTS = ROOT / "imports"
 REPORTS = ROOT / "reports"
-TEMPLATES = ROOT / "templates"
+USERDATA = ROOT / "userdata"  # The user's own edits (userstore.py): not re-downloadable, never committed
 
 PRICES_FILE = DATA / "prices.parquet"
 FRED_FILE = DATA / "fred.parquet"

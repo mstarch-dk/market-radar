@@ -1,460 +1,62 @@
-"""Builds reports/radar.html and reports/summary.json from local data."""
+"""`radar report`: computes the dashboard and writes reports/dashboard.json (served by the web app) and
+reports/summary.json (read by the market brief and research skills), then saves the rank snapshots."""
 from __future__ import annotations
 
 import json
-import math
-from datetime import date, datetime
+from datetime import date
 
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-from jinja2 import Environment, FileSystemLoader
+from . import dashboard, snapshot
+from .config import REPORTS
 
-from . import coverage, external, snapshot, universe
-from .config import REPORTS, TEMPLATES, settings, universe_config
-from .ingest import load_fred, load_prices, wide
-from .signals import levels, momentum, regime, rotation
-
-# Reference palette (dataviz skill) – categorical slots in fixed order + quadrant/status colours.
-SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
-QUAD_COLORS = {"Leading": "#008300", "Weakening": "#c98500", "Lagging": "#e34948", "Improving": "#2a78d6", "n/a": "#8a8985"}
-INK, INK_2, GRID = "#0b0b0b", "#52514e", "#e6e5e0"
+SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
+                    "quadrant_local", "ucits", "ucits_name", "isin", "positive_list")
+SUMMARY_MOMENTUM = ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new")
+SUMMARY_ME = ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "from_high", "since_buy", "bench_since_buy",
+              "last_sell_date", "since_sell", "flags")
+SUMMARY_SOURCES = ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")
 
 
-# ---------------- charts ----------------
-
-def _layout(fig: go.Figure, title: str, height: int = 360, **kw) -> go.Figure:
-    fig.update_layout(
-        title={"text": title, "x": 0, "font": {"size": 15, "color": INK}},
-        height=height, margin={"l": 48, "r": 16, "t": 48, "b": 36},
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, Segoe UI, system-ui, sans-serif", "size": 12, "color": INK_2},
-        legend={"orientation": "h", "y": 1.02, "x": 1, "xanchor": "right", "yanchor": "bottom"},
-        **{"hovermode": "x unified", **kw},
-    )
-    fig.update_xaxes(showgrid=False, linecolor=GRID, ticks="outside", tickcolor=GRID)
-    fig.update_yaxes(gridcolor=GRID, zeroline=False)
-    return fig
-
-
-def _html(fig: go.Figure) -> str:
-    return fig.to_html(full_html=False, include_plotlyjs=False, config={"displaylogo": False, "responsive": True})
-
-
-def chart_lines(series: dict[str, pd.Series], title: str, fmt: str = ".2f", hlines=(), days: int = 365) -> str:
-    fig = go.Figure()
-    for i, (name, s) in enumerate(series.items()):
-        s = s.dropna().iloc[-days:]
-        fig.add_trace(go.Scatter(x=s.index, y=s.values, name=name, mode="lines",
-                                 line={"width": 2, "color": SERIES[i % len(SERIES)]},
-                                 hovertemplate=f"%{{y:{fmt}}}"))
-    for y in hlines:
-        fig.add_hline(y=y, line={"width": 1, "dash": "dot", "color": "#8a8985"})
-    return _html(_layout(fig, title, showlegend=len(series) > 1))
-
-
-def chart_rrg(ratio: pd.DataFrame, mom: pd.DataFrame, names: dict[str, str], title: str) -> str:
-    fig = go.Figure()
-    xs = ratio.values[np.isfinite(ratio.values)]
-    ys = mom.values[np.isfinite(mom.values)]
-    pad = 0.4
-    xr = [min(xs.min(), 100) - pad, max(xs.max(), 100) + pad] if xs.size else [97, 103]
-    yr = [min(ys.min(), 100) - pad, max(ys.max(), 100) + pad] if ys.size else [97, 103]
-    for (q, (x0, x1, y0, y1)) in {
-        "Leading": (100, xr[1], 100, yr[1]), "Weakening": (100, xr[1], yr[0], 100),
-        "Lagging": (xr[0], 100, yr[0], 100), "Improving": (xr[0], 100, 100, yr[1]),
-    }.items():
-        fig.add_shape(type="rect", x0=x0, x1=x1, y0=y0, y1=y1, line_width=0,
-                      fillcolor=QUAD_COLORS[q], opacity=0.06, layer="below")
-        fig.add_annotation(x=x1 if x1 > 100 else x0, y=y1 if y1 > 100 else y0, text=q.upper(), showarrow=False,
-                           xanchor="right" if x1 > 100 else "left", yanchor="top" if y1 > 100 else "bottom",
-                           font={"size": 11, "color": QUAD_COLORS[q]})
-    for t in ratio.columns:
-        r, m = ratio[t], mom[t]
-        ok = r.notna() & m.notna()
-        if not ok.any():
-            continue
-        r, m = r[ok], m[ok]
-        q = rotation.quadrant(r.iloc[-1], m.iloc[-1])
-        color = QUAD_COLORS[q]
-        fig.add_trace(go.Scatter(x=r.values, y=m.values, mode="lines", line={"width": 1.5, "color": color},
-                                 opacity=0.35, hoverinfo="skip", showlegend=False))
-        fig.add_trace(go.Scatter(
-            x=[r.iloc[-1]], y=[m.iloc[-1]], mode="markers+text", text=[names.get(t, t)], textposition="top center",
-            textfont={"size": 11, "color": INK_2},
-            marker={"size": 10, "color": color, "line": {"width": 2, "color": "#fcfcfb"}}, showlegend=False,
-            hovertemplate=f"<b>{names.get(t, t)}</b> ({t})<br>{q}<br>RS-Ratio %{{x:.2f}}<br>RS-Momentum %{{y:.2f}}<extra></extra>"))
-    fig.add_hline(y=100, line={"width": 1, "color": "#8a8985"})
-    fig.add_vline(x=100, line={"width": 1, "color": "#8a8985"})
-    _layout(fig, title, height=520, hovermode="closest")
-    fig.update_xaxes(title="RS-Ratio (relative trend) →", range=xr, showgrid=True, gridcolor=GRID)
-    fig.update_yaxes(title="RS-Momentum (acceleration) →", range=yr)
-    return _html(fig)
-
-
-# ---------------- helpers ----------------
-
-def _records(df: pd.DataFrame) -> list[dict]:
-    def clean(v):
-        if isinstance(v, (float, np.floating)) and (math.isnan(v) or math.isinf(v)):
-            return None
-        if isinstance(v, np.generic):
-            return v.item()
-        if isinstance(v, (pd.Timestamp, date)):
-            return v.isoformat()[:10]
-        return v
-    return [{k: clean(v) for k, v in row.items()} for row in df.to_dict("records")]
-
-
-def _pct_vs(dist: pd.DataFrame, row: pd.Series) -> float | None:
-    vals = []
-    for col in ("r12_1", "r6m", "r3m"):
-        d = dist[col].dropna()
-        if pd.isna(row[col]) or d.empty:
-            return None
-        vals.append((d < row[col]).mean())
-    return round(100 * sum(vals) / len(vals), 1)
-
-
-def _fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
-    """DKK per unit of quoted price (pence-quoted GBp includes the /100)."""
-    if ccy not in universe.FX_DKK:
-        return None
-    fx = universe.FX_DKK[ccy]
-    if fx is None:
-        return pd.Series(1.0, index=closes.index)
-    if fx not in closes:
-        return None
-    return closes[fx].ffill() * (0.01 if ccy == "GBp" else 1.0)
-
-
-def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
-               raw: pd.Series | None = None) -> tuple[float, float] | None:
-    """Total return of the open position vs. a shadow ACWI position with identical DKK cash flows.
-
-    Buys put the same DKK amount into ACWI on the same day; sells remove the same fraction from both
-    (average-cost method). Dividends count as reinvested on both sides: `px` is the adjusted close, and each
-    lot's shares are scaled by adjusted/traded close on its trade date, so a lot bought before an ex-date
-    gets the dividend. Without `raw` (traded closes) the position is price-only. Returns (position return,
-    shadow return), both in DKK.
-    """
-    factor = (px / raw).dropna() if raw is not None else pd.Series(dtype=float)
-    qty = units_px = cost = units = 0.0  # units_px: dividend-reinvested shares, in adjusted-price terms
-    for _, t in tx.sort_values("date", kind="stable").iterrows():
-        d, q = t["date"], t["quantity"]
-        if t["type"] == "SELL":
-            if qty <= 1e-9:
-                continue
-            keep = 1 - min(q, qty) / qty
-            qty, units_px, cost, units = qty * keep, units_px * keep, cost * keep, units * keep
-        else:
-            if qty <= 1e-9:
-                qty = units_px = cost = units = 0.0
-            amount = q * t["price"] * fx.asof(d)
-            f = factor.asof(d) if not factor.empty else np.nan
-            if not (np.isfinite(f) and f > 0):  # trade before the price history: price-only for that lot
-                f = factor.iloc[-1] if not factor.empty else 1.0
-            qty += q
-            units_px += q / f
-            cost += amount
-            units += amount / bench_dkk.asof(d)
-    if qty <= 1e-9 or not np.isfinite(cost) or not np.isfinite(units) or cost <= 0:
-        return None
-    value = units_px * px.iloc[-1] * fx.iloc[-1]
-    return value / cost - 1, units * bench_dkk.iloc[-1] / cost - 1
-
-
-def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history: int,
-              raw_closes: pd.DataFrame | None = None) -> pd.DataFrame:
-    h = universe.holdings()
-    if h.empty:
-        return pd.DataFrame()
-    m = momentum.metrics(closes, volumes, list(h["symbol"]), min_history)
-    df = h.merge(m, left_on="symbol", right_on="ticker", how="left")
-    b = closes[bench].dropna()
-    rel3 = b.iloc[-1] / b.iloc[-64] - 1
-    df["rel_r3m"] = df["r3m"] - rel3
-    df["score"] = [_pct_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
-
-    ccy = universe.currencies([*df["symbol"], bench])
-    bench_dkk = (b * _fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
-    tx = universe.transactions()
-    since, bench_since, since_sell, flags = [], [], [], []
-    for _, r in df.iterrows():
-        s_ret = b_ret = x_ret = None
-        f = []
-        if r["status"] == "sold" and pd.notna(r.get("last_sell_price")) and pd.notna(r["last"]):
-            x_ret = r["last"] / r["last_sell_price"] - 1
-            if not -0.95 < x_ret < 20:
-                x_ret = None
-        since_sell.append(x_ret)
-        if r["status"] == "holding" and pd.notna(r["last"]):
-            fx = _fx_to_dkk(closes, ccy.get(r["symbol"]))
-            raw = raw_closes[r["symbol"]] if raw_closes is not None and r["symbol"] in raw_closes else None
-            res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw)                 if fx is not None else None
-            if res is None:
-                f.append("can't compute return")
-            elif not -0.95 < res[0] < 20:  # usually a GBp/GBP (pence vs pounds) mismatch in Yahoo
-                f.append("check purchase price units")
-            else:
-                s_ret, b_ret = res
-        since.append(s_ret)
-        bench_since.append(b_ret)
-        if pd.isna(r["last"]):
-            f.append("no data")
-        else:
-            if pd.notna(r["trend_ok"]) and bool(r["trend_ok"]):
-                f.append("trend intact")
-            if r["status"] == "holding" and not r["above50"] and r["r1m"] < 0:
-                f.append("losing momentum")
-            if r["status"] == "holding" and r["above200"] == False:  # noqa: E712 (NaN-safe)
-                f.append("below 200d")
-            if r["status"] in ("watch", "sold") and r["above50"] and r["r1m"] > 0 and r["rel_r3m"] > 0:
-                f.append("turning up")
-            if r["from_high"] > -0.03:
-                f.append("near 52w high")
-        flags.append(f)
-    df["since_buy"] = since
-    df["bench_since_buy"] = bench_since
-    df["since_sell"] = since_sell
-    df["flags"] = flags
-    # holdings & watchlist by momentum score, sold positions by most recent sale
-    sold_date = pd.to_datetime(df["last_sell_date"], errors="coerce")
-    df["_o"] = df["status"].map({"holding": 0, "watch": 1, "sold": 2})
-    df["_k"] = (-df["score"].astype(float)).where(df["status"] != "sold", -sold_date.astype("int64").astype(float))
-    return df.sort_values(["_o", "_k"]).drop(columns=["_o", "_k"])
-
-
-def _add_levels(me: pd.DataFrame, closes, highs, lows, insts, rot: pd.DataFrame, regime_label: str, cfg: dict) -> None:
-    """Stop / take-profit levels for held stocks and sector/theme ETFs (broad index funds are left out).
-
-    A stock is a ticker Yahoo gives a sector (funds have none, even when it labels them EQUITY) or one in
-    a stock group. Theme funds outside the ETF groups can be opted in with `stops.include`.
-    """
-    ah = external.load_analyst()
-    equity = set()
-    if not ah.empty and "sector" in ah:
-        latest = ah.sort_values("fetched").groupby("ticker").last()
-        equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
-    equity |= {t for g in universe.stock_groups().values() for t in g}
-    etfs = {t for i in insts if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
-    quadrant = {}
-    for t, u, q in zip(rot["ticker"], rot["ucits"], rot["quadrant"]):
-        quadrant[t] = q
-        if isinstance(u, str):
-            quadrant[u] = q
-    out = []
-    for _, r in me.iterrows():
-        lv = None
-        if r["status"] == "holding" and (r["symbol"] in equity or r["symbol"] in etfs):
-            row = r.to_dict() | {"quadrant": quadrant.get(r["symbol"]),
-                                 "score": None if pd.isna(r["score"]) else r["score"]}
-            lv = levels.for_ticker(r["symbol"], closes, highs, lows, row, r.get("first_trade"), regime_label, ah, cfg)
-        out.append(lv)
-    me["levels"] = out
-
-
-def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_ratio: float) -> list[dict]:
-    """Industries (then sectors) over-represented among a region's momentum leaders.
-
-    `expected` is the count the group's share of the whole region would predict; a cluster needs at least
-    `min_count` names and `min_ratio` x expected. A sector already fully covered by an industry cluster is skipped.
-    """
-    out, covered = [], set()
-    for level in ("industry", "sector"):
-        for name, g in top[top[level] != ""].groupby(level):
-            base = (universe_df[level] == name).mean() * len(top)
-            if len(g) < min_count or len(g) < min_ratio * base or set(g["ticker"]) <= covered:
-                continue
-            out.append({"level": level, "name": name, "count": len(g), "expected": round(base, 1),
-                        "new": int(g["new"].sum()), "tickers": list(g["ticker"])})
-            covered |= set(g["ticker"])
-    return sorted(out, key=lambda c: -c["count"] / max(c["expected"], 0.5))
-
-
-# ---------------- main ----------------
-
-def build() -> dict:
-    cfg = settings()
-    ucfg = universe_config()
-    bench = universe.benchmark()
-    prices = load_prices()
-    if prices.empty:
-        raise SystemExit("No price data yet – run `radar update` first.")
-    closes, volumes = wide(prices, "close"), wide(prices, "volume")
-    fred = load_fred()
-    today = date.today()
-    asof = closes[bench].dropna().index[-1].date()
-
-    # --- regime
-    groups = universe.stock_groups()
-    labels = universe.stock_group_labels()
-    ext = ucfg.get("external", {})
-    cli_raw = external.load_oecd_cli()
-    cli = external.cli_table(cli_raw, ext.get("oecd_cli", {})) if not cli_raw.empty else pd.DataFrame()
-    fs_hist = external.load_factset()
-    fs = fs_hist.iloc[-1].to_dict() if not fs_hist.empty else None
-    macro = universe.macro_yahoo()
-    inds, breadth = regime.indicators(closes, fred, bench, groups, labels, macro, cfg["regime"], cli, fs)
-    max_age = cfg["coverage"]["max_age"]
-    regime.apply_freshness(inds, asof, max_age)
-    overall = regime.overall(inds)
-    b = closes[bench].dropna()
-    regime_charts = [
-        chart_lines({"ACWI": b, "50-day avg": b.rolling(50).mean(), "200-day avg": b.rolling(200).mean()},
-                    "Global trend – MSCI ACWI"),
-        chart_lines(breadth, "Breadth – % of stocks above their 200-day average", fmt=".0f",
-                    hlines=(cfg["regime"]["breadth_weak"], cfg["regime"]["breadth_strong"])),
-    ]
-    if "BAMLH0A0HYM2" in fred:
-        regime_charts.append(chart_lines({"HY spread %": fred["BAMLH0A0HYM2"]}, "US high-yield credit spread (%)"))
-    hl = regime.net_highs_lows(closes, sorted({t for ts in groups.values() for t in ts}))
-    if not hl.empty:
-        band = cfg["regime"]["highs_lows_band"]
-        regime_charts.append(chart_lines({"Net new highs %": hl}, "New 52w highs minus new lows (% of stocks, 10d avg)",
-                                         fmt=".1f", hlines=(-band, 0, band)))
-    vix = macro["VIX"]
-    if vix in closes:
-        regime_charts.append(chart_lines({"VIX": closes[vix]}, "Volatility – VIX", fmt=".1f",
-                                         hlines=(cfg["regime"]["vix_calm"], cfg["regime"]["vix_stress"])))
-    if macro.get("VIX3M") in closes:
-        regime_charts.append(chart_lines({"VIX/VIX3M": closes[vix] / closes[macro["VIX3M"]]},
-                                         "VIX term structure (above 1 = inverted, stress)", hlines=(1,)))
-    if macro.get("Copper") in closes and macro.get("Gold") in closes:
-        regime_charts.append(chart_lines({"Copper/gold": closes[macro["Copper"]] / closes[macro["Gold"]] * 1000},
-                                         "Copper/gold ratio (×1000): growth vs defence"))
-    if not cli_raw.empty:
-        order = [a for a in ext.get("oecd_cli", {}) if a in cli_raw.columns]
-        regime_charts.append(chart_lines({ext["oecd_cli"][a]: cli_raw[a] for a in order[:4]},
-                                         "OECD leading indicators (100 = trend)", hlines=(100,), days=2000))
-
-    # --- rotation (sectors, regions, themes)
-    insts = universe.etfs()
-    rc = cfg["rotation"]
-    rot = rotation.relative_table(closes, bench, insts, rc["window"], rc["tail"])
-    prev_d, prev = snapshot.previous("rotation", cfg["snapshot_min_gap_days"])
-    prev_rank = dict(zip(prev["ticker"], prev["rank"])) if prev is not None else {}
-    rot["rank_change"] = [prev_rank[t] - r if t in prev_rank else None for t, r in zip(rot["ticker"], rot["rank"])]
-    pl = universe.positive_list()
-    isins, pl_year = (set(pl["isin"]), pl.attrs["year"]) if pl is not None else (None, None)
-    rot["positive_list"] = [universe.positive_list_flag(i, isins) for i in rot["isin"]]
-
-    names = {i.ticker: i.name for i in insts}
-    rrg_charts = {}
-    for key, g in ucfg["etf_groups"].items():
-        tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
-        ratio, mom = rotation.rrg(closes, bench, tickers, rc["window"], rc["tail"])
-        rrg_charts[key] = chart_rrg(ratio, mom, names, f"{g['label']} vs ACWI – last {rc['tail']} weeks")
-    rrg_local_charts = {}
-    rot["quadrant_local"] = None
-    for key, lb in universe.group_benchmarks().items():
-        tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
-        if lb["ticker"] not in closes.columns or not tickers:
-            continue
-        ratio, mom = rotation.rrg(closes, lb["ticker"], tickers, rc["window"], rc["tail"])
-        rrg_local_charts[key] = chart_rrg(ratio, mom, names, f"{ucfg['etf_groups'][key]['label']} vs {lb['name']} "
-                                                             f"– last {rc['tail']} weeks")
-        local_q = {t: rotation.quadrant(ratio[t].iloc[-1], mom[t].iloc[-1]) for t in tickers}
-        mask = rot["group"] == key
-        rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)
-    group_tables = {key: _records(rot[rot["group"] == key]) for key in ucfg["etf_groups"]}
-
-    # --- momentum
-    mc = cfg["momentum"]
-    lead = momentum.leaders(closes, volumes, groups, mc["min_history_days"])
-    display = universe.names(sorted(set(lead["ticker"]) | set(universe.holdings()["symbol"].dropna())))
-    lead["name"] = lead["ticker"].map(display)
-    sec = universe.sectors(list(lead["ticker"]))
-    lead["sector"] = lead["ticker"].map(sec["sector"])
-    lead["industry"] = lead["ticker"].map(sec["industry"])
-    mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"])
-    top_n = mc["top_n"]
-    momentum_tables, entrants, dropped, clusters = {}, {}, {}, {}
-    for region, df in lead.groupby("region"):
-        top = df[df["rank"] <= top_n].copy()
-        prev_top = set(mprev[(mprev["group"] == region) & (mprev["rank"] <= top_n)]["ticker"]) if mprev is not None else None
-        top["new"] = [prev_top is not None and t not in prev_top for t in top["ticker"]]
-        momentum_tables[region] = _records(top)
-        entrants[region] = [t for t, n in zip(top["ticker"], top["new"]) if n]
-        dropped[region] = sorted(prev_top - set(top["ticker"])) if prev_top is not None else []
-        clusters[region] = _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"])
-
-    # --- me
-    raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
-    me = _me_table(closes, volumes, lead, bench, mc["min_history_days"], raw_closes)
-    if not me.empty:
-        me["name"] = me["symbol"].map(display)
-        _add_levels(me, closes, wide(prices, "high"), wide(prices, "low"), insts, rot, overall["label"],
-                    cfg["stops"] | {"analyst_max_age_days": max_age["analyst"]})
-
-    # --- snapshots (after comparing with previous ones)
-    snapshot.save("rotation", rot.rename(columns={"rs_score": "score"}), today)
-    snapshot.save("momentum", lead, today)
-
-    # --- positioning & cycle (non-price data)
-    cot = external.load_cot()
-    poscfg = cfg["positioning"]
-    cot_tab = (external.cot_table(cot, poscfg["lookback_weeks"], poscfg["extreme_pct"])
-               if not cot.empty else pd.DataFrame())
-    fs_ctx = None
-    if fs is not None:
-        fs_ctx = {k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in fs.items()}
-        fs_ctx["report_date"] = fs["report_date"].date().isoformat()
-        fs_ctx["history"] = _records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
-
-    # --- data sources & coverage (what the readings above are, and aren't, based on)
-    h = universe.holdings()
-    cot_markets = [m for grp in ext.get("cot", {}).values() for m in grp]
-    cov = coverage.build(
-        asof, prices, universe.all_price_tickers(offline=True), fred, universe.macro_fred(), cot, cot_markets,
-        cli_raw, ext.get("oecd_cli", {}), fs_hist, external.load_analyst(),
-        sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else [],
-        sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)
-    stale = cov["stale_tickers"]
-
-    ctx = {
-        "generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": asof.isoformat(),
-        "overall": overall, "indicators": inds, "regime_charts": regime_charts,
-        "etf_groups": {k: g["label"] for k, g in ucfg["etf_groups"].items()},
-        "rrg_charts": rrg_charts, "group_tables": group_tables,
-        "rotation_prev": prev_d.isoformat() if prev_d else None,
-        "momentum_tables": momentum_tables, "region_labels": labels, "entrants": entrants, "dropped": dropped,
-        "momentum_prev": mprev_d.isoformat() if mprev_d else None, "top_n": top_n,
-        "me": _records(me) if not me.empty else [], "positive_list_loaded": isins is not None, "stale": stale,
-        "positive_list_year": pl_year,
-        "rrg_local_charts": rrg_local_charts, "clusters": clusters,
-        "cot": _records(cot_tab) if not cot_tab.empty else [], "cli": _records(cli) if not cli.empty else [],
-        "factset": fs_ctx, "coverage": cov,
-    }
-
-    env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=True)
-    env.filters["pct"] = lambda v, d=1: "–" if v is None else f"{v * 100:+.{d}f}%"
-    env.filters["num"] = lambda v, d=2: "–" if v is None else f"{v:,.{d}f}"
-    env.filters["sign"] = lambda v: "" if v is None else ("pos" if v > 0 else "neg" if v < 0 else "")
-    REPORTS.mkdir(exist_ok=True)
-    out = REPORTS / "radar.html"
-    out.write_text(env.get_template("radar.html.j2").render(**ctx), encoding="utf-8")
-
-    summary = {
-        "asof": ctx["asof"], "regime": overall, "indicators": inds,
-        "rotation": {
-            key: [{k: r[k] for k in ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change", "quadrant_local", "ucits", "ucits_name", "isin", "positive_list")}
-                  for r in rows] for key, rows in group_tables.items()},
-        "momentum_top10": {r: [{k: x[k] for k in ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new")} for x in rows[:10]]
-                           for r, rows in momentum_tables.items()},
-        "momentum_new_entrants": entrants, "momentum_dropped_out": dropped,
-        "me": [{k: x.get(k) for k in ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "from_high", "since_buy", "bench_since_buy", "last_sell_date", "since_sell", "flags")}
-               for x in ctx["me"]],
-        "momentum_clusters": clusters,
-        "positioning_cot": ctx["cot"], "leading_indicators": ctx["cli"], "earnings_factset": fs_ctx,
-        "stale_tickers": stale,
+def summary(d: dict, me: list[dict]) -> dict:
+    """The compact digest the skills read. Its keys are a contract: change them only together with the skills."""
+    cov = d["coverage"]
+    mom = d["momentum"]["regions"]
+    return {
+        "asof": d["asof"], "regime": d["regime"]["overall"], "indicators": d["regime"]["indicators"],
+        "rotation": {g["key"]: [{k: r[k] for k in SUMMARY_ROTATION} for r in g["rows"]] for g in d["rotation"]["groups"]},
+        "momentum_top10": {r["key"]: [{k: x[k] for k in SUMMARY_MOMENTUM} for x in r["rows"][:10]] for r in mom},
+        "momentum_new_entrants": {r["key"]: r["entrants"] for r in mom},
+        "momentum_dropped_out": {r["key"]: r["dropped"] for r in mom},
+        "me": [{k: x.get(k) for k in SUMMARY_ME} for x in me],
+        "momentum_clusters": {r["key"]: r["clusters"] for r in mom},
+        "positioning_cot": d["positioning"]["cot"], "leading_indicators": d["positioning"]["cli"],
+        "earnings_factset": d["positioning"]["factset"],
+        "stale_tickers": cov["stale_tickers"],
         "coverage": {
             "regime": cov["regime"], "oldest_input": cov["oldest"], "failing_sources": cov["failing"],
             "stale_sources": cov["stale_sources"], "missing_tickers": cov["missing_tickers"],
-            "sources": [{k: r[k] for k in ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")}
-                        for r in cov["sources"]],
+            "sources": [{k: r[k] for k in SUMMARY_SOURCES} for r in cov["sources"]],
             "blind_spots": cov["blind_spots"],
         },
     }
-    (REPORTS / "summary.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
-    return {"html": str(out), "asof": ctx["asof"], "regime": overall["label"], "stale": len(stale)}
+
+
+def _write(path, data: dict) -> None:
+    """Write via a temp file, so a running `radar serve` never reads half a file."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=1, default=str), encoding="utf-8")
+    tmp.replace(path)
+
+
+def build() -> dict:
+    c = dashboard.compute()
+    d = c.data
+    REPORTS.mkdir(exist_ok=True)
+    out = REPORTS / dashboard.FILE_NAME
+    _write(out, d)
+    _write(REPORTS / "summary.json", summary(d, c.me))
+    # snapshots after comparing with the previous ones
+    today = date.today()
+    snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), today)
+    snapshot.save("momentum", c.leaders, today)
+    return {"dashboard": str(out), "asof": d["asof"], "regime": d["regime"]["overall"]["label"],
+            "stale": len(d["coverage"]["stale_tickers"])}

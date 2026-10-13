@@ -7,6 +7,19 @@ export type SearchHit = S["SearchHit"];
 export type AppContext = S["AppContext"];
 export type Windows = S["Windows"];
 export type SectionMeta = Pick<S["Price"], "status" | "source" | "asof">;
+export type RegimeView = S["RegimeView"];
+export type RotationView = S["RotationView"];
+export type RotationGroup = S["RotationGroup"];
+export type RotationRow = S["RotationRow"];
+export type RrgTrail = S["RrgTrail"];
+export type MomentumView = S["MomentumView"];
+export type MomentumRow = S["MomentumRow"];
+export type PositioningView = S["PositioningView"];
+export type CoverageView = S["CoverageView"];
+export type LineChartData = S["LineChart"];
+export type MeView = S["MeView"];
+export type MyRow = S["MyRow"];
+export type WatchState = S["WatchState"];
 
 export class ApiError extends Error {
   constructor(
@@ -17,8 +30,8 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(url: string): Promise<T> {
-  const r = await fetch(url);
+async function get<T>(url: string, method = "GET"): Promise<T> {
+  const r = await fetch(url, { method });
   if (!r.ok) {
     let detail = r.statusText;
     try {
@@ -40,4 +53,12 @@ export const api = {
   series: (symbol: string, days = 756) => get<Series>(`/api/ticker/${enc(symbol)}/series?days=${days}`),
   search: (q: string) => get<SearchHit[]>(`/api/search?q=${enc(q)}`),
   context: () => get<AppContext>("/api/context"),
+  regime: () => get<RegimeView>("/api/regime"),
+  rotation: () => get<RotationView>("/api/rotation"),
+  momentum: () => get<MomentumView>("/api/momentum"),
+  positioning: () => get<PositioningView>("/api/positioning"),
+  coverage: () => get<CoverageView>("/api/coverage"),
+  me: () => get<MeView>("/api/me"),
+  watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
+  unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };

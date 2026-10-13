@@ -7,6 +7,7 @@ import {
   AnalystCard, EtfCard, FundamentalsCard, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, TechnicalsCard,
 } from "../components/sections";
 import { Badge, Card } from "../components/ui";
+import { WatchButton } from "../components/WatchButton";
 import { date, pct, price, tone } from "../lib/format";
 import { recent } from "../lib/recent";
 
@@ -35,10 +36,12 @@ function Header({ p, onRefresh, refreshing }: { p: Profile; onRefresh: () => voi
       <div className="quote">
         <div className="last num">{price(p.price.last, p.price.currency)}</div>
         <div className={`num ${tone(p.price.change_1d)}`}>{pct(p.price.change_1d, 2)} on {date(p.price.asof)}</div>
-        <button className="badge" style={{ cursor: "pointer", marginTop: 6 }} onClick={onRefresh} disabled={refreshing}
-          title="Re-fetch fundamentals and estimates from Yahoo now">
-          {refreshing ? "Refreshing…" : "Refresh Yahoo data"}
-        </button>
+        <div className="actions">
+          <WatchButton symbol={id.symbol} status={id.my_status} />
+          <button className="btn" onClick={onRefresh} disabled={refreshing} title="Re-fetch fundamentals and estimates from Yahoo now">
+            {refreshing ? "Refreshing…" : "Refresh Yahoo data"}
+          </button>
+        </div>
       </div>
     </div>
   );

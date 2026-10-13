@@ -285,12 +285,25 @@ def transactions() -> pd.DataFrame:
 
 
 def holdings() -> pd.DataFrame:
-    """Holdings + watchlist from the Yahoo import plus `watchlist:` in universe.yaml."""
+    """Holdings + watchlist from the Yahoo import plus `watchlist:` in universe.yaml, with the watchlist edits
+    made in the web app (userstore) on top: an add puts a symbol on the watchlist (a sold one too), a remove
+    takes a watchlist symbol off. Holdings are never changed by the overlay."""
+    from . import userstore
+
     df = pd.read_csv(HOLDINGS_FILE) if HOLDINGS_FILE.exists() else pd.DataFrame(columns=HOLDING_COLS)
     extra = [t for t in universe_config().get("watchlist") or [] if t not in set(df["symbol"])]
     if extra:
         df = pd.concat([df, pd.DataFrame({"symbol": extra, "status": "watch"})], ignore_index=True)
-    return df
+    overlay = userstore.watchlist_overlay()
+    if overlay:
+        add = {s for s, a in overlay.items() if a == "add"}
+        drop = {s for s, a in overlay.items() if a == "remove"}
+        df = df[~(df["symbol"].isin(drop) & (df["status"] == "watch"))].copy()
+        df.loc[df["symbol"].isin(add) & (df["status"] == "sold"), "status"] = "watch"
+        new = sorted(add - set(df["symbol"]))
+        if new:
+            df = pd.concat([df, pd.DataFrame({"symbol": new, "status": "watch"})], ignore_index=True)
+    return df.reset_index(drop=True)
 
 
 # ---------- Danish positive list ----------

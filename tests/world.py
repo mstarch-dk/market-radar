@@ -8,7 +8,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from radar import external, ingest, profile, report, universe
+from radar import dashboard, external, ingest, profile, report, snapshot, universe
 
 N = 300
 END = pd.Timestamp(date.today())
@@ -67,12 +67,13 @@ def install(tmp_data, monkeypatch) -> dict[str, pd.DataFrame]:
     frames that a faked download adds to (key = ticker)."""
     extra: dict[str, pd.DataFrame] = {}
     monkeypatch.setattr(report, "REPORTS", tmp_data / "reports")
-    monkeypatch.setattr(profile, "REPORTS", tmp_data / "reports")
+    monkeypatch.setattr(dashboard, "REPORTS", tmp_data / "reports")
+    monkeypatch.setattr(snapshot, "SNAPSHOTS", tmp_data / "snapshots")
     monkeypatch.setattr(profile, "PRICES_FILE", tmp_data / "prices.parquet")
-    for mod in (report, universe, profile):
+    for mod in (dashboard, universe, profile):
         monkeypatch.setattr(mod, "universe_config", lambda: UNIVERSE)
-    monkeypatch.setattr(report, "load_prices", prices)
-    monkeypatch.setattr(report, "load_fred", fred)
+    monkeypatch.setattr(dashboard, "load_prices", prices)
+    monkeypatch.setattr(dashboard, "load_fred", fred)
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.concat([prices(), *extra.values()], ignore_index=True))
     for fn in ("load_cot", "load_oecd_cli", "load_factset", "load_analyst"):
         monkeypatch.setattr(external, fn, pd.DataFrame)

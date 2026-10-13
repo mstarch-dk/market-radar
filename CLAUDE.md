@@ -6,11 +6,11 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - Run Python through uv (`uv run radar …`, `uv run pytest -q`); the frontend through pnpm (`pnpm -C web …`).
 - Truthfulness first: missing data shows as missing, never as 0. A source that parses to nothing fails loudly and keeps its cache.
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.
-- `data/`, `reports/`, `imports/*` and `notes/` are local and personal: never commit them (except `data/snapshots/`).
+- `data/`, `reports/`, `imports/*`, `notes/` and `userdata/` are local and personal: never commit them (except `data/snapshots/`).
 
 ## Main commands
-- `uv run radar run`: update all data, then build `reports/radar.html` and `summary.json`
-- `uv run radar info <TICKER>` / `uv run radar serve`: one ticker's profile as JSON / the local web app
+- `uv run radar run`: update all data, then build `reports/dashboard.json` (the web app's data) and `summary.json`
+- `uv run radar info <TICKER>` / `uv run radar serve`: one ticker's profile as JSON / the local web app (the dashboard UI)
 - `uv run pytest -q`: the tests
 
 ## Skills

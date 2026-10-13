@@ -13,3 +13,6 @@ imports/*
 
 # personal reading notes (may quote paid sources such as Bloomberg); local only, so the CI brief does not see them
 notes/
+
+# The user's own edits from the web app (watchlist; later notes, targets, alarms): local only, CI gets the watchlist via HOLDINGS_BUNDLE
+userdata/

@@ -1,15 +1,22 @@
-"""Local web API for the radar (`radar serve`): ticker profiles, chart series and search, plus the built
-web app from web/dist. Binds to 127.0.0.1 only; there is no authentication."""
+"""Local web API for the radar (`radar serve`): ticker profiles, chart series, search, the dashboard readings
+from the last `radar run`, the live holdings table and watchlist edits, plus the built web app from web/dist.
+Binds to 127.0.0.1 only; there is no authentication."""
 from __future__ import annotations
 
 import threading
+
+import pandas as pd
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import profile, universe
-from .api_models import AppContext, Profile, SearchHit, Series
+from . import dashboard, mine, profile, universe, userstore
+from .api_models import (
+    AppContext, CoverageView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
+    Series, WatchState,
+)
+from .config import settings
 from .config import ROOT
 
 WEB_DIST = ROOT / "web" / "dist"
@@ -80,6 +87,97 @@ def context() -> dict:
     names = universe.names(list(h["symbol"])) if not h.empty else {}
     return {"regime": profile._regime(),
             "tickers": [{"symbol": s, "name": names.get(s), "status": st} for s, st in zip(h["symbol"], h["status"])]}
+
+
+# ---------------- dashboard: the readings of the last `radar run` ----------------
+
+def _dashboard() -> dict:
+    d = dashboard.load()
+    if d is None:
+        raise HTTPException(503, "No dashboard yet: run `uv run radar run` (or `radar report`) first.")
+    return d
+
+
+def _view(key: str) -> dict:
+    d = _dashboard()
+    return {"asof": d["asof"], "generated": d["generated"], **d[key]}
+
+
+@app.get("/api/regime", response_model=RegimeView)
+def get_regime() -> dict:
+    return _view("regime")
+
+
+@app.get("/api/rotation", response_model=RotationView)
+def get_rotation() -> dict:
+    return _view("rotation")
+
+
+@app.get("/api/momentum", response_model=MomentumView)
+def get_momentum() -> dict:
+    return _view("momentum")
+
+
+@app.get("/api/positioning", response_model=PositioningView)
+def get_positioning() -> dict:
+    return _view("positioning")
+
+
+@app.get("/api/coverage", response_model=CoverageView)
+def get_coverage() -> dict:
+    return _view("coverage")
+
+
+# ---------------- the user's holdings and watchlist ----------------
+
+@app.get("/api/me", response_model=MeView)
+def get_me() -> dict:
+    """Holdings, watchlist and sold positions, computed now from the current prices (so watchlist edits show
+    at once). Quadrants and the regime used for the stop levels come from the last `radar run`."""
+    d = _dashboard()
+    rot_rows = [r for g in d["rotation"]["groups"] for r in g["rows"]]
+    regime_label = d["regime"]["overall"]["label"]
+    with _lock:
+        m = market()
+        rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
+                          settings())
+        asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
+    return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
+            "rows": rows}
+
+
+def _status(symbol: str) -> str | None:
+    h = universe.holdings()
+    st = h.loc[h["symbol"] == symbol, "status"]
+    return st.iloc[0] if len(st) else None
+
+
+@app.put("/api/watchlist/{symbol}", response_model=WatchState)
+def watch(symbol: str) -> dict:
+    """Put a symbol on the watchlist; it joins the daily price and analyst updates. Unknown symbols are 404."""
+    global _market
+    symbol = _symbol(symbol)
+    with _lock:
+        try:
+            _market = profile.ensure_prices(symbol, market())
+        except profile.TickerNotFound as e:
+            raise HTTPException(404, str(e)) from e
+    if _status(symbol) == "holding":
+        return {"symbol": symbol, "my_status": "holding"}
+    userstore.watch(symbol)
+    return {"symbol": symbol, "my_status": _status(symbol)}
+
+
+@app.delete("/api/watchlist/{symbol}", response_model=WatchState)
+def unwatch(symbol: str) -> dict:
+    """Take a symbol off the watchlist. A holding can't be removed (409): that comes from the Yahoo import."""
+    symbol = _symbol(symbol)
+    st = _status(symbol)
+    if st == "holding":
+        raise HTTPException(409, f"{symbol} is a holding, not a watchlist entry; holdings come from the Yahoo import.")
+    if st == "watch":
+        userstore.unwatch(symbol)
+    return {"symbol": symbol, "my_status": _status(symbol)}
 
 
 if WEB_DIST.exists():

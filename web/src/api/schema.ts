@@ -78,6 +78,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/regime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Regime */
+        get: operations["get_regime_api_regime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Rotation */
+        get: operations["get_rotation_api_rotation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/momentum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Momentum */
+        get: operations["get_momentum_api_momentum_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/positioning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Positioning */
+        get: operations["get_positioning_api_positioning_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Coverage */
+        get: operations["get_coverage_api_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Me
+         * @description Holdings, watchlist and sold positions, computed now from the current prices (so watchlist edits show
+         *     at once). Quadrants and the regime used for the stop levels come from the last `radar run`.
+         */
+        get: operations["get_me_api_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/watchlist/{symbol}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Watch
+         * @description Put a symbol on the watchlist; it joins the daily price and analyst updates. Unknown symbols are 404.
+         */
+        put: operations["watch_api_watchlist__symbol__put"];
+        post?: never;
+        /**
+         * Unwatch
+         * @description Take a symbol off the watchlist. A holding can't be removed (409): that comes from the Yahoo import.
+         */
+        delete: operations["unwatch_api_watchlist__symbol__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -164,6 +294,45 @@ export interface components {
             /** Dividend Date */
             dividend_date?: string | null;
         };
+        /** ChartSeries */
+        ChartSeries: {
+            /** Name */
+            name: string;
+            /** Dates */
+            dates: string[];
+            /** Values */
+            values: number[];
+        };
+        /** CliRow */
+        CliRow: {
+            /** Area */
+            area: string;
+            /** Label */
+            label: string;
+            /** Asof */
+            asof: string;
+            /** Cli */
+            cli: number;
+            /** Chg 3M */
+            chg_3m: number;
+            /** Phase */
+            phase: string;
+        };
+        /** Cluster */
+        Cluster: {
+            /** Level */
+            level: string;
+            /** Name */
+            name: string;
+            /** Count */
+            count: number;
+            /** Expected */
+            expected: number;
+            /** New */
+            new: number;
+            /** Tickers */
+            tickers: string[];
+        };
         /** Context */
         Context: {
             regime: components["schemas"]["Regime"];
@@ -173,6 +342,44 @@ export interface components {
             errors: {
                 [key: string]: string;
             };
+        };
+        /** CotRow */
+        CotRow: {
+            /** Market */
+            market: string;
+            /** Group */
+            group: string;
+            /** Asof */
+            asof: string;
+            /** Net Pct Oi */
+            net_pct_oi: number;
+            /** Chg 4W */
+            chg_4w?: number | null;
+            /** Percentile */
+            percentile: number;
+            /** Flag */
+            flag?: string | null;
+        };
+        /** CoverageView */
+        CoverageView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Sources */
+            sources: components["schemas"]["Source"][];
+            regime: components["schemas"]["RegimeCounts"];
+            oldest?: components["schemas"]["OldestInput"] | null;
+            /** Failing */
+            failing: string[];
+            /** Stale Sources */
+            stale_sources: string[];
+            /** Missing Tickers */
+            missing_tickers: string[];
+            /** Stale Tickers */
+            stale_tickers: string[];
+            /** Blind Spots */
+            blind_spots: string[];
         };
         /** Eps */
         Eps: {
@@ -233,6 +440,46 @@ export interface components {
             notes: string[];
             /** Overlap */
             overlap: string[];
+        };
+        /** FactSet */
+        FactSet: {
+            /** Quarter */
+            quarter?: string | null;
+            /** Growth Now */
+            growth_now?: number | null;
+            /** Growth Start */
+            growth_start?: number | null;
+            /** Guidance Neg */
+            guidance_neg?: number | null;
+            /** Guidance Pos */
+            guidance_pos?: number | null;
+            /** Fwd Pe */
+            fwd_pe?: number | null;
+            /** Fwd Pe 5Y */
+            fwd_pe_5y?: number | null;
+            /** Fwd Pe 10Y */
+            fwd_pe_10y?: number | null;
+            /** Cy Next Growth */
+            cy_next_growth?: number | null;
+            /** Rev Up Sectors */
+            rev_up_sectors?: string | null;
+            /** Rev Down Sectors */
+            rev_down_sectors?: string | null;
+            /** Report Date */
+            report_date: string;
+            /** History */
+            history: components["schemas"]["FactSetPoint"][];
+        };
+        /** FactSetPoint */
+        FactSetPoint: {
+            /** Report Date */
+            report_date: string;
+            /** Quarter */
+            quarter?: string | null;
+            /** Growth Now */
+            growth_now?: number | null;
+            /** Fwd Pe */
+            fwd_pe?: number | null;
         };
         /** Fundamentals */
         Fundamentals: {
@@ -361,8 +608,23 @@ export interface components {
             /** Positive List */
             positive_list?: string | null;
             /** My Status */
-            my_status?: string | null;
+            my_status?: ("holding" | "watch" | "sold") | null;
             my_position?: components["schemas"]["Position"] | null;
+        };
+        /** Indicator */
+        Indicator: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+            /** Status */
+            status: string;
+            /** Note */
+            note: string;
+            /** Source */
+            source: string;
+            /** Asof */
+            asof?: string | null;
         };
         /** Levels */
         Levels: {
@@ -411,14 +673,39 @@ export interface components {
             /** Regime */
             regime?: string | null;
         };
+        /** LineChart */
+        LineChart: {
+            /** Title */
+            title: string;
+            /** Decimals */
+            decimals: number;
+            /** Hlines */
+            hlines: number[];
+            /** Series */
+            series: components["schemas"]["ChartSeries"][];
+        };
         /** ListedTicker */
         ListedTicker: {
             /** Symbol */
             symbol: string;
             /** Name */
             name?: string | null;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "holding" | "watch" | "sold";
+        };
+        /** MeView */
+        MeView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Regime */
+            regime?: string | null;
+            /** Rows */
+            rows: components["schemas"]["MyRow"][];
         };
         /** Momentum */
         Momentum: {
@@ -468,6 +755,201 @@ export interface components {
             /** Region Label */
             region_label?: string | null;
         };
+        /** MomentumRegion */
+        MomentumRegion: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Rows */
+            rows: components["schemas"]["MomentumRow"][];
+            /** Entrants */
+            entrants: string[];
+            /** Dropped */
+            dropped: string[];
+            /** Clusters */
+            clusters: components["schemas"]["Cluster"][];
+        };
+        /** MomentumRow */
+        MomentumRow: {
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name?: string | null;
+            /** Sector */
+            sector?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Rank */
+            rank?: number | null;
+            /** Score */
+            score?: number | null;
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** R6M */
+            r6m?: number | null;
+            /** R12 1 */
+            r12_1?: number | null;
+            /** From High */
+            from_high?: number | null;
+            /** Vol Surge */
+            vol_surge?: number | null;
+            /** Trend Ok */
+            trend_ok?: boolean | null;
+            /** New */
+            new: boolean;
+        };
+        /** MomentumView */
+        MomentumView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Prev */
+            prev?: string | null;
+            /** Top N */
+            top_n: number;
+            /** Regions */
+            regions: components["schemas"]["MomentumRegion"][];
+        };
+        /** MyAnalyst */
+        MyAnalyst: {
+            /** Fetched */
+            fetched?: string | null;
+            /** Rec Key */
+            rec_key?: string | null;
+            /** N Analysts */
+            n_analysts?: number | null;
+            /** Target Low */
+            target_low?: number | null;
+            /** Target High */
+            target_high?: number | null;
+            /** Target Mean */
+            target_mean?: number | null;
+            /** Upside */
+            upside?: number | null;
+            /** Stale */
+            stale?: boolean | null;
+        };
+        /** MyLevels */
+        MyLevels: {
+            /** Stop */
+            stop?: number | null;
+            /** Stop Pct */
+            stop_pct?: number | null;
+            /** Take Profit */
+            take_profit?: number | null;
+            /** Tp Pct */
+            tp_pct?: number | null;
+            /** Tp Source */
+            tp_source?: string | null;
+            /** K */
+            k?: number | null;
+            /** Anchor */
+            anchor?: number | null;
+            /** Atr */
+            atr?: number | null;
+            /** Anchor Basis */
+            anchor_basis?: string | null;
+            /** Reasons */
+            reasons: components["schemas"]["Reason"][];
+            /** Flags */
+            flags: string[];
+            /** Breaches */
+            breaches: components["schemas"]["Breach"][];
+            analyst?: components["schemas"]["MyAnalyst"] | null;
+        };
+        /** MyRow */
+        MyRow: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "holding" | "watch" | "sold";
+            /** Quantity */
+            quantity?: number | null;
+            /** Avg Price */
+            avg_price?: number | null;
+            /** First Trade */
+            first_trade?: string | null;
+            /** Last Sell Date */
+            last_sell_date?: string | null;
+            /** Last Sell Price */
+            last_sell_price?: number | null;
+            /** Last */
+            last?: number | null;
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** R6M */
+            r6m?: number | null;
+            /** R12 1 */
+            r12_1?: number | null;
+            /** From High */
+            from_high?: number | null;
+            /** Sma50 */
+            sma50?: number | null;
+            /** Sma200 */
+            sma200?: number | null;
+            /** Vol Surge */
+            vol_surge?: number | null;
+            /** History */
+            history?: number | null;
+            /** Above50 */
+            above50?: boolean | null;
+            /** Above200 */
+            above200?: boolean | null;
+            /** Trend Ok */
+            trend_ok?: boolean | null;
+            /** Rel R3M */
+            rel_r3m?: number | null;
+            /** Score */
+            score?: number | null;
+            /** Since Buy */
+            since_buy?: number | null;
+            /** Bench Since Buy */
+            bench_since_buy?: number | null;
+            /** Since Sell */
+            since_sell?: number | null;
+            /** Flags */
+            flags: string[];
+            levels?: components["schemas"]["MyLevels"] | null;
+        };
+        /** OldestInput */
+        OldestInput: {
+            /** Name */
+            name: string;
+            /** Asof */
+            asof?: string | null;
+            /** Age Days */
+            age_days?: number | null;
+        };
+        /** Overall */
+        Overall: {
+            /** Label */
+            label: string;
+            /** On */
+            on: number;
+            /** Off */
+            off: number;
+            /** Neutral */
+            neutral: number;
+            /** Na */
+            na: number;
+            /** Stale */
+            stale: number;
+            /** Total */
+            total: number;
+            /** Net */
+            net: number;
+        };
         /** Peer */
         Peer: {
             /** Ticker */
@@ -512,6 +994,18 @@ export interface components {
             avg_price?: number | null;
             /** First Trade */
             first_trade?: string | null;
+        };
+        /** PositioningView */
+        PositioningView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            factset?: components["schemas"]["FactSet"] | null;
+            /** Cli */
+            cli: components["schemas"]["CliRow"][];
+            /** Cot */
+            cot: components["schemas"]["CotRow"][];
         };
         /** Price */
         Price: {
@@ -603,6 +1097,37 @@ export interface components {
             /** Net */
             net?: number | null;
         };
+        /** RegimeCounts */
+        RegimeCounts: {
+            /** Total */
+            total: number;
+            /** Current */
+            current: number;
+            /** Na */
+            na: string[];
+            /** Stale */
+            stale: string[];
+        };
+        /** RegimeCoverage */
+        RegimeCoverage: {
+            regime: components["schemas"]["RegimeCounts"];
+            oldest?: components["schemas"]["OldestInput"] | null;
+            /** Failing */
+            failing: string[];
+        };
+        /** RegimeView */
+        RegimeView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            overall: components["schemas"]["Overall"];
+            /** Indicators */
+            indicators: components["schemas"]["Indicator"][];
+            /** Charts */
+            charts: components["schemas"]["LineChart"][];
+            coverage: components["schemas"]["RegimeCoverage"];
+        };
         /** Rotation */
         Rotation: {
             /** Ticker */
@@ -617,6 +1142,99 @@ export interface components {
             rs_mom?: number | null;
             /** Rel R3M */
             rel_r3m?: number | null;
+        };
+        /** RotationGroup */
+        RotationGroup: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Local Benchmark */
+            local_benchmark?: string | null;
+            /** Rrg */
+            rrg: components["schemas"]["RrgTrail"][];
+            /** Rrg Local */
+            rrg_local?: components["schemas"]["RrgTrail"][] | null;
+            /** Rows */
+            rows: components["schemas"]["RotationRow"][];
+        };
+        /** RotationRow */
+        RotationRow: {
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name: string;
+            /** Rank */
+            rank?: number | null;
+            /** Rank Change */
+            rank_change?: number | null;
+            /** Quadrant */
+            quadrant: string;
+            /** Quadrant Local */
+            quadrant_local?: string | null;
+            /** Rel R1M */
+            rel_r1m?: number | null;
+            /** Rel R3M */
+            rel_r3m?: number | null;
+            /** Rel R6M */
+            rel_r6m?: number | null;
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** R6M */
+            r6m?: number | null;
+            /** Above200 */
+            above200?: boolean | null;
+            /** Rs Ratio */
+            rs_ratio?: number | null;
+            /** Rs Mom */
+            rs_mom?: number | null;
+            /** Rs Score */
+            rs_score?: number | null;
+            /** Ucits */
+            ucits?: string | null;
+            /** Ucits Name */
+            ucits_name?: string | null;
+            /** Isin */
+            isin?: string | null;
+            /** Positive List */
+            positive_list: string;
+        };
+        /** RotationView */
+        RotationView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Prev */
+            prev?: string | null;
+            /** Tail Weeks */
+            tail_weeks: number;
+            /** Positive List Year */
+            positive_list_year?: string | null;
+            /** Groups */
+            groups: components["schemas"]["RotationGroup"][];
+        };
+        /** RrgPoint */
+        RrgPoint: {
+            /** Date */
+            date: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /** RrgTrail */
+        RrgTrail: {
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name: string;
+            /** Quadrant */
+            quadrant: string;
+            /** Tail */
+            tail: components["schemas"]["RrgPoint"][];
         };
         /** SearchHit */
         SearchHit: {
@@ -670,6 +1288,39 @@ export interface components {
             bb_lower: (number | null)[];
             /** Rel Acwi */
             rel_acwi: (number | null)[];
+        };
+        /** Source */
+        Source: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Provider */
+            provider: string;
+            /** Official */
+            official: boolean;
+            /** Cadence */
+            cadence: string;
+            /** Feeds */
+            feeds: string;
+            /** Coverage */
+            coverage: string;
+            /** Detail */
+            detail: string;
+            /** Asof */
+            asof?: string | null;
+            /** Age Days */
+            age_days?: number | null;
+            /** Max Age */
+            max_age?: number | null;
+            /** Status */
+            status: string;
+            /** Last Attempt */
+            last_attempt?: string | null;
+            /** Last Success */
+            last_success?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** Technicals */
         Technicals: {
@@ -725,6 +1376,13 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WatchState */
+        WatchState: {
+            /** Symbol */
+            symbol: string;
+            /** My Status */
+            my_status?: ("holding" | "watch" | "sold") | null;
         };
         /** Windows */
         Windows: {
@@ -863,6 +1521,188 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppContext"];
+                };
+            };
+        };
+    };
+    get_regime_api_regime_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegimeView"];
+                };
+            };
+        };
+    };
+    get_rotation_api_rotation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationView"];
+                };
+            };
+        };
+    };
+    get_momentum_api_momentum_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MomentumView"];
+                };
+            };
+        };
+    };
+    get_positioning_api_positioning_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositioningView"];
+                };
+            };
+        };
+    };
+    get_coverage_api_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+        };
+    };
+    get_me_api_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    watch_api_watchlist__symbol__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unwatch_api_watchlist__symbol__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

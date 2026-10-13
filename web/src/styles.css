@@ -60,6 +60,11 @@ button { font: inherit; }
 .brand { font-weight: 650; color: var(--ink); letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
 .brand:hover { text-decoration: none; }
 .topbar .search { flex: 1; max-width: 420px; margin-left: auto; }
+.topbar { margin-bottom: 0; border-bottom: none; }
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--line); margin-bottom: 20px; scrollbar-width: thin; }
+nav.tabs a { padding: 8px 12px; color: var(--ink-2); border-bottom: 2px solid transparent; white-space: nowrap; font-size: 13px; }
+nav.tabs a:hover { color: var(--ink); text-decoration: none; }
+nav.tabs a.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 
 .num { font-variant-numeric: tabular-nums; }
 .pos { color: var(--pos); }
@@ -80,6 +85,15 @@ button { font: inherit; }
 .badge.neg { background: var(--neg-bg); color: var(--neg); border-color: transparent; }
 .badge.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
 .badge.accent { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+.badge.na { background: transparent; color: var(--muted); border-style: dashed; }
+
+.btn { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.btn.primary { background: var(--accent-bg); color: var(--accent); border-color: transparent; font-weight: 600; }
+.btn.small { padding: 2px 8px; font-size: 11.5px; }
+.btn:disabled { opacity: 0.6; cursor: default; }
+.quote .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
 
 .notes { background: var(--warn-bg); color: var(--warn); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
 .notes ul { margin: 0; padding-left: 18px; }
@@ -165,7 +179,63 @@ table.t tr:last-child td { border-bottom: none; }
 @keyframes pulse { 50% { opacity: 0.55; } }
 .error { background: var(--neg-bg); color: var(--neg); border-radius: var(--radius); padding: 12px 16px; }
 
+/* dashboard pages */
+.page-head { margin-bottom: 14px; }
+.page-head h1 { font-size: 22px; margin: 0; letter-spacing: -0.015em; }
+.page-head .sub { color: var(--ink-2); margin-top: 2px; font-size: 13px; }
+.note { color: var(--ink-2); font-size: 13px; max-width: 920px; margin: 8px 0; }
+h2 { font-size: 16px; margin: 26px 0 10px; letter-spacing: -0.01em; }
+.group { scroll-margin-top: 12px; }
+.hero { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+.hero .big { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+.hero .big .badge { font-size: 20px; padding: 4px 14px; }
+.hero .sub { color: var(--ink-2); font-size: 13px; }
+.coverage-strip { font-size: 13px; color: var(--ink-2); }
+.coverage-strip .warn { color: var(--warn); }
+nav.jump { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; margin: 4px 0 0; }
+.grid.charts { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+.grid.wide-charts { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); margin-bottom: 16px; }
+figure.card { margin: 0; }
+figure figcaption { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.line-chart .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
+.line-chart .legend i { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 4px; }
+.rrg svg { width: 100%; height: auto; display: block; }
+.rrg .axis { stroke: var(--muted); stroke-width: 1; }
+.rrg .axis-title { fill: var(--muted); font-size: 11px; }
+.rrg .quad-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; }
+.rrg .trail { cursor: pointer; outline: none; }
+.rrg .trail-label { fill: var(--ink-2); font-size: 11px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.rrg .trail:hover .trail-label, .rrg .trail:focus .trail-label { fill: var(--accent); font-weight: 600; }
+.rrg .trail:hover polyline, .rrg .trail:focus polyline { opacity: 0.9; }
+table.dt th, table.dt td { padding: 5px 8px; }
+table.dt th.l, table.dt td.l { text-align: left; }
+table.dt th.sortable { cursor: pointer; user-select: none; }
+table.dt th.sortable:hover { color: var(--ink); }
+table.dt th .arrow { font-size: 9px; margin-left: 3px; }
+table.dt tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+table.dt td .wrap, table.dt td.wrap { white-space: normal; min-width: 200px; max-width: 460px; }
+.tlink { font-weight: 550; }
+.tlink .sym { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 2px; }
+.new { color: var(--accent); font-weight: 650; font-size: 10.5px; margin-left: 6px; letter-spacing: 0.03em; }
+ul.clusters { margin: 4px 0 0; padding-left: 18px; }
+ul.clusters li { margin: 2px 0; }
+ul.blind { margin: 0; padding-left: 20px; max-width: 920px; color: var(--ink-2); font-size: 13px; }
+ul.blind li { margin: 4px 0; }
+.flags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; white-space: normal; min-width: 260px; }
+details.why { flex-basis: 100%; font-size: 12px; color: var(--ink-2); }
+details.why summary { cursor: pointer; color: var(--muted); }
+details.why .reasons { min-width: 360px; max-width: 560px; }
+details.why .reasons li { grid-template-columns: 18px 1fr; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 20px; }
+.tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink); }
+.tile:hover { border-color: var(--accent); text-decoration: none; }
+.tile span { color: var(--muted); font-size: 12px; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
+
 @media (max-width: 640px) {
+  .grid.charts, .grid.wide-charts { grid-template-columns: 1fr; }
+  .quote .actions { justify-content: flex-start; }
   .grid { grid-template-columns: 1fr; }
   .quote { text-align: left; }
   .chart { height: 420px; }

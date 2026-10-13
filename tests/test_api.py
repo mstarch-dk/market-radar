@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, ingest
+from radar import api, api_models, dashboard, ingest, report
 
 
 @pytest.fixture
@@ -11,7 +11,15 @@ def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})   # Yahoo knows nothing new
     monkeypatch.setattr(api, "_market", None)
+    monkeypatch.setattr(dashboard, "_cache", None)
     return TestClient(api.app)
+
+
+@pytest.fixture
+def built(client):
+    """The client after a `radar report` on the synthetic world."""
+    report.build()
+    return client
 
 
 def test_profile_and_series(client):
@@ -49,4 +57,50 @@ def test_search_puts_tracked_names_first(client, monkeypatch):
 
 def test_openapi_schema_has_the_models(client):
     schemas = client.get("/openapi.json").json()["components"]["schemas"]
-    assert {"Profile", "Series", "SearchHit", "AppContext", "Analyst", "Windows"} <= set(schemas)
+    assert {"Profile", "Series", "SearchHit", "AppContext", "Analyst", "Windows", "RegimeView", "RotationView",
+            "MomentumView", "PositioningView", "CoverageView", "MeView", "WatchState"} <= set(schemas)
+
+
+DASHBOARD = ["regime", "rotation", "momentum", "positioning", "coverage"]
+
+
+@pytest.mark.parametrize("view", DASHBOARD)
+def test_dashboard_views_need_a_report_first(client, view):
+    r = client.get(f"/api/{view}")
+    assert r.status_code == 503 and "radar run" in r.json()["detail"]
+
+
+def test_dashboard_views(built):
+    for view in DASHBOARD:
+        r = built.get(f"/api/{view}")
+        assert r.status_code == 200, (view, r.text)
+        assert r.json()["asof"]
+    assert built.get("/api/regime").json()["overall"]["label"] == "Risk-on"
+    us = next(g for g in built.get("/api/momentum").json()["regions"] if g["key"] == "us")
+    assert us["rows"][0]["ticker"] == "S1"
+    assert built.get("/api/ticker/S1").json()["context"]["regime"]["label"] == "Risk-on"
+
+
+def test_me_is_live(built):
+    rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
+    assert rows["S1"]["status"] == "holding" and rows["S1"]["since_buy"] is not None
+    assert rows["E2"]["status"] == "watch" and "S3" not in rows
+    assert built.put("/api/watchlist/s3").json() == {"symbol": "S3", "my_status": "watch"}
+    rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
+    assert rows["S3"]["status"] == "watch" and rows["S3"]["score"] is not None
+
+
+def test_watchlist_add_and_remove(client):
+    assert client.put("/api/watchlist/S3").json()["my_status"] == "watch"
+    assert client.get("/api/ticker/S3").json()["identity"]["my_status"] == "watch"
+    assert ("S3", "watch") in {(t["symbol"], t["status"]) for t in client.get("/api/context").json()["tickers"]}
+    assert client.delete("/api/watchlist/S3").json() == {"symbol": "S3", "my_status": None}
+    assert client.delete("/api/watchlist/E2").json()["my_status"] is None        # a Yahoo-imported watch entry
+    assert {t["symbol"] for t in client.get("/api/context").json()["tickers"]} == {"S1"}
+
+
+def test_watchlist_rejects_holdings_and_unknown_symbols(client):
+    r = client.delete("/api/watchlist/S1")
+    assert r.status_code == 409 and "holding" in r.json()["detail"]
+    assert client.put("/api/watchlist/S1").json()["my_status"] == "holding"     # adding a holding changes nothing
+    assert client.put("/api/watchlist/NOPE").status_code == 404

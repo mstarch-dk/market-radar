@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from radar.report import _clusters
+from radar.dashboard import _clusters
 from radar.signals import regime
 
 CFG = {"vix_calm": 18, "vix_stress": 25, "breadth_strong": 60, "breadth_weak": 40, "highs_lows_band": 3,
