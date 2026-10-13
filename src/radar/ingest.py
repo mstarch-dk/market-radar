@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 import yfinance as yf
 
-from .config import DATA, FRED_FILE, PRICES_FILE, settings
+from .config import DATA, FRED_FILE, PRICES_FILE, settings, write_parquet
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
 COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]
@@ -94,7 +94,7 @@ def update_prices(tickers: list[str]) -> dict:
     df = pd.concat([existing, inc, full], ignore_index=True)
     df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
     DATA.mkdir(exist_ok=True)
-    df.to_parquet(PRICES_FILE, index=False)
+    write_parquet(df, PRICES_FILE, index=False)
 
     got = set(inc["ticker"]) | set(full["ticker"])
     return {"requested": len(tickers), "new": len(new), "rebased": rebased,
@@ -123,7 +123,7 @@ def update_fred(series: list[str]) -> list[str]:
                 cols[sid] = cached[sid]
     if cols:
         DATA.mkdir(exist_ok=True)
-        pd.DataFrame(cols).to_parquet(FRED_FILE)
+        write_parquet(pd.DataFrame(cols), FRED_FILE)
     return failed
 
 

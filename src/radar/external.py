@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from .config import DATA, universe_config
+from .config import DATA, universe_config, write_parquet
 
 UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
 COT_FILE = DATA / "cot.parquet"
@@ -84,7 +84,7 @@ def update_cot() -> int:
         else pd.DataFrame(columns=["date", "market", "group", "net", "net_pct_oi"])
     df = df.drop_duplicates(["date", "market", "group"], keep="last").sort_values(["market", "group", "date"])
     DATA.mkdir(exist_ok=True)
-    df.to_parquet(COT_FILE, index=False)
+    write_parquet(df, COT_FILE, index=False)
     return len(df) - len(existing)
 
 
@@ -138,7 +138,7 @@ def update_oecd_cli() -> str:
     resp.raise_for_status()
     df = parse_oecd_cli(resp.text)
     DATA.mkdir(exist_ok=True)
-    df.to_parquet(CLI_FILE)
+    write_parquet(df, CLI_FILE)
     missing = [a for a in areas if a not in df.columns]
     return f"latest {df.index[-1]:%b %Y}" + (f"; no data for {', '.join(missing)}" if missing else "")
 
@@ -231,7 +231,7 @@ def update_factset() -> str | None:
             raise ValueError(f"report {d} parsed without {', '.join(missing)}: has the FactSet wording changed?")
         df = pd.concat([existing, pd.DataFrame([row])], ignore_index=True).sort_values("report_date")
         DATA.mkdir(exist_ok=True)
-        df.to_parquet(FACTSET_FILE, index=False)
+        write_parquet(df, FACTSET_FILE, index=False)
         keep = [p for p in pages if any(h in p[:200] for h in FACTSET_TEXT_PAGES)]
         FACTSET_TEXT.write_text(f"FactSet Earnings Insight {d.isoformat()}\n{FACTSET_URL.format(d=d)}\n\n"
                                 + "\n\n".join(keep), encoding="utf-8")
@@ -296,9 +296,251 @@ def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
         new[col] = pd.to_numeric(new[col], errors="coerce")
     df = pd.concat([existing, new], ignore_index=True).drop_duplicates(["ticker", "fetched"], keep="last")
     DATA.mkdir(exist_ok=True)
-    df.sort_values(["ticker", "fetched"]).to_parquet(ANALYST_FILE, index=False)
+    write_parquet(df.sort_values(["ticker", "fetched"]), ANALYST_FILE, index=False)
     return f"{len(rows)} of {len(due)} tickers refreshed"
 
 
 def load_analyst() -> pd.DataFrame:
     return pd.read_parquet(ANALYST_FILE) if ANALYST_FILE.exists() else pd.DataFrame()
+
+
+# ---------------- Ticker detail (Yahoo): fundamentals, estimates, fund look-through ----------------
+# `fetch_detail` turns yfinance's objects into plain JSON (the cache file and the test fixtures share that
+# shape); the `parse_*` functions read only that JSON. Yahoo mixes units between fields (dividendYield and
+# netExpenseRatio in percent, margins and growth as fractions), so every ratio is normalised to a fraction
+# and range-checked: a value that can't be right is dropped with a note, never shown.
+
+PROFILE_DIR = DATA / "profiles"
+DETAIL_INFO_KEYS = (
+    "quoteType", "longName", "shortName", "currency", "financialCurrency", "exchange", "fullExchangeName",
+    "sector", "industry", "country", "website", "longBusinessSummary", "fullTimeEmployees", "marketCap",
+    "enterpriseValue", "trailingPE", "forwardPE", "trailingPegRatio", "pegRatio", "priceToBook",
+    "enterpriseToEbitda", "enterpriseToRevenue", "grossMargins", "operatingMargins", "profitMargins",
+    "revenueGrowth", "earningsGrowth", "returnOnEquity", "debtToEquity", "dividendYield",
+    "trailingAnnualDividendYield", "payoutRatio", "beta", "shortPercentOfFloat", "currentPrice",
+    "regularMarketPrice", "targetMeanPrice", "targetHighPrice", "targetLowPrice", "targetMedianPrice",
+    "numberOfAnalystOpinions", "recommendationKey", "recommendationMean", "fiftyTwoWeekHigh", "fiftyTwoWeekLow",
+    "totalAssets", "netExpenseRatio", "fundFamily", "legalType", "category",
+)
+
+
+def _jsonable(v):
+    if isinstance(v, (pd.Timestamp, date)):
+        return v.isoformat()[:10]
+    if isinstance(v, np.generic):
+        v = v.item()
+    if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
+        return None
+    if v is pd.NA or v is pd.NaT:
+        return None
+    if isinstance(v, (list, tuple)):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, dict):
+        return {str(k): _jsonable(x) for k, x in v.items()}
+    return v
+
+
+def _frame(df) -> dict:
+    """{row: {column: value}} for a yfinance table; empty for None/empty."""
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return {}
+    return _jsonable({str(i): row for i, row in df.to_dict(orient="index").items()})
+
+
+def fetch_detail(ticker: str) -> dict:
+    """Everything Yahoo has on one ticker beyond prices, as plain JSON. A failing block is recorded in
+    `errors` and left empty; the others still arrive."""
+    import logging
+    from datetime import datetime
+
+    import yfinance as yf
+
+    logging.getLogger("yfinance").setLevel(logging.CRITICAL)  # 404s for funds are expected, not news
+    t = yf.Ticker(ticker)
+    raw: dict = {"symbol": ticker, "fetched": datetime.now().isoformat(timespec="seconds"), "errors": {}}
+
+    def block(name, fn, default):
+        try:
+            raw[name] = fn()
+        except Exception as e:
+            raw[name] = default
+            raw["errors"][name] = f"{type(e).__name__}: {e}"[:300]
+
+    def recommendations():
+        df = t.recommendations
+        return _jsonable(df.to_dict(orient="records")) if isinstance(df, pd.DataFrame) else []
+
+    def fund():
+        fd = t.funds_data
+        top, ops = fd.top_holdings, fd.fund_operations
+        return _jsonable({
+            "top_holdings": [{"symbol": s, "name": r.get("Name"), "weight": r.get("Holding Percent")}
+                             for s, r in top.to_dict(orient="index").items()] if isinstance(top, pd.DataFrame) else [],
+            "sector_weightings": fd.sector_weightings or {}, "asset_classes": fd.asset_classes or {},
+            "operations": ops.iloc[:, 0].to_dict() if isinstance(ops, pd.DataFrame) and not ops.empty else {},
+            "overview": fd.fund_overview or {},
+        })
+
+    block("info", lambda: _jsonable({k: (t.info or {}).get(k) for k in DETAIL_INFO_KEYS}), {})
+    block("recommendations", recommendations, [])
+    block("eps_trend", lambda: _frame(t.eps_trend), {})
+    block("eps_revisions", lambda: _frame(t.eps_revisions), {})
+    block("growth_estimates", lambda: _frame(t.growth_estimates), {})
+    block("calendar", lambda: _jsonable(t.calendar or {}), {})
+    if raw["info"].get("quoteType") in ("ETF", "MUTUALFUND"):
+        block("fund", fund, {})
+    return raw
+
+
+def detail(ticker: str, max_age_hours: float = 24, refresh: bool = False) -> tuple[dict | None, str]:
+    """Cached `fetch_detail`: (raw, status), status ok | stale (fetch failed, older copy used) | missing."""
+    import json
+    from datetime import datetime
+
+    path = PROFILE_DIR / f"{ticker}.json"
+    cached = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    if cached and not refresh:
+        age = (datetime.now() - datetime.fromisoformat(cached["fetched"])).total_seconds() / 3600
+        if age < max_age_hours:
+            return cached, "ok"
+    try:
+        raw = fetch_detail(ticker)
+    except Exception:
+        return cached, "stale" if cached else "missing"
+    if not any(raw.get(k) for k in ("info", "recommendations", "eps_trend", "calendar")):
+        return (cached, "stale") if cached else (None, "missing")  # Yahoo answered with nothing
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(raw, indent=1), encoding="utf-8")
+    tmp.replace(path)
+    return raw, "ok"
+
+
+def _ratio(v, lo: float, hi: float, name: str, notes: list[str], scale: float = 1.0) -> float | None:
+    """A ratio from Yahoo (divided by `scale` first), or None with a note when it is outside [lo, hi]."""
+    try:
+        v = float(v) / scale
+    except (TypeError, ValueError):
+        return None
+    if np.isnan(v):
+        return None
+    if not lo <= v <= hi:
+        notes.append(f"{name} {v:g} is outside the plausible range [{lo:g}, {hi:g}]: not shown")
+        return None
+    return v
+
+
+def dividend_yield(info: dict, notes: list[str]) -> float | None:
+    """Yahoo's `dividendYield` moved from a fraction to percent; `trailingAnnualDividendYield` is still a
+    fraction, so it decides which reading is right. Without it, the current convention (percent) applies."""
+    dy, trailing = info.get("dividendYield"), info.get("trailingAnnualDividendYield")
+    if dy is None:
+        return None
+    dy = float(dy)
+    frac = dy / 100
+    if trailing:
+        frac = min((dy, dy / 100), key=lambda c: abs(c - float(trailing)))
+    return _ratio(frac, 0, 0.25, "dividend yield", notes)
+
+
+def parse_fundamentals(info: dict) -> dict:
+    notes: list[str] = []
+
+    def multiple(key, hi, label):
+        v = info.get(key)
+        if v is None:
+            return None
+        if float(v) <= 0:
+            notes.append(f"{label} {float(v):g} is not meaningful (negative earnings or book value)")
+            return None
+        return _ratio(v, 0, hi, label, notes)
+
+    peg_key = "trailingPegRatio" if info.get("trailingPegRatio") is not None else "pegRatio"
+    out = {
+        "market_cap": info.get("marketCap"), "enterprise_value": info.get("enterpriseValue"),
+        "currency": info.get("currency"), "financial_currency": info.get("financialCurrency"),
+        "trailing_pe": multiple("trailingPE", 1000, "trailing P/E"), "forward_pe": multiple("forwardPE", 1000, "forward P/E"),
+        "peg": multiple(peg_key, 50, "PEG"), "price_to_book": multiple("priceToBook", 500, "price/book"),
+        "ev_ebitda": multiple("enterpriseToEbitda", 500, "EV/EBITDA"),
+        "ev_revenue": multiple("enterpriseToRevenue", 500, "EV/revenue"),
+        "gross_margin": _ratio(info.get("grossMargins"), -5, 1, "gross margin", notes),
+        "operating_margin": _ratio(info.get("operatingMargins"), -5, 1, "operating margin", notes),
+        "profit_margin": _ratio(info.get("profitMargins"), -5, 1, "profit margin", notes),
+        "revenue_growth": _ratio(info.get("revenueGrowth"), -1, 20, "revenue growth", notes),
+        "earnings_growth": _ratio(info.get("earningsGrowth"), -50, 50, "earnings growth", notes),
+        "return_on_equity": _ratio(info.get("returnOnEquity"), -5, 5, "return on equity", notes),
+        "debt_to_equity": _ratio(info.get("debtToEquity"), 0, 50, "debt/equity", notes, scale=100),  # Yahoo: %
+        "dividend_yield": dividend_yield(info, notes),
+        "payout_ratio": _ratio(info.get("payoutRatio"), 0, 10, "payout ratio", notes),
+        "beta": _ratio(info.get("beta"), -5, 10, "beta", notes),
+        "short_pct_float": _ratio(info.get("shortPercentOfFloat"), 0, 1, "short interest", notes),
+        "employees": info.get("fullTimeEmployees"),
+    }
+    return out | {"notes": notes}
+
+
+def parse_recommendations(rows: list[dict]) -> list[dict]:
+    """Monthly buy/hold/sell counts, newest first, with the mean on Yahoo's 1 (strong buy) – 5 scale."""
+    out = []
+    for r in rows:
+        counts = [int(r.get(k) or 0) for k in ("strongBuy", "buy", "hold", "sell", "strongSell")]
+        n = sum(counts)
+        out.append({"period": r.get("period"), "strong_buy": counts[0], "buy": counts[1], "hold": counts[2],
+                    "sell": counts[3], "strong_sell": counts[4], "n": n,
+                    "mean": round(sum((i + 1) * c for i, c in enumerate(counts)) / n, 2) if n else None})
+    return out
+
+
+EPS_PERIODS = {"0q": "Current quarter", "+1q": "Next quarter", "0y": "Current year", "+1y": "Next year"}
+
+
+def parse_eps_trend(trend: dict, revisions: dict, growth: dict) -> list[dict]:
+    """Per period: consensus EPS now vs 7/30/90 days ago (the revision trend), revision counts and growth."""
+    out = []
+    for p, label in EPS_PERIODS.items():
+        t, r, g = trend.get(p) or {}, revisions.get(p) or {}, growth.get(p) or {}
+        if not t and not r:
+            continue
+        now = t.get("current")
+
+        def chg(col):
+            old = t.get(col)
+            # only meaningful between two positive estimates (a sign flip has no percent change)
+            return now / old - 1 if now is not None and old is not None and old > 0 and now > 0 else None
+        out.append({"period": p, "label": label, "eps": now, "currency": t.get("currency"),
+                    "chg_7d": chg("7daysAgo"), "chg_30d": chg("30daysAgo"), "chg_90d": chg("90daysAgo"),
+                    "up_30d": r.get("upLast30days"), "down_30d": r.get("downLast30days"),
+                    "growth": g.get("stockTrend"), "index_growth": g.get("indexTrend")})
+    return out
+
+
+def parse_calendar(cal: dict, today: date | None = None) -> dict:
+    """Next earnings date (the first one not in the past), its consensus, and dividend dates."""
+    today = today or date.today()
+    dates = cal.get("Earnings Date") or []
+    dates = sorted(date.fromisoformat(d) for d in (dates if isinstance(dates, list) else [dates]) if d)
+    upcoming = [d for d in dates if d >= today]
+    return {"next_earnings": upcoming[0].isoformat() if upcoming else None,
+            "eps_estimate": cal.get("Earnings Average"), "revenue_estimate": cal.get("Revenue Average"),
+            "ex_dividend": cal.get("Ex-Dividend Date"), "dividend_date": cal.get("Dividend Date")}
+
+
+FUND_SECTORS = {"realestate": "Real Estate"}  # funds_data keys → the sector names Yahoo uses for stocks
+
+
+def parse_fund(fund: dict, info: dict) -> dict:
+    """ETF look-through: top holdings, sector weights (largest first), expense ratio and size."""
+    notes: list[str] = []
+    ops = fund.get("operations") or {}
+    ter = _ratio(ops.get("Annual Report Expense Ratio"), 0, 0.03, "expense ratio", notes)
+    if ter is None and info.get("netExpenseRatio") is not None:
+        ter = _ratio(info["netExpenseRatio"], 0, 0.03, "expense ratio", notes, scale=100)  # Yahoo: percent
+    sectors = sorted(((k, v) for k, v in (fund.get("sector_weightings") or {}).items() if v), key=lambda x: -x[1])
+    overview = fund.get("overview") or {}
+    return {"top_holdings": fund.get("top_holdings") or [],
+            "sector_weights": [{"sector": FUND_SECTORS.get(k, k.replace("_", " ").title()), "weight": v}
+                               for k, v in sectors],
+            "asset_classes": {k: v for k, v in (fund.get("asset_classes") or {}).items() if v},
+            "expense_ratio": ter, "total_assets": info.get("totalAssets"),
+            "family": overview.get("family") or info.get("fundFamily"),
+            "legal_type": overview.get("legalType") or info.get("legalType"), "notes": notes}

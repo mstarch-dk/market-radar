@@ -92,85 +92,62 @@ def import_yahoo(csv_path: str):
 
 
 @app.command()
-def info(ticker: str):
-    """Radar context for one ticker (fetches prices if it isn't tracked yet), as JSON."""
+def info(ticker: str, refresh: bool = typer.Option(False, help="Re-fetch Yahoo fundamentals and estimates now")):
+    """Everything the radar knows about one ticker, as JSON (fetches prices if it isn't tracked yet)."""
     import json
 
-    from .config import settings
-    from .signals import momentum
+    from . import profile
 
-    prices = ingest.load_prices()
-    if ticker not in set(prices["ticker"]):
-        ingest.update_prices([ticker])
-        prices = ingest.load_prices()
-    if ticker not in set(prices["ticker"]):
-        raise typer.Exit(f"No Yahoo data for {ticker}")
-    closes, volumes = ingest.wide(prices), ingest.wide(prices, "volume")
-    bench = universe.benchmark()
-    m = momentum.metrics(closes, volumes, [ticker], settings()["momentum"]["min_history_days"]).iloc[0]
-    b = closes[bench].dropna()
-    def clean(v):
-        if hasattr(v, "item"):  # numpy scalar -> python
-            v = v.item()
-        return round(v, 4) if isinstance(v, float) and not isinstance(v, bool) and v == v else (None if v != v else v)
-    out = {k: clean(v) for k, v in m.items() if k != "history"}
-    out["name"] = universe.names([ticker])[ticker]
-    out["currency"] = universe.currencies([ticker])[ticker]
-    for n, label in ((21, "rel_r1m"), (63, "rel_r3m"), (126, "rel_r6m")):
-        s = closes[ticker].dropna()
-        if len(s) > n:
-            out[label] = round(float(s.iloc[-1] / s.iloc[-1 - n] - (b.iloc[-1] / b.iloc[-1 - n])), 4)
-    groups = universe.stock_groups()
-    region = next((g for g, t in groups.items() if ticker in t), None)
-    if region:
-        lead = momentum.leaders(closes, volumes, {region: groups[region]}, settings()["momentum"]["min_history_days"])
-        row = lead[lead["ticker"] == ticker].iloc[0]
-        out |= {"region": region, "score_in_region": row["score"], "rank_in_region": int(row["rank"]),
-                "region_size": len(lead)}
-    h = universe.holdings()
-    hit = h[h["symbol"] == ticker]
-    out["my_status"] = hit.iloc[0]["status"] if len(hit) else None
-    out |= _info_levels(ticker, prices, closes, m.to_dict() | {"score": out.get("score_in_region")},
-                        hit.iloc[0]["first_trade"] if out["my_status"] == "holding" else None)
-    typer.echo(json.dumps(out, indent=1, default=str))
-
-
-def _info_levels(ticker: str, prices, closes, row: dict, since) -> dict:
-    """Analyst consensus and the stop/take-profit rule for `radar info`.
-
-    The regime comes from the last report's summary.json, so it matches what radar.html shows.
-    """
-    import json
-    import math
-
-    from . import external
-    from .config import REPORTS, settings
-    from .signals import levels
-
-    cfg = settings()
     try:
-        external.update_analyst([ticker], cfg["analyst"]["max_age_days"])
-    except Exception as e:
-        typer.echo(f"Analyst targets: FAILED ({type(e).__name__}: {e}); using cached data.", err=True)
-    summary = REPORTS / "summary.json"
-    regime_label = json.loads(summary.read_text(encoding="utf-8"))["regime"]["label"] if summary.exists() else None
-    lv = levels.for_ticker(ticker, closes, ingest.wide(prices, "high"), ingest.wide(prices, "low"), row, since,
-                           regime_label, external.load_analyst(),
-                           cfg["stops"] | {"analyst_max_age_days": cfg["coverage"]["max_age"]["analyst"]})
+        p = profile.build(ticker.strip().upper(), refresh=refresh)
+    except profile.TickerNotFound as e:
+        raise typer.Exit(str(e))
+    typer.echo(json.dumps(profile.legacy_info(p), indent=1, default=str))
 
-    def rnd(v):
-        if isinstance(v, dict):
-            return {k: rnd(x) for k, x in v.items()}
-        if isinstance(v, list):
-            return [rnd(x) for x in v]
-        if hasattr(v, "item"):
-            v = v.item()
-        return (None if math.isnan(v) else round(v, 4)) if isinstance(v, float) else v
 
-    if lv is None:
-        return {"analyst": None, "levels": None}
-    analyst = lv.pop("analyst")
-    return {"analyst": rnd(analyst), "levels": rnd(lv | {"regime": regime_label})}
+@app.command()
+def serve(port: int = 8780, open_browser: bool = typer.Option(False, "--open", help="Open the app in the browser")):
+    """Run the web app (ticker profiles) on http://127.0.0.1:<port>."""
+    import uvicorn
+
+    from .api import WEB_DIST
+
+    if not WEB_DIST.exists():
+        typer.echo("web/dist is missing: run `pnpm -C web install` and `pnpm -C web build` first (the API still runs).")
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.5, webbrowser.open, [f"http://127.0.0.1:{port}/"]).start()
+    uvicorn.run("radar.api:app", host="127.0.0.1", port=port, log_level="warning")
+
+
+@app.command()
+def openapi():
+    """Print the web API's OpenAPI schema (web/ generates its TypeScript types from it: `pnpm gen:api`)."""
+    import json
+
+    from .api import app as api_app
+
+    typer.echo(json.dumps(api_app.openapi(), indent=1))
+
+
+@app.command()
+def ticker(symbol: str, port: int = 8780):
+    """Open the profile page for one ticker (starts the web app if it isn't running)."""
+    import socket
+    import webbrowser
+
+    url = f"http://127.0.0.1:{port}/ticker/{symbol.strip().upper()}"
+    with socket.socket() as sock:
+        running = sock.connect_ex(("127.0.0.1", port)) == 0
+    if running:
+        webbrowser.open(url)
+        return
+    import threading
+
+    threading.Timer(1.5, webbrowser.open, [url]).start()
+    serve(port, False)
 
 
 BUNDLE_FILES = ("holdings.csv", "transactions.csv")

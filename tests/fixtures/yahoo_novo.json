@@ -1,0 +1,189 @@
+{
+ "symbol": "NOVO-B.CO",
+ "fetched": "2026-10-13T20:15:38",
+ "errors": {},
+ "info": {
+  "quoteType": "EQUITY",
+  "longName": "Novo Nordisk A/S",
+  "shortName": "Novo Nordisk B A/S",
+  "currency": "DKK",
+  "financialCurrency": "DKK",
+  "exchange": "CPH",
+  "fullExchangeName": "Copenhagen",
+  "sector": "Healthcare",
+  "industry": "Drug Manufacturers - General",
+  "country": "Denmark",
+  "website": "https://www.novonordisk.com",
+  "longBusinessSummary": "A pharmaceutical company (placeholder text for the tests).",
+  "fullTimeEmployees": 66700,
+  "marketCap": 1132624740352,
+  "enterpriseValue": 1230499348480,
+  "trailingPE": 9.795801,
+  "forwardPE": 11.698771,
+  "trailingPegRatio": 4.3787,
+  "pegRatio": 4.31,
+  "priceToBook": 5.135876,
+  "enterpriseToEbitda": 7.085,
+  "enterpriseToRevenue": 3.735,
+  "grossMargins": 0.81987,
+  "operatingMargins": 0.42540002,
+  "profitMargins": 0.35347,
+  "revenueGrowth": 0.021,
+  "earningsGrowth": -0.206,
+  "returnOnEquity": 0.59815,
+  "debtToEquity": 63.327,
+  "dividendYield": 4.56,
+  "trailingAnnualDividendYield": 0.045631826,
+  "payoutRatio": 0.4466,
+  "beta": 0.384,
+  "shortPercentOfFloat": null,
+  "currentPrice": 256.65,
+  "regularMarketPrice": 256.65,
+  "targetMeanPrice": 306.51477,
+  "targetHighPrice": 452.0,
+  "targetLowPrice": 203.0,
+  "targetMedianPrice": 296.0,
+  "numberOfAnalystOpinions": 23,
+  "recommendationKey": "hold",
+  "recommendationMean": 2.88,
+  "fiftyTwoWeekHigh": 409.95,
+  "fiftyTwoWeekLow": 224.25,
+  "totalAssets": null,
+  "netExpenseRatio": null,
+  "fundFamily": null,
+  "legalType": null,
+  "category": null
+ },
+ "recommendations": [
+  {
+   "period": "0m",
+   "strongBuy": 0,
+   "buy": 5,
+   "hold": 16,
+   "sell": 3,
+   "strongSell": 1
+  },
+  {
+   "period": "-1m",
+   "strongBuy": 0,
+   "buy": 5,
+   "hold": 16,
+   "sell": 3,
+   "strongSell": 1
+  },
+  {
+   "period": "-2m",
+   "strongBuy": 0,
+   "buy": 5,
+   "hold": 17,
+   "sell": 2,
+   "strongSell": 1
+  },
+  {
+   "period": "-3m",
+   "strongBuy": 0,
+   "buy": 6,
+   "hold": 18,
+   "sell": 1,
+   "strongSell": 1
+  }
+ ],
+ "eps_trend": {
+  "0q": {
+   "current": 4.95525,
+   "7daysAgo": 4.9281,
+   "30daysAgo": 4.99627,
+   "60daysAgo": 5.02686,
+   "90daysAgo": 4.87422,
+   "currency": "DKK"
+  },
+  "+1q": {
+   "current": 4.27893,
+   "7daysAgo": 4.10785,
+   "30daysAgo": 4.08844,
+   "60daysAgo": 4.20835,
+   "90daysAgo": 4.51642,
+   "currency": "DKK"
+  },
+  "0y": {
+   "current": 21.55927,
+   "7daysAgo": 21.6435,
+   "30daysAgo": 21.39942,
+   "60daysAgo": 21.18498,
+   "90daysAgo": 20.99511,
+   "currency": "DKK"
+  },
+  "+1y": {
+   "current": 21.9382,
+   "7daysAgo": 21.83322,
+   "30daysAgo": 21.84495,
+   "60daysAgo": 21.73558,
+   "90daysAgo": 21.4576,
+   "currency": "DKK"
+  }
+ },
+ "eps_revisions": {
+  "0q": {
+   "upLast7days": 1,
+   "upLast30days": 1,
+   "downLast30days": 2,
+   "downLast7Days": 1,
+   "currency": "DKK"
+  },
+  "+1q": {
+   "upLast7days": 1,
+   "upLast30days": 1,
+   "downLast30days": 2,
+   "downLast7Days": 1,
+   "currency": "DKK"
+  },
+  "0y": {
+   "upLast7days": 1,
+   "upLast30days": 6,
+   "downLast30days": 2,
+   "downLast7Days": 1,
+   "currency": "DKK"
+  },
+  "+1y": {
+   "upLast7days": 0,
+   "upLast30days": 3,
+   "downLast30days": 5,
+   "downLast7Days": 2,
+   "currency": "DKK"
+  }
+ },
+ "growth_estimates": {
+  "0q": {
+   "stockTrend": 0.1012,
+   "indexTrend": 0.24350001
+  },
+  "+1q": {
+   "stockTrend": -0.2916,
+   "indexTrend": 0.2619
+  },
+  "0y": {
+   "stockTrend": -0.0639,
+   "indexTrend": 0.3232
+  },
+  "+1y": {
+   "stockTrend": 0.0176,
+   "indexTrend": 0.16459998
+  },
+  "LTG": {
+   "stockTrend": null,
+   "indexTrend": 0.122
+  }
+ },
+ "calendar": {
+  "Ex-Dividend Date": "2026-08-14",
+  "Earnings Date": [
+   "2026-11-04"
+  ],
+  "Earnings High": 5.34,
+  "Earnings Low": 4.6,
+  "Earnings Average": 4.95525,
+  "Revenue High": 75984000000,
+  "Revenue Low": 71193000000,
+  "Revenue Average": 73461684410
+ }
+}
