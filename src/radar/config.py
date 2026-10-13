@@ -31,3 +31,11 @@ def settings() -> dict:
 @cache
 def universe_config() -> dict:
     return _load("universe.yaml")
+
+
+def write_parquet(df, path: Path, **kw) -> None:
+    """Write to a temp file and swap it in, so a running `radar serve` never reads a half-written file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    df.to_parquet(tmp, **kw)
+    tmp.replace(path)

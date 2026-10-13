@@ -10,7 +10,7 @@ Output goes to `research/<TICKER>.md`. If the file already exists, keep the earl
 
 ## Steps
 
-1. **Radar context**: run `uv run radar info <TICKER>`. It returns momentum, trend, relative strength vs ACWI, rank in its region and the user's status (holding, watch, sold, or none). If the ticker is ambiguous, check the Yahoo symbol first (e.g. `NOVO-B.CO`, `RHM.DE`).
+1. **Radar context**: run `uv run radar info <TICKER>`. It returns momentum, trend, relative strength vs ACWI, rank in its region and the user's status (holding, watch, sold, or none), plus the full profile: `price` (returns in local currency and DKK, vs ACWI and vs the sector ETF), `technicals`, `levels`, `analyst` (targets, recommendation trend, EPS estimate revisions, next earnings date), `fundamentals` (valuation multiples, margins, growth, dividend yield), `etf` (holdings, sectors, expense ratio, overlap with the user's holdings) and `peers` (tracked stocks in the same industry, the sector ETF's rotation quadrant). Use these numbers for the momentum, valuation and catalyst sections instead of looking them up again; check each section's `status` and `context.notes`, and write "n/a" where a section is missing. If the ticker is ambiguous, check the Yahoo symbol first (e.g. `NOVO-B.CO`, `RHM.DE`). The user can open the same data as a page with `uv run radar ticker <TICKER>`.
    Also read `reports/summary.json` to see how the stock's sector or theme is rotating.
 2. **The user's history**: check `imports/transactions.csv` and `journal/` for earlier trades or decisions on this name, and mention them briefly.
 3. **Web research** (send the searches together; use extended mode if results are thin):

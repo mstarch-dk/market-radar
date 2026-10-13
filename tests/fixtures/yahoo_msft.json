@@ -1,0 +1,190 @@
+{
+ "symbol": "MSFT",
+ "fetched": "2026-10-13T20:15:39",
+ "errors": {},
+ "info": {
+  "quoteType": "EQUITY",
+  "longName": "Microsoft Corporation",
+  "shortName": "Microsoft Corporation",
+  "currency": "USD",
+  "financialCurrency": "USD",
+  "exchange": "NMS",
+  "fullExchangeName": "NasdaqGS",
+  "sector": "Technology",
+  "industry": "Software - Infrastructure",
+  "country": "United States",
+  "website": "https://www.microsoft.com",
+  "longBusinessSummary": "A software and cloud company (placeholder text for the tests).",
+  "fullTimeEmployees": 223000,
+  "marketCap": 4057912049664,
+  "enterpriseValue": 4070303858688,
+  "trailingPE": 30.787605,
+  "forwardPE": 23.083473,
+  "trailingPegRatio": 1.6173,
+  "pegRatio": 1.74,
+  "priceToBook": 9.174515,
+  "enterpriseToEbitda": 20.955,
+  "enterpriseToRevenue": 12.266,
+  "grossMargins": 0.67944,
+  "operatingMargins": 0.45111,
+  "profitMargins": 0.40305,
+  "revenueGrowth": 0.177,
+  "earningsGrowth": 0.317,
+  "returnOnEquity": 0.34039003,
+  "debtToEquity": 29.118,
+  "dividendYield": 0.72,
+  "trailingAnnualDividendYield": 0.006726416,
+  "payoutRatio": 0.1983,
+  "beta": 1.099,
+  "shortPercentOfFloat": 0.0082,
+  "currentPrice": 546.51,
+  "regularMarketPrice": 546.48,
+  "targetMeanPrice": 589.59607,
+  "targetHighPrice": 870.0,
+  "targetLowPrice": 440.0,
+  "targetMedianPrice": 595.0,
+  "numberOfAnalystOpinions": 53,
+  "recommendationKey": "strong_buy",
+  "recommendationMean": 1.33929,
+  "fiftyTwoWeekHigh": 553.72,
+  "fiftyTwoWeekLow": 349.2,
+  "totalAssets": null,
+  "netExpenseRatio": null,
+  "fundFamily": null,
+  "legalType": null,
+  "category": null
+ },
+ "recommendations": [
+  {
+   "period": "0m",
+   "strongBuy": 13,
+   "buy": 40,
+   "hold": 3,
+   "sell": 0,
+   "strongSell": 0
+  },
+  {
+   "period": "-1m",
+   "strongBuy": 14,
+   "buy": 39,
+   "hold": 2,
+   "sell": 0,
+   "strongSell": 0
+  },
+  {
+   "period": "-2m",
+   "strongBuy": 14,
+   "buy": 38,
+   "hold": 3,
+   "sell": 0,
+   "strongSell": 0
+  },
+  {
+   "period": "-3m",
+   "strongBuy": 14,
+   "buy": 40,
+   "hold": 3,
+   "sell": 0,
+   "strongSell": 0
+  }
+ ],
+ "eps_trend": {
+  "0q": {
+   "current": 4.71805,
+   "7daysAgo": 4.72156,
+   "30daysAgo": 4.72455,
+   "60daysAgo": 4.72092,
+   "90daysAgo": 4.62319,
+   "currency": "USD"
+  },
+  "+1q": {
+   "current": 4.82166,
+   "7daysAgo": 4.82324,
+   "30daysAgo": 4.82718,
+   "60daysAgo": 4.82575,
+   "90daysAgo": 4.78767,
+   "currency": "USD"
+  },
+  "0y": {
+   "current": 19.76064,
+   "7daysAgo": 19.74838,
+   "30daysAgo": 19.75306,
+   "60daysAgo": 19.72885,
+   "90daysAgo": 19.38938,
+   "currency": "USD"
+  },
+  "+1y": {
+   "current": 23.67408,
+   "7daysAgo": 23.64732,
+   "30daysAgo": 23.57298,
+   "60daysAgo": 23.57328,
+   "90daysAgo": 22.58739,
+   "currency": "USD"
+  }
+ },
+ "eps_revisions": {
+  "0q": {
+   "upLast7days": 1,
+   "upLast30days": 1,
+   "downLast30days": 1,
+   "downLast7Days": 0,
+   "currency": "USD"
+  },
+  "+1q": {
+   "upLast7days": 0,
+   "upLast30days": 0,
+   "downLast30days": 2,
+   "downLast7Days": 2,
+   "currency": "USD"
+  },
+  "0y": {
+   "upLast7days": 1,
+   "upLast30days": 1,
+   "downLast30days": 0,
+   "downLast7Days": 0,
+   "currency": "USD"
+  },
+  "+1y": {
+   "upLast7days": 1,
+   "upLast30days": 2,
+   "downLast30days": 2,
+   "downLast7Days": 1,
+   "currency": "USD"
+  }
+ },
+ "growth_estimates": {
+  "0q": {
+   "stockTrend": 0.1424,
+   "indexTrend": 0.24350001
+  },
+  "+1q": {
+   "stockTrend": 0.16469999,
+   "indexTrend": 0.2619
+  },
+  "0y": {
+   "stockTrend": 0.1436,
+   "indexTrend": 0.3232
+  },
+  "+1y": {
+   "stockTrend": 0.198,
+   "indexTrend": 0.16459998
+  },
+  "LTG": {
+   "stockTrend": null,
+   "indexTrend": 0.122
+  }
+ },
+ "calendar": {
+  "Dividend Date": "2026-12-10",
+  "Ex-Dividend Date": "2026-11-19",
+  "Earnings Date": [
+   "2026-10-28"
+  ],
+  "Earnings High": 4.83363,
+  "Earnings Low": 4.43,
+  "Earnings Average": 4.71805,
+  "Revenue High": 92655000000,
+  "Revenue Low": 89640000000,
+  "Revenue Average": 90698093080
+ }
+}

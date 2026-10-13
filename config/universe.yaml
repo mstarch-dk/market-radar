@@ -11,6 +11,42 @@ benchmark:
 # Your own extra tickers to always track (Yahoo CSV holdings/watchlist are added automatically)
 watchlist: []
 
+# Ticker profile (radar ticker / radar info): the sector ETF a stock is compared with, by Yahoo sector.
+# `industries` overrides by industry prefix; a sector without an entry gets no sector comparison.
+sector_etfs:
+  us:
+    Technology: XLK
+    Communication Services: XLC
+    Consumer Cyclical: XLY
+    Consumer Defensive: XLP
+    Financial Services: XLF
+    Healthcare: XLV
+    Industrials: XLI
+    Energy: XLE
+    Basic Materials: XLB
+    Utilities: XLU
+    Real Estate: XLRE
+  europe:                   # also used for Nordic stocks
+    Technology: EXV3.DE
+    Healthcare: EXV4.DE
+    Financial Services: EXH2.DE
+    Industrials: EXH4.DE
+    Basic Materials: EXV6.DE
+    Energy: EXH1.DE
+    Utilities: EXH9.DE
+    Communication Services: EXV2.DE
+    Consumer Defensive: EXH3.DE
+    industries:
+      Banks: EXV1.DE
+      Insurance: EXH5.DE
+      Auto: EXV5.DE
+      Specialty Chemicals: EXV7.DE
+      Chemicals: EXV7.DE
+      Building: EXV8.DE
+      Travel: EXV9.DE
+      Lodging: EXV9.DE
+      Restaurants: EXV9.DE
+
 etf_groups:
   us_sectors:
     label: US sectors

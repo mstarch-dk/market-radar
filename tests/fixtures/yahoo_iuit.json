@@ -1,0 +1,147 @@
+{
+ "symbol": "IUIT.L",
+ "fetched": "2026-10-13T20:15:40",
+ "errors": {},
+ "info": {
+  "quoteType": "ETF",
+  "longName": "iShares S&P 500 Information Technology Sector UCITS ETF USD (Acc)",
+  "shortName": "ISHARES V PUBLIC LIMITED COMPAN",
+  "currency": "USD",
+  "financialCurrency": null,
+  "exchange": "LSE",
+  "fullExchangeName": "LSE",
+  "sector": null,
+  "industry": null,
+  "country": null,
+  "website": null,
+  "longBusinessSummary": "",
+  "fullTimeEmployees": null,
+  "marketCap": null,
+  "enterpriseValue": null,
+  "trailingPE": 32.909424,
+  "forwardPE": null,
+  "trailingPegRatio": null,
+  "pegRatio": null,
+  "priceToBook": null,
+  "enterpriseToEbitda": null,
+  "enterpriseToRevenue": null,
+  "grossMargins": null,
+  "operatingMargins": null,
+  "profitMargins": null,
+  "revenueGrowth": null,
+  "earningsGrowth": null,
+  "returnOnEquity": null,
+  "debtToEquity": null,
+  "dividendYield": 0.0,
+  "trailingAnnualDividendYield": null,
+  "payoutRatio": null,
+  "beta": null,
+  "shortPercentOfFloat": null,
+  "currentPrice": null,
+  "regularMarketPrice": 53.64,
+  "targetMeanPrice": null,
+  "targetHighPrice": null,
+  "targetLowPrice": null,
+  "targetMedianPrice": null,
+  "numberOfAnalystOpinions": null,
+  "recommendationKey": null,
+  "recommendationMean": null,
+  "fiftyTwoWeekHigh": 55.7844,
+  "fiftyTwoWeekLow": 36.57,
+  "totalAssets": 20611657728,
+  "netExpenseRatio": 0.15,
+  "fundFamily": "BlackRock Asset Management Ireland - ETF",
+  "legalType": "Exchange Traded Fund",
+  "category": null
+ },
+ "recommendations": [],
+ "eps_trend": {},
+ "eps_revisions": {},
+ "growth_estimates": {},
+ "calendar": {},
+ "fund": {
+  "top_holdings": [
+   {
+    "symbol": "NVDA",
+    "name": "NVIDIA Corp",
+    "weight": 0.210942
+   },
+   {
+    "symbol": "AAPL",
+    "name": "Apple Inc",
+    "weight": 0.1816698
+   },
+   {
+    "symbol": "MSFT",
+    "name": "Microsoft Corp",
+    "weight": 0.1456453
+   },
+   {
+    "symbol": "AVGO",
+    "name": "Broadcom Inc",
+    "weight": 0.0651062
+   },
+   {
+    "symbol": "MU",
+    "name": "Micron Technology Inc",
+    "weight": 0.046356604
+   },
+   {
+    "symbol": "AMD",
+    "name": "Advanced Micro Devices Inc",
+    "weight": 0.0382235
+   },
+   {
+    "symbol": "INTC",
+    "name": "Intel Corp",
+    "weight": 0.0221997
+   },
+   {
+    "symbol": "PLTR",
+    "name": "Palantir Technologies Inc Ordinary Shares - Class A",
+    "weight": 0.0165776
+   },
+   {
+    "symbol": "CSCO",
+    "name": "Cisco Systems Inc",
+    "weight": 0.0162436
+   },
+   {
+    "symbol": "AMAT",
+    "name": "Applied Materials Inc",
+    "weight": 0.015666
+   }
+  ],
+  "sector_weightings": {
+   "realestate": 0.0,
+   "consumer_cyclical": 0.0,
+   "basic_materials": 0.0,
+   "consumer_defensive": 0.0,
+   "technology": 1.0,
+   "communication_services": 0.0,
+   "financial_services": 0.0,
+   "utilities": 0.0,
+   "industrials": 0.0,
+   "energy": 0.0,
+   "healthcare": 0.0
+  },
+  "asset_classes": {
+   "cashPosition": 0.0016,
+   "stockPosition": 0.9984,
+   "bondPosition": 0.0,
+   "preferredPosition": 0.0,
+   "convertiblePosition": 0.0,
+   "otherPosition": 0.0
+  },
+  "operations": {
+   "Annual Report Expense Ratio": 0.0015,
+   "Annual Holdings Turnover": 0.0,
+   "Total Net Assets": 1402165.1
+  },
+  "overview": {
+   "categoryName": null,
+   "family": "BlackRock Asset Management Ireland - ETF",
+   "legalType": "Exchange Traded Fund"
+  }
+ }
+}

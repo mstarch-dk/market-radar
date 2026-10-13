@@ -6,6 +6,12 @@
       "runtimeExecutable": "C:\\dev\\market-radar\\.venv\\Scripts\\python.exe",
       "runtimeArgs": ["-m", "http.server", "8765", "--directory", "C:\\dev\\market-radar\\reports", "--bind", "127.0.0.1"],
       "port": 8765
+    },
+    {
+      "name": "radar-app",
+      "runtimeExecutable": "C:\\dev\\market-radar\\.venv\\Scripts\\radar.exe",
+      "runtimeArgs": ["serve", "--port", "8780"],
+      "port": 8780
     }
   ]
 }
