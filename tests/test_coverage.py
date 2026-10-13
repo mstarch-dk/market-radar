@@ -7,16 +7,6 @@ from radar import coverage, universe
 from radar.signals import levels
 
 
-@pytest.fixture
-def tmp_data(tmp_path, monkeypatch):
-    monkeypatch.setattr(coverage, "DATA", tmp_path)
-    monkeypatch.setattr(coverage, "LOG_FILE", tmp_path / "sources.json")
-    monkeypatch.setattr(coverage, "TRANSACTIONS_FILE", tmp_path / "transactions.csv")
-    monkeypatch.setattr(coverage, "HOLDINGS_FILE", tmp_path / "holdings.csv")
-    monkeypatch.setattr(coverage, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
-    monkeypatch.setattr(universe, "DATA", tmp_path)
-    return tmp_path
-
 
 def test_status_boundaries():
     ref = date(2026, 10, 13)

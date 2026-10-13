@@ -116,8 +116,7 @@ def update_fred(series: list[str]) -> list[str]:
         try:
             resp = requests.get(url, timeout=30)
             resp.raise_for_status()
-            csv = pd.read_csv(io.StringIO(resp.text))
-            cols[sid] = pd.to_numeric(csv.set_index(pd.to_datetime(csv[csv.columns[0]]))[sid], errors="coerce")
+            cols[sid] = parse_fred_csv(resp.text, sid)
         except Exception as e:
             failed.append(f"{sid} ({type(e).__name__})")
             if sid in cached:
@@ -126,6 +125,18 @@ def update_fred(series: list[str]) -> list[str]:
         DATA.mkdir(exist_ok=True)
         pd.DataFrame(cols).to_parquet(FRED_FILE)
     return failed
+
+
+def parse_fred_csv(text: str, sid: str) -> pd.Series:
+    """One series from FRED's graph CSV (date column first, named DATE or observation_date; gaps blank or ".")."""
+    csv = pd.read_csv(io.StringIO(text))
+    if sid not in csv.columns:
+        raise ValueError(f"no {sid} column in FRED's CSV (columns: {', '.join(csv.columns)})")
+    s = pd.to_numeric(csv[sid], errors="coerce")
+    s.index = pd.to_datetime(csv[csv.columns[0]])
+    if s.dropna().empty:
+        raise ValueError(f"FRED returned no values for {sid}")
+    return s
 
 
 def load_fred() -> pd.DataFrame:

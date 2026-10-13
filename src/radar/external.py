@@ -49,6 +49,8 @@ def cot_rows(raw: list[dict], groups: dict[str, str], names: dict[str, str]) -> 
     """Long table: date, market, trader group, net position as % of open interest."""
     rows = []
     for r in raw:
+        if r.get("futonly_or_combined", "FutOnly") != "FutOnly":  # futures+options rows would mix two bases
+            continue
         oi = float(r["open_interest_all"])
         for prefix, label in groups.items():
             # the disaggregated report suffixes its position columns with "_all"; TFF mostly doesn't
@@ -75,15 +77,23 @@ def update_cot() -> int:
         new = {c: n for c, n in names.items() if n not in last.index}
         if known:
             since = min(last[n] for n in known.values()).date()
-            frames.append(cot_rows(_cot_fetch(dataset, list(known), since), groups, names))
+            frames.append(_cot_parse(_cot_fetch(dataset, list(known), since), groups, names, report))
         if new:
-            frames.append(cot_rows(_cot_fetch(dataset, list(new), full), groups, names))
+            frames.append(_cot_parse(_cot_fetch(dataset, list(new), full), groups, names, report))
     df = pd.concat([f for f in frames if not f.empty], ignore_index=True) if any(not f.empty for f in frames) \
         else pd.DataFrame(columns=["date", "market", "group", "net", "net_pct_oi"])
     df = df.drop_duplicates(["date", "market", "group"], keep="last").sort_values(["market", "group", "date"])
     DATA.mkdir(exist_ok=True)
     df.to_parquet(COT_FILE, index=False)
     return len(df) - len(existing)
+
+
+def _cot_parse(raw: list[dict], groups: dict[str, str], names: dict[str, str], report: str) -> pd.DataFrame:
+    """`cot_rows`, but records that yield nothing mean the CFTC renamed its columns: fail rather than store nothing."""
+    rows = cot_rows(raw, groups, names)
+    if raw and rows.empty:
+        raise ValueError(f"{len(raw)} {report} records but no {', '.join(groups)} columns: has the CFTC format changed?")
+    return rows
 
 
 def load_cot() -> pd.DataFrame:
@@ -113,6 +123,9 @@ OECD_CLI_URL = ("https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@D
 
 def parse_oecd_cli(text: str) -> pd.DataFrame:
     csv = pd.read_csv(io.StringIO(text))
+    dupes = csv.duplicated(["REF_AREA", "TIME_PERIOD"])
+    if dupes.any():  # pivot_table would silently average two different series
+        raise ValueError(f"{dupes.sum()} duplicate area/month observations: the query matches more than one series")
     df = csv.pivot_table(index="TIME_PERIOD", columns="REF_AREA", values="OBS_VALUE")
     df.index = pd.PeriodIndex(df.index, freq="M").to_timestamp()
     return df.sort_index()
@@ -159,6 +172,7 @@ FACTSET_LOOKBACK_DAYS = 14
 FACTSET_TEXT_PAGES = ("Key Metrics", "Earnings Revisions", "Forward Estimates & Valuation")
 
 _NUM = r"(-?\d+(?:\.\d+)?)"
+FACTSET_REQUIRED = ("growth_now", "growth_start")  # the regime vote; without them the report is useless
 FACTSET_PATTERNS = {
     "quarter": r"For (Q\d \d{4}), the estimated \(year-over-year\) earnings growth rate",
     "growth_now": r"earnings growth rate for the S&P 500 is " + _NUM + "%",
@@ -212,6 +226,9 @@ def update_factset() -> str | None:
             continue
         pages = _factset_pages(resp.content)
         row = parse_factset(pages) | {"report_date": pd.Timestamp(d)}
+        missing = [k for k in FACTSET_REQUIRED if row[k] is None]
+        if missing:  # not stored, so the next run retries; the wording has probably changed
+            raise ValueError(f"report {d} parsed without {', '.join(missing)}: has the FactSet wording changed?")
         df = pd.concat([existing, pd.DataFrame([row])], ignore_index=True).sort_values("report_date")
         DATA.mkdir(exist_ok=True)
         df.to_parquet(FACTSET_FILE, index=False)
