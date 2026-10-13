@@ -420,6 +420,7 @@ class Indicator(Strict):
     note: str
     source: str
     asof: str | None = None
+    gauge: Gauge | None = None
 
 
 class ChartSeries(Strict):

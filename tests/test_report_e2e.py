@@ -121,3 +121,12 @@ def test_full_momentum_rows_are_kept(summary):
     us = next(r for r in summary["_dash"]["momentum"]["regions"] if r["key"] == "us")
     assert us["label"] == "US" and [r["ticker"] for r in us["rows"]] == ["S1", "S2", "S3", "S4", "S5", "S6"]
     assert us["rows"][0]["r12_1"] is not None and us["rows"][0]["trend_ok"] is True
+
+
+def test_regime_rows_are_graded_but_the_summary_is_unchanged(summary):
+    assert all("gauge" not in i for i in summary["indicators"])                  # the brief's contract
+    rows = {i["name"].split(" (")[0]: i for i in summary["_dash"]["regime"]["indicators"]}
+    vix = rows["Volatility"]["gauge"]
+    assert vix["scale"] == "sequential" and vix["score"] <= 0 and vix["label"] == "calm"   # VIX 14 < calm 18
+    assert rows["Breadth – US"]["gauge"]["level"] > 0                              # risk-on breadth reads green
+    assert rows["Copper/gold ratio"]["gauge"] is None                              # no data: not graded

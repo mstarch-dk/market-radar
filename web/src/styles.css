@@ -382,3 +382,4 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .gdot.lv0 { background: transparent; box-shadow: inset 0 0 0 1px var(--gm-0); }
 .watchouts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: -6px 0 14px; font-size: 13px; }
 .watchouts .wo-title { color: var(--ink-2); font-weight: 600; margin-right: 2px; }
+.dim { opacity: 0.45; }

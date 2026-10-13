@@ -694,6 +694,7 @@ export interface components {
             source: string;
             /** Asof */
             asof?: string | null;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
         /** Levels */
         Levels: {

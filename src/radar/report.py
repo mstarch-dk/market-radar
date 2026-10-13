@@ -21,7 +21,8 @@ def summary(d: dict, me: list[dict]) -> dict:
     cov = d["coverage"]
     mom = d["momentum"]["regions"]
     return {
-        "asof": d["asof"], "regime": d["regime"]["overall"], "indicators": d["regime"]["indicators"],
+        "asof": d["asof"], "regime": d["regime"]["overall"],
+        "indicators": [{k: v for k, v in i.items() if k != "gauge"} for i in d["regime"]["indicators"]],
         "rotation": {g["key"]: [{k: r[k] for k in SUMMARY_ROTATION} for r in g["rows"]] for g in d["rotation"]["groups"]},
         "momentum_top10": {r["key"]: [{k: x[k] for k in SUMMARY_MOMENTUM} for x in r["rows"][:10]] for r in mom},
         "momentum_new_entrants": {r["key"]: r["entrants"] for r in mom},
