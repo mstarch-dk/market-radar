@@ -215,7 +215,7 @@ details.why ul { margin: 4px 0 0; padding-left: 4px; list-style: none; white-spa
   {% if not me %}
     <p class="note">No holdings yet. Export your Yahoo Finance portfolio to CSV and run <code>radar import-yahoo &lt;file.csv&gt;</code>, or add tickers to <code>watchlist:</code> in config/universe.yaml.</p>
   {% else %}
-  <p class="note">The score is each name's momentum percentile compared with the whole stock universe. "Since buy" is the open position's return <b>in DKK</b>, including currency moves, using the average-cost method.
+  <p class="note">The score is each name's momentum percentile compared with the whole stock universe. "Since buy" is the open position's total return <b>in DKK</b>, including currency moves and dividends (gross, treated as reinvested), using the average-cost method.
   "ACWI (DKK)" is a <b>shadow position</b>: the same DKK amounts invested in ACWI on the same dates, with sells removing the same fraction. It answers "would the index have done better with this money?"
   "Since sell" shows how the stock has moved after your last sale, which is useful for reviewing exits.</p>
   {% for status, title in [("holding", "Holdings"), ("watch", "Watchlist"), ("sold", "Sold positions")] %}

@@ -18,9 +18,9 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 ## Layout
 - `config/universe.yaml`: everything tracked (ETF groups, stock lists, macro). Theme ETFs carry a UCITS `isin`, checked against `imports/positivliste.xlsx` (SKAT list; only the latest year sheet counts). `config/settings.yaml`: thresholds.
 - `src/radar/`: `ingest.py` (yfinance/FRED → `data/*.parquet`), `external.py` (CFTC positioning, OECD leading indicators, FactSet Earnings Insight PDF, Yahoo analyst consensus for holdings/watchlist → `data/*.parquet`), `universe.py` (config, constituents, names, currencies, sectors, Yahoo import, positive list), `signals/` (rotation/RRG, momentum, regime, `levels.py`: rule-based trailing ATR stop / take-profit with reasons, shown for held stocks and theme ETFs and in `radar info`), `report.py` + `templates/radar.html.j2`, `snapshot.py` (rank history for "new" and "Δ rank").
-- `data/`, `reports/`, `imports/*` and `notes/` are gitignored: local data, personal holdings, and the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`).
+- `data/`, `reports/`, `imports/*` and `notes/` are gitignored: local data, personal holdings, and the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`). Exception: `data/snapshots/` is committed, because the CI brief needs the rank history for "new" and "Δ rank" (it commits its own snapshots too).
 
 ## Conventions
-- Prices are adjusted closes in each listing's currency. Holding-vs-benchmark comparisons are done in DKK against a shadow ACWI position with identical cash flows.
+- Prices are adjusted closes (dividends + splits) in each listing's currency, with the traded close kept as `raw_close`. When a new dividend/split re-bases Yahoo's history, `radar update` re-downloads that ticker in full. Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.
 - Yahoo tickers: `.CO` Copenhagen, `.ST` Stockholm, `.OL` Oslo, `.HE` Helsinki, `.DE` Xetra, `.L` London (often GBp = pence).
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.
