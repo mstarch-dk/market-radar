@@ -3,6 +3,7 @@ import { api, type MomentumRow } from "../api/client";
 import { Check, Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { TableToolbar } from "../components/TableToolbar";
+import { WatchStar } from "../components/WatchButton";
 import { TickerLink, TickerList } from "../components/TickerLink";
 import { date, num } from "../lib/format";
 
@@ -26,6 +27,7 @@ const cols: Col<MomentumRow>[] = [
   { key: "trend", label: "Trend", sort: (r) => r.trend_ok, render: (r) => <Check v={r.trend_ok} />, help: "trend_ok", filter: { kind: "bool" } },
   { key: "new", label: "New", sort: (r) => r.new, render: (r) => (r.new ? <span className="new">NEW</span> : null), help: "new",
     filter: { kind: "bool" }, hidden: true },
+  { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: () => null },
 ];
 
 export function Momentum() {

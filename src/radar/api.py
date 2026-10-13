@@ -11,10 +11,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, profile, universe, userstore
+from . import dashboard, mine, profile, tickers, universe, userstore
 from .api_models import (
     AppContext, CoverageView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
-    Series, WatchState,
+    Series, TickerSummary, WatchState,
 )
 from .config import settings
 from .config import ROOT
@@ -144,6 +144,14 @@ def get_me() -> dict:
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}
+
+
+@app.get("/api/tickers", response_model=list[TickerSummary])
+def get_tickers() -> list[dict]:
+    """Every tracked ticker in brief (price, returns, score or quadrant, a 6-month sparkline, your status), for
+    hover cards and ownership markers."""
+    with _lock:
+        return tickers.summary(market())
 
 
 def _status(symbol: str) -> str | None:

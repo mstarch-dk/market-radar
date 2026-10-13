@@ -2,7 +2,10 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ApiError } from "../api/client";
 import { date, pct, tone, type Maybe } from "../lib/format";
+import { QUAD_KIND } from "./quadrants";
 import { Badge } from "./ui";
+
+export { QUAD_KIND };
 
 /** Small display pieces shared by the dashboard pages. Values arrive computed; these only format them. */
 
@@ -10,7 +13,6 @@ export function Pct({ v, digits = 1 }: { v: Maybe; digits?: number }) {
   return <span className={tone(v)}>{pct(v, digits)}</span>;
 }
 
-export const QUAD_KIND: Record<string, string> = { Leading: "pos", Weakening: "warn", Lagging: "neg", Improving: "accent" };
 
 export function Quadrant({ q }: { q: string | null | undefined }) {
   if (!q || q === "n/a") return <span className="muted">n/a</span>;

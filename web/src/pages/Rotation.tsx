@@ -5,6 +5,7 @@ import { DataTable, type Col } from "../components/DataTable";
 import { RrgChart } from "../components/RrgChart";
 import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
+import { WatchStar } from "../components/WatchButton";
 import { date, num } from "../lib/format";
 
 /** ETF groups shown on the Themes page; every other group is a sector/region rotation. */
@@ -31,6 +32,7 @@ const rs: Col<RotationRow>[] = [
   { key: "rs_ratio", label: "RS-Ratio", sort: (r) => r.rs_ratio, render: (r) => num(r.rs_ratio, 2), help: "rs_ratio", hidden: true },
   { key: "rs_mom", label: "RS-Mom", name: "RS-Momentum", sort: (r) => r.rs_mom, render: (r) => num(r.rs_mom, 2), help: "rs_mom", hidden: true },
 ];
+const star: Col<RotationRow> = { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: () => null };
 const local: Col<RotationRow> = {
   key: "local", label: "vs home mkt", name: "Quadrant vs home market", align: "l", sort: (r) => r.quadrant_local,
   render: (r) => <Quadrant q={r.quadrant_local} />, help: "quadrant_local", filter: { kind: "enum" },
@@ -52,8 +54,8 @@ function ucitsCols(year: string | null | undefined): Col<RotationRow>[] {
 
 export function GroupSection({ g, tail, themes, plYear }: { g: RotationGroup; tail: number; themes: boolean; plYear?: string | null }) {
   const cols = themes
-    ? [...base, ...rel, above, ...rs, ...ucitsCols(plYear)]
-    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...rs];
+    ? [...base, ...rel, above, ...rs, ...ucitsCols(plYear), star]
+    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...rs, star];
   return (
     <section id={g.key} className="group">
       <h2>{g.label}</h2>

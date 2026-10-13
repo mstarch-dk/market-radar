@@ -293,3 +293,23 @@ table.dt th .th-inner { display: inline-flex; align-items: center; gap: 2px; }
 .th-sort:hover { color: var(--ink); }
 table.dt tbody tr.hl td { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 table.dt td.empty-row { color: var(--muted); padding: 14px 8px; }
+
+/* ticker hover card, ownership markers, watch stars */
+.hc-trigger { display: inline; }
+.hovercard { width: 270px; padding: 12px 14px; }
+.tcard { display: flex; flex-direction: column; gap: 8px; }
+.tcard-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.tcard-head b { font-weight: 650; }
+.tcard-quote { display: flex; gap: 8px; align-items: baseline; }
+.tcard-quote .big { font-size: 18px; font-weight: 600; }
+.tcard-stats { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.tcard-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+.spark { display: block; }
+.own { font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 5px; padding: 0 4px;
+  border-radius: 4px; vertical-align: 1px; }
+.own.pos { color: var(--pos); background: var(--pos-bg); }
+.own.accent { color: var(--accent); background: var(--accent-bg); }
+.star { background: none; border: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--muted); padding: 0 2px; }
+.star:hover:not(:disabled) { color: var(--warn); }
+.star.on { color: var(--warn); }
+.star.held { color: var(--pos); font-size: 10px; cursor: default; }

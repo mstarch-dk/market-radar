@@ -9,7 +9,7 @@ import { date, num, pct } from "../lib/format";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
   search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol,
-  render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst /> };
+  render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst marker={false} /> };
 const common: Col<MyRow>[] = [
   { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0), help: "score_me",
     filter: { kind: "range", unit: "num" } },

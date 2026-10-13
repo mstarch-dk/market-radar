@@ -40,8 +40,8 @@ export function Tip({ content, children, placement = "top", focusable = true, cl
   );
 }
 
-/** A hover card: like Tip, but it can be entered (to click links inside) and opens a bit later. Mouse only, so a
- *  tap on touch screens goes straight to the trigger. */
+/** A hover card: like Tip, but it can be entered (to click links inside) and opens a bit later. A tap on a touch
+ *  screen still follows the link underneath. */
 export function HoverCard({ content, children, placement = "bottom-start" }: {
   content: () => ReactNode;
   children: ReactNode;
@@ -53,7 +53,7 @@ export function HoverCard({ content, children, placement = "bottom-start" }: {
     middleware: [offset(6), flip(), shift({ padding: 8 })],
   });
   const { getReferenceProps, getFloatingProps } = useInteractions([
-    useHover(context, { delay: { open: 350, close: 120 }, mouseOnly: true, handleClose: safePolygon() }),
+    useHover(context, { delay: { open: 350, close: 120 }, handleClose: safePolygon() }),
     useDismiss(context),
     useRole(context, { role: "dialog" }),
   ]);
