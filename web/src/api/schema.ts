@@ -387,6 +387,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Sources */
             sources: components["schemas"]["Source"][];
             regime: components["schemas"]["RegimeCounts"];
@@ -828,6 +832,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Prev */
             prev?: string | null;
             /** Top N */
@@ -1022,6 +1030,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             factset?: components["schemas"]["FactSet"] | null;
             /** Cli */
             cli: components["schemas"]["CliRow"][];
@@ -1142,6 +1154,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             overall: components["schemas"]["Overall"];
             /** Indicators */
             indicators: components["schemas"]["Indicator"][];
@@ -1228,6 +1244,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Prev */
             prev?: string | null;
             /** Tail Weeks */

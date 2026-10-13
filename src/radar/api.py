@@ -4,6 +4,7 @@ Binds to 127.0.0.1 only; there is no authentication."""
 from __future__ import annotations
 
 import threading
+from datetime import date
 
 import pandas as pd
 
@@ -99,8 +100,11 @@ def _dashboard() -> dict:
 
 
 def _view(key: str) -> dict:
+    """One dashboard section, with how old its data is: stale once older than the price limit in settings."""
     d = _dashboard()
-    return {"asof": d["asof"], "generated": d["generated"], **d[key]}
+    age = (date.today() - date.fromisoformat(d["asof"])).days
+    limit = settings()["coverage"]["max_age"]["prices"]
+    return {"asof": d["asof"], "generated": d["generated"], "age_days": age, "stale": age > limit, **d[key]}
 
 
 @app.get("/api/regime", response_model=RegimeView)

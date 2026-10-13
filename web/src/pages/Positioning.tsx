@@ -30,7 +30,7 @@ export function Positioning() {
         const f = d.factset;
         return (
           <>
-            <PageHead title="Positioning & cycle" asof={d.asof} generated={d.generated}>
+            <PageHead title="Positioning & cycle" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
               Data that doesn&apos;t come from prices, so it can lead or confirm what rotation and momentum show. Sources: FactSet
               Earnings Insight (weekly), OECD Composite Leading Indicators (monthly, about 2 months&apos; lag) and the CFTC
               Commitments of Traders (weekly; Tuesday positions published on Friday).

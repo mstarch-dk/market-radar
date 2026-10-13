@@ -12,7 +12,7 @@ export function Themes() {
         const year = d.positive_list_year;
         return (
           <>
-            <PageHead title="Themes & factors" asof={d.asof} generated={d.generated}>
+            <PageHead title="Themes & factors" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
               Themes are measured with liquid US-listed ETFs. Use the <b>UCITS</b> column for something you can actually buy as
               a Danish investor, and verify it on justETF. <b>Positive list</b> (SKAT): <i>yes</i> means lager taxation as share
               income in frie midler, and the ETF can be held on an aktiesparekonto (17% lager). <i>no</i> means it&apos;s taxed as

@@ -13,8 +13,10 @@ export type Col<T> = ColSpec<T> & {
   heat?: boolean;
   /** Hidden until switched on in the Columns menu. */
   hidden?: boolean;
-  /** Raw value for CSV export (defaults to the sort value). */
-  csv?: (row: T) => unknown;
+  /** Raw value for CSV export (defaults to the sort value); `false` leaves the column out of the export. */
+  csv?: ((row: T) => unknown) | false;
+  /** CSV header when the raw value differs from what the column shows (e.g. "Ticker" under "Company"). */
+  csvHeader?: string;
 };
 
 export const colName = <T,>(c: Col<T>) => c.name ?? (typeof c.label === "string" ? c.label : c.key);

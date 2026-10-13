@@ -8,7 +8,7 @@ import { WatchButton } from "../components/WatchButton";
 import { date, num, pct } from "../lib/format";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
-  search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol,
+  search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol, csvHeader: "Ticker",
   render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst marker={false} /> };
 const common: Col<MyRow>[] = [
   { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0), help: "score_me",
@@ -65,14 +65,14 @@ const holdingCols: Col<MyRow>[] = [
 ];
 const watchCols: Col<MyRow>[] = [
   name, ...common, flags,
-  { key: "edit", label: "", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact /> },
+  { key: "edit", label: "", name: "Watch", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact />, csv: false },
 ];
 const soldCols: Col<MyRow>[] = [
   name, ...common,
   { key: "sold", label: "Sold", sort: (r) => r.last_sell_date, render: (r) => date(r.last_sell_date) },
   { key: "since_sell", label: "Since sell", sort: (r) => r.since_sell, render: (r) => <Pct v={r.since_sell} />, help: "since_sell", heat: true },
   flags,
-  { key: "edit", label: "", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact /> },
+  { key: "edit", label: "", name: "Watch", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact />, csv: false },
 ];
 
 const TABLE_ID: Record<string, string> = { Holdings: "held", Watchlist: "watch", "Sold positions": "sold" };

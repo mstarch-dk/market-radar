@@ -327,3 +327,16 @@ table.dt td.empty-row { color: var(--muted); padding: 14px 8px; }
 .rrg .trail.on .trail-label { fill: var(--ink); font-weight: 650; }
 .rrg-tip { position: absolute; z-index: 4; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); white-space: nowrap; }
+
+/* nav on narrow screens: scroll without a bar, fade at the edges */
+nav.tabs { scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%); padding: 0 12px; }
+nav.tabs::-webkit-scrollbar { display: none; }
+.page-head .notes { margin: 8px 0 0; }
+@media (max-width: 640px) {
+  table.dt th:first-child, table.dt td:first-child { max-width: 44vw; overflow: hidden; text-overflow: ellipsis; }
+  .sticky-tools { position: static; }
+  .toolbar .tb-right { margin-left: 0; }
+  .tb-search { width: 100%; }
+  .grid.charts { grid-template-columns: 1fr; }
+}

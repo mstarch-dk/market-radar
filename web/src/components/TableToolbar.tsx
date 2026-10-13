@@ -99,10 +99,11 @@ export function TableToolbar<T>({ id, rows, cols, csvName }: { id: string; rows:
   const n = activeFilters(state);
 
   const exportCsv = () => {
-    const vis = cols.filter((c) => !hidden.has(c.key) && (c.csv || c.sort));
+    const vis = cols.filter((c) => !hidden.has(c.key) && c.csv !== false && (c.csv || c.sort));
     const col = state.sort && cols.find((c) => c.key === state.sort!.key);
     const out = col?.sort ? sortRows(kept, col.sort, state.sort!.asc) : kept;
-    const blob = new Blob([toCsv(vis.map(colName), out, vis.map((c) => c.csv ?? c.sort!))], { type: "text/csv" });
+    const cells = vis.map((c) => (c.csv || c.sort) as (r: T) => unknown);
+    const blob = new Blob([toCsv(vis.map((c) => c.csvHeader ?? colName(c)), out, cells)], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `${csvName ?? id}-${new Date().toISOString().slice(0, 10)}.csv`;

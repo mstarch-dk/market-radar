@@ -372,6 +372,8 @@ class WatchState(Strict):
 class Snapshot(Strict):
     asof: str
     generated: str
+    age_days: int
+    stale: bool
 
 
 class Overall(Strict):

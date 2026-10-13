@@ -16,7 +16,7 @@ export const THEME_GROUPS = ["themes", "factors"];
 
 const base: Col<RotationRow>[] = [
   { key: "name", label: "Name", align: "l", sort: (r) => r.name, search: (r) => `${r.name} ${r.ticker} ${r.ucits ?? ""} ${r.ucits_name ?? ""}`,
-    render: (r) => <TickerLink symbol={r.ticker} name={r.name} nameFirst />, csv: (r) => r.ticker },
+    render: (r) => <TickerLink symbol={r.ticker} name={r.name} nameFirst />, csv: (r) => r.ticker, csvHeader: "Ticker" },
   { key: "rank", label: "#", sort: (r) => r.rank, render: (r) => r.rank ?? "–", help: "rank" },
   { key: "chg", label: "Δ rank", name: "Rank change", sort: (r) => r.rank_change, render: (r) => <RankChange v={r.rank_change} />, help: "rank_change" },
   { key: "quadrant", label: "Quadrant", align: "l", sort: (r) => r.quadrant, render: (r) => <Quadrant q={r.quadrant} />,
@@ -35,7 +35,7 @@ const rs: Col<RotationRow>[] = [
   { key: "rs_ratio", label: "RS-Ratio", sort: (r) => r.rs_ratio, render: (r) => num(r.rs_ratio, 2), help: "rs_ratio", hidden: true },
   { key: "rs_mom", label: "RS-Mom", name: "RS-Momentum", sort: (r) => r.rs_mom, render: (r) => num(r.rs_mom, 2), help: "rs_mom", hidden: true },
 ];
-const star: Col<RotationRow> = { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: () => null };
+const star: Col<RotationRow> = { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: false };
 const local: Col<RotationRow> = {
   key: "local", label: "vs home mkt", name: "Quadrant vs home market", align: "l", sort: (r) => r.quadrant_local,
   render: (r) => <Quadrant q={r.quadrant_local} />, help: "quadrant_local", filter: { kind: "enum" },
@@ -43,7 +43,7 @@ const local: Col<RotationRow> = {
 
 function ucitsCols(year: string | null | undefined): Col<RotationRow>[] {
   return [
-    { key: "ucits", label: "UCITS alternative", align: "l", sort: (r) => r.ucits_name ?? r.ucits, help: "ucits", csv: (r) => r.ucits,
+    { key: "ucits", label: "UCITS alternative", align: "l", sort: (r) => r.ucits_name ?? r.ucits, help: "ucits", csv: (r) => r.ucits, csvHeader: "UCITS ticker",
       render: (r) => r.ucits ? <TickerLink symbol={r.ucits} name={r.ucits_name} nameFirst /> : <span className="muted">–</span>,
       filter: { kind: "bool", value: (r) => Boolean(r.ucits) } },
     { key: "isin", label: "ISIN", align: "l", sort: (r) => r.isin, render: (r) => r.isin ?? <span className="muted">–</span>, help: "isin",
@@ -89,7 +89,7 @@ export function Rotation() {
         const groups = d.groups.filter((g) => !THEME_GROUPS.includes(g.key));
         return (
           <>
-            <PageHead title="Sector rotation" asof={d.asof} generated={d.generated}>
+            <PageHead title="Sector rotation" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
               The rotation graph plots each ETF&apos;s <b>relative trend</b> vs ACWI (x) against its <b>acceleration</b> (y).
               Rotation usually runs clockwise: Improving → Leading → Weakening → Lagging. Names moving from <b>Improving into
               Leading</b> are typical early momentum candidates. Rank change is compared with the snapshot from{" "}

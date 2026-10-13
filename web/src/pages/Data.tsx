@@ -32,7 +32,7 @@ export function Data() {
         const analystLimit = d.sources.find((s) => s.key === "analyst")?.max_age;
         return (
           <>
-            <PageHead title="Data & coverage" asof={d.asof} generated={d.generated}>
+            <PageHead title="Data & coverage" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
               Every reading in the radar comes from the sources below, and only from them. A &ldquo;Risk-on&rdquo; label means the
               inputs listed here lean risk-on; it says nothing about what isn&apos;t measured (see the blind spots further down).
               A source older than its limit is marked <Signal s="stale" /> and stops counting in the regime vote; an input with no
