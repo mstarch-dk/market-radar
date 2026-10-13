@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, type RotationGroup, type RotationRow } from "../api/client";
+import { useMemo, useState } from "react";
+import { api, type RotationGroup, type RotationRow, type RrgTrail } from "../api/client";
 import { Check, Loaded, PageHead, Pct, Quadrant, RankChange } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { RrgChart } from "../components/RrgChart";
@@ -7,6 +8,8 @@ import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { WatchStar } from "../components/WatchButton";
 import { date, num } from "../lib/format";
+import { filterRows } from "../lib/tableState";
+import { useTableState } from "../lib/useTableState";
 
 /** ETF groups shown on the Themes page; every other group is a sector/region rotation. */
 export const THEME_GROUPS = ["themes", "factors"];
@@ -56,14 +59,24 @@ export function GroupSection({ g, tail, themes, plYear }: { g: RotationGroup; ta
   const cols = themes
     ? [...base, ...rel, above, ...rs, ...ucitsCols(plYear), star]
     : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...rs, star];
+  const [state] = useTableState(g.key);
+  const [hovered, setHovered] = useState<string | null>(null);
+  // the graphs show the same rows as the filtered table
+  const kept = useMemo(() => new Set(filterRows(g.rows, cols, state).rows.map((r) => r.ticker)), [g.rows, cols, state]);
+  const extra = useMemo(() => Object.fromEntries(g.rows.map((r) => [r.ticker, { rel_r1m: r.rel_r1m, rel_r3m: r.rel_r3m }])), [g.rows]);
+  const show = (trails: RrgTrail[]) => trails.filter((t) => kept.has(t.ticker));
   return (
     <section id={g.key} className="group">
       <h2>{g.label}</h2>
       <div className="grid wide-charts">
-        <RrgChart trails={g.rrg} title={`${g.label} vs ACWI – last ${tail} weeks`} />
-        {g.rrg_local && <RrgChart trails={g.rrg_local} title={`${g.label} vs ${g.local_benchmark} – last ${tail} weeks`} />}
+        <RrgChart trails={show(g.rrg)} title={`${g.label} vs ACWI – last ${tail} weeks`} highlight={hovered} onHover={setHovered} extra={extra} />
+        {g.rrg_local && <RrgChart trails={show(g.rrg_local)} title={`${g.label} vs ${g.local_benchmark} – last ${tail} weeks`}
+          highlight={hovered} onHover={setHovered} extra={extra} />}
       </div>
-      <div className="card"><DataTable id={g.key} csvName={`rotation-${g.key}`} rows={g.rows} cols={cols} rowKey={(r) => r.ticker} /></div>
+      <div className="card">
+        <DataTable id={g.key} csvName={`rotation-${g.key}`} rows={g.rows} cols={cols} rowKey={(r) => r.ticker}
+          highlight={hovered} onHover={setHovered} />
+      </div>
     </section>
   );
 }

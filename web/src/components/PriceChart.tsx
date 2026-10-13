@@ -11,7 +11,7 @@ import {
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
 import type { Series } from "../api/client";
-import { price, type Maybe } from "../lib/format";
+import { compact, date, num, price, type Maybe } from "../lib/format";
 
 const RANGES = [["3M", 63], ["6M", 126], ["1Y", 252], ["3Y", 756]] as const;
 
@@ -34,6 +34,7 @@ export function PriceChart({ series, levels, currency }: { series: Series; level
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [range, setRange] = useState<number>(252);
+  const [hi, setHi] = useState<number | null>(null);      // index of the hovered session
 
   useEffect(() => {
     if (!host.current) return;
@@ -95,6 +96,9 @@ export function PriceChart({ series, levels, currency }: { series: Series; level
     rel.setData(line(series, series.rel_acwi));
     rel.createPriceLine({ price: 100, color: c.muted, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: false, title: "" });
 
+    const index = new Map(series.dates.map((d, i) => [d, i]));
+    chart.subscribeCrosshairMove((p) => setHi(p.time && p.point ? (index.get(String(p.time)) ?? null) : null));
+
     const panes = chart.panes();
     panes[0]?.setStretchFactor(0.62);
     panes[1]?.setStretchFactor(0.19);
@@ -139,6 +143,19 @@ export function PriceChart({ series, levels, currency }: { series: Series; level
             </span>
           ))}
         </div>
+      </div>
+      <div className="readout small" aria-live="polite">
+        {hi !== null ? (
+          <>
+            <b>{date(series.dates[hi])}</b>
+            <span>close <b className="num">{price(series.close[hi], currency)}</b></span>
+            <span>50d <b className="num">{price(series.sma50[hi])}</b></span>
+            <span>200d <b className="num">{price(series.sma200[hi])}</b></span>
+            <span>RSI <b className="num">{num(series.rsi[hi], 1)}</b></span>
+            <span>vs ACWI <b className="num">{num(series.rel_acwi[hi], 1)}</b></span>
+            <span>volume <b className="num">{compact(series.volume[hi])}</b></span>
+          </>
+        ) : <span className="muted">Hover the chart to read the values of any session.</span>}
       </div>
       <div ref={host} className="chart" />
       <div className="small muted">Panes: price with volume · RSI 14 (30/70) · relative strength vs ACWI (100 = start of the 3-year window)</div>

@@ -313,3 +313,17 @@ table.dt td.empty-row { color: var(--muted); padding: 14px 8px; }
 .star:hover:not(:disabled) { color: var(--warn); }
 .star.on { color: var(--warn); }
 .star.held { color: var(--pos); font-size: 10px; cursor: default; }
+
+/* chart readouts and ranges */
+.lc-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.lc-head figcaption { margin: 0; }
+.line-chart .seg button { padding: 2px 8px; font-size: 11.5px; }
+.line-chart .legend { min-height: 18px; }
+.line-chart .legend b { font-weight: 600; color: var(--ink); }
+.readout { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 20px; color: var(--ink-2); margin-bottom: 4px; }
+.readout b { color: var(--ink); font-weight: 600; }
+.rrg-box { position: relative; }
+.rrg .trail.dim { opacity: 0.25; }
+.rrg .trail.on .trail-label { fill: var(--ink); font-weight: 650; }
+.rrg-tip { position: absolute; z-index: 4; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); white-space: nowrap; }
