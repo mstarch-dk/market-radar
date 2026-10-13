@@ -7,19 +7,29 @@ app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, 
 
 @app.command()
 def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S&P 500 constituent list")):
-    """Download new prices (incremental) and macro series."""
+    """Download new prices (incremental) and macro series. Each source is logged in data/sources.json."""
     tickers = universe.all_price_tickers(refresh_constituents)
     typer.echo(f"Updating {len(tickers)} tickers…")
-    res = ingest.update_prices(tickers)
-    typer.echo(f"Prices: {res['rows']:,} rows, {res['new']} new tickers.")
-    if res["rebased"]:
-        typer.echo(f"Re-downloaded after a dividend/split re-based the history: {', '.join(res['rebased'])}")
-    if res["missing"]:
-        typer.echo(f"No data for {len(res['missing'])}: {', '.join(res['missing'])}")
+
+    def prices():
+        res = ingest.update_prices(tickers)
+        msg = f"{res['rows']:,} rows, {res['new']} new tickers"
+        if res["rebased"]:
+            msg += f"; re-downloaded after a dividend/split re-based the history: {', '.join(res['rebased'])}"
+        if res["missing"]:
+            msg += f"; no data for {len(res['missing'])}: {', '.join(res['missing'])}"
+        return msg
+
+    def fred():
+        failed = ingest.update_fred(list(universe.macro_fred()))
+        if failed:
+            raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
+        return f"{len(universe.macro_fred())} series"
+
+    _run_steps({"prices": ("Prices", prices)})
     universe.names(tickers)  # warm the name cache
     universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
-    ingest.update_fred(list(universe.macro_fred()))
-    typer.echo("Macro (FRED) updated.")
+    _run_steps({"fred": ("Macro (FRED)", fred)})
     update_external()
 
 
@@ -30,17 +40,27 @@ def update_external():
 
     h = universe.holdings()
     mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
-    steps = {
-        "CFTC positioning": lambda: f"{external.update_cot()} new rows",
-        "OECD leading indicators": external.update_oecd_cli,
-        "FactSet earnings insight": lambda: f"report {d}" if (d := external.update_factset()) else "no new report",
-        "Analyst targets": lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"]),
-    }
-    for label, step in steps.items():
+    _run_steps({
+        "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),
+        "oecd": ("OECD leading indicators", external.update_oecd_cli),
+        "factset": ("FactSet earnings insight",
+                    lambda: f"report {d}" if (d := external.update_factset()) else "no new report"),
+        "analyst": ("Analyst targets", lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"])),
+    })
+
+
+def _run_steps(steps: dict) -> None:
+    """Run update steps {source key: (label, fn)}; a failure is logged and the cached data is kept."""
+    from . import coverage
+
+    for key, (label, step) in steps.items():
         try:
-            typer.echo(f"{label}: {step()}.")
-        except Exception as e:  # network/format problems shouldn't block the price radar
+            msg = step()
+            typer.echo(f"{label}: {msg}.")
+            coverage.record(key, True, msg)
+        except Exception as e:  # network/format problems shouldn't block the rest of the radar
             typer.echo(f"{label}: FAILED ({type(e).__name__}: {e}); using cached data.")
+            coverage.record(key, False, error=f"{type(e).__name__}: {e}")
 
 
 @app.command(name="report")
@@ -135,7 +155,8 @@ def _info_levels(ticker: str, prices, closes, row: dict, since) -> dict:
     summary = REPORTS / "summary.json"
     regime_label = json.loads(summary.read_text(encoding="utf-8"))["regime"]["label"] if summary.exists() else None
     lv = levels.for_ticker(ticker, closes, ingest.wide(prices, "high"), ingest.wide(prices, "low"), row, since,
-                           regime_label, external.load_analyst(), cfg["stops"])
+                           regime_label, external.load_analyst(),
+                           cfg["stops"] | {"analyst_max_age_days": cfg["coverage"]["max_age"]["analyst"]})
 
     def rnd(v):
         if isinstance(v, dict):

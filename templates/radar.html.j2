@@ -11,21 +11,21 @@
   --bg: #f4f3ef; --surface: #fcfcfb; --border: #e2e1dc;
   --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8985;
   --accent: #2a78d6; --pos: #0b7a3b; --neg: #c2312f;
-  --on: #008300; --off: #e34948; --neutral: #8a8985;
+  --on: #008300; --off: #e34948; --neutral: #8a8985; --warn: #a86f00;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #121211; --surface: #1a1a19; --border: #33332f;
     --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
-    --accent: #3987e5; --pos: #4cc27a; --neg: #ef7471;
+    --accent: #3987e5; --pos: #4cc27a; --neg: #ef7471; --warn: #e0a63a;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #121211; --surface: #1a1a19; --border: #33332f;
   --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
-  --accent: #3987e5; --pos: #4cc27a; --neg: #ef7471;
+  --accent: #3987e5; --pos: #4cc27a; --neg: #ef7471; --warn: #e0a63a;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 Inter, "Segoe UI", system-ui, sans-serif; }
@@ -47,6 +47,13 @@ h2 { font-size: 17px; margin: 28px 0 10px; } h2:first-child { margin-top: 0; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--ink-2); white-space: nowrap; }
 .st-risk-on { color: var(--on); border-color: var(--on); } .st-risk-off { color: var(--off); border-color: var(--off); }
 .st-risk-on::before { content: "▲ "; } .st-risk-off::before { content: "▼ "; } .st-neutral::before { content: "● "; }
+.st-na { color: var(--ink-3); border-style: dashed; } .st-na::before { content: "○ "; }
+.st-stale { color: var(--warn); border-color: var(--warn); } .st-stale::before { content: "◷ "; }
+.st-ok { color: var(--on); border-color: var(--on); } .st-missing { color: var(--off); border-color: var(--off); }
+.coverage-strip { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.coverage-strip .warn { color: var(--warn); } .coverage-strip .bad { color: var(--neg); }
+a.goto { color: var(--accent); text-decoration: none; white-space: nowrap; } a.goto:hover { text-decoration: underline; }
+td.wrap { white-space: normal; min-width: 200px; } ul.blind { margin: 0; padding-left: 20px; max-width: 900px; color: var(--ink-2); } ul.blind li { margin: 4px 0; }
 .q-Leading { color: #008300; } .q-Weakening { color: #a86f00; } .q-Lagging { color: #c2312f; } .q-Improving { color: #2a78d6; }
 .tbl-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
@@ -75,7 +82,7 @@ details.why ul { margin: 4px 0 0; padding-left: 4px; list-style: none; white-spa
   <button data-tab="momentum">Momentum leaders</button>
   <button data-tab="positioning">Positioning &amp; cycle</button>
   <button data-tab="me">My holdings &amp; watchlist</button>
-  <button data-tab="data">Data notes</button>
+  <button data-tab="data">Data &amp; coverage</button>
 </nav>
 <main>
 
@@ -87,13 +94,20 @@ details.why ul { margin: 4px 0 0; padding-left: 4px; list-style: none; white-spa
 <section id="regime" class="active">
   <div class="card hero">
     <div><div class="sub">Overall reading</div><div class="big">{{ overall.label }}</div></div>
-    <div class="sub">{{ overall.on }} risk-on · {{ overall.off }} risk-off · {{ overall.neutral }} neutral/informational</div>
+    <div class="sub">{{ overall.on }} risk-on · {{ overall.off }} risk-off · {{ overall.neutral }} neutral/informational{% if overall.na %} · {{ overall.na }} without data{% endif %}{% if overall.stale %} · {{ overall.stale }} stale{% endif %}</div>
   </div>
+  {% set cr = coverage.regime %}
+  <p class="coverage-strip"><b>{{ cr.current }} of {{ cr.total }}</b> indicators have current data
+    {%- if cr.na %} · <span class="warn">{{ cr.na|length }} without data ({{ cr.na|join(", ") }})</span>{% endif %}
+    {%- if cr.stale %} · <span class="warn">{{ cr.stale|length }} stale, not counted ({{ cr.stale|join(", ") }})</span>{% endif %}
+    {%- if coverage.oldest %} · oldest input: {{ coverage.oldest.name }}, {{ coverage.oldest.asof }} ({{ coverage.oldest.age_days }} days){% endif %}
+    {%- if coverage.failing %} · <span class="bad">last update failed: {{ coverage.failing|join(", ") }}</span>{% endif %}
+    · <a href="#data" class="goto" data-goto="data">Data &amp; coverage →</a></p>
   <h2>Indicators</h2>
   <div class="card tbl-wrap"><table>
     <thead><tr><th class="l">Indicator</th><th>Reading</th><th class="l">Signal</th><th class="l">Context</th></tr></thead>
     <tbody>{% for i in indicators %}
-      <tr><td>{{ i.name }}</td><td>{{ i.value }}</td><td class="l"><span class="pill st-{{ i.status }}">{{ i.status }}</span></td><td class="l muted">{{ i.note }}</td></tr>
+      <tr><td>{{ i.name }}</td><td>{{ i.value }}</td><td class="l"><span class="pill st-{{ i.status|replace('/', '') }}">{{ i.status }}</span></td><td class="l muted">{{ i.note }}{% if i.asof %} · as of {{ i.asof }}{% endif %}</td></tr>
     {% endfor %}</tbody></table></div>
   <h2>Charts</h2>
   <div class="grid">{% for c in regime_charts %}<div class="chart">{{ c|safe }}</div>{% endfor %}</div>
@@ -246,10 +260,34 @@ details.why ul { margin: 4px 0 0; padding-left: 4px; list-style: none; white-spa
 
 <!-- DATA -->
 <section id="data">
-  <p class="note">Prices come from Yahoo Finance via yfinance (unofficial, adjusted closes) and macro series from FRED. Returns are in each instrument's listing currency.
-  The Europe and Nordic stock lists are curated large-cap proxies; edit them in config/universe.yaml.</p>
-  <h2>Stale or missing tickers ({{ stale|length }})</h2>
-  <p class="note">{% if stale %}{{ stale|join(", ") }}<br><span class="muted">No price in the last 7 days. The ticker may be wrong or delisted, so fix it in universe.yaml.</span>{% else %}None.{% endif %}</p>
+  <p class="note">Every reading on this page comes from the sources below, and only from them. A "Risk-on" label means the inputs listed here lean risk-on; it says nothing about what isn't measured (see the blind spots further down).
+  A source older than its limit is marked <span class="pill st-stale">stale</span> and stops counting in the regime vote; an input with no data shows as <span class="pill st-na">n/a</span>. Ages are counted from the data date ({{ asof }}); limits are in config/settings.yaml (<code>coverage:</code>).</p>
+  <h2>Sources</h2>
+  <div class="card tbl-wrap"><table class="sortable">
+    <thead><tr><th class="l">Source</th><th class="l">Feeds</th><th class="l">Coverage</th><th>As of</th><th>Age (days)</th><th class="l">Status</th><th class="l">Last update</th></tr></thead>
+    <tbody>{% for s in coverage.sources %}
+      <tr><td class="wrap"><b>{{ s.name }}</b><br><span class="muted">{{ s.provider }} · {{ "official" if s.official else "unofficial" }} · {{ s.cadence }}</span></td>
+        <td class="l wrap">{{ s.feeds }}</td>
+        <td class="l wrap">{{ s.coverage }}{% if s.detail %}<br><span class="muted">{{ s.detail }}</span>{% endif %}</td>
+        <td>{{ s.asof or "–" }}</td>
+        <td data-v="{{ s.age_days if s.age_days is not none else '' }}">{{ s.age_days if s.age_days is not none else "–" }}{% if s.max_age is not none %} <span class="muted">/ {{ s.max_age }}</span>{% endif %}</td>
+        <td class="l"><span class="pill st-{{ s.status }}">{{ s.status }}</span></td>
+        <td class="l wrap">{% if s.error %}<span class="neg">failed {{ s.last_attempt[:10] }}: {{ s.error }}</span>{% if s.last_success %}<br><span class="muted">last success {{ s.last_success[:10] }}</span>{% endif %}{% elif s.last_success %}{{ s.last_success[:16]|replace("T", " ") }}{% else %}<span class="muted">not logged yet</span>{% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+  <h2>How the readings are built</h2>
+  <ul class="blind">
+    <li><b>Regime</b>: a vote of {{ coverage.regime.total }} indicators (trend, breadth, volatility, credit, rates, dollar, commodities, OECD cycle, FactSet revisions). Only risk-on and risk-off rows count: net = (on − off) / (on + off), above +0.33 is Risk-on, below −0.33 Risk-off. Today {{ coverage.regime.current }} have current data.</li>
+    <li><b>Rotation</b>: relative-rotation graph of weekly relative strength vs ACWI (and vs the STOXX 600 for European sectors), from prices only.</li>
+    <li><b>Momentum</b>: average percentile of the 12-month (skipping the last month), 6-month and 3-month returns within each region's stock list, from prices only.</li>
+    <li><b>Levels</b>: a trailing ATR stop on dividend-adjusted prices plus Yahoo analyst targets; consensus older than {{ coverage.sources|selectattr("key", "equalto", "analyst")|map(attribute="max_age")|first }} days is not used.</li>
+    <li><b>Holdings returns</b>: total return in DKK (dividends gross, reinvested) vs a shadow ACWI position with the same cash flows.</li>
+  </ul>
+  <h2>What the radar doesn't see</h2>
+  <ul class="blind">{% for b in coverage.blind_spots %}<li>{{ b }}</li>{% endfor %}</ul>
+  <h2>Missing tickers ({{ coverage.missing_tickers|length }})</h2>
+  <p class="note">{% if coverage.missing_tickers %}{{ coverage.missing_tickers|join(", ") }}<br><span class="muted">Configured but no prices at all. The ticker may be wrong or not on Yahoo, so check it in universe.yaml.</span>{% else %}None.{% endif %}</p>
+  <h2>Stale tickers ({{ stale|length }})</h2>
+  <p class="note">{% if stale %}{{ stale|join(", ") }}<br><span class="muted">No new price for more than {{ coverage.sources[0].max_age }} days. The ticker may be delisted or suspended.</span>{% else %}None.{% endif %}</p>
 </section>
 </main>
 <script>
@@ -261,6 +299,9 @@ document.querySelectorAll("nav button").forEach(b => b.addEventListener("click",
   try { localStorage.setItem("radar-tab", b.dataset.tab); } catch (e) {}
 }));
 try { const t = localStorage.getItem("radar-tab"); if (t) document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch (e) {}
+document.querySelectorAll("a[data-goto]").forEach(a => a.addEventListener("click", e => {
+  e.preventDefault(); document.querySelector(`nav button[data-tab="${a.dataset.goto}"]`)?.click(); window.scrollTo(0, 0);
+}));
 document.querySelectorAll("table.sortable th").forEach((th, idx) => th.addEventListener("click", () => {
   const tbody = th.closest("table").tBodies[0], asc = th.dataset.asc !== "1";
   th.closest("tr").querySelectorAll("th").forEach(h => delete h.dataset.asc); th.dataset.asc = asc ? "1" : "0";

@@ -107,15 +107,25 @@ def _norm_dates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def update_fred(series: list[str]) -> None:
-    cols = {}
+def update_fred(series: list[str]) -> list[str]:
+    """Download each FRED series in full; a series that fails keeps its cached values. Returns the failures."""
+    cached = load_fred()
+    cols, failed = {}, []
     for sid in series:
         url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
-        csv = pd.read_csv(io.StringIO(requests.get(url, timeout=30).text))
-        date_col = csv.columns[0]
-        cols[sid] = pd.to_numeric(csv.set_index(pd.to_datetime(csv[date_col]))[sid], errors="coerce")
-    DATA.mkdir(exist_ok=True)
-    pd.DataFrame(cols).to_parquet(FRED_FILE)
+        try:
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            csv = pd.read_csv(io.StringIO(resp.text))
+            cols[sid] = pd.to_numeric(csv.set_index(pd.to_datetime(csv[csv.columns[0]]))[sid], errors="coerce")
+        except Exception as e:
+            failed.append(f"{sid} ({type(e).__name__})")
+            if sid in cached:
+                cols[sid] = cached[sid]
+    if cols:
+        DATA.mkdir(exist_ok=True)
+        pd.DataFrame(cols).to_parquet(FRED_FILE)
+    return failed
 
 
 def load_fred() -> pd.DataFrame:
