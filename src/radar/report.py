@@ -128,34 +128,44 @@ def _fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
     return closes[fx].ffill() * (0.01 if ccy == "GBp" else 1.0)
 
 
-def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series) -> tuple[float, float] | None:
-    """Return of the open position vs. a shadow ACWI position with identical DKK cash flows.
+def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
+               raw: pd.Series | None = None) -> tuple[float, float] | None:
+    """Total return of the open position vs. a shadow ACWI position with identical DKK cash flows.
 
     Buys put the same DKK amount into ACWI on the same day; sells remove the same fraction from both
-    (average-cost method). Returns (position return, shadow return), both in DKK.
+    (average-cost method). Dividends count as reinvested on both sides: `px` is the adjusted close, and each
+    lot's shares are scaled by adjusted/traded close on its trade date, so a lot bought before an ex-date
+    gets the dividend. Without `raw` (traded closes) the position is price-only. Returns (position return,
+    shadow return), both in DKK.
     """
-    qty = cost = units = 0.0
+    factor = (px / raw).dropna() if raw is not None else pd.Series(dtype=float)
+    qty = units_px = cost = units = 0.0  # units_px: dividend-reinvested shares, in adjusted-price terms
     for _, t in tx.sort_values("date", kind="stable").iterrows():
         d, q = t["date"], t["quantity"]
         if t["type"] == "SELL":
             if qty <= 1e-9:
                 continue
             keep = 1 - min(q, qty) / qty
-            qty, cost, units = qty * keep, cost * keep, units * keep
+            qty, units_px, cost, units = qty * keep, units_px * keep, cost * keep, units * keep
         else:
             if qty <= 1e-9:
-                qty = cost = units = 0.0
+                qty = units_px = cost = units = 0.0
             amount = q * t["price"] * fx.asof(d)
+            f = factor.asof(d) if not factor.empty else np.nan
+            if not (np.isfinite(f) and f > 0):  # trade before the price history: price-only for that lot
+                f = factor.iloc[-1] if not factor.empty else 1.0
             qty += q
+            units_px += q / f
             cost += amount
             units += amount / bench_dkk.asof(d)
     if qty <= 1e-9 or not np.isfinite(cost) or not np.isfinite(units) or cost <= 0:
         return None
-    value = qty * px.iloc[-1] * fx.iloc[-1]
+    value = units_px * px.iloc[-1] * fx.iloc[-1]
     return value / cost - 1, units * bench_dkk.iloc[-1] / cost - 1
 
 
-def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history: int) -> pd.DataFrame:
+def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history: int,
+              raw_closes: pd.DataFrame | None = None) -> pd.DataFrame:
     h = universe.holdings()
     if h.empty:
         return pd.DataFrame()
@@ -180,7 +190,8 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
         since_sell.append(x_ret)
         if r["status"] == "holding" and pd.notna(r["last"]):
             fx = _fx_to_dkk(closes, ccy.get(r["symbol"]))
-            res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk)                 if fx is not None else None
+            raw = raw_closes[r["symbol"]] if raw_closes is not None and r["symbol"] in raw_closes else None
+            res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw)                 if fx is not None else None
             if res is None:
                 f.append("can't compute return")
             elif not -0.95 < res[0] < 20:  # usually a GBp/GBP (pence vs pounds) mismatch in Yahoo
@@ -367,7 +378,8 @@ def build() -> dict:
         clusters[region] = _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"])
 
     # --- me
-    me = _me_table(closes, volumes, lead, bench, mc["min_history_days"])
+    raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
+    me = _me_table(closes, volumes, lead, bench, mc["min_history_days"], raw_closes)
     if not me.empty:
         me["name"] = me["symbol"].map(display)
         _add_levels(me, closes, wide(prices, "high"), wide(prices, "low"), insts, rot, overall["label"],

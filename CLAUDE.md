@@ -21,6 +21,6 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `data/`, `reports/`, `imports/*` and `notes/` are gitignored: local data, personal holdings, and the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`).
 
 ## Conventions
-- Prices are adjusted closes in each listing's currency. Holding-vs-benchmark comparisons are done in DKK against a shadow ACWI position with identical cash flows.
+- Prices are adjusted closes (dividends + splits) in each listing's currency, with the traded close kept as `raw_close`. When a new dividend/split re-bases Yahoo's history, `radar update` re-downloads that ticker in full. Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.
 - Yahoo tickers: `.CO` Copenhagen, `.ST` Stockholm, `.OL` Oslo, `.HE` Helsinki, `.DE` Xetra, `.L` London (often GBp = pence).
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.

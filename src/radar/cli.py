@@ -12,6 +12,8 @@ def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S
     typer.echo(f"Updating {len(tickers)} tickers…")
     res = ingest.update_prices(tickers)
     typer.echo(f"Prices: {res['rows']:,} rows, {res['new']} new tickers.")
+    if res["rebased"]:
+        typer.echo(f"Re-downloaded after a dividend/split re-based the history: {', '.join(res['rebased'])}")
     if res["missing"]:
         typer.echo(f"No data for {len(res['missing'])}: {', '.join(res['missing'])}")
     universe.names(tickers)  # warm the name cache
