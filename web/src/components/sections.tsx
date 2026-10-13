@@ -1,11 +1,12 @@
-import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import { TickerLink } from "./TickerLink";
 import type { Profile, Windows } from "../api/client";
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
 import { Badge, Card, KV, Signed } from "./ui";
 
 const WIN: [keyof Windows, string][] = [["r1w", "1W"], ["r1m", "1M"], ["r3m", "3M"], ["r6m", "6M"], ["ytd", "YTD"], ["r1y", "1Y"]];
 
-function Row({ label, w, hint }: { label: string; w?: Windows | null; hint?: string }) {
+function Row({ label, w, hint }: { label: ReactNode; w?: Windows | null; hint?: string }) {
   if (!w) return null;
   return (
     <tr>
@@ -26,7 +27,7 @@ export function Returns({ p }: { p: Profile }) {
             <Row label={pr.currency ?? "Local"} w={pr.returns} />
             {pr.currency !== "DKK" && <Row label="DKK" w={pr.returns_dkk} />}
             <Row label="vs ACWI" w={pr.vs_acwi} />
-            <Row label={`vs ${pr.sector_etf ?? "sector"}`} w={pr.vs_sector} />
+            <Row label={pr.sector_etf ? <>vs <TickerLink symbol={pr.sector_etf} /></> : "vs sector"} w={pr.vs_sector} />
           </tbody>
         </table>
       </div>
@@ -254,7 +255,7 @@ export function EtfCard({ p }: { p: Profile }) {
             <tbody>
               {e.top_holdings.map((h) => (
                 <tr key={h.symbol}>
-                  <td><Link to={`/ticker/${encodeURIComponent(h.symbol)}`}>{h.symbol}</Link> <span className="muted small trunc" title={h.name ?? ""}>{h.name}</span>
+                  <td><TickerLink symbol={h.symbol} name={h.name} />
                     {e.overlap.includes(h.symbol) && <> <Badge kind="accent">you hold</Badge></>}</td>
                   <td>{pct(h.weight, 1, false)}</td>
                 </tr>
@@ -275,7 +276,7 @@ export function PeersCard({ p }: { p: Profile }) {
     <Card title="Sector & peers" meta={s}>
       {rot && (
         <KV rows={[
-          [`${rot.name} (${rot.ticker})`, <Badge kind={q === "Leading" ? "pos" : q === "Lagging" ? "neg" : q === "Weakening" ? "warn" : "accent"}>{q}</Badge>,
+          [<>{rot.name} (<TickerLink symbol={rot.ticker} />)</>, <Badge kind={q === "Leading" ? "pos" : q === "Lagging" ? "neg" : q === "Weakening" ? "warn" : "accent"}>{q}</Badge>,
             { hint: `rel. 3m ${pct(rot.rel_r3m)}` }],
         ]} />
       )}
@@ -288,7 +289,7 @@ export function PeersCard({ p }: { p: Profile }) {
               <tbody>
                 {s.peers.map((x) => (
                   <tr key={x.ticker}>
-                    <td><Link to={`/ticker/${encodeURIComponent(x.ticker)}`}>{x.ticker}</Link> <span className="muted small trunc" title={x.name ?? ""}>{x.name}</span></td>
+                    <td><TickerLink symbol={x.ticker} name={x.name} /></td>
                     <td>{num(x.score, 0)}</td>
                     <td className={tone(x.r3m)}>{pct(x.r3m)}</td>
                     <td className={tone(x.r6m)}>{pct(x.r6m)}</td>

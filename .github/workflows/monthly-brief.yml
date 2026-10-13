@@ -77,5 +77,5 @@ jobs:
           git push -u origin "$branch"
           tldr=$(awk '/^## TL;DR/{f=1;next} /^## /{f=0} f' "briefs/$today.md")
           gh pr create --base main --head "$branch" --title "Market brief $today" \
-            --body "$(printf '%s\n\n📊 Dashboard: download the **radar-dashboard** artifact from [this run](%s).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)' \
+            --body "$(printf '%s\n\n📊 Dashboard data (summary.json, dashboard.json): the **radar-dashboard** artifact from [this run](%s). View it locally with `uv run radar serve`.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)' \
               "$tldr" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"

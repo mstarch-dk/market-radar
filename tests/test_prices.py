@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import ingest, report
-from radar.report import _vs_shadow
+from radar import dashboard, ingest, mine
+from radar.mine import _vs_shadow
 
 
 def _bars(ticker, closes, start="2026-01-05"):
@@ -83,24 +83,24 @@ def test_shadow_return_is_in_dkk():
 def test_fx_to_dkk_handles_pence_and_unknown_currencies():
     closes = pd.DataFrame({"GBPDKK=X": [8.5, np.nan, 8.6], "USDDKK=X": [6.9, 7.0, 7.1]},
                           index=pd.bdate_range("2026-01-05", periods=3))
-    assert report._fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
-    assert report._fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
-    assert (report._fx_to_dkk(closes, "DKK") == 1.0).all()
-    assert report._fx_to_dkk(closes, "XYZ") is None and report._fx_to_dkk(closes, None) is None
-    assert report._fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
+    assert mine._fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
+    assert mine._fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
+    assert (mine._fx_to_dkk(closes, "DKK") == 1.0).all()
+    assert mine._fx_to_dkk(closes, "XYZ") is None and mine._fx_to_dkk(closes, None) is None
+    assert mine._fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
 
 
 def test_pct_vs_is_the_mean_percentile_against_the_region():
     dist = pd.DataFrame({"r12_1": [0.1, 0.2, 0.3, 0.4], "r6m": [0.1, 0.2, 0.3, 0.4], "r3m": [0.1, 0.2, 0.3, 0.4]})
     row = pd.Series({"r12_1": 0.35, "r6m": 0.05, "r3m": 0.25})
-    assert report._pct_vs(dist, row) == pytest.approx(round(100 * (0.75 + 0 + 0.5) / 3, 1))
-    assert report._pct_vs(dist, row.copy().replace(0.35, np.nan)) is None
+    assert mine._pct_vs(dist, row) == pytest.approx(round(100 * (0.75 + 0 + 0.5) / 3, 1))
+    assert mine._pct_vs(dist, row.copy().replace(0.35, np.nan)) is None
 
 
 def test_records_are_json_safe():
     df = pd.DataFrame({"a": [np.nan, np.inf], "b": [np.int64(3), np.float64(1.5)], "c": [pd.Timestamp("2026-10-13"), None],
                        "d": [True, False]})
-    rows = report._records(df)
+    rows = dashboard._records(df)
     assert rows[0] == {"a": None, "b": 3, "c": "2026-10-13", "d": True} and rows[1]["a"] is None
     json.dumps(rows)
 

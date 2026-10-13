@@ -7,7 +7,6 @@ a source has no answer.
 """
 from __future__ import annotations
 
-import json
 import math
 import os
 from dataclasses import dataclass, field
@@ -16,9 +15,9 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from . import external, ingest, universe
-from .config import PRICES_FILE, REPORTS, settings, universe_config
-from .report import _fx_to_dkk, _pct_vs
+from . import dashboard, external, ingest, universe
+from .config import PRICES_FILE, settings, universe_config
+from .mine import _fx_to_dkk, _pct_vs
 from .signals import levels, momentum, rotation, technicals
 
 OK, STALE, MISSING = "ok", "stale", "missing"
@@ -47,6 +46,7 @@ class Market:
     mtime: float = 0.0
     _leaders: pd.DataFrame | None = field(default=None, repr=False)
     _isins: tuple | None = field(default=None, repr=False)
+    _raw: pd.DataFrame | None = field(default=None, repr=False)
 
     @classmethod
     def load(cls) -> Market:
@@ -74,6 +74,12 @@ class Market:
             self._leaders = lead.assign(sector=lead["ticker"].map(sec["sector"]),
                                         industry=lead["ticker"].map(sec["industry"]))
         return self._leaders
+
+    def raw_closes(self) -> pd.DataFrame | None:
+        """Traded (unadjusted) closes, for the dividend factor in holding returns."""
+        if self._raw is None and "raw_close" in self.prices:
+            self._raw = ingest.wide(self.prices, "raw_close")
+        return self._raw
 
     def positive_list(self) -> set[str] | None:
         if self._isins is None:
@@ -162,11 +168,11 @@ def sector_etf(region: str, sector: str | None, industry: str | None) -> str | N
 
 
 def _regime() -> dict:
-    path = REPORTS / "summary.json"
-    if not path.exists():
+    """The overall regime from the last `radar run` (dashboard.json)."""
+    d = dashboard.load()
+    if d is None:
         return {"label": None, "asof": None}
-    s = json.loads(path.read_text(encoding="utf-8"))
-    return {"label": s["regime"]["label"], "asof": s.get("asof"), "net": s["regime"].get("net")}
+    return {"label": d["regime"]["overall"]["label"], "asof": d["asof"], "net": d["regime"]["overall"].get("net")}
 
 
 def _section(status: str, source: str, asof=None, **data) -> dict:

@@ -65,10 +65,10 @@ def _run_steps(steps: dict) -> None:
 
 @app.command(name="report")
 def build_report():
-    """Build reports/radar.html and reports/summary.json."""
+    """Build reports/dashboard.json (the web app's data) and reports/summary.json."""
     res = report.build()
     typer.echo(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}")
-    typer.echo(res["html"])
+    typer.echo(f"{res['dashboard']} – view it with `uv run radar serve --open`")
 
 
 @app.command()
@@ -107,7 +107,7 @@ def info(ticker: str, refresh: bool = typer.Option(False, help="Re-fetch Yahoo f
 
 @app.command()
 def serve(port: int = 8780, open_browser: bool = typer.Option(False, "--open", help="Open the app in the browser")):
-    """Run the web app (ticker profiles) on http://127.0.0.1:<port>."""
+    """Run the web app (dashboard, ticker profiles, watchlist) on http://127.0.0.1:<port>."""
     import uvicorn
 
     from .api import WEB_DIST
@@ -151,11 +151,13 @@ def ticker(symbol: str, port: int = 8780):
 
 
 BUNDLE_FILES = ("holdings.csv", "transactions.csv")
+BUNDLE_WATCHLIST = "watchlist.csv"  # the web app's watchlist edits (userstore), exported as text
 
 
 @app.command(name="bundle-holdings")
 def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help="Store it directly as the HOLDINGS_BUNDLE GitHub secret")):
-    """Pack imports/holdings.csv + transactions.csv as base64 for the HOLDINGS_BUNDLE secret.
+    """Pack imports/holdings.csv + transactions.csv (+ the web app's watchlist edits) as base64 for the
+    HOLDINGS_BUNDLE secret.
 
     Usage: uv run radar bundle-holdings --set-secret   (needs the GitHub CLI, signed in)
     """
@@ -163,12 +165,14 @@ def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help=
     import io
     import zipfile
 
+    from . import userstore
     from .config import IMPORTS
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for name in BUNDLE_FILES:
             z.write(IMPORTS / name, name)
+        z.writestr(BUNDLE_WATCHLIST, userstore.export_watchlist_csv())
     data = base64.b64encode(buf.getvalue()).decode("ascii")
     if not set_secret:
         typer.echo(data)
@@ -187,9 +191,10 @@ def unbundle_holdings():
     import os
     import zipfile
 
-    from .config import IMPORTS
-
     import re
+
+    from . import userstore
+    from .config import IMPORTS
 
     # keep only base64 characters: tolerates BOMs/CRLF/whitespace added by shells when the secret was set
     data = re.sub(r"[^A-Za-z0-9+/=]", "", os.environ.get("HOLDINGS_BUNDLE", ""))
@@ -199,7 +204,8 @@ def unbundle_holdings():
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(data))) as z:
         for name in BUNDLE_FILES:
             (IMPORTS / name).write_bytes(z.read(name))
-    typer.echo(f"Restored {', '.join(BUNDLE_FILES)}.")
+        n = userstore.import_watchlist_csv(z.read(BUNDLE_WATCHLIST).decode("utf-8"))             if BUNDLE_WATCHLIST in z.namelist() else 0
+    typer.echo(f"Restored {', '.join(BUNDLE_FILES)} and {n} watchlist edits.")
 
 
 if __name__ == "__main__":
