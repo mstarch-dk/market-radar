@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { GaugeBadge, GaugeBar } from "./Gauge";
 import { TickerLink } from "./TickerLink";
 import type { Profile, Windows } from "../api/client";
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
@@ -51,15 +52,15 @@ export function MomentumCard({ p }: { p: Profile }) {
   return (
     <Card title="Momentum & trend" meta={m}>
       <KV rows={[
-        ["Momentum score", isNum(m.score) ? `${num(m.score, 0)} / 100` : "–",
+        ["Momentum score", <>{isNum(m.score) ? `${num(m.score, 0)} / 100` : "–"} <GaugeBadge g={m.gauges?.score} name="Momentum score" /></>,
           { hint: m.rank ? `rank ${m.rank} of ${m.group_size}` : undefined, help: "score" }],
         ["3m / 6m return", <><Signed v={m.r3m}>{pct(m.r3m)}</Signed> / <Signed v={m.r6m}>{pct(m.r6m)}</Signed></>],
         ["12-1 month return", pct(m.r12_1), { tone: m.r12_1, hint: "skips the last month", help: "r12_1" }],
         ["Price vs 50-day", yesNo(m.above50, "above", "below"), { hint: price(m.sma50) }],
         ["Price vs 200-day", yesNo(m.above200, "above", "below"), { hint: price(m.sma200) }],
         ["Trend (50d > rising 200d)", yesNo(m.trend_ok, "intact", "not intact"), { help: "trend_ok" }],
-        ["From 52-week high", pct(m.from_high), { tone: m.from_high, help: "from_high" }],
-        ["Volume, 20d vs 6m avg", isNum(m.vol_surge) ? `${num(m.vol_surge, 2)}×` : "–", { help: "vol_surge" }],
+        ["From 52-week high", <>{pct(m.from_high)} <GaugeBadge g={m.gauges?.from_high} name="52w high" /></>, { help: "from_high" }],
+        ["Volume, 20d vs 6m avg", <>{isNum(m.vol_surge) ? `${num(m.vol_surge, 2)}×` : "–"} <GaugeBadge g={m.gauges?.vol_surge} name="Volume" /></>, { help: "vol_surge" }],
       ]} />
       <p className="small muted">Score: {m.score_basis}{m.region_label ? `, ${m.region_label}` : ""}.</p>
     </Card>
@@ -68,18 +69,16 @@ export function MomentumCard({ p }: { p: Profile }) {
 
 export function TechnicalsCard({ p }: { p: Profile }) {
   const t = p.technicals;
-  const state = (s: string | null | undefined) =>
-    s ? <Badge kind={s === "overbought" || s === "bearish" ? "neg" : s === "oversold" || s === "bullish" ? "pos" : ""}>{s}</Badge> : null;
   return (
     <Card title="Technicals" meta={t}>
       <KV rows={[
-        ["RSI 14", <>{num(t.rsi14, 1)} {state(t.rsi_state)}</>, { help: "rsi" }],
-        ["MACD 12/26/9", <>{num(t.macd_hist, 2)} {state(t.macd_state)}</>, { hint: "histogram", help: "macd" }],
-        ["Bollinger %B", num(t.bb_pct_b, 2), { hint: "0 = lower band, 1 = upper", help: "bb" }],
-        ["ATR 14", price(t.atr), { hint: pct(t.atr_pct, 1, false) + " of price", help: "atr" }],
+        ["RSI 14", <>{num(t.rsi14, 1)} <GaugeBadge g={t.gauges?.rsi14} name="RSI 14" /><GaugeBar g={t.gauges?.rsi14} /></>, { help: "rsi" }],
+        ["MACD 12/26/9", <>{num(t.macd_hist, 2)} <GaugeBadge g={t.gauges?.macd_atr} name="MACD (histogram ÷ ATR)" /></>, { hint: "histogram", help: "macd" }],
+        ["Bollinger %B", <>{num(t.bb_pct_b, 2)} <GaugeBadge g={t.gauges?.bb_pct_b} name="Bollinger %B" /><GaugeBar g={t.gauges?.bb_pct_b} /></>, { help: "bb" }],
+        ["ATR 14", <>{price(t.atr)} <GaugeBadge g={t.gauges?.atr_pct} name="Daily range" /></>, { hint: pct(t.atr_pct, 1, false) + " of price", help: "atr" }],
         ["Volatility (3m, annualised)", pct(t.vol_3m, 1, false)],
         ["Max drawdown (1y)", pct(t.max_drawdown_1y), { tone: t.max_drawdown_1y }],
-        ["Beta / correlation vs ACWI", `${num(t.beta_acwi, 2)} / ${num(t.corr_acwi, 2)}`, { hint: "weekly, 1y", help: "beta" }],
+        ["Beta / correlation vs ACWI", <>{`${num(t.beta_acwi, 2)} / ${num(t.corr_acwi, 2)}`} <GaugeBadge g={t.gauges?.beta} name="Beta" /></>, { hint: "weekly, 1y", help: "beta" }],
       ]} />
     </Card>
   );
@@ -91,8 +90,8 @@ export function LevelsCard({ p }: { p: Profile }) {
   return (
     <Card title="Stop / take-profit (rule)" meta={l}>
       <KV rows={[
-        ["Trailing stop", price(l.stop, cur), { hint: pct(l.stop_pct), tone: -1, help: "stop" }],
-        ["Take-profit", l.take_profit ? price(l.take_profit, cur) : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined, help: "take_profit" }],
+        ["Trailing stop", <>{price(l.stop, cur)} <GaugeBadge g={l.gauges?.stop_dist} name="Stop" /></>, { hint: pct(l.stop_pct), help: "stop" }],
+        ["Take-profit", l.take_profit ? <>{price(l.take_profit, cur)} <GaugeBadge g={l.gauges?.tp_dist} name="Target" /></> : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined, help: "take_profit" }],
         ["Stop width k × ATR", isNum(l.k) ? `${num(l.k, 1)} × ${price(l.atr)}` : "–", { help: "k" }],
         ["Regime", l.regime ?? "–"],
       ]} />
@@ -141,10 +140,10 @@ export function AnalystCard({ p }: { p: Profile }) {
       {isNum(a.target_mean) && (
         <>
           <KV rows={[
-            ["Mean target", price(a.target_mean, cur), { hint: pct(a.upside) + " upside", tone: a.upside }],
+            ["Mean target", <>{price(a.target_mean, cur)} <GaugeBadge g={a.gauges?.upside} name="Analyst targets" /></>, { hint: pct(a.upside) + " upside" }],
             ["Consensus", `${a.rec_key ?? "–"}${isNum(a.rec_mean) ? ` (${num(a.rec_mean, 1)})` : ""}`,
               { hint: isNum(a.n_analysts) ? `${a.n_analysts} analysts` : undefined }],
-            ["Target change, 30 days", pct(a.target_change), { tone: a.target_change, hide: !isNum(a.target_change) }],
+            ["Target change, 30 days", <>{pct(a.target_change)} <GaugeBadge g={a.gauges?.target_change} name="Analyst targets" /></>, { hide: !isNum(a.target_change) }],
           ]} />
           <TargetRange low={a.target_low} mean={a.target_mean} high={a.target_high} now={p.price.last} currency={cur} />
         </>

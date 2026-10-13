@@ -70,6 +70,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
 gauges:                    # graded readings (signals/gauges.py): colour by closeness to a threshold, not just a word
   # anchors: [value, score] points; score +1 = good/bullish/cheap (green), -1 = warning (red), interpolated between.
   # sequential gauges are one-way risk measures (scores 0..-1 only). labels: [upper bound, word], last bound null.
+  # unit: pct for fractions shown as percentages (default num).
   rsi14:
     scale: diverging
     anchors: [[20, 1], [30, 0.6], [40, 0.15], [45, 0], [55, 0], [60, -0.15], [70, -0.6], [80, -1]]
@@ -90,6 +91,7 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     range: [-0.6, 0.6]
   atr_pct:
     scale: sequential
+    unit: pct
     anchors: [[0.01, 0], [0.025, -0.2], [0.04, -0.5], [0.07, -1]]
     labels: [[0.015, calm], [0.03, normal], [0.05, volatile], [null, very volatile]]
     ticks: [0.025, 0.04]
@@ -102,6 +104,7 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     range: [0, 3]
   from_high:
     scale: diverging
+    unit: pct
     anchors: [[-0.35, -1], [-0.2, -0.4], [-0.1, 0], [-0.05, 0.3], [0, 0.6]]
     labels: [[-0.2, deep drawdown], [-0.1, pulled back], [-0.03, near high], [null, at 52w high]]
     ticks: [-0.2, -0.1]
@@ -120,24 +123,28 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     range: [0, 100]
   stop_dist:               # stop vs price (negative = stop below the price)
     scale: sequential
+    unit: pct
     anchors: [[-0.15, 0], [-0.08, -0.2], [-0.04, -0.6], [-0.015, -1], [0, -1]]
     labels: [[-0.08, room to stop], [-0.04, tightening], [0, near stop], [null, through stop]]
     ticks: [-0.08, -0.04]
     range: [-0.2, 0]
   tp_dist:                 # take-profit vs price (positive = target above the price)
     scale: diverging
+    unit: pct
     anchors: [[0, 1], [0.03, 0.7], [0.1, 0.3], [0.3, 0]]
     labels: [[0, at target], [0.03, near target], [0.1, approaching], [null, far from target]]
     ticks: [0.03, 0.1]
     range: [0, 0.4]
   upside:                  # analysts' mean target vs price
     scale: diverging
+    unit: pct
     anchors: [[-0.2, -1], [-0.05, -0.4], [0, 0], [0.05, 0], [0.15, 0.4], [0.3, 1]]
     labels: [[-0.05, above targets], [0.05, at targets], [0.15, some upside], [null, well below targets]]
     ticks: [0, 0.15]
     range: [-0.3, 0.4]
   target_change:
     scale: diverging
+    unit: pct
     anchors: [[-0.1, -1], [0, 0], [0.1, 1]]
     labels: [[-0.02, targets cut], [0.02, targets stable], [null, targets raised]]
     ticks: [0]
@@ -169,6 +176,7 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     range: [97, 103]
   excess_vs_acwi:          # holding's DKK return minus the shadow ACWI position's
     scale: diverging
+    unit: pct
     anchors: [[-0.2, -1], [0, 0], [0.2, 1]]
     labels: [[-0.05, behind ACWI], [0.05, level with ACWI], [null, ahead of ACWI]]
     ticks: [0]

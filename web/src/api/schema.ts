@@ -275,6 +275,13 @@ export interface components {
             /** Eps */
             eps: components["schemas"]["Eps"][];
             calendar: components["schemas"]["Calendar"];
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** AppContext */
         AppContext: {
@@ -363,6 +370,11 @@ export interface components {
             errors: {
                 [key: string]: string;
             };
+            /**
+             * Watchouts
+             * @default []
+             */
+            watchouts: components["schemas"]["Watchout"][];
         };
         /** CotRow */
         CotRow: {
@@ -571,6 +583,38 @@ export interface components {
              */
             notes: string[];
         };
+        /**
+         * Gauge
+         * @description A reading graded between its thresholds: score in [-1, 1] (+ green/good, - red/warning), level -4..4,
+         *     a word, and the axis (ticks, lo, hi) to draw it on. See signals/gauges.py.
+         */
+        Gauge: {
+            /** Value */
+            value: number;
+            /** Score */
+            score: number;
+            /** Level */
+            level: number;
+            /** Label */
+            label: string;
+            /**
+             * Scale
+             * @enum {string}
+             */
+            scale: "diverging" | "sequential";
+            /**
+             * Unit
+             * @default num
+             * @enum {string}
+             */
+            unit: "pct" | "num";
+            /** Ticks */
+            ticks: number[];
+            /** Lo */
+            lo: number;
+            /** Hi */
+            hi: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -697,6 +741,13 @@ export interface components {
             breaches: components["schemas"]["Breach"][];
             /** Regime */
             regime?: string | null;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** LineChart */
         LineChart: {
@@ -779,6 +830,13 @@ export interface components {
             score_basis: string;
             /** Region Label */
             region_label?: string | null;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** MomentumRegion */
         MomentumRegion: {
@@ -1404,6 +1462,13 @@ export interface components {
             beta_acwi?: number | null;
             /** Corr Acwi */
             corr_acwi?: number | null;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** TickerSummary */
         TickerSummary: {
@@ -1455,6 +1520,17 @@ export interface components {
             symbol: string;
             /** My Status */
             my_status?: ("holding" | "watch" | "sold") | null;
+        };
+        /** Watchout */
+        Watchout: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Level */
+            level: number;
+            /** Text */
+            text: string;
         };
         /** Windows */
         Windows: {

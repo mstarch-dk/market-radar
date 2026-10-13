@@ -14,6 +14,27 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class Gauge(Strict):
+    """A reading graded between its thresholds: score in [-1, 1] (+ green/good, - red/warning), level -4..4,
+    a word, and the axis (ticks, lo, hi) to draw it on. See signals/gauges.py."""
+    value: float
+    score: float
+    level: int
+    label: str
+    scale: Literal["diverging", "sequential"]
+    unit: Literal["pct", "num"] = "num"
+    ticks: list[float]
+    lo: float
+    hi: float
+
+
+class Watchout(Strict):
+    key: str
+    label: str
+    level: int
+    text: str
+
+
 class Section(Strict):
     status: Status
     source: str
@@ -101,6 +122,7 @@ class Momentum(Section):
     group_size: int
     score_basis: str
     region_label: str | None = None
+    gauges: dict[str, Gauge] = {}
 
 
 class Technicals(Section):
@@ -119,6 +141,7 @@ class Technicals(Section):
     max_drawdown_1y: Num = None
     beta_acwi: Num = None
     corr_acwi: Num = None
+    gauges: dict[str, Gauge] = {}
 
 
 class Reason(Strict):
@@ -147,6 +170,7 @@ class Levels(Section):
     flags: list[str] = []
     breaches: list[Breach] = []
     regime: str | None = None
+    gauges: dict[str, Gauge] = {}
 
 
 class Recommendation(Strict):
@@ -199,6 +223,7 @@ class Analyst(Section):
     recommendations: list[Recommendation]
     eps: list[Eps]
     calendar: Calendar
+    gauges: dict[str, Gauge] = {}
 
 
 class Fundamentals(Section):
@@ -288,6 +313,7 @@ class Context(Strict):
     regime: Regime
     notes: list[str]
     errors: dict[str, str]
+    watchouts: list[Watchout] = []
 
 
 class Profile(Strict):

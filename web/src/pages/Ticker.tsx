@@ -96,6 +96,12 @@ export function Ticker() {
   return (
     <>
       <Header p={p} onRefresh={refresh} refreshing={refreshing} />
+      {(p.context.watchouts ?? []).length > 0 && (
+        <div className="watchouts" role="note">
+          <span className="wo-title">Watch-outs:</span>
+          {(p.context.watchouts ?? []).map((w) => <span key={w.key} className={`gchip lv${w.level}`}>{w.text}</span>)}
+        </div>
+      )}
       {p.context.notes.length > 0 && (
         <div className="notes" role="note"><ul>{p.context.notes.map((n) => <li key={n}>{n}</li>)}</ul></div>
       )}

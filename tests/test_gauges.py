@@ -62,3 +62,10 @@ def test_every_configured_spec_is_valid():
         lo, hi = spec["range"]
         r = g.gauge(key, (lo + hi) / 2)
         assert -4 <= r["level"] <= 4 and r["label"], key
+
+
+def test_watchouts_are_red_signals_not_traits():
+    gs = g.gauges({"rsi14": 85, "beta": 2.5, "atr_pct": 0.09, "stop_dist": -0.01, "score": 50})
+    assert gs["beta"]["level"] <= -3 and gs["atr_pct"]["level"] <= -3      # coloured red, but traits
+    assert sorted(w["key"] for w in g.watchouts(gs)) == ["rsi14", "stop_dist"]
+    assert [w["text"] for w in g.watchouts(gs, skip={"stop_dist"})] == ["RSI 14: extremely overbought"]

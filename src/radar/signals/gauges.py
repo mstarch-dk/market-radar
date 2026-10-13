@@ -58,7 +58,8 @@ def make(spec: dict, value) -> dict | None:
     level = int(math.copysign(math.floor(abs(score) * LEVELS + 0.5), score)) if score else 0
     lo, hi = spec.get("range") or (min(a for a, _ in spec["anchors"]), max(a for a, _ in spec["anchors"]))
     return {"value": x, "score": round(score, 3), "level": level, "label": label_for(spec["labels"], x),
-            "scale": spec.get("scale", "diverging"), "ticks": [float(t) for t in spec.get("ticks") or []],
+            "scale": spec.get("scale", "diverging"), "unit": spec.get("unit", "num"),
+            "ticks": [float(t) for t in spec.get("ticks") or []],
             "lo": float(lo), "hi": float(hi)}
 
 
@@ -71,6 +72,23 @@ def gauges(values: dict[str, object]) -> dict[str, dict]:
     """{key: gauge} for the values that have data; missing values are left out."""
     out = {k: gauge(k, v) for k, v in values.items()}
     return {k: g for k, g in out.items() if g is not None}
+
+
+NAMES = {"rsi14": "RSI 14", "bb_pct_b": "Bollinger %B", "macd_atr": "MACD", "atr_pct": "Daily range (ATR)",
+         "vol_surge": "Volume", "from_high": "52w high", "beta": "Beta", "score": "Momentum score",
+         "stop_dist": "Stop", "tp_dist": "Target", "upside": "Analyst targets", "target_change": "Analyst targets",
+         "cot_pct": "Positioning", "cli_chg": "Leading indicator", "rs_ratio": "RS-Ratio", "rs_mom": "RS-Momentum",
+         "excess_vs_acwi": "vs ACWI"}
+WARN_LEVEL = -3
+TRAITS = {"atr_pct", "beta"}           # how a stock is, not a change worth acting on: coloured, but not a watch-out
+
+
+def watchouts(gs: dict[str, dict], skip: set[str] = frozenset()) -> list[dict]:
+    """The gauges deep in the red (level <= WARN_LEVEL), worst first: what to look at before anything else.
+    Traits and the keys in `skip` (e.g. a hypothetical stop on a ticker that isn't held) are left out."""
+    out = [{"key": k, "label": v["label"], "level": v["level"], "text": f"{NAMES.get(k, k)}: {v['label']}"}
+           for k, v in gs.items() if v["level"] <= WARN_LEVEL and k not in TRAITS and k not in skip]
+    return sorted(out, key=lambda w: w["level"])
 
 
 # ---------------- specs built from other thresholds (regime rows) ----------------
