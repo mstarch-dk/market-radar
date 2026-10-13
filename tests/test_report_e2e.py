@@ -94,7 +94,7 @@ def test_dashboard_matches_the_api_models(summary):
     from radar import api_models as m
 
     d = summary["_dash"]
-    head = {"asof": d["asof"], "generated": d["generated"]}
+    head = {"asof": d["asof"], "generated": d["generated"], "age_days": 0, "stale": False}   # added by the API
     m.RegimeView.model_validate(head | d["regime"])
     m.RotationView.model_validate(head | d["rotation"])
     m.MomentumView.model_validate(head | d["momentum"])
