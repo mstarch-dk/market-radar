@@ -50,6 +50,16 @@ export function GaugeBar({ g }: { g?: GaugeData | null }) {
   );
 }
 
+/** A number tinted by its gauge level (the number itself stays the content). */
+export function Graded({ g, children }: { g?: GaugeData | null; children: ReactNode }) {
+  if (!g) return <>{children}</>;
+  return <Tip content={gaugeTip(g)}><span className={`gtint gnum ${lvClass(g)}`}>{children}</span></Tip>;
+}
+
+/** The lowest level among a row's gauges (sort key for "most worrying first"). */
+export const worst = (gs: Record<string, GaugeData> | undefined) =>
+  gs && Object.keys(gs).length ? Math.min(...Object.values(gs).map((g) => g.level)) : null;
+
 /** One dot per gauge, for scanning a table row; the tooltip lists them. */
 export function GaugeDots({ gauges, names }: { gauges: Record<string, GaugeData>; names: Record<string, string> }) {
   const keys = Object.keys(names).filter((k) => gauges[k]);

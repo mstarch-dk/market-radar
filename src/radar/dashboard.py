@@ -15,6 +15,7 @@ import pandas as pd
 from . import coverage, external, mine, snapshot, universe
 from .config import REPORTS, settings, universe_config
 from .ingest import load_fred, load_prices, wide
+from .signals import gauges as gz
 from .signals import momentum, regime, rotation
 
 FILE_NAME = "dashboard.json"
@@ -188,7 +189,9 @@ def compute() -> Computed:
             local_q = {t: rotation.quadrant(lratio[t].iloc[-1], lmom[t].iloc[-1]) for t in tickers}
             mask = rot["group"] == key
             rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)
-        grp["rows"] = [{k: r.get(k) for k in ROTATION_KEYS} for r in _records(rot[rot["group"] == key])]
+        grp["rows"] = [{k: r.get(k) for k in ROTATION_KEYS}
+                       | {"gauges": gz.gauges({"rs_ratio": r.get("rs_ratio"), "rs_mom": r.get("rs_mom")})}
+                       for r in _records(rot[rot["group"] == key])]
         rot_groups.append(grp)
 
     # --- momentum
@@ -207,7 +210,9 @@ def compute() -> Computed:
         top["new"] = [prev_top is not None and t not in prev_top for t in top["ticker"]]
         regions.append({
             "key": region, "label": labels.get(region, region),
-            "rows": [{k: r.get(k) for k in MOMENTUM_KEYS} for r in _records(top)],
+            "rows": [{k: r.get(k) for k in MOMENTUM_KEYS}
+                     | {"gauges": gz.gauges({"score": r.get("score"), "from_high": r.get("from_high"),
+                                             "vol_surge": r.get("vol_surge")})} for r in _records(top)],
             "entrants": [t for t, n in zip(top["ticker"], top["new"]) if n],
             "dropped": sorted(prev_top - set(top["ticker"])) if prev_top is not None else [],
             "clusters": _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"]),
@@ -216,8 +221,9 @@ def compute() -> Computed:
     # --- me (the API recomputes this live; summary.json needs it now)
     raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
     rot_rows = _records(rot[["ticker", "ucits", "quadrant"]])
+    own = prices.set_index("date").groupby("ticker")["close"]
     me = mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes, raw_closes, lead, rot_rows,
-                    overall["label"], cfg)
+                    overall["label"], cfg, sessions=lambda s: own.get_group(s).sort_index())
 
     # --- positioning & cycle (non-price data)
     cot = external.load_cot()
@@ -246,8 +252,10 @@ def compute() -> Computed:
         "rotation": {"prev": prev_d.isoformat() if prev_d else None, "tail_weeks": rc["tail"],
                      "positive_list_year": pl_year, "groups": rot_groups},
         "momentum": {"prev": mprev_d.isoformat() if mprev_d else None, "top_n": top_n, "regions": regions},
-        "positioning": {"factset": fs_ctx, "cli": _records(cli) if not cli.empty else [],
-                        "cot": _records(cot_tab) if not cot_tab.empty else []},
+        "positioning": {"factset": fs_ctx,
+                        "cli": [r | {"gauge": gz.gauge("cli_chg", r["chg_3m"])} for r in _records(cli)] if not cli.empty else [],
+                        "cot": [r | {"gauge": gz.gauge("cot_pct", r["percentile"])} for r in _records(cot_tab)]
+                        if not cot_tab.empty else []},
         "coverage": _clean(cov),
     }
     return Computed(data, me, rot, lead)

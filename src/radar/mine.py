@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from . import external, universe
-from .signals import levels, momentum
+from .signals import gauges as gz
+from .signals import levels, momentum, technicals
 
 METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "history",
                "above50", "above200", "trend_ok")
@@ -186,9 +187,10 @@ def _v(v):
 
 
 def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotation_rows, regime_label: str | None,
-          cfg: dict) -> list[dict]:
+          cfg: dict, sessions=None) -> list[dict]:
     """One row per holding / watchlist / sold symbol, holdings first. `leaders` is the momentum table of the
-    whole stock universe (the score is a percentile against it); `cfg` is settings()."""
+    whole stock universe (the score is a percentile against it); `cfg` is settings(). `sessions(symbol)` gives
+    the symbol's own closes (no gap-filled holidays), so its RSI matches the ticker page."""
     bench = universe.benchmark()
     me = _me_table(closes, volumes, leaders, bench, cfg["momentum"]["min_history_days"], raw_closes)
     if me.empty:
@@ -206,6 +208,14 @@ def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotat
         row |= {k: _v(r[k]) for k in ("rel_r3m", "score", "since_buy", "bench_since_buy", "since_sell")}
         row["flags"] = list(r["flags"])
         row["levels"] = _levels_row(r["levels"])
+        c = (sessions(r["symbol"]) if sessions else closes[r["symbol"]]).dropna() if r["symbol"] in closes else None
+        rsi = technicals.rsi(c).iloc[-1] if c is not None and len(c) > 15 else None
+        lv = row["levels"] or {}
+        excess = (row["since_buy"] - row["bench_since_buy"]
+                  if row["since_buy"] is not None and row["bench_since_buy"] is not None else None)
+        row["gauges"] = gz.gauges({"score": row["score"], "rsi14": rsi, "from_high": row["from_high"],
+                                   "stop_dist": lv.get("stop_pct"), "tp_dist": lv.get("tp_pct"), "excess_vs_acwi": excess})
+        row["watchouts"] = gz.watchouts(row["gauges"], skip=set() if row["status"] == "holding" else {"stop_dist", "tp_dist"})
         rows.append(row)
     return rows
 

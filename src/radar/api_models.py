@@ -483,6 +483,7 @@ class RotationRow(Strict):
     ucits_name: str | None = None
     isin: str | None = None
     positive_list: str
+    gauges: dict[str, Gauge] = {}
 
 
 class RrgPoint(Strict):
@@ -529,6 +530,7 @@ class MomentumRow(Strict):
     vol_surge: Num = None
     trend_ok: bool | None = None
     new: bool
+    gauges: dict[str, Gauge] = {}
 
 
 class Cluster(Strict):
@@ -585,6 +587,7 @@ class CliRow(Strict):
     cli: float
     chg_3m: float
     phase: str
+    gauge: Gauge | None = None
 
 
 class CotRow(Strict):
@@ -595,6 +598,7 @@ class CotRow(Strict):
     chg_4w: Num = None
     percentile: float
     flag: str | None = None
+    gauge: Gauge | None = None
 
 
 class PositioningView(Snapshot):
@@ -688,6 +692,8 @@ class MyRow(Strict):
     since_sell: Num = None
     flags: list[str]
     levels: MyLevels | None = None
+    gauges: dict[str, Gauge] = {}
+    watchouts: list[Watchout] = []
 
 
 class MeView(Strict):

@@ -54,6 +54,16 @@ export function Data() {
                 {analystLimit != null && <>; consensus older than {analystLimit} days is not used</>}.</li>
               <li><b>Holdings returns</b>: total return in DKK (dividends gross, reinvested) vs a shadow ACWI position with the same cash flows.</li>
             </ul>
+            <h2>Reading the colours</h2>
+            <p className="note">Graded readings (RSI, distance to a stop, VIX, breadth, …) are coloured by how close they are to their
+              thresholds, in nine steps. The word is always shown, so the colour is never the only cue. Thresholds live in
+              config/settings.yaml (<code>gauges:</code>, and <code>regime:</code> for the regime rows).</p>
+            <div className="legend-row">
+              {[[-4, "warning"], [-3, ""], [-2, ""], [-1, ""], [0, "neutral"], [1, ""], [2, ""], [3, ""], [4, "favourable"]].map(([l, w]) => (
+                <span key={l} className={`gchip lv${Number(l) > 0 ? "+" : ""}${l}`}>{w || " "}</span>
+              ))}
+            </div>
+            <p className="note muted">One-way risk measures (VIX, volatility, beta, crowding) only use the grey-to-red half.</p>
             <h2>What the radar doesn&apos;t see</h2>
             <ul className="blind">{d.blind_spots.map((b) => <li key={b}>{b}</li>)}</ul>
             <h2>Missing tickers ({d.missing_tickers.length})</h2>

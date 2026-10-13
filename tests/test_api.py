@@ -85,6 +85,9 @@ def test_dashboard_views(built):
 def test_me_is_live(built):
     rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
     assert rows["S1"]["status"] == "holding" and rows["S1"]["since_buy"] is not None
+    g = rows["S1"]["gauges"]
+    assert g["rsi14"]["label"] == "extremely overbought" and g["excess_vs_acwi"]["level"] > 0   # beat its shadow ACWI
+    assert "rsi14" in [w["key"] for w in rows["S1"]["watchouts"]]
     assert rows["E2"]["status"] == "watch" and "S3" not in rows
     assert built.put("/api/watchlist/s3").json() == {"symbol": "S3", "my_status": "watch"}
     rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}

@@ -130,3 +130,12 @@ def test_regime_rows_are_graded_but_the_summary_is_unchanged(summary):
     assert vix["scale"] == "sequential" and vix["score"] <= 0 and vix["label"] == "calm"   # VIX 14 < calm 18
     assert rows["Breadth – US"]["gauge"]["level"] > 0                              # risk-on breadth reads green
     assert rows["Copper/gold ratio"]["gauge"] is None                              # no data: not graded
+
+
+def test_table_rows_are_graded(summary):
+    us = next(r for r in summary["_dash"]["momentum"]["regions"] if r["key"] == "us")
+    assert us["rows"][0]["gauges"]["score"]["label"] in ("leader", "strong")
+    sectors = next(g for g in summary["_dash"]["rotation"]["groups"] if g["key"] == "sectors")
+    lead = next(r for r in sectors["rows"] if r["ticker"] == "LEAD")
+    assert lead["gauges"]["rs_ratio"]["level"] > 0
+    assert all("gauges" not in r for r in summary["momentum_top10"]["us"])        # the brief's contract

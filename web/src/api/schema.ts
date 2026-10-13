@@ -345,6 +345,7 @@ export interface components {
             chg_3m: number;
             /** Phase */
             phase: string;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
         /** Cluster */
         Cluster: {
@@ -392,6 +393,7 @@ export interface components {
             percentile: number;
             /** Flag */
             flag?: string | null;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
         /** CoverageView */
         CoverageView: {
@@ -884,6 +886,13 @@ export interface components {
             trend_ok?: boolean | null;
             /** New */
             new: boolean;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** MomentumView */
         MomentumView: {
@@ -1009,6 +1018,18 @@ export interface components {
             /** Flags */
             flags: string[];
             levels?: components["schemas"]["MyLevels"] | null;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+            /**
+             * Watchouts
+             * @default []
+             */
+            watchouts: components["schemas"]["Watchout"][];
         };
         /** OldestInput */
         OldestInput: {
@@ -1296,6 +1317,13 @@ export interface components {
             isin?: string | null;
             /** Positive List */
             positive_list: string;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
         };
         /** RotationView */
         RotationView: {

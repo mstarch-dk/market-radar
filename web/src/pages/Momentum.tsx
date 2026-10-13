@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type MomentumRow } from "../api/client";
 import { Check, Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { GaugeDots, Graded, worst } from "../components/Gauge";
 import { TableToolbar } from "../components/TableToolbar";
 import { WatchStar } from "../components/WatchButton";
 import { TickerLink, TickerList } from "../components/TickerLink";
-import { date, num } from "../lib/format";
+import { date, num, pct } from "../lib/format";
 
 const cols: Col<MomentumRow>[] = [
   { key: "name", label: "Company", align: "l", sort: (r) => r.name ?? r.ticker, search: (r) => `${r.name ?? ""} ${r.ticker}`,
@@ -15,18 +16,21 @@ const cols: Col<MomentumRow>[] = [
     render: (r) => <span className="muted">{r.industry || "–"}</span> },
   { key: "sector", label: "Sector", align: "l", sort: (r) => r.sector, search: (r) => r.sector, filter: { kind: "enum" }, hidden: true,
     render: (r) => <span className="muted">{r.sector || "–"}</span> },
-  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0), help: "score", filter: { kind: "range", unit: "num" } },
+  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => <Graded g={r.gauges?.score}>{num(r.score, 0)}</Graded>, help: "score",
+    filter: { kind: "range", unit: "num" } },
   { key: "r1m", label: "1m", sort: (r) => r.r1m, render: (r) => <Pct v={r.r1m} />, help: "r1m", heat: true },
   { key: "r3m", label: "3m", sort: (r) => r.r3m, render: (r) => <Pct v={r.r3m} />, help: "r3m", heat: true, filter: { kind: "range", unit: "pct" } },
   { key: "r6m", label: "6m", sort: (r) => r.r6m, render: (r) => <Pct v={r.r6m} />, help: "r6m", heat: true },
   { key: "r12_1", label: "12-1m", sort: (r) => r.r12_1, render: (r) => <Pct v={r.r12_1} />, help: "r12_1", heat: true },
-  { key: "from_high", label: "From 52w high", sort: (r) => r.from_high, render: (r) => <Pct v={r.from_high} />, help: "from_high",
+  { key: "from_high", label: "From 52w high", sort: (r) => r.from_high, render: (r) => <Graded g={r.gauges?.from_high}>{pct(r.from_high)}</Graded>, help: "from_high",
     filter: { kind: "range", unit: "pct" } },
-  { key: "vol", label: "Vol 20d/120d", sort: (r) => r.vol_surge, render: (r) => r.vol_surge == null ? "–" : `${num(r.vol_surge, 2)}×`,
+  { key: "vol", label: "Vol 20d/120d", sort: (r) => r.vol_surge, render: (r) => r.vol_surge == null ? "–" : <Graded g={r.gauges?.vol_surge}>{`${num(r.vol_surge, 2)}×`}</Graded>,
     help: "vol_surge" },
   { key: "trend", label: "Trend", sort: (r) => r.trend_ok, render: (r) => <Check v={r.trend_ok} />, help: "trend_ok", filter: { kind: "bool" } },
   { key: "new", label: "New", sort: (r) => r.new, render: (r) => (r.new ? <span className="new">NEW</span> : null), help: "new",
     filter: { kind: "bool" }, hidden: true },
+  { key: "signals", label: "Signals", help: "signals", sort: (r) => worst(r.gauges), csv: false,
+    render: (r) => <GaugeDots gauges={r.gauges ?? {}} names={{ score: "Momentum score", from_high: "52w high", vol_surge: "Volume" }} /> },
   { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: false },
 ];
 
