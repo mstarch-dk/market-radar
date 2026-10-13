@@ -1,10 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api } from "../api/client";
+import { api, type RegimeView } from "../api/client";
 import { Loaded, PageHead, Signal, regimeKind } from "../components/cells";
+import { DataTable, type Col } from "../components/DataTable";
 import { LineChart } from "../components/LineChart";
 import { Badge } from "../components/ui";
 import { date } from "../lib/format";
+
+type Ind = RegimeView["indicators"][number];
+
+const indCols: Col<Ind>[] = [
+  { key: "name", label: "Indicator", align: "l", sort: (i) => i.name, search: (i) => `${i.name} ${i.note}`, render: (i) => i.name },
+  { key: "value", label: "Reading", render: (i) => i.value, csv: (i) => i.value },
+  { key: "status", label: "Signal", align: "l", sort: (i) => i.status, render: (i) => <Signal s={i.status} />, help: "signal",
+    filter: { kind: "enum" } },
+  { key: "note", label: "Context", align: "l", csv: (i) => i.note,
+    render: (i) => <span className="wrap muted">{i.note}{i.asof && <> · as of {date(i.asof)}</>}</span> },
+];
 
 export function Regime() {
   const q = useQuery({ queryKey: ["regime"], queryFn: api.regime, retry: false, staleTime: 5 * 60_000 });
@@ -35,21 +47,7 @@ export function Regime() {
               {" "}· <Link to="/data">Data &amp; coverage →</Link>
             </p>
             <h2>Indicators</h2>
-            <div className="card scroll">
-              <table className="t dt">
-                <thead><tr><th className="l">Indicator</th><th>Reading</th><th className="l">Signal</th><th className="l">Context</th></tr></thead>
-                <tbody>
-                  {d.indicators.map((i) => (
-                    <tr key={i.name}>
-                      <td className="l">{i.name}</td>
-                      <td>{i.value}</td>
-                      <td className="l"><Signal s={i.status} /></td>
-                      <td className="l wrap muted">{i.note}{i.asof && <> · as of {date(i.asof)}</>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <div className="card"><DataTable id="ind" csvName="regime" rows={d.indicators} cols={indCols} rowKey={(i) => i.name} /></div>
             <h2>Charts</h2>
             <div className="grid charts">
               {d.charts.map((c) => <LineChart key={c.title} chart={c} />)}

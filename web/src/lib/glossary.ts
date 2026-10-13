@@ -1,0 +1,53 @@
+// What each metric on the site means. Text only: the numbers themselves always come from the API.
+
+export type GlossaryKey = keyof typeof GLOSSARY;
+
+export const GLOSSARY = {
+  r1m: "Total return over the last 21 trading days (about one month), from dividend-adjusted closes, in the listing currency.",
+  r3m: "Total return over the last 63 trading days (about three months), from dividend-adjusted closes.",
+  r6m: "Total return over the last 126 trading days (about six months), from dividend-adjusted closes.",
+  r12_1: "12-month return skipping the most recent month: the classic momentum measure. The skip avoids short-term reversal noise.",
+  rel_r1m: "1-month return minus ACWI's 1-month return, in percentage points. Positive = beat the global index.",
+  rel_r3m: "3-month return minus ACWI's 3-month return, in percentage points. Positive = beat the global index.",
+  rel_r6m: "6-month return minus ACWI's 6-month return, in percentage points. Positive = beat the global index.",
+  abs_r3m: "Plain 3-month total return, not relative to ACWI.",
+  from_high: "Distance below the highest close of the last 52 weeks. 0% = at the high.",
+  vol_surge: "Average volume of the last 20 days divided by the 120-day average. Above 1× = more trading than usual.",
+  above200: "✓ when the price is above its 200-day average: the long-term trend is up.",
+  trend_ok: "✓ when the price is above the 200-day average and the 50-day average is above the 200-day: an intact uptrend.",
+  score: "Momentum score 0–100: the average percentile of the 12-1-month, 6-month and 3-month returns within the stock's own region list.",
+  score_me: "Momentum percentile 0–100 against the whole stock universe (all regions), so holdings from different markets compare.",
+  rank: "Rank within the group (1 = strongest).",
+  rank_change: "Change in rank since the earlier snapshot. ▲ = moved up. \"new\" = not in the earlier snapshot.",
+  quadrant: "Where the ETF sits on the rotation graph vs ACWI. Leading: strong and accelerating. Weakening: strong but fading. Lagging: weak and falling behind. Improving: weak but accelerating. Rotation usually runs clockwise.",
+  quadrant_local: "The same quadrant, but measured against the group's home benchmark (e.g. the STOXX 600 for European sectors) instead of ACWI.",
+  rs_ratio: "RS-Ratio: how strong the relative trend vs the benchmark is, centred on 100. Above 100 = outperforming its recent norm.",
+  rs_mom: "RS-Momentum: whether that relative trend is accelerating, centred on 100. Above 100 = gaining relative strength.",
+  new: "NEW: entered the top list since the earlier snapshot.",
+  ucits: "A UCITS-domiciled ETF tracking the same theme, which a Danish investor can buy. Verify the share class on justETF.",
+  isin: "The fund's ISIN, used to look it up at Saxo or Danske and on SKAT's positive list.",
+  positive_list: "SKAT's positive list of share-based investment companies. yes: lager taxation as share income in frie midler, and eligible for the aktiesparekonto. no: taxed as capital income, not ASK-eligible. ?: not checked.",
+  since_buy: "Open position's total return in DKK (currency moves and dividends included, dividends treated as reinvested), average-cost method.",
+  bench_since_buy: "Shadow position: the same DKK amounts invested in ACWI on the same dates, with sells removing the same fraction. Would the index have done better with this money?",
+  since_sell: "How the price has moved since your last sale. Useful for reviewing exits.",
+  stop: "Trailing stop = highest close since entry − k × ATR(14). A mechanical rule for review, not advice.",
+  take_profit: "Target = the lower of 2 × the stop width above the price and the analysts' mean target (needs at least 5 analysts).",
+  k: "Stop width multiplier. Starts at 3; each signal (momentum, trend, extension, regime, analysts) widens ▲ or tightens ▼ it.",
+  atr: "Average True Range over 14 days: the typical daily price range, used to size the stop.",
+  flags: "Rule-based notes: trend intact, losing momentum, below 200d, turning up, near 52w high, and stop/target alerts.",
+  signal: "risk-on / risk-off rows vote in the regime; neutral rows inform only; n/a = no data; stale = data older than its limit, not counted.",
+  cot_net: "Net position (long − short) as a percentage of open interest.",
+  cot_chg: "Change in net % of open interest over the last 4 weeks.",
+  cot_pct: "Where today's net position ranks in its own last 3 years (0 = lowest, 100 = highest). Extremes in fast money tend to be contrarian.",
+  cli: "OECD Composite Leading Indicator, 100 = long-term trend. It tends to turn before the economy does.",
+  cli_phase: "Expansion: above 100 and rising. Slowdown: above 100 and falling. Contraction: below 100 and falling. Recovery: below 100 and rising.",
+  cli_chg: "Change in the CLI over the last 3 months.",
+  rsi: "Relative Strength Index (14 days). Above 70 = overbought, below 30 = oversold.",
+  macd: "MACD histogram (12/26/9): positive when short-term momentum is above its signal line.",
+  bb: "Bollinger %B: where the price sits between the lower (0) and upper (1) 20-day/2σ band.",
+  beta: "Sensitivity to ACWI from weekly returns over a year: 1.2 = moves 20% more than the index. Correlation shows how tightly it follows.",
+  max_age: "Days since the source's latest data point / the limit after which it counts as stale.",
+} as const;
+
+export const glossary = (k: string | undefined): string | undefined =>
+  k && k in GLOSSARY ? GLOSSARY[k as GlossaryKey] : undefined;

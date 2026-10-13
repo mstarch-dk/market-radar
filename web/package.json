@@ -10,6 +10,7 @@
     "gen:api": "uv run --project .. radar openapi > openapi.json && openapi-typescript openapi.json -o src/api/schema.ts"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.20",
     "@tanstack/react-query": "^5.104.2",
     "lightweight-charts": "^5.2.1",
     "react": "^19.3.0",
