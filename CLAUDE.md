@@ -4,7 +4,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 
 ## Commands (always run through uv)
 - `uv run radar run`: incremental update of prices, FRED and non-price data (CFTC, OECD CLI, FactSet), then build `reports/radar.html` and `reports/summary.json`. A failing non-price source logs a warning and keeps its cached data.
-- `uv run pytest -q`: tests for the parsers and signals (also run in CI)
+- `uv run pytest -q`: tests for the parsers, signals, holdings import, config and an end-to-end `report.build()` on a synthetic market (also run in CI). `tests/fixtures/` holds trimmed copies of real FRED/OECD/CFTC/FactSet payloads; when a source changes format, fix the parser and refresh its fixture. A parse that finds nothing should raise (so the update is logged as failed and the cache kept), not store an empty result.
 - `uv run radar update` / `uv run radar report`: the two halves of `run`
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: replays BUY/SELL transactions into `imports/holdings.csv` and `imports/transactions.csv`
 - `uv run radar info <TICKER>`: JSON radar context for one ticker

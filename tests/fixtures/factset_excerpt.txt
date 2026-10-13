@@ -1,0 +1,23 @@
+Key Metrics
+(Synthetic text in the layout of FactSet's Earnings Insight; every number is invented for the tests.)
+• Earnings Growth: For Q3 2026, the estimated (year-over-year) earnings growth rate for the S&P 500 is 11.4%.
+• Earnings Revisions: On June 30, the estimated (year-over-year) earnings growth rate for the S&P 500 for Q3
+2026 was 9.8%.
+• Earnings Guidance: For Q3 2026, 51 S&P 500 companies have issued negative EPS guidance and 38 S&P 500
+companies have issued positive EPS guidance.
+• Valuation: The forward 12-month P/E ratio for the S&P 500 is 21.3. This P/E ratio is above the 5-year average
+(20.1) and above the 10-year average (18.7).
+
+Three sectors have recorded an increase in dollar-level earnings due to upward
+revisions to earnings estimates, led by the Utilities, Industrials, and Energy sectors. Seven
+sectors have recorded a decrease in their dollar-level earnings due to downward revisions to earnings estimates, led by
+the Real Estate and Materials sectors.
+
+For Q4 2026, analysts are projecting earnings growth of 10.2% and revenue growth of 5.1%.
+For CY 2026, analysts are projecting earnings growth of 12.0% and revenue growth of 5.6%.
+For Q1 2027, analysts are projecting earnings growth of 8.7% and revenue growth of 4.9%.
+For CY 2027, analysts are projecting earnings growth of 13.5% and revenue growth of 6.2%.
+Valuation: Forward P/E Ratio is 21.3, Above the 10-Year Average (18.7)
+The forward 12-month P/E ratio for the S&P 500 is 21.3. This P/E ratio is above the 5-year average of 20.1 and above
+the 10-year average of 18.7.
+The trailing 12-month P/E ratio is 25.2, which is above the 5-year average of 23.9 and above the 10-year average of 22.4.

@@ -46,15 +46,29 @@ def group_benchmarks() -> dict[str, dict]:
     return {k: g["benchmark"] for k, g in universe_config()["etf_groups"].items() if g.get("benchmark")}
 
 
+SPY_MIN_HOLDINGS = 450  # fewer means the file layout changed; the cached list is kept instead
+
+
 def _spy_holdings() -> pd.DataFrame:
     resp = requests.get(SPY_HOLDINGS, headers=UA, timeout=60)
     resp.raise_for_status()
-    df = pd.read_excel(io.BytesIO(resp.content), skiprows=4)
+    return parse_spy_holdings(resp.content)
+
+
+def parse_spy_holdings(content: bytes, min_holdings: int = SPY_MIN_HOLDINGS) -> pd.DataFrame:
+    """SSGA's daily SPY holdings xlsx → ticker, name (US stocks only; cash and futures rows dropped)."""
+    df = pd.read_excel(io.BytesIO(content), skiprows=4)
+    missing = {"Ticker", "Name", "Weight", "Local Currency"} - set(df.columns)
+    if missing:
+        raise ValueError(f"SPY holdings file has no {', '.join(sorted(missing))} column: has the layout changed?")
     df = df[pd.to_numeric(df["Weight"], errors="coerce").notna() & (df["Local Currency"] == "USD")]
     df = df.dropna(subset=["Ticker"])
     df["ticker"] = df["Ticker"].astype(str).str.strip().str.replace(".", "-", regex=False)
     df = df[df["ticker"].str.replace("-", "").str.isalpha()]
-    return df[["ticker", "Name"]].rename(columns={"Name": "name"}).drop_duplicates("ticker").sort_values("ticker")
+    df = df[["ticker", "Name"]].rename(columns={"Name": "name"}).drop_duplicates("ticker").sort_values("ticker")
+    if len(df) < min_holdings:
+        raise ValueError(f"only {len(df)} stocks in the SPY holdings file (expected ≥ {min_holdings})")
+    return df
 
 
 def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
@@ -196,6 +210,9 @@ def _replay(lots: pd.DataFrame) -> tuple[dict, list[str]]:
         q, px, kind = t["Quantity"], t["Purchase Price"], t["Transaction Type"]
         if pd.isna(q) or pd.isna(px):
             continue
+        if kind not in ("BUY", "SELL"):
+            warnings.append(f"skipped a {kind} transaction on {t['Trade Date']:%Y-%m-%d}: only BUY/SELL are replayed")
+            continue
         if kind == "SELL":
             if q > qty + 1e-9:
                 warnings.append(f"sold {q:g} on {t['Trade Date']:%Y-%m-%d} but held {qty:g} (split or missing buy?)")
@@ -203,7 +220,7 @@ def _replay(lots: pd.DataFrame) -> tuple[dict, list[str]]:
             cost -= cost / qty * q if qty else 0
             qty -= q
             last_sell_date, last_sell_price = t["Trade Date"], px
-        else:  # BUY (older exports have no type column: treat lots as buys)
+        else:
             if qty <= 1e-9:
                 opened = t["Trade Date"]
             qty += q
@@ -231,9 +248,12 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     raw["Purchase Price"] = pd.to_numeric(raw.get("Purchase Price"), errors="coerce")
     trade = pd.to_numeric(raw.get("Trade Date"), errors="coerce").astype("Int64").astype("string")
     raw["Trade Date"] = pd.to_datetime(trade, format="%Y%m%d", errors="coerce")
-    raw["Transaction Type"] = raw.get("Transaction Type", pd.Series("BUY", index=raw.index)).fillna("").str.upper()
+    # older exports have no type: their lots are buys
+    kind = raw.get("Transaction Type", pd.Series("", index=raw.index)).fillna("").astype(str).str.strip().str.upper()
+    raw["Transaction Type"] = kind.replace("", "BUY")
 
-    tx_all = raw[~raw["Symbol"].map(_is_market_symbol)].dropna(subset=["Quantity", "Purchase Price", "Trade Date"])
+    tx_all = raw[~raw["Symbol"].map(_is_market_symbol) & raw["Transaction Type"].isin(["BUY", "SELL"])]
+    tx_all = tx_all.dropna(subset=["Quantity", "Purchase Price", "Trade Date"])
     tx_all = tx_all.rename(columns={"Symbol": "symbol", "Trade Date": "date", "Transaction Type": "type",
                                     "Quantity": "quantity", "Purchase Price": "price"})
     TRANSACTIONS_FILE.parent.mkdir(exist_ok=True)
@@ -288,9 +308,14 @@ def positive_list() -> pd.DataFrame | None:
     sheets = pd.read_excel(POSITIVE_LIST_FILE, sheet_name=None, dtype=str)
     year = max(n for n in sheets if n.strip().isdigit())
     df = sheets[year]
-    df.columns = ["residence", "isin", "share_class", "lei", "tin", "sub_fund", "tin2", "name", "registered", "deregistered"][:len(df.columns)]
+    isin_col = next((c for c in df.columns if "isin" in str(c).lower()), None)  # by header: SKAT reorders columns
+    if isin_col is None:
+        raise ValueError(f"no ISIN column in the {year} sheet of {POSITIVE_LIST_FILE.name}")
+    df = df.rename(columns={isin_col: "isin"})
     df["isin"] = df["isin"].str.strip().str.upper()
     df = df[df["isin"].str.match(ISIN_RE.pattern, na=False)]
+    if df.empty:
+        raise ValueError(f"no valid ISINs in the {year} sheet of {POSITIVE_LIST_FILE.name}")
     df.attrs["year"] = year
     return df
 

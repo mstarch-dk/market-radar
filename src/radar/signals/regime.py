@@ -29,6 +29,13 @@ def _chg(s: pd.Series, n: int) -> float:
     return s.iloc[-1] - s.iloc[-1 - n] if len(s) > n else float("nan")
 
 
+def _ret(s: pd.Series, n: int) -> float:
+    return s.iloc[-1] / s.iloc[-1 - n] - 1 if len(s) > n else float("nan")
+
+
+SHORT = "less than 3 months of history"
+
+
 def _ind(name, value, status, note, source="prices", asof=None):
     """One regime row. `source` is the data source key (coverage.py), `asof` the last data point used."""
     return {"name": name, "value": value, "status": status, "note": note, "source": source,
@@ -92,10 +99,11 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
 
     if {"RSP", "SPY"} <= set(closes.columns):
         r = (closes["RSP"] / closes["SPY"]).dropna()
-        chg = r.iloc[-1] / r.iloc[-64] - 1
+        chg = _ret(r, 63)
         note = ("Broadening: the average stock is beating the index" if chg > 0
                 else "Narrow: mega caps are carrying the index")
-        out.append(_ind("Equal vs cap weight (RSP/SPY)", f"{chg:+.1%} over 3m", NEUTRAL, note, asof=_last(r)))
+        out.append(_ind("Equal vs cap weight (RSP/SPY)", f"{chg:+.1%} over 3m", NEUTRAL, note, asof=_last(r))
+                   if pd.notna(chg) else _na("Equal vs cap weight (RSP/SPY)", "prices", SHORT))
     else:
         out.append(_na("Equal vs cap weight (RSP/SPY)", "prices"))
 
@@ -151,7 +159,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
 
     s = series("DTWEXBGS")
     if len(s) > 63:
-        chg = s.iloc[-1] / s.iloc[-63] - 1
+        chg = _ret(s, 63)
         st = OFF if chg > 0.03 else ON if chg < -0.03 else NEUTRAL
         out.append(_ind("US dollar (broad)", f"{chg:+.1%} over 3m", st,
                         "A sharply rising USD tends to tighten global conditions", "fred", _last(s)))
@@ -160,21 +168,22 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
 
     if copper_ticker in closes and gold_ticker in closes:
         r = (closes[copper_ticker] / closes[gold_ticker]).dropna()
-        chg = r.iloc[-1] / r.iloc[-64] - 1
+        chg = _ret(r, 63)
         band = cfg["copper_gold_band"]
         st = ON if chg > band else OFF if chg < -band else NEUTRAL
         out.append(_ind("Copper/gold ratio", f"{chg:+.1%} over 3m", st, "Rising = growth over defence",
-                        asof=_last(r)))
+                        asof=_last(r)) if pd.notna(chg) else _na("Copper/gold ratio", "prices", SHORT))
     else:
         out.append(_na("Copper/gold ratio", "prices"))
 
     if oil_ticker in closes:
         o = closes[oil_ticker].dropna()
-        chg = o.iloc[-1] / o.iloc[-64] - 1
+        chg = _ret(o, 63)
         shock = chg > cfg["oil_shock"]
         out.append(_ind("Oil (WTI)", f"{chg:+.1%} over 3m", OFF if shock else NEUTRAL,
                         "Oil shock: inflation and margin risk" if shock
-                        else f"Risk-off above +{cfg['oil_shock']:.0%} in 3m", asof=_last(o)))
+                        else f"Risk-off above +{cfg['oil_shock']:.0%} in 3m", asof=_last(o))
+                   if pd.notna(chg) else _na("Oil (WTI)", "prices", SHORT))
     else:
         out.append(_na("Oil (WTI)", "prices"))
 

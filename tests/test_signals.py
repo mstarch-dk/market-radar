@@ -86,3 +86,53 @@ def test_clusters_need_overrepresentation():
     assert out["Semis"]["count"] == 3 and out["Semis"]["new"] == 1   # 3 vs 1.0 expected
     assert "Banks" not in out                                        # 3 vs 4.0 expected: normal weight
     assert "Tech" not in out                                         # same names as the Semis cluster
+
+
+def _votes(on=0, off=0, neutral=0, na=0):
+    return ([{"status": regime.ON}] * on + [{"status": regime.OFF}] * off + [{"status": regime.NEUTRAL}] * neutral
+            + [{"status": regime.NA}] * na)
+
+
+def test_overall_label_thresholds():
+    assert regime.overall(_votes(on=2, off=1))["label"] == "Risk-on"       # net 1/3 clears the 0.33 bar
+    assert regime.overall(_votes(on=3, off=2))["label"] == "Mixed"         # net 0.2
+    assert regime.overall(_votes(on=3, off=1))["label"] == "Risk-on"       # net 0.5
+    assert regime.overall(_votes(on=1, off=3))["label"] == "Risk-off"
+    assert regime.overall(_votes(neutral=5, na=3))["label"] == "Mixed"     # nothing votes
+    o = regime.overall(_votes(on=2, neutral=10, na=5))
+    assert o["label"] == "Risk-on" and o["net"] == 1.0                     # neutral and n/a rows don't dilute
+
+
+def test_breadth_history_counts_only_stocks_with_a_full_window():
+    idx = pd.bdate_range("2025-01-01", periods=260)
+    closes = pd.DataFrame({"UP": np.linspace(100, 200, 260), "DOWN": np.linspace(200, 100, 260),
+                           "NEW": np.r_[np.full(160, np.nan), np.linspace(100, 150, 100)]}, index=idx)
+    h = regime.breadth_history(closes, ["UP", "DOWN", "NEW", "GONE"])
+    assert h.index[0] == idx[199] and h.iloc[-1] == 50.0                   # NEW has no 200d average yet
+
+
+def test_short_macro_history_shows_na_instead_of_crashing():
+    closes = _closes()
+    for t in ("HG=F", "GC=F", "CL=F"):
+        closes[t] = np.r_[np.full(len(closes) - 30, np.nan), np.full(30, 50.0)]   # just added to the universe
+    closes["RSP"], closes["SPY"] = closes["HG=F"], closes["HG=F"]
+    inds, _ = regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1", "S2", "S3"]}, {"us": "US"}, MACRO, CFG)
+    st = {k: v["status"] for k, v in _by_name(inds).items()}
+    assert st["Copper/gold ratio"] == st["Oil"] == st["Equal vs cap weight"] == regime.NA
+
+
+def test_dollar_uses_the_same_3_month_window_as_the_other_rows():
+    closes = _closes()
+    fred = pd.DataFrame({"DTWEXBGS": np.r_[np.full(37, 100.0), np.full(63, 110.0)]},
+                        index=pd.bdate_range("2026-01-01", periods=100))
+    inds, _ = regime.indicators(closes, fred, "ACWI", {"us": ["S1"]}, {"us": "US"}, MACRO, CFG)
+    assert _by_name(inds)["US dollar"]["value"] == "+10.0% over 3m"      # 63 bars back, like _chg
+
+
+def test_breadth_row_uses_the_200_day_average():
+    closes = _closes()
+    n = len(closes)
+    closes["V"] = np.r_[np.linspace(150, 90, n - 40), np.linspace(90, 100, 40)]   # recovering, still below 200d
+    inds, _ = regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1", "V"]}, {"us": "US"}, MACRO, CFG)
+    row = _by_name(inds)["Breadth – US"]
+    assert row["value"] == "50% > 200d" and "100% above 50d" in row["note"]

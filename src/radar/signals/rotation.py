@@ -37,6 +37,7 @@ def _ret(closes: pd.DataFrame, n: int) -> pd.Series:
 def relative_table(closes: pd.DataFrame, bench: str, instruments, window: int, tail: int) -> pd.DataFrame:
     tickers = [i.ticker for i in instruments if i.ticker in closes.columns]
     ratio, mom = rrg(closes, bench, tickers, window, tail)
+    b = closes[bench].dropna()
     rows = []
     for inst in instruments:
         t = inst.ticker
@@ -45,20 +46,20 @@ def relative_table(closes: pd.DataFrame, bench: str, instruments, window: int, t
         s = closes[t].dropna()
         if len(s) < 130:
             continue
+        bs = b[:s.index[-1]]  # same end date: a ticker that stopped updating isn't measured against newer bench gains
+        rel = {f"rel_{col}": s.iloc[-1] / s.iloc[-1 - n] - bs.iloc[-1] / bs.iloc[-1 - n]
+               for col, n in (("r1m", 21), ("r3m", 63), ("r6m", 126))}
         rows.append({
             "ticker": t, "name": inst.name, "group": inst.group, "ucits": inst.ucits, "isin": inst.isin, "ucits_name": inst.ucits_name,
             "r1m": s.iloc[-1] / s.iloc[-22] - 1,
             "r3m": s.iloc[-1] / s.iloc[-64] - 1,
             "r6m": s.iloc[-1] / s.iloc[-127] - 1,
             "above200": bool(s.iloc[-1] > s.iloc[-200:].mean()),
-            "rs_ratio": ratio[t].iloc[-1], "rs_mom": mom[t].iloc[-1],
+            "rs_ratio": ratio[t].iloc[-1], "rs_mom": mom[t].iloc[-1], **rel,
         })
     df = pd.DataFrame(rows)
     if df.empty:
         return df
-    b = closes[bench].dropna()
-    for col, n in (("r1m", 21), ("r3m", 63), ("r6m", 126)):
-        df["rel_" + col] = df[col] - (b.iloc[-1] / b.iloc[-1 - n] - 1)
     df["quadrant"] = [quadrant(r, m) for r, m in zip(df["rs_ratio"], df["rs_mom"])]
     # composite relative-strength score used for ranking (weights favour 3-6 months)
     df["rs_score"] = 0.2 * df["rel_r1m"] + 0.4 * df["rel_r3m"] + 0.4 * df["rel_r6m"]
