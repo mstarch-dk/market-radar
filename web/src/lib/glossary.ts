@@ -46,6 +46,7 @@ export const GLOSSARY = {
   macd: "MACD histogram (12/26/9): positive when short-term momentum is above its signal line.",
   bb: "Bollinger %B: where the price sits between the lower (0) and upper (1) 20-day/2σ band.",
   beta: "Sensitivity to ACWI from weekly returns over a year: 1.2 = moves 20% more than the index. Correlation shows how tightly it follows.",
+  signals: "One dot per graded reading, coloured by how close it is to its thresholds: green leans favourable, orange to red is a warning, grey is neutral. Hover for each reading and its nearest threshold. Sorting puts the most worrying rows first or last.",
   max_age: "Days since the source's latest data point / the limit after which it counts as stale.",
 } as const;
 

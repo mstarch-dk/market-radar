@@ -10,7 +10,7 @@ export type { Col } from "./columns";
 function heatStyle(v: unknown, scale: number) {
   if (typeof v !== "number" || !Number.isFinite(v) || v === 0 || scale <= 0) return undefined;
   const pctOf = Math.min(Math.abs(v) / scale, 1) * 16;   // at most a light tint, so the text stays readable
-  return { background: `color-mix(in srgb, var(${v > 0 ? "--pos" : "--neg"}) ${pctOf.toFixed(1)}%, transparent)` };
+  return { background: `color-mix(in srgb, var(${v > 0 ? "--gm-p3" : "--gm-n3"}) ${pctOf.toFixed(1)}%, transparent)` };
 }
 
 /** A sortable, filterable table whose state (sort, search, filters) lives in the URL under `id`. Tables that share

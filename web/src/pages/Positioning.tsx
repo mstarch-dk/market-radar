@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type PositioningView } from "../api/client";
 import { Loaded, PageHead } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { Graded } from "../components/Gauge";
 import { Term } from "../components/Term";
 import { Badge } from "../components/ui";
 import { date, num, tone } from "../lib/format";
@@ -15,7 +16,7 @@ const cotCols: Col<Cot>[] = [
   { key: "group", label: "Trader group", align: "l", sort: (r) => r.group, render: (r) => r.group, filter: { kind: "enum" } },
   { key: "net", label: "Net % of OI", sort: (r) => r.net_pct_oi, render: (r) => `${signed(r.net_pct_oi)}%`, help: "cot_net" },
   { key: "chg", label: "4w change", sort: (r) => r.chg_4w, render: (r) => <span className={tone(r.chg_4w)}>{signed(r.chg_4w)}</span>, help: "cot_chg" },
-  { key: "pct", label: "3y percentile", sort: (r) => r.percentile, render: (r) => num(r.percentile, 0), help: "cot_pct", filter: { kind: "range", unit: "num" } },
+  { key: "pct", label: "3y percentile", sort: (r) => r.percentile, render: (r) => <Graded g={r.gauge}>{num(r.percentile, 0)}</Graded>, help: "cot_pct", filter: { kind: "range", unit: "num" } },
   { key: "flag", label: "Flag", align: "l", sort: (r) => r.flag, render: (r) => r.flag ? <Badge>{r.flag}</Badge> : null, filter: { kind: "enum" } },
   { key: "asof", label: "As of", sort: (r) => r.asof, render: (r) => date(r.asof) },
 ];
@@ -73,7 +74,7 @@ export function Positioning() {
                     <tbody>{d.cli.map((r) => (
                       <tr key={r.area}>
                         <td className="l">{r.label}</td><td>{num(r.cli, 2)}</td>
-                        <td className={tone(r.chg_3m)}>{signed(r.chg_3m, 2)}</td>
+                        <td><Graded g={r.gauge}>{signed(r.chg_3m, 2)}</Graded></td>
                         <td className="l"><Badge kind={PHASE_KIND[r.phase] ?? ""}>{r.phase}</Badge></td><td>{r.asof.slice(0, 7)}</td>
                       </tr>
                     ))}</tbody>

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from . import gauges as gz
+
 ON, OFF, NEUTRAL = "risk-on", "risk-off", "neutral"
 NA, STALE = "n/a", "stale"  # no data / too old: shown, but not counted in the vote
 
@@ -36,10 +38,11 @@ def _ret(s: pd.Series, n: int) -> float:
 SHORT = "less than 3 months of history"
 
 
-def _ind(name, value, status, note, source="prices", asof=None):
-    """One regime row. `source` is the data source key (coverage.py), `asof` the last data point used."""
+def _ind(name, value, status, note, source="prices", asof=None, gauge=None):
+    """One regime row. `source` is the data source key (coverage.py), `asof` the last data point used,
+    `gauge` the reading graded between the same thresholds the vote uses (gauges.make; display only)."""
     return {"name": name, "value": value, "status": status, "note": note, "source": source,
-            "asof": None if asof is None else pd.Timestamp(asof).date().isoformat()}
+            "asof": None if asof is None else pd.Timestamp(asof).date().isoformat(), "gauge": gauge}
 
 
 def _na(name, source, note="no data"):
@@ -68,7 +71,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
     out.append(_ind("Global trend (ACWI)", f"{b.iloc[-1] / sma200 - 1:+.1%} vs 200d",
                     ON if up else OFF if down else NEUTRAL,
                     "Price and 50d above 200d average" if up else "Below 200d average" if down else "Mixed trend",
-                    asof=_last(b)))
+                    asof=_last(b), gauge=gz.make(gz.band(-0.05, 0.05, ("downtrend", "flat", "uptrend")), b.iloc[-1] / sma200 - 1)))
 
     for key, tickers in groups.items():
         h = breadth_history(closes, tickers)
@@ -84,7 +87,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         n = sum(t in closes.columns for t in tickers)
         out.append(_ind(f"Breadth – {labels[key]}", f"{v:.0f}% > 200d", st,
                         f"{chg:+.0f} pts over 1 month{short}; {n} of {len(tickers)} stocks have prices",
-                        asof=_last(h)))
+                        asof=_last(h), gauge=gz.make(gz.band(cfg["breadth_weak"], cfg["breadth_strong"],
+                                                             ("weak", "neutral", "strong")), v)))
 
     everyone = sorted({t for ts in groups.values() for t in ts})
     hl = net_highs_lows(closes, everyone)
@@ -93,7 +97,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         st = ON if v >= cfg["highs_lows_band"] else OFF if v <= -cfg["highs_lows_band"] else NEUTRAL
         out.append(_ind("New highs – new lows (all stocks)", f"{v:+.1f}%", st,
                         f"Net % of stocks at 52w highs, 10d avg; {_chg(hl, 21):+.1f} pts over 1 month",
-                        asof=_last(hl)))
+                        asof=_last(hl), gauge=gz.make(gz.band(-cfg["highs_lows_band"], cfg["highs_lows_band"],
+                                                              ("more new lows", "balanced", "more new highs")), v)))
     else:
         out.append(_na("New highs – new lows (all stocks)", "prices", "no stocks with a year of history"))
 
@@ -102,7 +107,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         chg = _ret(r, 63)
         note = ("Broadening: the average stock is beating the index" if chg > 0
                 else "Narrow: mega caps are carrying the index")
-        out.append(_ind("Equal vs cap weight (RSP/SPY)", f"{chg:+.1%} over 3m", NEUTRAL, note, asof=_last(r))
+        out.append(_ind("Equal vs cap weight (RSP/SPY)", f"{chg:+.1%} over 3m", NEUTRAL, note, asof=_last(r),
+                        gauge=gz.make(gz.band(-0.03, 0.03, ("narrowing", "even", "broadening")), chg))
                    if pd.notna(chg) else _na("Equal vs cap weight (RSP/SPY)", "prices", SHORT))
     else:
         out.append(_na("Equal vs cap weight (RSP/SPY)", "prices"))
@@ -112,7 +118,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         v = s.iloc[-1]
         st = ON if v < cfg["vix_calm"] else OFF if v > cfg["vix_stress"] else NEUTRAL
         out.append(_ind("Volatility (VIX)", f"{v:.1f}", st, f"Calm < {cfg['vix_calm']}, stress > {cfg['vix_stress']}",
-                        asof=_last(s)))
+                        asof=_last(s), gauge=gz.make(gz.rising_risk(cfg["vix_calm"], cfg["vix_stress"],
+                                                                    ("calm", "normal", "elevated", "stress")), v)))
     else:
         out.append(_na("Volatility (VIX)", "prices"))
     if vix_ticker in closes and vix3m_ticker in closes:
@@ -121,7 +128,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         st = OFF if r > 1 else ON if r < cfg["vix_term_calm"] else NEUTRAL
         out.append(_ind("VIX term structure (VIX/VIX3M)", f"{r:.2f}", st,
                         "Inverted: near-term fear above 3-month" if r > 1
-                        else f"Normal upward slope; calm below {cfg['vix_term_calm']}", asof=_last(s)))
+                        else f"Normal upward slope; calm below {cfg['vix_term_calm']}", asof=_last(s),
+                        gauge=gz.make(gz.rising_risk(cfg["vix_term_calm"], 1.0, ("calm", "normal", "flattening", "inverted")), r)))
     else:
         out.append(_na("VIX term structure (VIX/VIX3M)", "prices"))
 
@@ -134,7 +142,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         st = ON if s.iloc[-1] < avg * 0.97 else OFF if s.iloc[-1] > avg * 1.03 else NEUTRAL
         trend = "widening (stress building)" if s.iloc[-1] > avg else "tightening (supports risk)"
         out.append(_ind("Credit (US HY spread)", f"{s.iloc[-1]:.2f}%", st, f"vs 6m average {avg:.2f}%: {trend}",
-                        "fred", _last(s)))
+                        "fred", _last(s), gz.make(gz.band(1.03, 0.97, ("widening", "steady", "tightening")), s.iloc[-1] / avg)))
     else:
         out.append(_na("Credit (US HY spread)", "fred"))
 
@@ -142,7 +150,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
     if len(s):
         inverted = s.iloc[-1] < 0
         out.append(_ind("Yield curve (10Y-2Y)", f"{s.iloc[-1]:+.2f}%", OFF if inverted else NEUTRAL,
-                        f"{'Inverted; ' if inverted else ''}{_chg(s, 63):+.2f} over 3m", "fred", _last(s)))
+                        f"{'Inverted; ' if inverted else ''}{_chg(s, 63):+.2f} over 3m", "fred", _last(s),
+                        gz.make(gz.band(0.0, 0.75, ("inverted", "flat", "steep")), s.iloc[-1])))
     else:
         out.append(_na("Yield curve (10Y-2Y)", "fred"))
 
@@ -153,7 +162,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         out.append(_ind("US 10Y yield", f"{s.iloc[-1]:.2f}%", OFF if shock else NEUTRAL,
                         f"{chg:+.2f} over 3m" + (": a fast rise tightens conditions" if shock
                                                  else f"; risk-off if it rises > {cfg['rates_shock']} pts in 3m"),
-                        "fred", _last(s)))
+                        "fred", _last(s), gz.make(gz.rising_risk(cfg["rates_shock"] * 0.4, cfg["rates_shock"],
+                                                                 ("steady", "rising", "fast rise", "rate shock")), chg)))
     else:
         out.append(_na("US 10Y yield", "fred"))
 
@@ -162,7 +172,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         chg = _ret(s, 63)
         st = OFF if chg > 0.03 else ON if chg < -0.03 else NEUTRAL
         out.append(_ind("US dollar (broad)", f"{chg:+.1%} over 3m", st,
-                        "A sharply rising USD tends to tighten global conditions", "fred", _last(s)))
+                        "A sharply rising USD tends to tighten global conditions", "fred", _last(s),
+                        gz.make(gz.band(0.03, -0.03, ("rising fast", "stable", "falling")), chg)))
     else:
         out.append(_na("US dollar (broad)", "fred"))
 
@@ -172,7 +183,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         band = cfg["copper_gold_band"]
         st = ON if chg > band else OFF if chg < -band else NEUTRAL
         out.append(_ind("Copper/gold ratio", f"{chg:+.1%} over 3m", st, "Rising = growth over defence",
-                        asof=_last(r)) if pd.notna(chg) else _na("Copper/gold ratio", "prices", SHORT))
+                        asof=_last(r), gauge=gz.make(gz.band(-band, band, ("defensive", "neutral", "growth")), chg))
+                   if pd.notna(chg) else _na("Copper/gold ratio", "prices", SHORT))
     else:
         out.append(_na("Copper/gold ratio", "prices"))
 
@@ -182,7 +194,9 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         shock = chg > cfg["oil_shock"]
         out.append(_ind("Oil (WTI)", f"{chg:+.1%} over 3m", OFF if shock else NEUTRAL,
                         "Oil shock: inflation and margin risk" if shock
-                        else f"Risk-off above +{cfg['oil_shock']:.0%} in 3m", asof=_last(o))
+                        else f"Risk-off above +{cfg['oil_shock']:.0%} in 3m", asof=_last(o),
+                        gauge=gz.make(gz.rising_risk(cfg["oil_shock"] / 2, cfg["oil_shock"],
+                                                     ("calm", "rising", "fast rise", "oil shock")), chg))
                    if pd.notna(chg) else _na("Oil (WTI)", "prices", SHORT))
     else:
         out.append(_na("Oil (WTI)", "prices"))
@@ -193,7 +207,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         others = "; ".join(f"{r.label} {r.phase.lower()}" for r in cli.iloc[1:].itertuples())
         out.append(_ind(f"Leading indicators (OECD CLI, {lead['label']})",
                         f"{lead['cli']:.1f} ({lead['chg_3m']:+.2f} 3m)", st,
-                        f"{lead['phase']} as of {lead['asof']:%b %Y}. {others}", "oecd", lead["asof"]))
+                        f"{lead['phase']} as of {lead['asof']:%b %Y}. {others}", "oecd", lead["asof"],
+                        gz.gauge("cli_chg", lead["chg_3m"])))
     else:
         out.append(_na("Leading indicators (OECD CLI)", "oecd"))
 
@@ -206,7 +221,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         out.append(_ind(f"Earnings revisions (S&P 500, {factset.get('quarter') or 'current qtr'})",
                         f"{rev:+.1f} pts", st,
                         f"Growth est. {factset['growth_now']:.1f}% vs {factset['growth_start']:.1f}% at quarter start"
-                        f"{guid} (FactSet {factset['report_date']:%d %b})", "factset", factset["report_date"]))
+                        f"{guid} (FactSet {factset['report_date']:%d %b})", "factset", factset["report_date"],
+                        gz.make(gz.band(-band, band, ("cut", "stable", "raised")), rev)))
     else:
         out.append(_na("Earnings revisions (S&P 500)", "factset",
                        "the latest FactSet report's growth figures could not be read" if factset else "no data"))

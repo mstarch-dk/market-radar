@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { api, type RotationGroup, type RotationRow, type RrgTrail } from "../api/client";
 import { Check, Loaded, PageHead, Pct, Quadrant, RankChange } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { GaugeDots, Graded, worst } from "../components/Gauge";
 import { RrgChart } from "../components/RrgChart";
 import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
@@ -32,8 +33,10 @@ const abs3: Col<RotationRow> = { key: "r3m", label: "Abs 3m", sort: (r) => r.r3m
 const above: Col<RotationRow> = { key: "above200", label: ">200d", name: "Above 200d", sort: (r) => r.above200,
   render: (r) => <Check v={r.above200} />, help: "above200", filter: { kind: "bool" } };
 const rs: Col<RotationRow>[] = [
-  { key: "rs_ratio", label: "RS-Ratio", sort: (r) => r.rs_ratio, render: (r) => num(r.rs_ratio, 2), help: "rs_ratio", hidden: true },
-  { key: "rs_mom", label: "RS-Mom", name: "RS-Momentum", sort: (r) => r.rs_mom, render: (r) => num(r.rs_mom, 2), help: "rs_mom", hidden: true },
+  { key: "rs_ratio", label: "RS-Ratio", sort: (r) => r.rs_ratio, render: (r) => <Graded g={r.gauges?.rs_ratio}>{num(r.rs_ratio, 2)}</Graded>, help: "rs_ratio", hidden: true },
+  { key: "rs_mom", label: "RS-Mom", name: "RS-Momentum", sort: (r) => r.rs_mom, render: (r) => <Graded g={r.gauges?.rs_mom}>{num(r.rs_mom, 2)}</Graded>, help: "rs_mom", hidden: true },
+  { key: "signals", label: "Signals", help: "signals", sort: (r) => worst(r.gauges), csv: false,
+    render: (r) => <GaugeDots gauges={r.gauges ?? {}} names={{ rs_ratio: "RS-Ratio (relative trend)", rs_mom: "RS-Momentum (acceleration)" }} /> },
 ];
 const star: Col<RotationRow> = { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: false };
 const local: Col<RotationRow> = {

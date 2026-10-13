@@ -18,6 +18,7 @@ import pandas as pd
 from . import dashboard, external, ingest, universe
 from .config import PRICES_FILE, settings, universe_config
 from .mine import _fx_to_dkk, _pct_vs
+from .signals import gauges as gz
 from .signals import levels, momentum, rotation, technicals
 
 OK, STALE, MISSING = "ok", "stale", "missing"
@@ -274,6 +275,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
         basis = f"percentile against the {pool['region'].iloc[0] if len(pool) else region} stock group (not a member)"
     mom = _section(OK, "radar (prices)", last_date, **{k: v for k, v in m.items() if k != "ticker"},
                    score=score, rank=rank, group_size=int(len(pool)), score_basis=basis,
+                   gauges=gz.gauges({"score": score, "from_high": m.get("from_high"), "vol_surge": m.get("vol_surge")}),
                    region_label=universe.stock_group_labels().get(pool["region"].iloc[0]) if len(pool) else None)
 
     # --- technicals
@@ -292,7 +294,10 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
         atr=float(atr.iloc[-1]) if not atr.empty else None,
         atr_pct=float(atr.iloc[-1] / close.iloc[-1]) if not atr.empty else None,
         vol_3m=technicals.realised_vol(oc, 63), max_drawdown_1y=technicals.max_drawdown(oc),
-        beta_acwi=beta, corr_acwi=corr)
+        beta_acwi=beta, corr_acwi=corr,
+        gauges=gz.gauges({"rsi14": rsi, "bb_pct_b": bb["pct_b"],
+                          "macd_atr": ma["hist"] / atr.iloc[-1] if not atr.empty and atr.iloc[-1] else None,
+                          "atr_pct": atr.iloc[-1] / close.iloc[-1] if not atr.empty else None, "beta": beta}))
 
     # --- analyst: stored history (tracked names) plus today's fetch, in the radar's price units
     hist = external.load_analyst()
@@ -311,7 +316,9 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
     cal = external.parse_calendar((raw or {}).get("calendar") or {})
     has_analyst = bool(view and view.get("target_mean")) or bool(recs) or bool(eps)
     analyst = _section(raw_status if has_analyst else MISSING, "Yahoo Finance", detail_asof,
-                       **(view or {}), recommendations=recs, eps=eps, calendar=cal)
+                       **(view or {}), recommendations=recs, eps=eps, calendar=cal,
+                       gauges=gz.gauges({"upside": (view or {}).get("upside"),
+                                         "target_change": (view or {}).get("target_change")}))
 
     # --- stop / take-profit levels (the same rule as for holdings)
     row = m | {"score": None if score is None or pd.isna(score) else score}
@@ -322,7 +329,8 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
     if lv:
         lv.pop("analyst", None)
     lvl = _section(OK if lv else MISSING, "radar (prices, analyst targets)", last_date,
-                   **(lv or {}), regime=regime["label"])
+                   **(lv or {}), regime=regime["label"],
+                   gauges=gz.gauges({"stop_dist": (lv or {}).get("stop_pct"), "tp_dist": (lv or {}).get("tp_pct")}))
 
     # --- fundamentals
     fund = external.parse_fundamentals(info)          # all keys, None where Yahoo has nothing
@@ -362,10 +370,13 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
 
     for s in (fund, etf or {}):
         notes += s.get("notes") or []
+    watchouts = gz.watchouts({k: v for sec in (tech, mom, lvl, analyst) for k, v in sec["gauges"].items()},
+                             skip=set() if status == "holding" else {"stop_dist", "tp_dist"})
     out = {"symbol": ticker, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "identity": identity, "price": price, "momentum": mom, "technicals": tech, "levels": lvl,
            "analyst": analyst, "fundamentals": fundamentals, "etf": etf, "peers": peer_sec,
-           "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {}}}
+           "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {},
+                       "watchouts": watchouts}}
     return clean(out)
 
 

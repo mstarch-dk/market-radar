@@ -132,3 +132,16 @@ def test_card_and_chart_agree(env):
     assert p["technicals"]["rsi14"] == pytest.approx(s["rsi"][-1])
     assert p["technicals"]["macd_hist"] == pytest.approx(s["macd_hist"][-1])
     assert p["price"]["last"] == pytest.approx(s["close"][-1])
+
+
+def test_gauges_grade_the_readings(env):
+    p = profile.build("S1")
+    t, m, lv = p["technicals"]["gauges"], p["momentum"]["gauges"], p["levels"]["gauges"]
+    # S1 rises steadily every day: RSI is pinned at 100, so it reads as extremely overbought, deep red
+    assert t["rsi14"]["label"] == "extremely overbought" and t["rsi14"]["level"] == -4
+    assert m["score"]["label"] == "leader" and m["score"]["level"] > 0           # rank 1 of its group
+    assert m["from_high"]["label"] == "at 52w high"
+    assert "stop_dist" in lv and lv["stop_dist"]["scale"] == "sequential"
+    assert p["analyst"]["gauges"] == {}                                           # no analyst data: nothing graded
+    keys = [w["key"] for w in p["context"]["watchouts"]]
+    assert "rsi14" in keys and all(w["level"] <= -3 for w in p["context"]["watchouts"])

@@ -144,7 +144,7 @@ def get_me() -> dict:
     with _lock:
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
-                          settings())
+                          settings(), sessions=lambda s: m.bars(s)["close"])
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}

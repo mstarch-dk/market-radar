@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type MyRow } from "../api/client";
 import { Check, Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { GaugeDots, Graded, worst } from "../components/Gauge";
 import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { WatchButton } from "../components/WatchButton";
@@ -11,16 +12,22 @@ const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => 
   search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol, csvHeader: "Ticker",
   render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst marker={false} /> };
 const common: Col<MyRow>[] = [
-  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0), help: "score_me",
+  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => <Graded g={r.gauges?.score}>{num(r.score, 0)}</Graded>, help: "score_me",
     filter: { kind: "range", unit: "num" } },
   { key: "r1m", label: "1m", sort: (r) => r.r1m, render: (r) => <Pct v={r.r1m} />, help: "r1m", heat: true },
   { key: "r3m", label: "3m", sort: (r) => r.r3m, render: (r) => <Pct v={r.r3m} />, help: "r3m", heat: true },
   { key: "rel_r3m", label: "Rel 3m", sort: (r) => r.rel_r3m, render: (r) => <Pct v={r.rel_r3m} />, help: "rel_r3m", heat: true },
   { key: "r6m", label: "6m", sort: (r) => r.r6m, render: (r) => <Pct v={r.r6m} />, help: "r6m", heat: true },
-  { key: "from_high", label: "From high", sort: (r) => r.from_high, render: (r) => <Pct v={r.from_high} />, help: "from_high" },
+  { key: "from_high", label: "From high", sort: (r) => r.from_high, render: (r) => <Graded g={r.gauges?.from_high}>{pct(r.from_high)}</Graded>, help: "from_high" },
+  { key: "signals", label: "Signals", help: "signals", sort: (r) => worst(r.gauges), csv: (r) => r.watchouts.map((w) => w.text),
+    filter: { kind: "bool", value: (r) => r.watchouts.length > 0 }, name: "Watch-outs",
+    render: (r) => <GaugeDots gauges={r.gauges ?? {}} names={SIGNALS} /> },
   { key: "trend", label: "Trend", sort: (r) => r.trend_ok, render: (r) => <Check v={r.trend_ok} />, help: "trend_ok",
     filter: { kind: "bool" }, hidden: true },
 ];
+const SIGNALS = { rsi14: "RSI 14", score: "Momentum score", from_high: "52w high", stop_dist: "Stop", tp_dist: "Target",
+  excess_vs_acwi: "vs ACWI (DKK)" };
+
 const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} />, help: "flags",
   filter: { kind: "enum", value: (r) => [...r.flags, ...(r.levels?.flags ?? [])] }, csv: (r) => r.flags };
 
@@ -54,13 +61,14 @@ function Flags({ r }: { r: MyRow }) {
 
 const holdingCols: Col<MyRow>[] = [
   name, ...common,
-  { key: "since_buy", label: "Since buy (DKK)", sort: (r) => r.since_buy, render: (r) => <Pct v={r.since_buy} />, help: "since_buy",
-    heat: true },
-  { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, render: (r) => <Pct v={r.bench_since_buy} />, help: "bench_since_buy" },
+  { key: "since_buy", label: "Since buy (DKK)", sort: (r) => r.since_buy, help: "since_buy",
+    render: (r) => <Graded g={r.gauges?.excess_vs_acwi}>{pct(r.since_buy)}</Graded> },
+  { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, help: "bench_since_buy",
+    render: (r) => <span className="muted">{pct(r.bench_since_buy)}</span> },
   { key: "stop", label: "Stop", help: "stop", csv: (r) => r.levels?.stop, sort: (r) => r.levels?.stop_pct,
-    render: (r) => r.levels?.stop != null ? <>{num(r.levels.stop)} <span className="muted">{pct(r.levels.stop_pct)}</span></> : <span className="muted">–</span> },
+    render: (r) => r.levels?.stop != null ? <>{num(r.levels.stop)} <Graded g={r.gauges?.stop_dist}>{pct(r.levels.stop_pct)}</Graded></> : <span className="muted">–</span> },
   { key: "target", label: "Target", help: "take_profit", csv: (r) => r.levels?.take_profit, sort: (r) => r.levels?.tp_pct,
-    render: (r) => r.levels?.take_profit != null ? <>{num(r.levels.take_profit)} <span className="muted">{pct(r.levels.tp_pct)}</span></> : <span className="muted">–</span> },
+    render: (r) => r.levels?.take_profit != null ? <>{num(r.levels.take_profit)} <Graded g={r.gauges?.tp_dist}>{pct(r.levels.tp_pct)}</Graded></> : <span className="muted">–</span> },
   flags,
 ];
 const watchCols: Col<MyRow>[] = [

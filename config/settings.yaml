@@ -66,3 +66,118 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     - "The universe is a sample: US = today's S&P 500, so breadth history has survivorship bias; Europe, Nordic and Asia are curated lists."
     - "News, events, earnings dates and policy only enter through the web research in /market-brief."
     - "Yahoo data is unofficial and comes without a quality guarantee. All prices are end-of-day."
+
+gauges:                    # graded readings (signals/gauges.py): colour by closeness to a threshold, not just a word
+  # anchors: [value, score] points; score +1 = good/bullish/cheap (green), -1 = warning (red), interpolated between.
+  # sequential gauges are one-way risk measures (scores 0..-1 only). labels: [upper bound, word], last bound null.
+  # unit: pct for fractions shown as percentages (default num).
+  rsi14:
+    scale: diverging
+    anchors: [[20, 1], [30, 0.6], [40, 0.15], [45, 0], [55, 0], [60, -0.15], [70, -0.6], [80, -1]]
+    labels: [[30, oversold], [40, near oversold], [60, neutral], [70, near overbought], [80, overbought], [null, extremely overbought]]
+    ticks: [30, 70]
+    range: [0, 100]
+  bb_pct_b:
+    scale: diverging
+    anchors: [[-0.1, 0.8], [0, 0.5], [0.35, 0], [0.65, 0], [1, -0.5], [1.1, -0.9]]
+    labels: [[0, below lower band], [0.35, lower half], [0.65, mid band], [1, upper half], [null, above upper band]]
+    ticks: [0, 1]
+    range: [-0.2, 1.2]
+  macd_atr:                # MACD histogram divided by ATR, so it compares across prices
+    scale: diverging
+    anchors: [[-0.5, -1], [-0.1, -0.3], [0, 0], [0.1, 0.3], [0.5, 1]]
+    labels: [[-0.1, bearish], [0, fading], [0.1, turning up], [null, bullish]]
+    ticks: [0]
+    range: [-0.6, 0.6]
+  atr_pct:
+    scale: sequential
+    unit: pct
+    anchors: [[0.01, 0], [0.025, -0.2], [0.04, -0.5], [0.07, -1]]
+    labels: [[0.015, calm], [0.03, normal], [0.05, volatile], [null, very volatile]]
+    ticks: [0.025, 0.04]
+    range: [0, 0.08]
+  vol_surge:
+    scale: sequential
+    anchors: [[1, 0], [1.5, -0.3], [2.5, -0.8]]
+    labels: [[1.3, normal volume], [2, elevated volume], [null, unusual volume]]
+    ticks: [1, 1.5]
+    range: [0, 3]
+  from_high:
+    scale: diverging
+    unit: pct
+    anchors: [[-0.35, -1], [-0.2, -0.4], [-0.1, 0], [-0.05, 0.3], [0, 0.6]]
+    labels: [[-0.2, deep drawdown], [-0.1, pulled back], [-0.03, near high], [null, at 52w high]]
+    ticks: [-0.2, -0.1]
+    range: [-0.4, 0]
+  beta:
+    scale: sequential
+    anchors: [[1, 0], [1.5, -0.4], [2, -0.8]]
+    labels: [[0.8, defensive], [1.2, market-like], [1.7, high beta], [null, very high beta]]
+    ticks: [1]
+    range: [0, 2.5]
+  score:
+    scale: diverging
+    anchors: [[0, -1], [25, -0.5], [40, 0], [60, 0], [80, 0.6], [95, 1]]
+    labels: [[25, weak], [40, below average], [60, average], [80, strong], [null, leader]]
+    ticks: [40, 60, 80]
+    range: [0, 100]
+  stop_dist:               # stop vs price (negative = stop below the price)
+    scale: sequential
+    unit: pct
+    anchors: [[-0.15, 0], [-0.08, -0.2], [-0.04, -0.6], [-0.015, -1], [0, -1]]
+    labels: [[-0.08, room to stop], [-0.04, tightening], [0, near stop], [null, through stop]]
+    ticks: [-0.08, -0.04]
+    range: [-0.2, 0]
+  tp_dist:                 # take-profit vs price (positive = target above the price)
+    scale: diverging
+    unit: pct
+    anchors: [[0, 1], [0.03, 0.7], [0.1, 0.3], [0.3, 0]]
+    labels: [[0, at target], [0.03, near target], [0.1, approaching], [null, far from target]]
+    ticks: [0.03, 0.1]
+    range: [0, 0.4]
+  upside:                  # analysts' mean target vs price
+    scale: diverging
+    unit: pct
+    anchors: [[-0.2, -1], [-0.05, -0.4], [0, 0], [0.05, 0], [0.15, 0.4], [0.3, 1]]
+    labels: [[-0.05, above targets], [0.05, at targets], [0.15, some upside], [null, well below targets]]
+    ticks: [0, 0.15]
+    range: [-0.3, 0.4]
+  target_change:
+    scale: diverging
+    unit: pct
+    anchors: [[-0.1, -1], [0, 0], [0.1, 1]]
+    labels: [[-0.02, targets cut], [0.02, targets stable], [null, targets raised]]
+    ticks: [0]
+    range: [-0.15, 0.15]
+  cot_pct:                 # crowding: graded by distance from the middle of the 3-year range
+    scale: sequential
+    abs_from: 50
+    anchors: [[50, 0], [75, -0.2], [90, -0.6], [100, -1]]
+    labels: [[10, crowded short], [25, leaning short], [75, normal], [90, leaning long], [null, crowded long]]
+    ticks: [10, 50, 90]
+    range: [0, 100]
+  cli_chg:
+    scale: diverging
+    anchors: [[-0.5, -1], [0, 0], [0.5, 1]]
+    labels: [[-0.1, slowing], [0.1, flat], [null, improving]]
+    ticks: [0]
+    range: [-0.8, 0.8]
+  rs_ratio:
+    scale: diverging
+    anchors: [[97, -1], [100, 0], [103, 1]]
+    labels: [[99, lagging], [101, even], [null, leading]]
+    ticks: [100]
+    range: [96, 104]
+  rs_mom:
+    scale: diverging
+    anchors: [[98, -1], [100, 0], [102, 1]]
+    labels: [[99.5, decelerating], [100.5, steady], [null, accelerating]]
+    ticks: [100]
+    range: [97, 103]
+  excess_vs_acwi:          # holding's DKK return minus the shadow ACWI position's
+    scale: diverging
+    unit: pct
+    anchors: [[-0.2, -1], [0, 0], [0.2, 1]]
+    labels: [[-0.05, behind ACWI], [0.05, level with ACWI], [null, ahead of ACWI]]
+    ticks: [0]
+    range: [-0.4, 0.4]

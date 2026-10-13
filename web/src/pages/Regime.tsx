@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, type RegimeView } from "../api/client";
 import { Loaded, PageHead, Signal, regimeKind } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { GaugeBadge, GaugeBar } from "../components/Gauge";
 import { LineChart } from "../components/LineChart";
 import { Badge } from "../components/ui";
 import { date } from "../lib/format";
@@ -12,8 +13,12 @@ type Ind = RegimeView["indicators"][number];
 const indCols: Col<Ind>[] = [
   { key: "name", label: "Indicator", align: "l", sort: (i) => i.name, search: (i) => `${i.name} ${i.note}`, render: (i) => i.name },
   { key: "value", label: "Reading", render: (i) => i.value, csv: (i) => i.value },
-  { key: "status", label: "Signal", align: "l", sort: (i) => i.status, render: (i) => <Signal s={i.status} />, help: "signal",
+  { key: "status", label: "Vote", align: "l", sort: (i) => i.status, render: (i) => <Signal s={i.status} />, help: "signal",
     filter: { kind: "enum" } },
+  { key: "gauge", label: "Reading, graded", align: "l", sort: (i) => i.gauge?.score, csv: (i) => i.gauge?.label,
+    render: (i) => i.gauge
+      ? <span className={i.status === "stale" ? "dim" : ""}><GaugeBadge g={i.gauge} name={i.name} /><GaugeBar g={i.gauge} /></span>
+      : <span className="muted">–</span> },
   { key: "note", label: "Context", align: "l", csv: (i) => i.note,
     render: (i) => <span className="wrap muted">{i.note}{i.asof && <> · as of {date(i.asof)}</>}</span> },
 ];

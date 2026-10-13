@@ -16,19 +16,26 @@ SUMMARY_ME = ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "fro
 SUMMARY_SOURCES = ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")
 
 
+def _plain(row: dict) -> dict:
+    """A row without its display gauges: summary.json keeps the keys the skills were written against."""
+    return {k: v for k, v in row.items() if k not in ("gauge", "gauges")}
+
+
 def summary(d: dict, me: list[dict]) -> dict:
     """The compact digest the skills read. Its keys are a contract: change them only together with the skills."""
     cov = d["coverage"]
     mom = d["momentum"]["regions"]
     return {
-        "asof": d["asof"], "regime": d["regime"]["overall"], "indicators": d["regime"]["indicators"],
+        "asof": d["asof"], "regime": d["regime"]["overall"],
+        "indicators": [_plain(i) for i in d["regime"]["indicators"]],
         "rotation": {g["key"]: [{k: r[k] for k in SUMMARY_ROTATION} for r in g["rows"]] for g in d["rotation"]["groups"]},
         "momentum_top10": {r["key"]: [{k: x[k] for k in SUMMARY_MOMENTUM} for x in r["rows"][:10]] for r in mom},
         "momentum_new_entrants": {r["key"]: r["entrants"] for r in mom},
         "momentum_dropped_out": {r["key"]: r["dropped"] for r in mom},
         "me": [{k: x.get(k) for k in SUMMARY_ME} for x in me],
         "momentum_clusters": {r["key"]: r["clusters"] for r in mom},
-        "positioning_cot": d["positioning"]["cot"], "leading_indicators": d["positioning"]["cli"],
+        "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
+        "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
         "stale_tickers": cov["stale_tickers"],
         "coverage": {

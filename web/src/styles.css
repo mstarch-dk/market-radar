@@ -340,3 +340,48 @@ nav.tabs::-webkit-scrollbar { display: none; }
   .tb-search { width: 100%; }
   .grid.charts { grid-template-columns: 1fr; }
 }
+
+/* graded gauges (signals/gauges.py): level -4..4. Warm arm = warning, green arm = good, grey = neutral.
+   Each arm is one hue, monotone in lightness, validated with the dataviz palette validator (light on #fff,
+   dark on #1a1b1e); chip text clears 4.5:1 on its tint. */
+:root {
+  --gm-n1: #f0961e; --gm-n2: #e8710a; --gm-n3: #d9480f; --gm-n4: #b42318;
+  --gm-p1: #76bb7c; --gm-p2: #4aa857; --gm-p3: #2b8a3e; --gm-p4: #1b6b2c;
+  --gt-n1: #8a4a00; --gt-n2: #9a3a06; --gt-n3: #a3300c; --gt-n4: #8f1c12;
+  --gt-p1: #2b6b30; --gt-p2: #22702f; --gt-p3: #1b6b2c; --gt-p4: #145424;
+  --ga-1: 14%; --ga-2: 18%; --ga-3: 22%; --ga-4: 28%;
+  --gm-0: #b5b4ae;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gm-n1: #8f5c1a; --gm-n2: #c26c24; --gm-n3: #ea7448; --gm-n4: #ff9a8c;
+    --gm-p1: #3f8a4a; --gm-p2: #4fa95c; --gm-p3: #6cc479; --gm-p4: #95dd9e;
+    --gt-n1: #e8b46a; --gt-n2: #f2a066; --gt-n3: #ffa07c; --gt-n4: #ffb4a8;
+    --gt-p1: #9ccf9f; --gt-p2: #9fd8a6; --gt-p3: #a6e2ae; --gt-p4: #b8ecbf;
+    --ga-1: 18%; --ga-2: 24%; --ga-3: 30%; --ga-4: 36%;
+    --gm-0: #5f5e59;
+  }
+}
+.gchip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap;
+  background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.gchip.lv0 { border-style: solid; }
+.gchip[class*="lv-"], .gchip[class*="lv+"] { border-color: transparent; font-weight: 550; }
+.lv-1 { --m: var(--gm-n1); --t: var(--gt-n1); --a: var(--ga-1); } .lv-2 { --m: var(--gm-n2); --t: var(--gt-n2); --a: var(--ga-2); }
+.lv-3 { --m: var(--gm-n3); --t: var(--gt-n3); --a: var(--ga-3); } .lv-4 { --m: var(--gm-n4); --t: var(--gt-n4); --a: var(--ga-4); }
+.lv\+1 { --m: var(--gm-p1); --t: var(--gt-p1); --a: var(--ga-1); } .lv\+2 { --m: var(--gm-p2); --t: var(--gt-p2); --a: var(--ga-2); }
+.lv\+3 { --m: var(--gm-p3); --t: var(--gt-p3); --a: var(--ga-3); } .lv\+4 { --m: var(--gm-p4); --t: var(--gt-p4); --a: var(--ga-4); }
+.gchip[class*="lv-"], .gchip[class*="lv+"] { background: color-mix(in srgb, var(--m) var(--a), var(--surface)); color: var(--t); }
+.gtint[class*="lv-"], .gtint[class*="lv+"] { background: color-mix(in srgb, var(--m) var(--a), transparent); color: var(--t); font-weight: 550; }
+.gbar { position: relative; display: inline-block; width: 84px; height: 8px; border-radius: 4px; background: var(--surface-2);
+  vertical-align: middle; margin-left: 6px; }
+.gbar .tick { position: absolute; top: -2px; width: 1px; height: 12px; background: var(--muted); opacity: 0.6; }
+.gbar .mark { position: absolute; top: -3px; width: 8px; height: 14px; border-radius: 3px; transform: translateX(-4px);
+  background: var(--m, var(--gm-0)); box-shadow: 0 0 0 2px var(--surface); }
+.gdots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.gdot { width: 9px; height: 9px; border-radius: 50%; background: var(--m, var(--gm-0)); box-shadow: 0 0 0 1px var(--surface); }
+.gdot.lv0 { background: transparent; box-shadow: inset 0 0 0 1px var(--gm-0); }
+.watchouts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: -6px 0 14px; font-size: 13px; }
+.watchouts .wo-title { color: var(--ink-2); font-weight: 600; margin-right: 2px; }
+.dim { opacity: 0.45; }
+.gnum { padding: 1px 5px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.legend-row { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; } .legend-row .gchip { min-width: 34px; justify-content: center; }
