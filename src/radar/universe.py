@@ -57,15 +57,28 @@ def _spy_holdings() -> pd.DataFrame:
     return df[["ticker", "Name"]].rename(columns={"Name": "name"}).drop_duplicates("ticker").sort_values("ticker")
 
 
-def us_constituents(refresh: bool = False) -> list[str]:
-    """S&P 500 constituents (from SPY holdings), cached for `constituents_max_age_days`."""
+def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
+    """S&P 500 constituents (from SPY holdings), cached for `constituents_max_age_days`.
+
+    A failed download falls back to the cached list (logged in data/sources.json); `offline` never fetches.
+    """
+    from . import coverage
+
     cache_file = DATA / "constituents_us.csv"
+    cached = pd.read_csv(cache_file)["ticker"].tolist() if cache_file.exists() else []
     max_age = settings()["constituents_max_age_days"] * 86400
-    if not refresh and cache_file.exists() and time.time() - cache_file.stat().st_mtime < max_age:
-        return pd.read_csv(cache_file)["ticker"].tolist()
-    df = _spy_holdings()
+    if offline or (not refresh and cached and time.time() - cache_file.stat().st_mtime < max_age):
+        return cached
+    try:
+        df = _spy_holdings()
+    except Exception as e:
+        if not cached:
+            raise
+        coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list")
+        return cached
     DATA.mkdir(exist_ok=True)
     df.to_csv(cache_file, index=False)
+    coverage.record("constituents", True, f"{len(df)} stocks")
     return df["ticker"].tolist()
 
 
@@ -145,10 +158,10 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
     return {t: cached.get(t) for t in tickers}
 
 
-def stock_groups(refresh: bool = False) -> dict[str, list[str]]:
+def stock_groups(refresh: bool = False, offline: bool = False) -> dict[str, list[str]]:
     groups = {}
     for key, g in universe_config()["stock_groups"].items():
-        groups[key] = us_constituents(refresh) if g.get("source") == "spy_holdings" else list(g["tickers"])
+        groups[key] = us_constituents(refresh, offline) if g.get("source") == "spy_holdings" else list(g["tickers"])
     return groups
 
 
@@ -293,11 +306,12 @@ def positive_list_flag(isin: str | None, isins: set[str] | None) -> str:
     return "yes" if isin.upper() in isins else "no"
 
 
-def all_price_tickers(refresh: bool = False) -> list[str]:
+def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]:
+    """Every ticker the radar downloads prices for; `offline` uses the cached constituent list as is."""
     tickers = {benchmark()}
     tickers |= {e.ticker for e in etfs()}
     tickers |= {b["ticker"] for b in group_benchmarks().values()}
-    for g in stock_groups(refresh).values():
+    for g in stock_groups(refresh, offline).values():
         tickers |= set(g)
     tickers |= set(macro_yahoo().values())
     tickers |= set(holdings()["symbol"].dropna())

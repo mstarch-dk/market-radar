@@ -10,7 +10,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from jinja2 import Environment, FileSystemLoader
 
-from . import external, snapshot, universe
+from . import coverage, external, snapshot, universe
 from .config import REPORTS, TEMPLATES, settings, universe_config
 from .ingest import load_fred, load_prices, wide
 from .signals import levels, momentum, regime, rotation
@@ -296,6 +296,8 @@ def build() -> dict:
     fs = fs_hist.iloc[-1].to_dict() if not fs_hist.empty else None
     macro = universe.macro_yahoo()
     inds, breadth = regime.indicators(closes, fred, bench, groups, labels, macro, cfg["regime"], cli, fs)
+    max_age = cfg["coverage"]["max_age"]
+    regime.apply_freshness(inds, asof, max_age)
     overall = regime.overall(inds)
     b = closes[bench].dropna()
     regime_charts = [
@@ -383,7 +385,7 @@ def build() -> dict:
     if not me.empty:
         me["name"] = me["symbol"].map(display)
         _add_levels(me, closes, wide(prices, "high"), wide(prices, "low"), insts, rot, overall["label"],
-                    cfg["stops"])
+                    cfg["stops"] | {"analyst_max_age_days": max_age["analyst"]})
 
     # --- snapshots (after comparing with previous ones)
     snapshot.save("rotation", rot.rename(columns={"rs_score": "score"}), today)
@@ -400,9 +402,15 @@ def build() -> dict:
         fs_ctx["report_date"] = fs["report_date"].date().isoformat()
         fs_ctx["history"] = _records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
 
-    # --- stale / missing data check
-    last_dates = prices.groupby("ticker")["date"].max()
-    stale = sorted(t for t, d in last_dates.items() if (pd.Timestamp(asof) - d).days > 7)
+    # --- data sources & coverage (what the readings above are, and aren't, based on)
+    h = universe.holdings()
+    cot_markets = [m for grp in ext.get("cot", {}).values() for m in grp]
+    cov = coverage.build(
+        asof, prices, universe.all_price_tickers(offline=True), fred, universe.macro_fred(), cot, cot_markets,
+        cli_raw, ext.get("oecd_cli", {}), fs_hist, external.load_analyst(),
+        sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else [],
+        sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)
+    stale = cov["stale_tickers"]
 
     ctx = {
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M"), "asof": asof.isoformat(),
@@ -416,7 +424,7 @@ def build() -> dict:
         "positive_list_year": pl_year,
         "rrg_local_charts": rrg_local_charts, "clusters": clusters,
         "cot": _records(cot_tab) if not cot_tab.empty else [], "cli": _records(cli) if not cli.empty else [],
-        "factset": fs_ctx,
+        "factset": fs_ctx, "coverage": cov,
     }
 
     env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=True)
@@ -440,6 +448,13 @@ def build() -> dict:
         "momentum_clusters": clusters,
         "positioning_cot": ctx["cot"], "leading_indicators": ctx["cli"], "earnings_factset": fs_ctx,
         "stale_tickers": stale,
+        "coverage": {
+            "regime": cov["regime"], "oldest_input": cov["oldest"], "failing_sources": cov["failing"],
+            "stale_sources": cov["stale_sources"], "missing_tickers": cov["missing_tickers"],
+            "sources": [{k: r[k] for k in ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")}
+                        for r in cov["sources"]],
+            "blind_spots": cov["blind_spots"],
+        },
     }
     (REPORTS / "summary.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     return {"html": str(out), "asof": ctx["asof"], "regime": overall["label"], "stale": len(stale)}

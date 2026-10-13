@@ -30,8 +30,12 @@ def anchor(close: pd.Series, since, days: int) -> tuple[float | None, str]:
     return float(close.iloc[-days:].max()), f"highest close of the last {days} sessions"
 
 
-def analyst_view(hist: pd.DataFrame, ticker: str, close: pd.Series, revision_days: int = 30) -> dict | None:
+def analyst_view(hist: pd.DataFrame, ticker: str, close: pd.Series, revision_days: int = 30,
+                 max_age_days: int | None = None) -> dict | None:
     """Latest analyst consensus for `ticker`, with targets converted into the radar's price units.
+
+    Consensus fetched more than `max_age_days` before the last close is returned without targets and
+    marked `stale`, so it can't set a take-profit.
 
     Yahoo's targets are quoted against its own `current_price`, which can be in different units than the
     listing's adjusted close (GBp vs GBP, ADR ratios). Scaling by our close on the fetch date over Yahoo's
@@ -46,8 +50,10 @@ def analyst_view(hist: pd.DataFrame, ticker: str, close: pd.Series, revision_day
     out = {"fetched": pd.Timestamp(a["fetched"]).date().isoformat(), "quote_type": a.get("quote_type"),
            "n_analysts": _num(a.get("n_analysts")), "rec_key": a.get("rec_key") or None,
            "rec_mean": _num(a.get("rec_mean"))}
-    cur, mean = _num(a.get("current_price")), _num(a.get("target_mean"))
     close = close.dropna()
+    if max_age_days is not None and not close.empty and (close.index[-1] - pd.Timestamp(a["fetched"])).days > max_age_days:
+        return out | {"stale": True, "max_age_days": max_age_days}
+    cur, mean = _num(a.get("current_price")), _num(a.get("target_mean"))
     on_fetch = close[:pd.Timestamp(a["fetched"])]
     if not cur or mean is None or on_fetch.empty:
         return out
@@ -157,7 +163,7 @@ def for_ticker(ticker: str, closes: pd.DataFrame, highs: pd.DataFrame, lows: pd.
     if a.empty:
         return None
     anc, basis = anchor(closes[ticker], since, cfg["info_anchor_days"])
-    view = analyst_view(analyst_hist, ticker, closes[ticker])
+    view = analyst_view(analyst_hist, ticker, closes[ticker], max_age_days=cfg.get("analyst_max_age_days"))
     k = levels(row, float(a.iloc[-1]), anc, regime_label, view, cfg)["k"]   # k doesn't depend on the anchor
     close = closes[ticker].dropna()
     start = close.index[-cfg["info_anchor_days"]] if basis.startswith("highest close of") else pd.Timestamp(since)
@@ -175,6 +181,9 @@ def for_ticker(ticker: str, closes: pd.DataFrame, highs: pd.DataFrame, lows: pd.
                                   " the stop now trails from the high since then"})
         if pd.Timestamp(b["date"]) >= close.index[-21]:  # recent breaches only; older ones are in the reasons
             out["flags"].append(f"stop breached {b['date']}")
+    if view and view.get("stale"):
+        out["reasons"].append({"signal": "Analyst data", "effect": 0, "detail":
+                               f"consensus from {view['fetched']} is older than {view['max_age_days']} days: not used"})
     return out | {"anchor_basis": basis, "analyst": view, "breaches": breaches}
 
 

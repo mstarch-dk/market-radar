@@ -49,10 +49,32 @@ def test_indicators_new_votes():
     assert st["New highs – new lows"] == regime.ON
 
 
-def test_indicators_without_optional_inputs():
+def test_indicators_without_optional_inputs_show_as_na():
     closes = _closes()[["ACWI", "S1", "S2"]]
     inds, _ = regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1", "S2"]}, {"us": "US"}, {}, CFG)
-    assert {"Global trend", "Breadth – US"} <= set(_by_name(inds))
+    st = {k: v["status"] for k, v in _by_name(inds).items()}
+    assert st["Global trend"] != regime.NA and st["Breadth – US"] != regime.NA
+    for name in ("Credit", "Yield curve", "US 10Y yield", "US dollar", "Volatility", "Leading indicators",
+                 "Earnings revisions"):
+        assert st[name] == regime.NA, name
+    o = regime.overall(inds)
+    assert o["na"] == sum(s == regime.NA for s in st.values()) and o["total"] == len(inds)
+    assert o["on"] + o["off"] + o["neutral"] + o["na"] + o["stale"] == o["total"]
+
+
+def test_stale_factset_stops_voting():
+    closes = _closes()
+    fs = {"quarter": "Q3 2026", "growth_now": 29.5, "growth_start": 26.7, "guidance_pos": None, "guidance_neg": None,
+          "report_date": pd.Timestamp("2026-06-05")}
+    inds, _ = regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1", "S2", "S3"]}, {"us": "US"}, MACRO, CFG,
+                                factset=fs)
+    before = regime.overall(inds)
+    regime.apply_freshness(inds, closes.index[-1], {"factset": 14, "prices": 7})
+    row = _by_name(inds)["Earnings revisions"]
+    assert row["status"] == regime.STALE and "not counted" in row["note"]
+    after = regime.overall(inds)
+    assert after["on"] == before["on"] - 1 and after["stale"] == 1
+    assert _by_name(inds)["Global trend"]["status"] != regime.STALE  # prices are current
 
 
 def test_clusters_need_overrepresentation():

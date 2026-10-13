@@ -18,6 +18,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `leading_indicators`: OECD CLI cycle phase per area.
    - `earnings_factset`: S&P 500 growth estimate vs the start of the quarter, guidance, forward P/E, and the sectors with upward or downward revisions.
    - The `me` list: holdings, watchlist and sold positions with flags.
+   - `coverage`: how many regime indicators have current data (`regime.na` = no data, `regime.stale` = too old, both left out of the vote), failing or stale sources, and the radar's blind spots. If any indicator is n/a or stale, or a source failed, say which near the regime reading and how much that weakens it. Fill a blind spot with web research only when it matters for this month's story (for example valuation when leadership looks stretched).
 
    If `earnings_factset` is present, also read `data/factset_latest.txt` (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
 3. **Pick what matters (at most 6–8 items).** Prioritise:
