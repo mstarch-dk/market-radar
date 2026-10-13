@@ -8,15 +8,15 @@ import { date } from "../lib/format";
 type Source = CoverageView["sources"][number];
 
 const cols: Col<Source>[] = [
-  { key: "name", label: "Source", align: "l", sort: (s) => s.name,
+  { key: "name", label: "Source", align: "l", sort: (s) => s.name, search: (s) => `${s.name} ${s.provider} ${s.feeds}`,
     render: (s) => <div className="wrap"><b>{s.name}</b><br /><span className="muted small">{s.provider} · {s.official ? "official" : "unofficial"} · {s.cadence}</span></div> },
   { key: "feeds", label: "Feeds", align: "l", render: (s) => <div className="wrap">{s.feeds}</div> },
   { key: "coverage", label: "Coverage", align: "l",
     render: (s) => <div className="wrap">{s.coverage}{s.detail && <><br /><span className="muted small">{s.detail}</span></>}</div> },
   { key: "asof", label: "As of", sort: (s) => s.asof, render: (s) => date(s.asof) },
-  { key: "age", label: "Age (days)", sort: (s) => s.age_days,
+  { key: "age", label: "Age (days)", sort: (s) => s.age_days, help: "max_age",
     render: (s) => <>{s.age_days ?? "–"}{s.max_age != null && <span className="muted"> / {s.max_age}</span>}</> },
-  { key: "status", label: "Status", align: "l", sort: (s) => s.status, render: (s) => <Signal s={s.status} /> },
+  { key: "status", label: "Status", align: "l", sort: (s) => s.status, render: (s) => <Signal s={s.status} />, filter: { kind: "enum" } },
   { key: "update", label: "Last update", align: "l", sort: (s) => s.last_success,
     render: (s) => <div className="wrap">{s.error
       ? <><span className="neg">failed {s.last_attempt?.slice(0, 10)}: {s.error}</span>{s.last_success && <><br /><span className="muted">last success {s.last_success.slice(0, 10)}</span></>}</>
@@ -32,7 +32,7 @@ export function Data() {
         const analystLimit = d.sources.find((s) => s.key === "analyst")?.max_age;
         return (
           <>
-            <PageHead title="Data & coverage" asof={d.asof} generated={d.generated}>
+            <PageHead title="Data & coverage" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
               Every reading in the radar comes from the sources below, and only from them. A &ldquo;Risk-on&rdquo; label means the
               inputs listed here lean risk-on; it says nothing about what isn&apos;t measured (see the blind spots further down).
               A source older than its limit is marked <Signal s="stale" /> and stops counting in the regime vote; an input with no
@@ -40,7 +40,7 @@ export function Data() {
               config/settings.yaml (<code>coverage:</code>).
             </PageHead>
             <h2>Sources</h2>
-            <div className="card"><DataTable rows={d.sources} cols={cols} rowKey={(s) => s.key} /></div>
+            <div className="card"><DataTable id="src" csvName="sources" rows={d.sources} cols={cols} rowKey={(s) => s.key} /></div>
             <h2>How the readings are built</h2>
             <ul className="blind">
               <li><b>Regime</b>: a vote of {d.regime.total} indicators (trend, breadth, volatility, credit, rates, dollar, commodities,

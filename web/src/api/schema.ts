@@ -184,6 +184,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tickers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tickers
+         * @description Every tracked ticker in brief (price, returns, score or quadrant, a 6-month sparkline, your status), for
+         *     hover cards and ownership markers.
+         */
+        get: operations["get_tickers_api_tickers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/watchlist/{symbol}": {
         parameters: {
             query?: never;
@@ -366,6 +387,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Sources */
             sources: components["schemas"]["Source"][];
             regime: components["schemas"]["RegimeCounts"];
@@ -807,6 +832,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Prev */
             prev?: string | null;
             /** Top N */
@@ -1001,6 +1030,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             factset?: components["schemas"]["FactSet"] | null;
             /** Cli */
             cli: components["schemas"]["CliRow"][];
@@ -1121,6 +1154,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             overall: components["schemas"]["Overall"];
             /** Indicators */
             indicators: components["schemas"]["Indicator"][];
@@ -1207,6 +1244,10 @@ export interface components {
             asof: string;
             /** Generated */
             generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
             /** Prev */
             prev?: string | null;
             /** Tail Weeks */
@@ -1363,6 +1404,37 @@ export interface components {
             beta_acwi?: number | null;
             /** Corr Acwi */
             corr_acwi?: number | null;
+        };
+        /** TickerSummary */
+        TickerSummary: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Kind */
+            kind?: ("stock" | "etf") | null;
+            /** Group */
+            group?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Last */
+            last?: number | null;
+            /** Change 1D */
+            change_1d?: number | null;
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** Score */
+            score?: number | null;
+            /** Quadrant */
+            quadrant?: string | null;
+            /** Spark */
+            spark: number[];
+            /** Asof */
+            asof?: string | null;
+            /** My Status */
+            my_status?: ("holding" | "watch" | "sold") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1641,6 +1713,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeView"];
+                };
+            };
+        };
+    };
+    get_tickers_api_tickers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TickerSummary"][];
                 };
             };
         };

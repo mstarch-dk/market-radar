@@ -94,7 +94,7 @@ def test_dashboard_matches_the_api_models(summary):
     from radar import api_models as m
 
     d = summary["_dash"]
-    head = {"asof": d["asof"], "generated": d["generated"]}
+    head = {"asof": d["asof"], "generated": d["generated"], "age_days": 0, "stale": False}   # added by the API
     m.RegimeView.model_validate(head | d["regime"])
     m.RotationView.model_validate(head | d["rotation"])
     m.MomentumView.model_validate(head | d["momentum"])
@@ -107,11 +107,12 @@ def test_dashboard_charts_and_rotation_graph(summary):
     acwi = d["regime"]["charts"][0]
     assert acwi["title"].startswith("Global trend") and [s["name"] for s in acwi["series"]][0] == "ACWI"
     assert acwi["series"][0]["values"][-1] == pytest.approx(100 * 1.0004 ** (N - 1))
-    assert len(acwi["series"][0]["dates"]) == len(acwi["series"][0]["values"]) == min(N, 365)
+    assert len(acwi["series"][0]["dates"]) == len(acwi["series"][0]["values"]) == min(N, 756)
     sectors = next(g for g in d["rotation"]["groups"] if g["key"] == "sectors")
     trail = {t["ticker"]: t for t in sectors["rrg"]}
     assert trail["LEAD"]["quadrant"] == "Leading" and trail["LAG"]["quadrant"] == "Lagging"
     assert len(trail["LEAD"]["tail"]) == settings()["rotation"]["tail"]
+    assert trail["LEAD"]["tail"][-1]["date"] == d["asof"]           # the current week isn't dated after the data
     # every row the summary has, plus the fields only the app shows
     assert {"rs_ratio", "rs_mom", "r3m", "above200"} <= set(sectors["rows"][0])
 

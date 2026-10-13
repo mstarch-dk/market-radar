@@ -345,6 +345,23 @@ class AppContext(Strict):
     tickers: list[ListedTicker]
 
 
+class TickerSummary(Strict):
+    symbol: str
+    name: str | None = None
+    kind: Literal["stock", "etf"] | None = None
+    group: str | None = None
+    currency: str | None = None
+    last: Num = None
+    change_1d: Num = None
+    r1m: Num = None
+    r3m: Num = None
+    score: Num = None
+    quadrant: str | None = None
+    spark: list[float]
+    asof: str | None = None
+    my_status: MyStatus | None = None
+
+
 class WatchState(Strict):
     symbol: str
     my_status: MyStatus | None = None
@@ -355,6 +372,8 @@ class WatchState(Strict):
 class Snapshot(Strict):
     asof: str
     generated: str
+    age_days: int
+    stale: bool
 
 
 class Overall(Strict):

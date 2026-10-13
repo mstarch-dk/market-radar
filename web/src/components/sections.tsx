@@ -52,14 +52,14 @@ export function MomentumCard({ p }: { p: Profile }) {
     <Card title="Momentum & trend" meta={m}>
       <KV rows={[
         ["Momentum score", isNum(m.score) ? `${num(m.score, 0)} / 100` : "–",
-          { hint: m.rank ? `rank ${m.rank} of ${m.group_size}` : undefined }],
+          { hint: m.rank ? `rank ${m.rank} of ${m.group_size}` : undefined, help: "score" }],
         ["3m / 6m return", <><Signed v={m.r3m}>{pct(m.r3m)}</Signed> / <Signed v={m.r6m}>{pct(m.r6m)}</Signed></>],
-        ["12-1 month return", pct(m.r12_1), { tone: m.r12_1, hint: "skips the last month" }],
+        ["12-1 month return", pct(m.r12_1), { tone: m.r12_1, hint: "skips the last month", help: "r12_1" }],
         ["Price vs 50-day", yesNo(m.above50, "above", "below"), { hint: price(m.sma50) }],
         ["Price vs 200-day", yesNo(m.above200, "above", "below"), { hint: price(m.sma200) }],
-        ["Trend (50d > rising 200d)", yesNo(m.trend_ok, "intact", "not intact")],
-        ["From 52-week high", pct(m.from_high), { tone: m.from_high }],
-        ["Volume, 20d vs 6m avg", isNum(m.vol_surge) ? `${num(m.vol_surge, 2)}×` : "–"],
+        ["Trend (50d > rising 200d)", yesNo(m.trend_ok, "intact", "not intact"), { help: "trend_ok" }],
+        ["From 52-week high", pct(m.from_high), { tone: m.from_high, help: "from_high" }],
+        ["Volume, 20d vs 6m avg", isNum(m.vol_surge) ? `${num(m.vol_surge, 2)}×` : "–", { help: "vol_surge" }],
       ]} />
       <p className="small muted">Score: {m.score_basis}{m.region_label ? `, ${m.region_label}` : ""}.</p>
     </Card>
@@ -73,13 +73,13 @@ export function TechnicalsCard({ p }: { p: Profile }) {
   return (
     <Card title="Technicals" meta={t}>
       <KV rows={[
-        ["RSI 14", <>{num(t.rsi14, 1)} {state(t.rsi_state)}</>],
-        ["MACD 12/26/9", <>{num(t.macd_hist, 2)} {state(t.macd_state)}</>, { hint: "histogram" }],
-        ["Bollinger %B", num(t.bb_pct_b, 2), { hint: "0 = lower band, 1 = upper" }],
-        ["ATR 14", price(t.atr), { hint: pct(t.atr_pct, 1, false) + " of price" }],
+        ["RSI 14", <>{num(t.rsi14, 1)} {state(t.rsi_state)}</>, { help: "rsi" }],
+        ["MACD 12/26/9", <>{num(t.macd_hist, 2)} {state(t.macd_state)}</>, { hint: "histogram", help: "macd" }],
+        ["Bollinger %B", num(t.bb_pct_b, 2), { hint: "0 = lower band, 1 = upper", help: "bb" }],
+        ["ATR 14", price(t.atr), { hint: pct(t.atr_pct, 1, false) + " of price", help: "atr" }],
         ["Volatility (3m, annualised)", pct(t.vol_3m, 1, false)],
         ["Max drawdown (1y)", pct(t.max_drawdown_1y), { tone: t.max_drawdown_1y }],
-        ["Beta / correlation vs ACWI", `${num(t.beta_acwi, 2)} / ${num(t.corr_acwi, 2)}`, { hint: "weekly, 1y" }],
+        ["Beta / correlation vs ACWI", `${num(t.beta_acwi, 2)} / ${num(t.corr_acwi, 2)}`, { hint: "weekly, 1y", help: "beta" }],
       ]} />
     </Card>
   );
@@ -91,9 +91,9 @@ export function LevelsCard({ p }: { p: Profile }) {
   return (
     <Card title="Stop / take-profit (rule)" meta={l}>
       <KV rows={[
-        ["Trailing stop", price(l.stop, cur), { hint: pct(l.stop_pct), tone: -1 }],
-        ["Take-profit", l.take_profit ? price(l.take_profit, cur) : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined }],
-        ["Stop width k × ATR", isNum(l.k) ? `${num(l.k, 1)} × ${price(l.atr)}` : "–"],
+        ["Trailing stop", price(l.stop, cur), { hint: pct(l.stop_pct), tone: -1, help: "stop" }],
+        ["Take-profit", l.take_profit ? price(l.take_profit, cur) : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined, help: "take_profit" }],
+        ["Stop width k × ATR", isNum(l.k) ? `${num(l.k, 1)} × ${price(l.atr)}` : "–", { help: "k" }],
         ["Regime", l.regime ?? "–"],
       ]} />
       {(l.flags ?? []).length > 0 && <div className="badges">{(l.flags ?? []).map((f) => <Badge key={f} kind="warn">{f}</Badge>)}</div>}
@@ -233,8 +233,8 @@ export function EtfCard({ p }: { p: Profile }) {
         ["Expense ratio", pct(e.expense_ratio, 2, false)],
         ["Fund size", compact(e.total_assets), { hide: !isNum(e.total_assets) }],
         ["Provider", e.family ?? "–", { hide: !e.family }],
-        ["Positive list (SKAT)", id.positive_list ?? "not checked", { hint: id.isin ?? "no ISIN in config", hide: !id.etf_group }],
-        ["UCITS version", id.ucits ?? "–", { hide: !id.ucits }],
+        ["Positive list (SKAT)", id.positive_list ?? "not checked", { hint: id.isin ?? "no ISIN in config", hide: !id.etf_group, help: "positive_list" }],
+        ["UCITS version", id.ucits ? <TickerLink symbol={id.ucits} /> : "–", { hide: !id.ucits, help: "ucits" }],
       ]} />
       {e.sector_weights.length > 0 && (
         <>

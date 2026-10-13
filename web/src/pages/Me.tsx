@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, type MyRow } from "../api/client";
-import { Loaded, PageHead, Pct } from "../components/cells";
+import { Check, Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
@@ -8,17 +8,21 @@ import { WatchButton } from "../components/WatchButton";
 import { date, num, pct } from "../lib/format";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
-  render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst /> };
+  search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol, csvHeader: "Ticker",
+  render: (r) => <TickerLink symbol={r.symbol} name={r.name} nameFirst marker={false} /> };
 const common: Col<MyRow>[] = [
-  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0),
-    title: "Momentum percentile against the whole stock universe" },
-  { key: "r1m", label: "1m", sort: (r) => r.r1m, render: (r) => <Pct v={r.r1m} /> },
-  { key: "r3m", label: "3m", sort: (r) => r.r3m, render: (r) => <Pct v={r.r3m} /> },
-  { key: "rel_r3m", label: "Rel 3m", sort: (r) => r.rel_r3m, render: (r) => <Pct v={r.rel_r3m} /> },
-  { key: "r6m", label: "6m", sort: (r) => r.r6m, render: (r) => <Pct v={r.r6m} /> },
-  { key: "from_high", label: "From high", sort: (r) => r.from_high, render: (r) => <Pct v={r.from_high} /> },
+  { key: "score", label: "Score", sort: (r) => r.score, render: (r) => num(r.score, 0), help: "score_me",
+    filter: { kind: "range", unit: "num" } },
+  { key: "r1m", label: "1m", sort: (r) => r.r1m, render: (r) => <Pct v={r.r1m} />, help: "r1m", heat: true },
+  { key: "r3m", label: "3m", sort: (r) => r.r3m, render: (r) => <Pct v={r.r3m} />, help: "r3m", heat: true },
+  { key: "rel_r3m", label: "Rel 3m", sort: (r) => r.rel_r3m, render: (r) => <Pct v={r.rel_r3m} />, help: "rel_r3m", heat: true },
+  { key: "r6m", label: "6m", sort: (r) => r.r6m, render: (r) => <Pct v={r.r6m} />, help: "r6m", heat: true },
+  { key: "from_high", label: "From high", sort: (r) => r.from_high, render: (r) => <Pct v={r.from_high} />, help: "from_high" },
+  { key: "trend", label: "Trend", sort: (r) => r.trend_ok, render: (r) => <Check v={r.trend_ok} />, help: "trend_ok",
+    filter: { kind: "bool" }, hidden: true },
 ];
-const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} /> };
+const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} />, help: "flags",
+  filter: { kind: "enum", value: (r) => [...r.flags, ...(r.levels?.flags ?? [])] }, csv: (r) => r.flags };
 
 function Flags({ r }: { r: MyRow }) {
   const lv = r.levels;
@@ -50,26 +54,28 @@ function Flags({ r }: { r: MyRow }) {
 
 const holdingCols: Col<MyRow>[] = [
   name, ...common,
-  { key: "since_buy", label: "Since buy (DKK)", sort: (r) => r.since_buy, render: (r) => <Pct v={r.since_buy} /> },
-  { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, render: (r) => <Pct v={r.bench_since_buy} />,
-    title: "The same DKK cash flows invested in ACWI on the same dates" },
-  { key: "stop", label: "Stop", sort: (r) => r.levels?.stop_pct,
+  { key: "since_buy", label: "Since buy (DKK)", sort: (r) => r.since_buy, render: (r) => <Pct v={r.since_buy} />, help: "since_buy",
+    heat: true },
+  { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, render: (r) => <Pct v={r.bench_since_buy} />, help: "bench_since_buy" },
+  { key: "stop", label: "Stop", help: "stop", csv: (r) => r.levels?.stop, sort: (r) => r.levels?.stop_pct,
     render: (r) => r.levels?.stop != null ? <>{num(r.levels.stop)} <span className="muted">{pct(r.levels.stop_pct)}</span></> : <span className="muted">–</span> },
-  { key: "target", label: "Target", sort: (r) => r.levels?.tp_pct,
+  { key: "target", label: "Target", help: "take_profit", csv: (r) => r.levels?.take_profit, sort: (r) => r.levels?.tp_pct,
     render: (r) => r.levels?.take_profit != null ? <>{num(r.levels.take_profit)} <span className="muted">{pct(r.levels.tp_pct)}</span></> : <span className="muted">–</span> },
   flags,
 ];
 const watchCols: Col<MyRow>[] = [
   name, ...common, flags,
-  { key: "edit", label: "", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact /> },
+  { key: "edit", label: "", name: "Watch", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact />, csv: false },
 ];
 const soldCols: Col<MyRow>[] = [
   name, ...common,
   { key: "sold", label: "Sold", sort: (r) => r.last_sell_date, render: (r) => date(r.last_sell_date) },
-  { key: "since_sell", label: "Since sell", sort: (r) => r.since_sell, render: (r) => <Pct v={r.since_sell} /> },
+  { key: "since_sell", label: "Since sell", sort: (r) => r.since_sell, render: (r) => <Pct v={r.since_sell} />, help: "since_sell", heat: true },
   flags,
-  { key: "edit", label: "", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact /> },
+  { key: "edit", label: "", name: "Watch", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact />, csv: false },
 ];
+
+const TABLE_ID: Record<string, string> = { Holdings: "held", Watchlist: "watch", "Sold positions": "sold" };
 
 export function Me() {
   const q = useQuery({ queryKey: ["me"], queryFn: api.me, retry: false, staleTime: 60_000 });
@@ -98,7 +104,7 @@ export function Me() {
             {sections.map(([title, rows, cols]) => rows.length > 0 && (
               <section key={title} className="group">
                 <h2>{title} ({rows.length})</h2>
-                <div className="card"><DataTable rows={[...rows]} cols={[...cols]} rowKey={(r) => r.symbol} /></div>
+                <div className="card"><DataTable id={TABLE_ID[title] ?? title} csvName={`me-${TABLE_ID[title]}`} rows={[...rows]} cols={[...cols]} rowKey={(r) => r.symbol} /></div>
                 {title === "Holdings" && (
                   <p className="note muted">Stop and target are a mechanical rule, not advice. Stop = highest close since entry − k × ATR(14),
                     where k starts at 3 and each signal (▲ more room, ▼ tighter) moves it: momentum score, 50/200-day trend, extension

@@ -75,7 +75,8 @@ def test_dashboard_views(built):
         r = built.get(f"/api/{view}")
         assert r.status_code == 200, (view, r.text)
         assert r.json()["asof"]
-    assert built.get("/api/regime").json()["overall"]["label"] == "Risk-on"
+    regime = built.get("/api/regime").json()
+    assert regime["overall"]["label"] == "Risk-on" and regime["age_days"] == 0 and regime["stale"] is False
     us = next(g for g in built.get("/api/momentum").json()["regions"] if g["key"] == "us")
     assert us["rows"][0]["ticker"] == "S1"
     assert built.get("/api/ticker/S1").json()["context"]["regime"]["label"] == "Risk-on"
@@ -104,3 +105,15 @@ def test_watchlist_rejects_holdings_and_unknown_symbols(client):
     assert r.status_code == 409 and "holding" in r.json()["detail"]
     assert client.put("/api/watchlist/S1").json()["my_status"] == "holding"     # adding a holding changes nothing
     assert client.put("/api/watchlist/NOPE").status_code == 404
+
+
+def test_old_dashboard_is_flagged_stale(built, monkeypatch):
+    import datetime as dt
+
+    class Later(dt.date):
+        @classmethod
+        def today(cls):
+            return dt.date.today() + dt.timedelta(days=30)
+    monkeypatch.setattr(api, "date", Later)
+    r = built.get("/api/momentum").json()
+    assert r["age_days"] >= 30 and r["stale"] is True

@@ -1,7 +1,7 @@
 # Testing
 
 - `uv run pytest -q`: parsers, signals, holdings import, config integrity, ticker profiles, the API, the user store, and an end-to-end `report.build()` (summary.json keys, dashboard.json against the API models). Also run in CI.
-- `pnpm -C web test`: frontend formatters and table sorting. `pnpm -C web build` type-checks the UI against the generated API schema.
+- `pnpm -C web test`: frontend formatters and the table state (URL round trip, filters, sorting, CSV). `pnpm -C web build` type-checks the UI against the generated API schema.
 
 ## Fixtures
 - `tests/fixtures/` holds trimmed copies of real payloads (FRED, OECD, CFTC, FactSet text, Yahoo ticker detail). When a source changes format, fix the parser and refresh its fixture from a real response.

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 
@@ -10,6 +10,20 @@ export function Search({ autoFocus = false }: { autoFocus?: boolean }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+
+  // "/" anywhere (outside a text field) jumps to the search box
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+      e.preventDefault();
+      input.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setQ(text.trim()), 250);
@@ -32,8 +46,9 @@ export function Search({ autoFocus = false }: { autoFocus?: boolean }) {
   return (
     <div className="search">
       <input
+        ref={input}
         type="search"
-        placeholder="Search a company, ETF or Yahoo symbol (e.g. NOVO-B.CO)"
+        placeholder="Search a company, ETF or Yahoo symbol (press / to focus)"
         aria-label="Search ticker"
         autoFocus={autoFocus}
         value={text}

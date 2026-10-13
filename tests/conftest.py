@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from radar import coverage, universe, userstore
+from radar import coverage, tickers, universe, userstore
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -20,4 +20,6 @@ def tmp_data(tmp_path, monkeypatch):
     monkeypatch.setattr(universe, "HOLDINGS_FILE", tmp_path / "holdings.csv")
     monkeypatch.setattr(universe, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
     monkeypatch.setattr(userstore, "USERDATA", tmp_path / "userdata")
+    monkeypatch.setattr(tickers, "DATA", tmp_path)
+    monkeypatch.setattr(tickers, "_cache", None)
     return tmp_path

@@ -42,7 +42,7 @@ def _records(df: pd.DataFrame) -> list[dict]:
     return [_clean(row) for row in df.to_dict("records")]
 
 
-def line_chart(series: dict[str, pd.Series], title: str, decimals: int = 2, hlines=(), days: int = 365) -> dict:
+def line_chart(series: dict[str, pd.Series], title: str, decimals: int = 2, hlines=(), days: int = 756) -> dict:
     """A line chart as data: each series' last `days` points (NaNs dropped) plus reference lines."""
     out = []
     for name, s in series.items():
@@ -52,8 +52,9 @@ def line_chart(series: dict[str, pd.Series], title: str, decimals: int = 2, hlin
     return {"title": title, "decimals": decimals, "hlines": [float(h) for h in hlines], "series": out}
 
 
-def rrg_points(ratio: pd.DataFrame, mom: pd.DataFrame, names: dict[str, str]) -> list[dict]:
-    """Each ticker's weekly path through the rotation graph; the last point is where it is now."""
+def rrg_points(ratio: pd.DataFrame, mom: pd.DataFrame, names: dict[str, str], asof: date | None = None) -> list[dict]:
+    """Each ticker's weekly path through the rotation graph; the last point is where it is now. Weekly bins are
+    labelled by their Friday, so the current week's date is capped at `asof` (no date after the data)."""
     out = []
     for t in ratio.columns:
         r, m = ratio[t], mom[t]
@@ -62,7 +63,7 @@ def rrg_points(ratio: pd.DataFrame, mom: pd.DataFrame, names: dict[str, str]) ->
             continue
         r, m = r[ok], m[ok]
         out.append({"ticker": t, "name": names.get(t, t), "quadrant": rotation.quadrant(r.iloc[-1], m.iloc[-1]),
-                    "tail": [{"date": d.date().isoformat(), "x": float(x), "y": float(y)}
+                    "tail": [{"date": min(d.date(), asof or d.date()).isoformat(), "x": float(x), "y": float(y)}
                              for d, x, y in zip(r.index, r.values, m.values)]})
     return out
 
@@ -177,13 +178,13 @@ def compute() -> Computed:
     for key, g in ucfg["etf_groups"].items():
         tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
         ratio, mom = rotation.rrg(closes, bench, tickers, rc["window"], rc["tail"])
-        grp = {"key": key, "label": g["label"], "local_benchmark": None, "rrg": rrg_points(ratio, mom, names),
+        grp = {"key": key, "label": g["label"], "local_benchmark": None, "rrg": rrg_points(ratio, mom, names, asof),
                "rrg_local": None}
         lb = local_bench.get(key)
         if lb and lb["ticker"] in closes.columns and tickers:
             lratio, lmom = rotation.rrg(closes, lb["ticker"], tickers, rc["window"], rc["tail"])
             grp["local_benchmark"] = lb["name"]
-            grp["rrg_local"] = rrg_points(lratio, lmom, names)
+            grp["rrg_local"] = rrg_points(lratio, lmom, names, asof)
             local_q = {t: rotation.quadrant(lratio[t].iloc[-1], lmom[t].iloc[-1]) for t in tickers}
             mask = rot["group"] == key
             rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)

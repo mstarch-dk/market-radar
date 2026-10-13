@@ -30,7 +30,9 @@ function Shell() {
   const { pathname } = useLocation();
   const home = pathname === "/";
   // a link from deep in a long table opens the next page at its top
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);   // block body: newer browsers return a Promise here, which React would take as a cleanup
+  }, [pathname]);
   return (
     <div className="app">
       <header className="topbar">

@@ -4,6 +4,7 @@ Binds to 127.0.0.1 only; there is no authentication."""
 from __future__ import annotations
 
 import threading
+from datetime import date
 
 import pandas as pd
 
@@ -11,10 +12,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, profile, universe, userstore
+from . import dashboard, mine, profile, tickers, universe, userstore
 from .api_models import (
     AppContext, CoverageView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
-    Series, WatchState,
+    Series, TickerSummary, WatchState,
 )
 from .config import settings
 from .config import ROOT
@@ -99,8 +100,11 @@ def _dashboard() -> dict:
 
 
 def _view(key: str) -> dict:
+    """One dashboard section, with how old its data is: stale once older than the price limit in settings."""
     d = _dashboard()
-    return {"asof": d["asof"], "generated": d["generated"], **d[key]}
+    age = (date.today() - date.fromisoformat(d["asof"])).days
+    limit = settings()["coverage"]["max_age"]["prices"]
+    return {"asof": d["asof"], "generated": d["generated"], "age_days": age, "stale": age > limit, **d[key]}
 
 
 @app.get("/api/regime", response_model=RegimeView)
@@ -144,6 +148,14 @@ def get_me() -> dict:
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}
+
+
+@app.get("/api/tickers", response_model=list[TickerSummary])
+def get_tickers() -> list[dict]:
+    """Every tracked ticker in brief (price, returns, score or quadrant, a 6-month sparkline, your status), for
+    hover cards and ownership markers."""
+    with _lock:
+        return tickers.summary(market())
 
 
 def _status(symbol: str) -> str | None:

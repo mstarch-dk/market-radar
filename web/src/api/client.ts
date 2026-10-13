@@ -20,6 +20,7 @@ export type LineChartData = S["LineChart"];
 export type MeView = S["MeView"];
 export type MyRow = S["MyRow"];
 export type WatchState = S["WatchState"];
+export type TickerSummary = S["TickerSummary"];
 
 export class ApiError extends Error {
   constructor(
@@ -59,6 +60,7 @@ export const api = {
   positioning: () => get<PositioningView>("/api/positioning"),
   coverage: () => get<CoverageView>("/api/coverage"),
   me: () => get<MeView>("/api/me"),
+  tickers: () => get<TickerSummary[]>("/api/tickers"),
   watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
   unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };
