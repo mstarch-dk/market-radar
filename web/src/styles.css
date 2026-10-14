@@ -477,3 +477,36 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
   .tm-box, .tm-head label, .tm-legend { display: none; }
   .tm-narrow { display: block; margin: 0; }
 }
+
+/* My market views */
+.views-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.view-card { display: flex; flex-direction: column; gap: 8px; }
+.view-card.archived { opacity: 0.7; }
+.view-card.gone { flex-direction: row; align-items: center; gap: 8px; }
+.vc-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.vc-head h3 { margin: 0; font-size: 15px; line-height: 1.35; }
+.vc-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.dots { letter-spacing: 1px; color: var(--accent); }
+.vc-exp { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; gap: 4px; align-items: center; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.chip.pos { background: var(--pos-bg); border-color: transparent; }
+.chip.neg { background: var(--neg-bg); border-color: transparent; }
+.vc-ev td { padding: 3px 6px; font-size: 12.5px; }
+.templates summary { cursor: pointer; }
+.templates h3 { margin: 14px 0 6px; font-size: 13px; color: var(--ink-2); }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.tpl { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface); }
+.tpl p { margin: 0; font-size: 13px; }
+.tpl .btn { align-self: flex-start; }
+.view-editor h3 { margin: 14px 0 4px; font-size: 13px; }
+.view-editor label.full { grid-column: 1 / -1; }
+.view-editor textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+  color: var(--ink); font: inherit; resize: vertical; }
+.view-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+.view-row select, .view-row input { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+  color: var(--ink); font: inherit; font-size: 12.5px; }
+.view-row input { min-width: 200px; }
+.vw-row { padding: 6px 0; border-top: 1px solid var(--line); }
+.archived-views summary { cursor: pointer; margin: 8px 0; color: var(--ink-2); }
+@media (max-width: 640px) { .views-grid { grid-template-columns: 1fr; } .view-row input { min-width: 0; flex: 1; } }

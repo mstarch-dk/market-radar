@@ -14,7 +14,10 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 **Defaults:**
 - **Horizon:** 3 months (the radar's 1–6-month momentum focus), unless `notes/investor.md` or the user says otherwise.
 - **Personal data:** off. Use `--personal` only when the user asks for it or passes the flag. Without it, don't use
-  their positions, journal or memos, and don't infer them.
+  their positions, journal, memos or market views, and don't infer them.
+- **Market views** (with `--personal` only): each profile then has a `views` section, how the name lines up with the
+  user's market views from the app's *My market views* page, with the radar's evidence per view. `uv run radar views
+  --json` has the full views. They are the user's subjective beliefs, not evidence.
 
 ## Data conventions (the JSON you'll read)
 - **Units:**
@@ -62,6 +65,9 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
    - **Rotation tailwind:** `peers.rotation.quadrant` of the sector ETF
    - **Stretch and crowding:** RSI, %B, `from_high`, red watch-outs
    - **Practicalities:** UCITS/positive list (ETFs), currency, next earnings date inside the horizon
+   - **Fit with my market views** (only with `--personal` and when the user has views): `views.label` and the views
+     behind it, for every ticker and ACWI alike (ACWI: "–"). Note next to it when the radar's data currently
+     contradicts the view a ticker depends on. This row frames the choice; it never outweighs the evidence rows.
 
 4. **Facts from the web** (send the searches together, extended mode if thin):
    - **What to look up:** the last 1–2 quarters vs expectations and guidance, catalysts and the earnings date
@@ -116,6 +122,7 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 | Risk (vol / downside β / max DD) | … | … | … |
 | Rotation tailwind | … | … | – |
 | Stretch / watch-outs | … | … | – |
+| Fit with my market views (personal only) | … | … | – |
 | **Case in one line** | … | … | do-nothing alternative |
 
 ## Framing

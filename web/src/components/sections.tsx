@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { GaugeBadge, GaugeBar } from "./Gauge";
 import { Term } from "./Term";
 import { TickerLink } from "./TickerLink";
+import { Link } from "react-router-dom";
+import { ALIGN_KIND, ALIGN_TEXT, dots, VERDICT_KIND } from "../lib/views";
 import type { Profile, Windows } from "../api/client";
 import type { components } from "../api/schema";
 
@@ -379,6 +381,37 @@ export function RecentCard({ p }: { p: Profile }) {
           </tbody>
         </table>
       </div>
+    </Card>
+  );
+}
+
+/** How this name lines up with your market views (your own subjective beliefs), with the radar's current
+ *  evidence for each view, so "fits your view, but the data contradicts the view" is visible. */
+export function ViewsCard({ p }: { p: Profile }) {
+  const v = p.views;
+  if (!v) {
+    return (
+      <Card title="Your market views">
+        <p className="small muted">No market views yet. <Link to="/views">Write down where you think markets are heading</Link> and
+          every ticker page shows how the name lines up with them.</p>
+      </Card>
+    );
+  }
+  const related = v.views.filter((x) => x.label !== "unrelated");
+  return (
+    <Card title="Your market views">
+      <p><Badge kind={ALIGN_KIND[v.label]}>{ALIGN_TEXT[v.label]}</Badge>
+        <span className="small muted"> {related.length} of {v.views.length} views apply</span></p>
+      {related.map((x) => (
+        <div key={x.id ?? x.statement} className="vw-row">
+          <div><Badge kind={ALIGN_KIND[x.label]}>{x.label}</Badge> <b>{x.statement}</b>{" "}
+            <span className="dots small" title={`Conviction ${x.conviction} of 5`}>{dots(x.conviction)}</span></div>
+          <div className="small muted">{x.reasons.map((r) => r.text).join(" · ")}</div>
+          {x.evidence && <div className="small">The radar&apos;s data on this view: <Badge kind={VERDICT_KIND[x.evidence]}>{x.evidence}</Badge></div>}
+        </div>
+      ))}
+      {related.length === 0 && <p className="small muted">None of your views clearly applies to this name.</p>}
+      <p className="small muted">Your views are subjective beliefs, not forecasts. <Link to="/views">Edit your views</Link></p>
     </Card>
   );
 }

@@ -9,10 +9,12 @@ import { TickerLink } from "../components/TickerLink";
 import { fmt, Treemap, type TreemapItem } from "../components/Treemap";
 import { Badge } from "../components/ui";
 import { UpdatePanel } from "../components/UpdatePanel";
+import { withViews } from "../components/ViewsColumn";
 import { WatchStar } from "../components/WatchButton";
 import { compact, date, num, pct } from "../lib/format";
 import { EMPTY, filterRows, type TableState } from "../lib/tableState";
 import { useTableState } from "../lib/useTableState";
+import { useAlignment } from "../lib/views";
 
 const ID = "d";
 
@@ -176,7 +178,8 @@ function MarketView({ d, m }: { d: DiscoveryView; m: DiscoveryMarket }) {
   const set = (k: string, v: string) => setParams((p) => { const n = new URLSearchParams(p); n.set(k, v); return n; },
     { replace: true, preventScrollReset: true });
 
-  const cols = useMemo(() => columns(m.kind), [m.kind]);
+  const align = useAlignment(useMemo(() => m.rows.map((r) => r.ticker), [m.rows]), "discovery");
+  const cols = useMemo(() => withViews(columns(m.kind), align), [m.kind, align]);
   const kept = useMemo(() => filterRows(m.rows, cols, state).rows, [m.rows, cols, state]);
   const c = COLOR[colorKey];
   const items: TreemapItem[] = useMemo(() => kept.map((r) => ({

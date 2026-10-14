@@ -189,6 +189,9 @@ macro:
     BAMLH0A0HYM2: US high-yield spread
     DTWEXBGS: USD broad index
     DGS3MO: US 3-month T-bill (risk-free rate for Sharpe/alpha)
+  fred_views:               # only read by the market-views evidence check (not the regime; slower cadence is fine)
+    ECBDFR: ECB deposit facility rate
+    IRLTLT01EZM156N: Euro area 10Y government yield (monthly)
 
 # Non-price data (src/radar/external.py), all free and keyless.
 external:

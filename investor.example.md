@@ -17,3 +17,8 @@ advice on accounts and horizon fits you.
 - Max position size: …
 - Sectors or themes I avoid: …
 - Anything else Claude should know (e.g. "I can't buy US-domiciled ETFs"): US ETFs aren't sold to retail investors in the EU; prefer UCITS alternatives.
+
+## Market views
+Your beliefs about where markets are heading ("AI is in a bubble", "EU rates rise", …) live in the app, on the
+*My market views* page, not in this file: there each view gets a conviction, a horizon, what would change your mind,
+what it helps or hurts, and the radar's evidence. The skills read them with `uv run radar views --json`.

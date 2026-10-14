@@ -13,6 +13,7 @@ import { Positioning } from "./pages/Positioning";
 import { Regime } from "./pages/Regime";
 import { Rotation } from "./pages/Rotation";
 import { Themes } from "./pages/Themes";
+import { Views } from "./pages/Views";
 import { Ticker } from "./pages/Ticker";
 import "./styles.css";
 
@@ -24,6 +25,7 @@ const PAGES = [
   ["/discover", "Discover", <Discover />],
   ["/positioning", "Positioning & cycle", <Positioning />],
   ["/me", "My holdings & watchlist", <Me />],
+  ["/views", "My market views", <Views />],
   ["/portfolio", "Portfolio", <Portfolio />],
   ["/data", "Data & coverage", <Data />],
 ] as const;

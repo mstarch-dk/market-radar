@@ -21,6 +21,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `coverage`: how many regime indicators have current data (`regime.na` = no data, `regime.stale` = too old, both left out of the vote), failing or stale sources, and the radar's blind spots. If any indicator is n/a or stale, or a source failed, say which near the regime reading and how much that weakens it. Fill a blind spot with web research only when it matters for this month's story (for example valuation when leadership looks stretched).
 
    - If `reports/discovery.json` exists and its `asof` is under 10 days old, read it too: per market, rows with `off_radar` true and a high `score`, a big `d_score`, `new_high` or `trend_turn`, leaving out `thin`, `check_data` and `stale` rows. These are names outside the radar's own lists. If it is older, say the discovery scan is stale and skip it.
+   - Run `uv run radar views --json` for the user's market views (their subjective beliefs from the app's *My market views* page) with the radar's evidence per view. If there are none, skip the views section.
 
    If `earnings_factset` is present, also read `data/factset_latest.txt` (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
 3. **Pick what matters (at most 6–8 items).** Prioritise:
@@ -63,6 +64,9 @@ New entrants by region, grouped by theme where possible, each with one line on w
 
 ## New on the radar (Discover)
 Only when the discovery scan is fresh: 3–5 names from outside the radar's lists (Nordic, Europe, positive-list ETFs), each with its score, Δscore or flag, size and one line on why it may be moving. State the scan date. Small caps are noisier: say so when a name is small or near the liquidity floor.
+
+## Your views vs the data
+Only when the user has active views. One line per view (highest conviction first): the statement, the radar's verdict (supported / contradicted / mixed / unclear / no data) and the readings behind it, plus anything from this month's research that bears on it. Where the data contradicts a high-conviction view, say so plainly and quote the user's own "what would change my mind". Frame it as their beliefs against the data, never as a forecast.
 
 ## Your portfolio in this context
 - Holdings: trend status, and any flags worth acting on (review, not trade)

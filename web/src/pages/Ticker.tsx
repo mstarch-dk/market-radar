@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { ApiError, api, type Profile } from "../api/client";
 import { PriceChart, type Level } from "../components/PriceChart";
 import {
-  AnalystCard, EtfCard, FundamentalsCard, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, RiskCard, TechnicalsCard,
+  AnalystCard, EtfCard, FundamentalsCard, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, RiskCard, TechnicalsCard, ViewsCard,
 } from "../components/sections";
 import { Badge, Card } from "../components/ui";
 import { WatchButton } from "../components/WatchButton";
@@ -119,6 +119,7 @@ export function Ticker() {
         {isFund ? <EtfCard p={p} /> : <AnalystCard p={p} />}
         {isFund ? null : <FundamentalsCard p={p} />}
         <PeersCard p={p} />
+        <ViewsCard p={p} />
         <RecentCard p={p} />
         {p.identity.summary && (
           <Card title="About" meta={p.identity}>

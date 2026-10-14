@@ -21,6 +21,7 @@ from .api_models import (
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
     Account, AccountIn, PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
+    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage,
 )
 from .config import settings
 from .config import ROOT
@@ -135,6 +136,79 @@ def get_positioning() -> dict:
 @app.get("/api/coverage", response_model=CoverageView)
 def get_coverage() -> dict:
     return _view("coverage")
+
+
+# ---------------- your market views (subjective beliefs) ----------------
+
+def _views_page() -> dict:
+    from . import market_views as mv
+
+    with _lock:
+        closes = market().closes
+    return {"disclaimer": mv.DISCLAIMER, "views": mv.with_evidence(None, closes), "templates": mv.templates(),
+            "catalogue": mv.catalogue()}
+
+
+def _view_body(body: ViewIn) -> dict:
+    v = body.model_dump()
+    v["statement"] = v["statement"].strip()
+    if not v["statement"]:
+        raise HTTPException(422, "A view needs a statement.")
+    if not 1 <= v["conviction"] <= 5:
+        raise HTTPException(422, "Conviction is 1 (a hunch) to 5 (very sure).")
+    from . import market_views as mv
+
+    known = set(mv.config()["indicators"])
+    bad = [i["indicator"] for i in v["indicators"] if i["indicator"] not in known]
+    if bad:
+        raise HTTPException(422, f"Unknown indicator: {', '.join(bad)}.")
+    return v
+
+
+@app.get("/api/views", response_model=ViewsPage)
+def get_views() -> dict:
+    """Your market views (active and archived) with the radar's evidence, the templates and the vocabulary."""
+    return _views_page()
+
+
+@app.post("/api/views", response_model=ViewsPage)
+def add_view(body: ViewIn) -> dict:
+    userstore.save_view(_view_body(body))
+    return _views_page()
+
+
+@app.put("/api/views/{view_id}", response_model=ViewsPage)
+def edit_view(view_id: int, body: ViewIn) -> dict:
+    if not userstore.get_view(view_id):
+        raise HTTPException(404, f"No view {view_id}.")
+    userstore.save_view(_view_body(body), view_id)
+    return _views_page()
+
+
+@app.delete("/api/views/{view_id}", response_model=ViewRow)
+def delete_view(view_id: int) -> dict:
+    """Delete a view; the response is the deleted view, which /restore puts back (undo)."""
+    v = userstore.delete_view(view_id)
+    if not v:
+        raise HTTPException(404, f"No view {view_id}.")
+    return v
+
+
+@app.post("/api/views/restore", response_model=ViewsPage)
+def restore_view(row: ViewRow) -> dict:
+    if userstore.get_view(row.id):
+        raise HTTPException(409, "That view is already there.")
+    userstore.restore_view(row.model_dump())
+    return _views_page()
+
+
+@app.post("/api/views/align", response_model=dict[str, AlignCompact])
+def align_views(body: AlignRequest) -> dict:
+    """How each of `tickers` lines up with your active views (for table columns); {} without views."""
+    from . import market_views as mv
+
+    with _lock:
+        return mv.align_many([_symbol(t) for t in body.tickers][:5000], body.store)
 
 
 # ---------------- discover: the separate wide scan ----------------

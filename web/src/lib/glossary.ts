@@ -65,6 +65,7 @@ export const GLOSSARY = {
   off_radar: "Not in the radar's own lists, your holdings or your watchlist. Star it to add it to the watchlist and the daily update.",
   new_high: "At a new 52-week closing high, with 20-day volume at least 1.5× the 120-day average.",
   trend_turn: "Crossed above the 200-day average within the last 20 sessions while the 50-day average is rising: a possible change from downtrend to uptrend.",
+  views_align: "How the name lines up with your market views (your own subjective beliefs, on the My market views page): fits = it would gain if your views are right, against = it would suffer, mixed = both. Weighted by how sure you are. Hover the badge for the reasons.",
 } as const;
 
 export const glossary = (k: string | undefined): string | undefined =>

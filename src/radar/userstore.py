@@ -7,6 +7,8 @@
 - **symbol_map**: broker identifiers (ISIN, names) the user has matched to Yahoo symbols, reused next time.
 - **watchlist**: edits made in the app, an overlay on the watchlist ('add' / 'remove').
 - **meta**: small key/value facts (e.g. the Yahoo watchlist from the last Yahoo import).
+- **views**, **view_exposures**, **view_indicators**: your market views (subjective beliefs), what each helps or
+  hurts, and which readings would confirm it (signals/views.py).
 
 Schema changes are new entries in MIGRATIONS, never edits to old ones. A copy of the database is kept in
 userdata/backups/ before every import and every undo.
@@ -64,6 +66,26 @@ MIGRATIONS = [
          symbol TEXT NOT NULL,
          updated_at TEXT NOT NULL)""",
     "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    """CREATE TABLE views (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         statement TEXT NOT NULL,
+         conviction INTEGER NOT NULL DEFAULT 3 CHECK (conviction BETWEEN 1 AND 5),
+         horizon TEXT NOT NULL DEFAULT '12m' CHECK (horizon IN ('3m', '6m', '12m', '3y')),
+         rationale TEXT,
+         falsifier TEXT,
+         template TEXT,
+         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL)""",
+    """CREATE TABLE view_exposures (
+         view_id INTEGER NOT NULL REFERENCES views(id) ON DELETE CASCADE,
+         kind TEXT NOT NULL CHECK (kind IN ('etf', 'sector', 'industry', 'region', 'ticker')),
+         key TEXT NOT NULL,
+         effect INTEGER NOT NULL CHECK (effect IN (-1, 1)))""",
+    """CREATE TABLE view_indicators (
+         view_id INTEGER NOT NULL REFERENCES views(id) ON DELETE CASCADE,
+         indicator TEXT NOT NULL,
+         expect TEXT NOT NULL CHECK (expect IN ('up', 'down')))""",
 ]
 
 
@@ -351,4 +373,107 @@ def import_transactions_csv(text: str) -> int:
             if r["account"]:
                 con.execute("INSERT OR IGNORE INTO accounts (name) VALUES (?)", (r["account"],))
             _insert(con, r, r.get("source") or "bundle", None)
+    return len(rows)
+
+
+# ---------------- market views (your subjective beliefs; config/views.yaml has templates) ----------------
+
+VIEW_FIELDS = ("statement", "conviction", "horizon", "rationale", "falsifier", "template", "status")
+
+
+def _view_rows(con, where: str = "", args: tuple = ()) -> list[dict]:
+    out = []
+    for r in con.execute(f"SELECT * FROM views {where} ORDER BY status, conviction DESC, id", args):
+        v = dict(r)
+        v["exposures"] = [dict(e) for e in con.execute(
+            "SELECT kind, key, effect FROM view_exposures WHERE view_id = ? ORDER BY effect DESC, kind, key", (v["id"],))]
+        v["indicators"] = [dict(i) for i in con.execute(
+            "SELECT indicator, expect FROM view_indicators WHERE view_id = ? ORDER BY indicator", (v["id"],))]
+        out.append(v)
+    return out
+
+
+def views(status: str | None = None) -> list[dict]:
+    """Your market views with their exposures and indicators ([] without a database)."""
+    if not _exists():
+        return []
+    with closing(_connect()) as con:
+        return _view_rows(con, "WHERE status = ?", (status,)) if status else _view_rows(con)
+
+
+def get_view(view_id: int) -> dict | None:
+    if not _exists():
+        return None
+    with closing(_connect()) as con:
+        rows = _view_rows(con, "WHERE id = ?", (view_id,))
+        return rows[0] if rows else None
+
+
+def _write_children(con, view_id: int, v: dict) -> None:
+    con.execute("DELETE FROM view_exposures WHERE view_id = ?", (view_id,))
+    con.execute("DELETE FROM view_indicators WHERE view_id = ?", (view_id,))
+    con.executemany("INSERT INTO view_exposures (view_id, kind, key, effect) VALUES (?, ?, ?, ?)",
+                    [(view_id, e["kind"], e["key"].strip(), int(e["effect"])) for e in v.get("exposures") or []])
+    con.executemany("INSERT INTO view_indicators (view_id, indicator, expect) VALUES (?, ?, ?)",
+                    [(view_id, i["indicator"], i["expect"]) for i in v.get("indicators") or []])
+
+
+def save_view(v: dict, view_id: int | None = None) -> int:
+    """Add a view, or replace one (statement, fields, exposures and indicators). Returns its id."""
+    now = _now()
+    vals = {k: v.get(k) for k in VIEW_FIELDS}
+    vals["status"] = vals["status"] or "active"
+    vals["conviction"] = int(vals["conviction"] or 3)
+    vals["horizon"] = vals["horizon"] or "12m"
+    with closing(_connect()) as con, con:
+        if view_id is None:
+            cur = con.execute(f"INSERT INTO views ({', '.join(VIEW_FIELDS)}, created_at, updated_at) "
+                              f"VALUES ({', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
+                              (*vals.values(), v.get("created_at") or now, now))
+            view_id = cur.lastrowid
+        else:
+            con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
+                        (*vals.values(), now, view_id))
+        _write_children(con, view_id, v)
+    return view_id
+
+
+def delete_view(view_id: int) -> dict | None:
+    """Delete a view; returns it (with its id), so restore_view can undo the delete."""
+    v = get_view(view_id)
+    if v:
+        with closing(_connect()) as con, con:
+            con.execute("DELETE FROM views WHERE id = ?", (view_id,))
+    return v
+
+
+def restore_view(v: dict) -> int:
+    with closing(_connect()) as con, con:
+        con.execute(f"INSERT INTO views (id, {', '.join(VIEW_FIELDS)}, created_at, updated_at) "
+                    f"VALUES (?, {', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
+                    (v["id"], *(v.get(k) for k in VIEW_FIELDS), v["created_at"], _now()))
+        _write_children(con, v["id"], v)
+    return v["id"]
+
+
+def views_version() -> str:
+    """Changes whenever a view is added, edited or deleted (for caching alignment results)."""
+    if not _exists():
+        return "0"
+    with closing(_connect()) as con:
+        r = con.execute("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM views").fetchone()
+        return f"{r['n']}:{r['t']}"
+
+
+def export_views_json() -> str:
+    return json.dumps([{k: v for k, v in x.items() if k != "id"} for x in views()], indent=1, ensure_ascii=False)
+
+
+def import_views_json(text: str) -> int:
+    """Replace all views with an exported set (restoring the CI bundle). Returns the number of views."""
+    rows = json.loads(text)
+    with closing(_connect()) as con, con:
+        con.execute("DELETE FROM views")
+    for v in rows:
+        save_view(v)
     return len(rows)

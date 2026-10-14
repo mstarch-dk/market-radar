@@ -193,6 +193,11 @@ def macro_fred() -> dict[str, str]:
     return universe_config()["macro"]["fred"]
 
 
+def macro_fred_views() -> dict[str, str]:
+    """FRED series only the market-views evidence check reads (kept out of the regime's freshness check)."""
+    return universe_config()["macro"].get("fred_views") or {}
+
+
 # ---------- holdings / watchlist ----------
 
 HOLDING_COLS = ["symbol", "status", "quantity", "avg_price", "first_trade", "last_sell_date", "last_sell_price"]

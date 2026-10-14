@@ -163,6 +163,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Views
+         * @description Your market views (active and archived) with the radar's evidence, the templates and the vocabulary.
+         */
+        get: operations["get_views_api_views_get"];
+        put?: never;
+        /** Add View */
+        post: operations["add_view_api_views_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/views/{view_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit View */
+        put: operations["edit_view_api_views__view_id__put"];
+        post?: never;
+        /**
+         * Delete View
+         * @description Delete a view; the response is the deleted view, which /restore puts back (undo).
+         */
+        delete: operations["delete_view_api_views__view_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/views/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore View */
+        post: operations["restore_view_api_views_restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/views/align": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Align Views
+         * @description How each of `tickers` lines up with your active views (for table columns); {} without views.
+         */
+        post: operations["align_views_api_views_align_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/discover": {
         parameters: {
             query?: never;
@@ -588,6 +667,51 @@ export interface components {
             /** Old Name */
             old_name?: string | null;
         };
+        /** AlignCompact */
+        AlignCompact: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "aligned" | "conflicts" | "mixed" | "unrelated";
+            /** Score */
+            score: number;
+            /** Views */
+            views: components["schemas"]["AlignCompactView"][];
+        };
+        /** AlignCompactView */
+        AlignCompactView: {
+            /** Id */
+            id?: number | null;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "aligned" | "conflicts" | "mixed" | "unrelated";
+            /** Reasons */
+            reasons: string[];
+        };
+        /** AlignReason */
+        AlignReason: {
+            /**
+             * Effect
+             * @enum {integer}
+             */
+            effect: -1 | 1;
+            /** Text */
+            text: string;
+        };
+        /** AlignRequest */
+        AlignRequest: {
+            /** Tickers */
+            tickers: string[];
+            /**
+             * Store
+             * @default main
+             * @enum {string}
+             */
+            store: "main" | "discovery";
+        };
         /** Analyst */
         Analyst: {
             /**
@@ -676,6 +800,24 @@ export interface components {
             ex_dividend?: string | null;
             /** Dividend Date */
             dividend_date?: string | null;
+        };
+        /** CatalogueEtf */
+        CatalogueEtf: {
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name: string;
+            /** Group */
+            group: string;
+        };
+        /** CatalogueIndicator */
+        CatalogueIndicator: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Kind */
+            kind: string;
         };
         /** ChartSeries */
         ChartSeries: {
@@ -956,6 +1098,43 @@ export interface components {
             notes: string[];
             /** Overlap */
             overlap: string[];
+        };
+        /** Evidence */
+        Evidence: {
+            /** Items */
+            items: components["schemas"]["EvidenceItem"][];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "supported" | "contradicted" | "mixed" | "unclear" | "no data";
+        };
+        /** EvidenceItem */
+        EvidenceItem: {
+            /** Indicator */
+            indicator: string;
+            /** Label */
+            label: string;
+            /** Kind */
+            kind?: string | null;
+            /**
+             * Expect
+             * @enum {string}
+             */
+            expect: "up" | "down";
+            /** Value */
+            value?: number | null;
+            /** Asof */
+            asof?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "supports" | "contradicts" | "flat" | "no data";
         };
         /** FactSet */
         FactSet: {
@@ -1884,6 +2063,7 @@ export interface components {
             etf?: components["schemas"]["Etf"] | null;
             peers: components["schemas"]["Peers"];
             context: components["schemas"]["Context"];
+            views?: components["schemas"]["ViewAlignment"] | null;
         };
         /** Reason */
         Reason: {
@@ -2449,6 +2629,189 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * ViewAlignment
+         * @description How a name lines up with your market views (your subjective beliefs).
+         */
+        ViewAlignment: {
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "aligned" | "conflicts" | "mixed" | "unrelated";
+            /** Score */
+            score: number;
+            /** Views */
+            views: components["schemas"]["ViewAlignmentRow"][];
+        };
+        /** ViewAlignmentRow */
+        ViewAlignmentRow: {
+            /** Id */
+            id?: number | null;
+            /** Statement */
+            statement: string;
+            /** Conviction */
+            conviction: number;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "aligned" | "conflicts" | "mixed" | "unrelated";
+            /** Score */
+            score: number;
+            /** Reasons */
+            reasons: components["schemas"]["AlignReason"][];
+            /** Evidence */
+            evidence?: string | null;
+        };
+        /** ViewExposure */
+        ViewExposure: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "etf" | "sector" | "industry" | "region" | "ticker";
+            /** Key */
+            key: string;
+            /**
+             * Effect
+             * @enum {integer}
+             */
+            effect: -1 | 1;
+        };
+        /** ViewIn */
+        ViewIn: {
+            /** Statement */
+            statement: string;
+            /**
+             * Conviction
+             * @default 3
+             */
+            conviction: number;
+            /**
+             * Horizon
+             * @default 12m
+             * @enum {string}
+             */
+            horizon: "3m" | "6m" | "12m" | "3y";
+            /** Rationale */
+            rationale?: string | null;
+            /** Falsifier */
+            falsifier?: string | null;
+            /** Template */
+            template?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Exposures
+             * @default []
+             */
+            exposures: components["schemas"]["ViewExposure"][];
+            /**
+             * Indicators
+             * @default []
+             */
+            indicators: components["schemas"]["ViewIndicator"][];
+        };
+        /** ViewIndicator */
+        ViewIndicator: {
+            /** Indicator */
+            indicator: string;
+            /**
+             * Expect
+             * @enum {string}
+             */
+            expect: "up" | "down";
+        };
+        /** ViewRow */
+        ViewRow: {
+            /** Statement */
+            statement: string;
+            /**
+             * Conviction
+             * @default 3
+             */
+            conviction: number;
+            /**
+             * Horizon
+             * @default 12m
+             * @enum {string}
+             */
+            horizon: "3m" | "6m" | "12m" | "3y";
+            /** Rationale */
+            rationale?: string | null;
+            /** Falsifier */
+            falsifier?: string | null;
+            /** Template */
+            template?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Exposures
+             * @default []
+             */
+            exposures: components["schemas"]["ViewExposure"][];
+            /**
+             * Indicators
+             * @default []
+             */
+            indicators: components["schemas"]["ViewIndicator"][];
+            /** Id */
+            id: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            evidence?: components["schemas"]["Evidence"] | null;
+        };
+        /** ViewTemplate */
+        ViewTemplate: {
+            /** Key */
+            key: string;
+            /** Area */
+            area: string;
+            /** Pair */
+            pair?: string | null;
+            /** Statement */
+            statement: string;
+            /** Falsifier */
+            falsifier?: string | null;
+            /** Exposures */
+            exposures: components["schemas"]["ViewExposure"][];
+            /** Indicators */
+            indicators: components["schemas"]["ViewIndicator"][];
+        };
+        /** ViewsCatalogue */
+        ViewsCatalogue: {
+            /** Indicators */
+            indicators: components["schemas"]["CatalogueIndicator"][];
+            /** Etfs */
+            etfs: components["schemas"]["CatalogueEtf"][];
+            /** Sectors */
+            sectors: string[];
+            /** Regions */
+            regions: string[];
+            /** Horizons */
+            horizons: string[];
+        };
+        /** ViewsPage */
+        ViewsPage: {
+            /** Disclaimer */
+            disclaimer: string;
+            /** Views */
+            views: components["schemas"]["ViewRow"][];
+            /** Templates */
+            templates: components["schemas"]["ViewTemplate"][];
+            catalogue: components["schemas"]["ViewsCatalogue"];
+        };
         /** WatchState */
         WatchState: {
             /** Symbol */
@@ -2704,6 +3067,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+        };
+    };
+    get_views_api_views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewsPage"];
+                };
+            };
+        };
+    };
+    add_view_api_views_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_view_api_views__view_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_view_api_views__view_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_view_api_views_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewRow"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    align_views_api_views_align_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["AlignCompact"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

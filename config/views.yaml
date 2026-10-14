@@ -1,0 +1,165 @@
+# Your market views (the "My market views" page, `radar views`, the skills): ready-made statements to start
+# from, and the readings the radar can check a view against. Your own views live in userdata/radar.db.
+#
+# A view's exposures say what it helps (+1) or hurts (-1):
+#   etf: <ticker>      the ETF itself, and any name whose returns relative to ACWI move with it (correlation)
+#   sector: <name>     Yahoo sector (Technology, Healthcare, Financial Services, Energy, …)
+#   industry: <text>   part of a Yahoo industry name (e.g. Semiconductors, Banks)
+#   region: <key>      us, europe, nordic, asia, or a country name (Denmark, Germany, …)
+#   ticker: <symbol>   one stock or fund
+# Indicators say which reading would confirm the view and in which direction (up/down over 3 months).
+
+theme_corr: 0.5             # a name "moves with" an ETF when its weekly returns vs ACWI correlate at least this much
+min_weeks: 26               # fewer weeks of overlapping history: no correlation (unknown, not "unrelated")
+thresholds: {aligned: 0.35} # a view's score (−1..1) at or beyond ±this is aligned / conflicts
+
+# Readings the evidence check can use. kind:
+#   rel    the ticker's 3-month return minus ACWI's (pct pts)
+#   ratio  a/b over 3 months (%)
+#   pct    the ticker's own 3-month return (%)
+#   fred   a FRED series' change over 3 months (in its own units, e.g. pct pts for yields)
+#   cli    an OECD leading indicator's change over 3 months
+# band: changes inside ±band count as "flat" (no clear signal either way).
+indicators:
+  semis:        {label: "Semiconductors (SMH) vs ACWI", kind: rel, ticker: SMH, band: 0.02}
+  software:     {label: "Software (IGV) vs ACWI", kind: rel, ticker: IGV, band: 0.02}
+  nasdaq:       {label: "Nasdaq-100 (QQQ) vs ACWI", kind: rel, ticker: QQQ, band: 0.015}
+  equal_weight: {label: "Equal vs cap weight (RSP/SPY)", kind: ratio, a: RSP, b: SPY, band: 0.015}
+  us10y:        {label: "US 10Y yield (change, pct pts)", kind: fred, series: DGS10, band: 0.15}
+  us_curve:     {label: "US 10Y–2Y curve (change, pct pts)", kind: fred, series: T10Y2Y, band: 0.1}
+  ecb_rate:     {label: "ECB deposit rate (change, pct pts)", kind: fred, series: ECBDFR, band: 0.1}
+  ez10y:        {label: "Euro area 10Y yield (change, pct pts)", kind: fred, series: IRLTLT01EZM156N, band: 0.15}
+  usd:          {label: "US dollar, broad index", kind: fred_pct, series: DTWEXBGS, band: 0.01}
+  hy_spread:    {label: "US high-yield spread (change, pct pts)", kind: fred, series: BAMLH0A0HYM2, band: 0.25}
+  copper_gold:  {label: "Copper/gold ratio", kind: ratio, a: HG=F, b: GC=F, band: 0.03}
+  oil:          {label: "Oil (WTI)", kind: pct, ticker: CL=F, band: 0.05}
+  gold:         {label: "Gold (GLD) vs ACWI", kind: rel, ticker: GLD, band: 0.02}
+  europe_us:    {label: "Europe (VGK) vs US (SPY)", kind: ratio, a: VGK, b: SPY, band: 0.015}
+  em:           {label: "Emerging markets (EEM) vs ACWI", kind: rel, ticker: EEM, band: 0.02}
+  china:        {label: "China (MCHI) vs ACWI", kind: rel, ticker: MCHI, band: 0.03}
+  small_caps:   {label: "US small caps vs large (IWM/SPY)", kind: ratio, a: IWM, b: SPY, band: 0.02}
+  defence:      {label: "Aerospace & defence (ITA) vs ACWI", kind: rel, ticker: ITA, band: 0.02}
+  grid:         {label: "Grid & electrification (GRID) vs ACWI", kind: rel, ticker: GRID, band: 0.02}
+  clean_energy: {label: "Clean energy (ICLN) vs ACWI", kind: rel, ticker: ICLN, band: 0.03}
+  health:       {label: "Health care (XLV) vs ACWI", kind: rel, ticker: XLV, band: 0.02}
+  biotech:      {label: "Biotech (IBB) vs ACWI", kind: rel, ticker: IBB, band: 0.03}
+  banks_eu:     {label: "European banks (EXV1.DE) vs ACWI", kind: rel, ticker: EXV1.DE, band: 0.02}
+  cli_g20:      {label: "OECD leading indicator, G20", kind: cli, area: G20, band: 0.1}
+  cli_us:       {label: "OECD leading indicator, US", kind: cli, area: USA, band: 0.1}
+  cli_europe:   {label: "OECD leading indicator, Europe big 4", kind: cli, area: G4E, band: 0.1}
+  cli_china:    {label: "OECD leading indicator, China", kind: cli, area: CHN, band: 0.1}
+
+# Ready-made views. `pair` puts two opposite statements side by side on the page.
+templates:
+  - key: ai_dominates
+    area: AI & technology
+    pair: ai_bubble
+    statement: "AI keeps driving earnings growth, and AI leaders keep outperforming."
+    falsifier: "Semiconductors and software lose relative strength for a quarter while earnings revisions turn down."
+    exposures: [[etf, SMH, 1], [etf, IGV, 1], [etf, SKYY, 1], [etf, BOTZ, 1], [sector, Technology, 1]]
+    indicators: [[semis, up], [software, up], [nasdaq, up]]
+  - key: ai_bubble
+    area: AI & technology
+    pair: ai_dominates
+    statement: "AI stocks are in a bubble: the spending won't earn its return and the leaders will de-rate."
+    falsifier: "AI leaders keep beating estimates and the rally broadens (equal weight catches up) without a sell-off."
+    exposures: [[etf, SMH, -1], [etf, IGV, -1], [etf, QQQ, -1], [sector, Technology, -1], [etf, USMV, 1]]
+    indicators: [[semis, down], [nasdaq, down], [equal_weight, up]]
+  - key: us_rates_fall
+    area: Rates & inflation
+    pair: inflation_sticky
+    statement: "US interest rates fall over the next year."
+    falsifier: "The 10-year yield rises further and core inflation re-accelerates."
+    exposures: [[etf, TLT, 1], [etf, ITB, 1], [etf, IWM, 1], [sector, Real Estate, 1], [sector, Utilities, 1]]
+    indicators: [[us10y, down], [usd, down]]
+  - key: inflation_sticky
+    area: Rates & inflation
+    pair: us_rates_fall
+    statement: "Inflation stays sticky and rates stay higher for longer."
+    falsifier: "Inflation prints fall back to target and yields drop."
+    exposures: [[etf, TLT, -1], [sector, Real Estate, -1], [sector, Energy, 1], [etf, VLUE, 1], [industry, Banks, 1]]
+    indicators: [[us10y, up], [oil, up], [copper_gold, up]]
+  - key: eu_rates_rise
+    area: Rates & inflation
+    pair: ecb_cuts
+    statement: "EU interest rates rise."
+    falsifier: "The ECB signals cuts, or euro-area yields fall back."
+    exposures: [[industry, Banks, 1], [industry, Insurance, 1], [sector, Real Estate, -1], [sector, Utilities, -1]]
+    indicators: [[ecb_rate, up], [ez10y, up], [banks_eu, up]]
+  - key: ecb_cuts
+    area: Rates & inflation
+    pair: eu_rates_rise
+    statement: "The ECB cuts rates as European growth stays weak."
+    falsifier: "Euro-area inflation picks up and the ECB holds or hikes."
+    exposures: [[industry, Banks, -1], [sector, Real Estate, 1], [sector, Utilities, 1], [industry, Building, 1]]
+    indicators: [[ecb_rate, down], [ez10y, down], [cli_europe, down]]
+  - key: europe_beats_us
+    area: Regions & currencies
+    statement: "European stocks beat US stocks over the next year."
+    falsifier: "The US keeps outperforming for two more quarters as earnings gaps widen."
+    exposures: [[region, europe, 1], [region, nordic, 1], [etf, VGK, 1], [region, us, -1], [etf, SPY, -1]]
+    indicators: [[europe_us, up], [cli_europe, up]]
+  - key: dollar_weakens
+    area: Regions & currencies
+    statement: "The US dollar weakens."
+    falsifier: "The dollar index makes new highs."
+    exposures: [[etf, EEM, 1], [etf, GLD, 1], [etf, GDX, 1], [region, us, -1]]
+    indicators: [[usd, down], [gold, up], [em, up]]
+  - key: china_recovers
+    area: Regions & currencies
+    statement: "China's economy and stock market recover."
+    falsifier: "China's leading indicator keeps falling and stimulus stays small."
+    exposures: [[etf, MCHI, 1], [etf, COPX, 1], [sector, Basic Materials, 1], [industry, Luxury, 1]]
+    indicators: [[china, up], [cli_china, up], [copper_gold, up]]
+  - key: em_recover
+    area: Regions & currencies
+    statement: "Emerging markets outperform developed markets."
+    falsifier: "The dollar strengthens and EM keeps lagging ACWI."
+    exposures: [[etf, EEM, 1], [etf, INDA, 1], [etf, EWT, 1], [etf, EWY, 1]]
+    indicators: [[em, up], [usd, down]]
+  - key: defence_up
+    area: Themes
+    statement: "Defence spending keeps rising for years, especially in Europe."
+    falsifier: "A lasting peace deal and budget cuts; defence stocks lag for two quarters."
+    exposures: [[etf, ITA, 1], [industry, Aerospace & Defense, 1]]
+    indicators: [[defence, up]]
+  - key: electrification
+    area: Themes
+    pair: transition_stalls
+    statement: "Electrification (grids, data centres, power equipment) is a multi-year growth story."
+    falsifier: "Grid and power-equipment orders slow and the theme lags ACWI."
+    exposures: [[etf, GRID, 1], [etf, PAVE, 1], [etf, COPX, 1], [industry, Electrical Equipment, 1], [sector, Utilities, 1]]
+    indicators: [[grid, up], [copper_gold, up]]
+  - key: transition_stalls
+    area: Themes
+    pair: electrification
+    statement: "The energy transition stalls; oil and gas stay in demand."
+    falsifier: "Clean energy outperforms and oil falls on structural demand loss."
+    exposures: [[sector, Energy, 1], [etf, ICLN, -1], [etf, TAN, -1]]
+    indicators: [[oil, up], [clean_energy, down]]
+  - key: gold_hedge
+    area: Themes
+    statement: "Gold keeps working as a hedge against crises and currency debasement."
+    falsifier: "Real yields rise and gold lags ACWI through a sell-off."
+    exposures: [[etf, GLD, 1], [etf, GDX, 1]]
+    indicators: [[gold, up]]
+  - key: recession
+    area: Cycle
+    pair: small_caps_back
+    statement: "A recession starts within 12 months."
+    falsifier: "Leading indicators turn up and credit spreads stay tight."
+    exposures: [[etf, USMV, 1], [etf, TLT, 1], [sector, Consumer Defensive, 1], [sector, Healthcare, 1], [etf, IWM, -1], [sector, Consumer Cyclical, -1], [etf, SPHB, -1]]
+    indicators: [[cli_g20, down], [hy_spread, up], [us_curve, up]]
+  - key: small_caps_back
+    area: Cycle
+    pair: recession
+    statement: "Small caps come back as growth broadens and rates ease."
+    falsifier: "Small caps keep lagging large caps while credit spreads widen."
+    exposures: [[etf, IWM, 1], [etf, SPHB, 1], [etf, USMV, -1]]
+    indicators: [[small_caps, up], [equal_weight, up], [hy_spread, down]]
+  - key: obesity_drugs
+    area: Health
+    statement: "Obesity drugs (GLP-1) keep growing faster than expected."
+    falsifier: "Prices fall faster than volumes grow, or a safety issue hits the class."
+    exposures: [[ticker, NOVO-B.CO, 1], [ticker, LLY, 1], [industry, Drug Manufacturers, 1]]
+    indicators: [[health, up]]

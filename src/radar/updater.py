@@ -43,10 +43,11 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
         return msg
 
     def fred():
-        failed = ingest.update_fred(list(universe.macro_fred()))
+        series = list(universe.macro_fred()) + list(universe.macro_fred_views())
+        failed = ingest.update_fred(series)
         if failed:
             raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
-        return f"{len(universe.macro_fred())} series"
+        return f"{len(series)} series"
 
     _steps({"prices": ("Prices", prices)}, log)
     log("Looking up names and sectors (the first time this takes a few minutes)…")

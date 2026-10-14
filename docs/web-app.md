@@ -20,6 +20,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `GET /api/regime`, `/api/rotation`, `/api/momentum`, `/api/positioning`, `/api/coverage`: the sections of `reports/dashboard.json` from the last `radar run`, each with `asof`, `generated`, `age_days` and `stale` (older than `coverage.max_age.prices`; the pages then show a warning).
 - `GET /api/tickers`: every tracked symbol in brief (price, 1d/1m/3m, score or quadrant, 6-month weekly sparkline, your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime for the stop levels come from the dashboard).
+- Market views: `GET /api/views` (views with evidence, templates, vocabulary), `POST /api/views`, `PUT` / `DELETE /api/views/{id}` (a delete returns the view; `POST /api/views/restore` undoes it), `POST /api/views/align` `{tickers, store: main|discovery}` (compact alignment for table columns, cached by the views' version). The ticker profile has a `views` section.
 - `GET /api/discover`: the last discovery scan (`reports/discovery.json`), stale after `coverage.max_age.discovery_prices`; 503 until the first scan. `GET` / `POST /api/discover/scan`: run the scan from the app (`updater.DISCOVER_JOB`, same status shape as `/api/update`).
 - `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines, price-download progress; 409 while running).
 - `POST /api/import`: a Yahoo Finance portfolio CSV as the request body (the quick path on the holdings and welcome pages).
@@ -32,7 +33,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - An untracked ticker is downloaded on its first lookup (~10 s). It is kept in `prices.parquet` but not added to the daily update. A failing Yahoo section returns `status: missing`; an unknown symbol returns 404.
 
 ## Pages
-`/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map + screener over the discovery scan; market, colour, size and grouping in the URL as `mkt`, `color`, `size`, `by`; presets set the `d.*` table filters), `/positioning`, `/me`, `/portfolio`, `/data`, `/ticker/:symbol`. "/" focuses the search from anywhere.
+`/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map + screener over the discovery scan; market, colour, size and grouping in the URL as `mkt`, `color`, `size`, `by`; presets set the `d.*` table filters), `/positioning`, `/me`, `/views` (my market views: templates, editor, evidence), `/portfolio`, `/data`, `/ticker/:symbol`. "/" focuses the search from anywhere.
 
 ## Building blocks (`web/src/components`, `web/src/lib`)
 - `TickerLink`: every ticker links to its profile, shows a hover card (`/api/tickers`) and a small held/watch marker. `WatchStar` / `WatchButton` edit the watchlist.

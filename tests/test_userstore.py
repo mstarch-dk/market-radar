@@ -83,14 +83,19 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
                                                encoding="utf-8")
     userstore.watch("A")
     userstore.unwatch("W")
+    userstore.save_view({"statement": "AI is in a bubble", "conviction": 4,
+                         "exposures": [{"kind": "etf", "key": "SMH", "effect": -1}],
+                         "indicators": [{"indicator": "semis", "expect": "down"}]})
     bundle = CliRunner().invoke(cli.app, ["bundle-holdings"]).output.strip()
 
     for f in (tmp_data / "userdata").iterdir():                         # a fresh CI checkout
         f.unlink() if f.is_file() else None
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": bundle})
-    assert res.exit_code == 0 and "1 transactions and 2 watchlist edits" in res.output
+    assert res.exit_code == 0 and "1 transactions, 2 watchlist edits and 1 market views" in res.output
     h = universe.holdings().set_index("symbol")
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
+    [v] = userstore.views()
+    assert v["statement"] == "AI is in a bubble" and v["exposures"] == [{"kind": "etf", "key": "SMH", "effect": -1}]
 
 
 def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):

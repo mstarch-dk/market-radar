@@ -388,6 +388,10 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
            "analyst": analyst, "fundamentals": fundamentals, "etf": etf, "peers": peer_sec,
            "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {},
                        "watchouts": watchouts}}
+    if not anonymous:   # your market views are personal, like your positions
+        from . import market_views
+
+        out["views"] = market_views.align_profile(identity, closes)
     return clean(out)
 
 

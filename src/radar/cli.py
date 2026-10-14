@@ -43,6 +43,34 @@ def discover(refresh_universe: bool = typer.Option(False, "--refresh-universe",
 
 
 @app.command()
+def views(as_json: bool = typer.Option(False, "--json", help="Machine-readable output (for the skills)"),
+          archived: bool = typer.Option(False, "--archived", help="Include archived views")):
+    """Your market views (subjective beliefs) with what the radar's data says about each. Personal."""
+    import json
+
+    from . import market_views as mv
+
+    vs = mv.with_evidence(None if archived else "active")
+    if as_json:
+        typer.echo(json.dumps({"disclaimer": mv.DISCLAIMER, "views": vs}, indent=1, ensure_ascii=False, default=str))
+        return
+    if not vs:
+        typer.echo("No market views yet: add them on the My market views page of the app.")
+        return
+    typer.echo(mv.DISCLAIMER)
+    typer.echo("")
+    for v in vs:
+        ev = v["evidence"]
+        typer.echo(f"#{v['id']} [{v['status']}] conviction {v['conviction']}/5, {v['horizon']}: {v['statement']}")
+        helps = ", ".join(e["key"] for e in v["exposures"] if e["effect"] > 0) or "–"
+        hurts = ", ".join(e["key"] for e in v["exposures"] if e["effect"] < 0) or "–"
+        typer.echo(f"    helps: {helps} | hurts: {hurts}")
+        typer.echo(f"    evidence: {ev['verdict']} (" + ", ".join(f"{i['label']}: {i['state']}" for i in ev["items"]) + ")")
+        if v.get("falsifier"):
+            typer.echo(f"    would change my mind: {v['falsifier']}")
+
+
+@app.command()
 def doctor(offline: bool = typer.Option(False, "--offline", help="Skip the network checks")):
     """Check that everything Market Radar needs is in place, and say how to fix what isn't."""
     from . import health
@@ -160,6 +188,7 @@ def ticker(symbol: str, port: int = 8780):
 BUNDLE_TX = "portfolio_transactions.csv"   # every stored transaction (userstore), as text
 BUNDLE_WATCHLIST = "watchlist.csv"          # the web app's watchlist edits
 BUNDLE_YAHOO_WATCH = "yahoo_watch.json"     # the watchlist of the last Yahoo import
+BUNDLE_VIEWS = "views.json"                 # your market views (the /views page)
 LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the transaction store
 
 
@@ -182,6 +211,7 @@ def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help=
         z.writestr(BUNDLE_TX, userstore.export_transactions_csv())
         z.writestr(BUNDLE_WATCHLIST, userstore.export_watchlist_csv())
         z.writestr(BUNDLE_YAHOO_WATCH, json.dumps(userstore.meta_get("yahoo_watch", [])))
+        z.writestr(BUNDLE_VIEWS, userstore.export_views_json())
     data = base64.b64encode(buf.getvalue()).decode("ascii")
     if not set_secret:
         typer.echo(data)
@@ -225,7 +255,8 @@ def unbundle_holdings():
             universe.ensure_migrated()
             what = ", ".join(LEGACY_FILES)
         n = userstore.import_watchlist_csv(z.read(BUNDLE_WATCHLIST).decode("utf-8")) if BUNDLE_WATCHLIST in names else 0
-    typer.echo(f"Restored {what} and {n} watchlist edits.")
+        n_views = userstore.import_views_json(z.read(BUNDLE_VIEWS).decode("utf-8")) if BUNDLE_VIEWS in names else 0
+    typer.echo(f"Restored {what}, {n} watchlist edits and {n_views} market views.")
 
 
 portfolio_app = typer.Typer(help="Your transactions (the portfolio store): list, add, export.")

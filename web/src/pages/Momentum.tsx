@@ -5,10 +5,13 @@ import { DataTable, type Col } from "../components/DataTable";
 import { GaugeDots, Graded, worst } from "../components/Gauge";
 import { TableToolbar } from "../components/TableToolbar";
 import { WatchStar } from "../components/WatchButton";
+import { withViews } from "../components/ViewsColumn";
 import { TickerLink, TickerList } from "../components/TickerLink";
+import { useMemo } from "react";
 import { date, num, pct } from "../lib/format";
+import { useAlignment } from "../lib/views";
 
-const cols: Col<MomentumRow>[] = [
+const baseCols: Col<MomentumRow>[] = [
   { key: "name", label: "Company", align: "l", sort: (r) => r.name ?? r.ticker, search: (r) => `${r.name ?? ""} ${r.ticker}`,
     csv: (r) => r.ticker, csvHeader: "Ticker",
     render: (r) => <><TickerLink symbol={r.ticker} name={r.name} nameFirst />{r.new && <span className="new">NEW</span>}</> },
@@ -36,6 +39,9 @@ const cols: Col<MomentumRow>[] = [
 
 export function Momentum() {
   const q = useQuery({ queryKey: ["momentum"], queryFn: api.momentum, retry: false, staleTime: 5 * 60_000 });
+  const tickers = useMemo(() => (q.data?.regions ?? []).flatMap((r) => r.rows.map((x) => x.ticker)), [q.data]);
+  const align = useAlignment(tickers, "main");
+  const cols = useMemo(() => withViews(baseCols, align), [align]);
   return (
     <Loaded q={q} title="Momentum leaders">
       {(d) => (

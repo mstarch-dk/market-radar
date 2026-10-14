@@ -1,0 +1,132 @@
+"""Your market views as the app and the skills see them: the stored views (userstore) with the radar's evidence
+for each, the templates and vocabulary from config/views.yaml, and how a name lines up with your views.
+
+These are the user's subjective beliefs. Every output that carries them says so (DISCLAIMER)."""
+from __future__ import annotations
+
+from functools import cache
+
+import pandas as pd
+
+from . import external, ingest, universe, userstore
+from .config import _load
+from .signals import views as sv
+
+DISCLAIMER = ("These are your own subjective beliefs about where markets are heading, not facts or forecasts. "
+              "The evidence shows what the radar's data did over the last three months; it doesn't prove or "
+              "disprove a view.")
+SECTORS = ["Basic Materials", "Communication Services", "Consumer Cyclical", "Consumer Defensive", "Energy",
+           "Financial Services", "Healthcare", "Industrials", "Real Estate", "Technology", "Utilities"]
+REGIONS = ["us", "europe", "nordic", "asia"]
+HORIZONS = ["3m", "6m", "12m", "3y"]
+
+
+@cache
+def config() -> dict:
+    return _load("views.yaml")
+
+
+def templates() -> list[dict]:
+    out = []
+    for t in config()["templates"]:
+        out.append({**{k: t.get(k) for k in ("key", "area", "pair", "statement", "falsifier")},
+                    "exposures": [{"kind": k, "key": str(v), "effect": int(e)} for k, v, e in t["exposures"]],
+                    "indicators": [{"indicator": i, "expect": x} for i, x in t["indicators"]]})
+    return out
+
+
+def catalogue() -> dict:
+    """What the editor offers: indicators, ETFs (themes, factors, regions, sectors), sectors, regions."""
+    etfs = [{"ticker": e.ticker, "name": e.name, "group": e.group} for e in universe.etfs()]
+    return {"indicators": [{"key": k, "label": v["label"], "kind": v["kind"]} for k, v in config()["indicators"].items()],
+            "etfs": etfs, "sectors": SECTORS, "regions": REGIONS, "horizons": HORIZONS}
+
+
+def _ucits_map() -> dict[str, str]:
+    """UCITS listing -> the US ETF it stands in for (so VVSM.DE counts as SMH)."""
+    return {e.ucits: e.ticker for e in universe.etfs() if e.ucits}
+
+
+# ---------------- evidence ----------------
+
+def reads(closes: pd.DataFrame | None = None) -> dict[str, dict]:
+    if closes is None:
+        prices = ingest.load_prices()
+        if prices.empty:
+            return {}
+        prices["date"] = pd.to_datetime(prices["date"])
+        closes = ingest.wide(prices)
+    return sv.readings(config()["indicators"], closes, ingest.load_fred(), external.load_oecd_cli(),
+                       universe.benchmark())
+
+
+def with_evidence(status: str | None = "active", closes: pd.DataFrame | None = None) -> list[dict]:
+    """Your views, each with the radar's evidence."""
+    vs = userstore.views(status)
+    if not vs:
+        return []
+    r = reads(closes)
+    return [{**v, "evidence": sv.evidence(v, r)} for v in vs]
+
+
+# ---------------- alignment ----------------
+
+def align_profile(identity: dict, closes: pd.DataFrame, views: list[dict] | None = None) -> dict | None:
+    """One name against your active views (for its profile). None when you have no views."""
+    views = userstore.views("active") if views is None else views
+    if not views:
+        return None
+    t = identity["symbol"]
+    meta = pd.DataFrame([{k: identity.get(k) for k in ("sector", "industry", "region", "country")}], index=[t])
+    ctx = sv.contexts([t], meta, closes, universe.benchmark(), sv.view_etfs(views), _ucits_map(), config())[t]
+    out = sv.align(ctx, views, config())
+    status = {v["id"]: v["evidence"]["verdict"] for v in with_evidence("active", closes)}
+    for row in out["views"]:
+        row["evidence"] = status.get(row["id"])
+    return out
+
+
+_cache: dict = {}
+
+
+def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
+    """Many names against your active views (the Momentum and Discover columns), compactly. `store` says
+    whose prices: the radar's own ("main") or the discovery scan's ("discovery")."""
+    views = userstore.views("active")
+    if not views or not tickers:
+        return {}
+    key = (store, userstore.views_version(), tuple(sorted(tickers)))
+    if key in _cache:
+        return _cache[key]
+    bench = universe.benchmark()
+    if store == "discovery":
+        from .discovery import scan
+
+        meta = scan.load_universe().set_index("ticker")
+        meta["region"] = meta["market"].map({"nordic": "nordic", "europe": "europe"})
+        dp = scan.load_prices()
+        main = ingest.load_prices()
+        etfs = set(sv.view_etfs(views)) | {bench}
+        prices = pd.concat([dp, main[main["ticker"].isin(etfs) & ~main["ticker"].isin(set(dp["ticker"]))]])
+    else:
+        prices = ingest.load_prices()
+        sec = universe.sectors([t for t in tickers])
+        from .profile import region_for
+
+        meta = pd.DataFrame({"sector": sec["sector"], "industry": sec["industry"],
+                             "region": [region_for(t) for t in sec.index], "country": None}, index=sec.index)
+    prices = prices[prices["ticker"].isin(set(tickers) | set(sv.view_etfs(views)) | {bench})].copy()
+    prices["date"] = pd.to_datetime(prices["date"])
+    closes = ingest.wide(prices)
+    if bench not in closes:
+        return {}
+    ctxs = sv.contexts(tickers, meta, closes, bench, sv.view_etfs(views), _ucits_map(), config())
+    out = {}
+    for t in tickers:
+        a = sv.align(ctxs.get(t) or {"ticker": t}, views, config())
+        out[t] = {"label": a["label"], "score": a["score"],
+                  "views": [{"id": r["id"], "label": r["label"], "reasons": [x["text"] for x in r["reasons"]]}
+                            for r in a["views"] if r["label"] != "unrelated"]}
+    _cache.clear()
+    _cache[key] = out
+    return out
