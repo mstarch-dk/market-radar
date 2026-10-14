@@ -54,7 +54,7 @@ Du kan slå flere kolonner til under *Columns*:
 - *EPS rev 4w* og *EPS rev 12w*: ændringen i analytikernes indtjeningsskøn for næste år over 4 og 12 uger. Ændringer inden for ±{{settings:valuation.revision_band|pct}} regnes som uændrede.
 - *Div yield* og *Earnings*: udbytteafkast og næste regnskabsdato.
 
-Har du skrevet markedssyn på siden *My market views*, får tabellen også en kolonne *Views*, der viser, om navnet passer med dine syn (*fits your views*), går imod dem (*against your views*) eller begge dele (*mixed*). Hold musen over mærket for at se begrundelserne. Se [Mine markedssyn](brugervejledning/markedssyn).
+Har du skrevet markedssyn på siden *Market views*, får tabellen også en kolonne *Views*, der viser, om navnet passer med dine syn (*fits your views*), går imod dem (*against your views*) eller begge dele (*mixed*). Hold musen over mærket for at se begrundelserne. Se [Mine markedssyn](brugervejledning/markedssyn).
 
 Værdiansættelsestallene kommer fra ugentlige øjebliksbilleder af Yahoos konsensus. De mangler, når selskabet har underskud, når skønnet ser inkonsistent ud, eller når Yahoo ikke har noget. Revisionerne mangler, indtil øjebliksbillederne går langt nok tilbage. Se [Estimatrevisioner](laerebog/estimatrevisioner).
 

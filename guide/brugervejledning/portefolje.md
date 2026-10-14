@@ -110,7 +110,7 @@ Under *Past imports* står hver import med tidspunkt, kilde, fil og antal række
 
 ## Den hurtige Yahoo-import
 
-På siden [My holdings & watchlist](/me) og på velkomstsiden ligger en kortere vej: *Choose the exported CSV file* indlæser en Yahoo Finance-eksport direkte, med beholdninger, solgte positioner og watchlist-navne. Den erstatter den forrige Yahoo-import, og dine watchlist-ændringer i appen bevares. Kurser for nye navne hentes ved næste opdatering. Se [Mine beholdninger og watchlist](brugervejledning/beholdninger).
+På siden [Holdings & watchlist](/me) og på velkomstsiden ligger en kortere vej: *Choose the exported CSV file* indlæser en Yahoo Finance-eksport direkte, med beholdninger, solgte positioner og watchlist-navne. Den erstatter den forrige Yahoo-import, og dine watchlist-ændringer i appen bevares. Kurser for nye navne hentes ved næste opdatering. Se [Mine beholdninger og watchlist](brugervejledning/beholdninger).
 
 ## Kommandolinjen
 

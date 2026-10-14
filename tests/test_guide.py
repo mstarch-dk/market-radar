@@ -19,8 +19,8 @@ def _chapters():
 
 
 def _app_routes() -> set[str]:
-    main = (ROOT / "web" / "src" / "main.tsx").read_text(encoding="utf-8")
-    return set(re.findall(r'\["(/[a-z]+)",', main)) | {"/", "/guide"}
+    nav = (ROOT / "web" / "src" / "lib" / "nav.ts").read_text(encoding="utf-8")
+    return set(re.findall(r'path: "(/[a-z]+)"', nav)) | {"/", "/guide"}
 
 
 def test_every_listed_chapter_exists_and_every_file_is_listed():

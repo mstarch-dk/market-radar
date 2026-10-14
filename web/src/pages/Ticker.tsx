@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type Profile } from "../api/client";
 import { PriceChart, type Level } from "../components/PriceChart";
 import {
@@ -12,6 +12,30 @@ import { date, pct, price, tone } from "../lib/format";
 import { recent } from "../lib/recent";
 
 const STATUS: Record<string, [string, string]> = { holding: ["You hold this", "pos"], watch: ["On your watchlist", "accent"], sold: ["Sold earlier", ""] };
+
+/** Research memos, comparisons and journal entries about this ticker (the Notebook), when there are any. */
+function InNotebook({ symbol }: { symbol: string }) {
+  const { data } = useQuery({ queryKey: ["notebook"], queryFn: api.notebook });
+  if (!data) return null;
+  const sym = symbol.toUpperCase();
+  const docs = [
+    ...data.research.filter((d) => d.ticker?.toUpperCase() === sym),
+    ...data.compare.filter((d) => `-${d.name.slice(11).toUpperCase()}-`.includes(`-${sym}-`)),   // YYYY-MM-DD_A-B-C
+    ...data.journal.filter((d) => d.ticker?.toUpperCase() === sym),
+  ];
+  if (!docs.length) return null;
+  return (
+    <div className="small nb-ticker">
+      In your notebook:{" "}
+      {docs.map((d, i) => (
+        <span key={`${d.kind}/${d.name}`}>{i > 0 && " · "}
+          <Link to={`/notebook/${d.kind}/${encodeURIComponent(d.name)}`}>{d.kind === "journal" ? `${d.meta?.action ?? "decision"} ${d.date}` : d.title}</Link>
+          {d.review_due && <> <Badge kind="warn">review due</Badge></>}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function Header({ p, onRefresh, refreshing }: { p: Profile; onRefresh: () => void; refreshing: boolean }) {
   const id = p.identity;
@@ -32,6 +56,7 @@ function Header({ p, onRefresh, refreshing }: { p: Profile; onRefresh: () => voi
           {id.positive_list && id.positive_list !== "?" && <Badge kind={id.positive_list === "yes" ? "pos" : "neg"}>positive list: {id.positive_list}</Badge>}
           {regime && <Badge kind={regime === "Risk-on" ? "pos" : regime === "Risk-off" ? "neg" : "warn"}>regime {regime}</Badge>}
         </div>
+        <InNotebook symbol={id.symbol} />
       </div>
       <div className="quote">
         <div className="last num">{price(p.price.last, p.price.currency)}</div>

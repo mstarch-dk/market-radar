@@ -30,6 +30,7 @@ books:
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
           - {slug: markedssyn, title: Mine markedssyn}
+          - {slug: notesbog, title: "Notesbogen: briefs, research og journal"}
       - title: Data og drift
         chapters:
           - {slug: data-og-daekning, title: Data og dækning}
@@ -111,6 +112,7 @@ page_links:
   /positioning: brugervejledning/positionering
   /me: brugervejledning/beholdninger
   /views: brugervejledning/markedssyn
+  /notebook: brugervejledning/notesbog
   /portfolio: brugervejledning/portefolje
   /returns: brugervejledning/afkast
   /data: brugervejledning/data-og-daekning

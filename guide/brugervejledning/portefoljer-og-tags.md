@@ -77,7 +77,7 @@ På kommandolinjen: `uv run radar portfolios fork ASK "ASK test" --date 2026-06-
 
 ## Porteføljevælgeren og ?pf=
 
-Siderne [My holdings & watchlist](/me), [Portfolio](/portfolio) og [Returns](/returns) viser som standard dine rigtige porteføljer. Vælgeren *Portfolio* har disse muligheder:
+Siderne [Holdings & watchlist](/me), [Portfolio](/portfolio) og [Returns](/returns) viser som standard dine rigtige porteføljer. Vælgeren *Portfolio* har disse muligheder:
 
 | Valg | I adressen |
 |---|---|

@@ -14,7 +14,7 @@ Skills tilpasser sig dig gennem filen `notes/investor.md`. Kopiér skabelonen `i
 - **Horizon and style**: din typiske holdeperiode og stil.
 - **Preferences and limits**: maksimal positionsstørrelse, sektorer du undgår, og andet Claude bør vide, fx at amerikanske ETF'er ikke sælges til private i EU.
 
-Dine markedssyn skriver du ikke her, men på siden [My market views](/views); skills læser dem med `uv run radar views --json`. Se [Mine markedssyn](brugervejledning/markedssyn).
+Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skills læser dem med `uv run radar views --json`. Se [Mine markedssyn](brugervejledning/markedssyn).
 
 `notes/` bliver på din computer og bliver aldrig delt. Sundhedstjekket (`uv run radar doctor`) siger, om profilen findes.
 
@@ -30,6 +30,8 @@ Dine markedssyn skriver du ikke her, men på siden [My market views](/views); sk
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
 Alle mapperne er lokale og personlige; de kommer aldrig med i git (bortset fra `marketing/`, se nedenfor).
+
+Alt, hvad skills skriver, kan du læse i appen på siden [Notebook](/notebook) (gruppen *Mine*); se [Notesbogen](brugervejledning/notesbog).
 
 ## /market-brief
 

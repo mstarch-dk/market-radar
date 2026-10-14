@@ -42,8 +42,9 @@ Fanerne øverst i appen følger rækkefølgen ovenfor. Her er hvad hver side gø
 | *Momentum* | De stærkeste aktier pr. region, nye navne og klynger | [Momentum](brugervejledning/momentum) |
 | *Discover* | Et bredere net: nordiske og europæiske aktier og UCITS-ETF'er i et heatmap og en screener | [Discover](brugervejledning/discover) |
 | *Positioning & cycle* | Indtjeningsrevisioner, værdiansættelse, OECD-cyklus, renter, futurespositionering og sentiment | [Positionering og cyklus](brugervejledning/positionering) |
-| *My holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |
-| *My market views* | Dine egne markedssyn, holdt op mod data | [Mine markedssyn](brugervejledning/markedssyn) |
+| *Holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |
+| *Market views* | Dine egne markedssyn, holdt op mod data | [Mine markedssyn](brugervejledning/markedssyn) |
+| *Notebook* | Briefs, research-notater, sammenligninger og din beslutningsjournal | [Notesbogen](brugervejledning/notesbog) |
 | *Portfolio* | Handler, kontanter, import og porteføljer | [Portefølje](brugervejledning/portefolje) |
 | *Returns* | Afkast over tid mod ACWI (TWR og MWR) | [Afkast over tid](brugervejledning/afkast) |
 | *Data & coverage* | Kilder, alder, status og blinde vinkler | [Data og dækning](brugervejledning/data-og-daekning) |

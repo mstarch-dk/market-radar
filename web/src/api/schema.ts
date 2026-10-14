@@ -864,6 +864,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notebook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notebook Listing */
+        get: operations["notebook_listing_api_notebook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notebook/{kind}/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notebook Document */
+        get: operations["notebook_document_api_notebook__kind___name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/guide": {
         parameters: {
             query?: never;
@@ -2146,6 +2180,26 @@ export interface components {
             /** Message */
             message: string;
         };
+        /**
+         * JournalMeta
+         * @description A journal entry's front matter (missing fields are None, never guessed).
+         */
+        JournalMeta: {
+            /** Ticker */
+            ticker?: string | null;
+            /** Action */
+            action?: string | null;
+            /** Account */
+            account?: string | null;
+            /** Horizon */
+            horizon?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Review By */
+            review_by?: string | null;
+            /** Views */
+            views?: unknown[] | null;
+        };
         /** Levels */
         Levels: {
             /**
@@ -2568,6 +2622,69 @@ export interface components {
              * @default []
              */
             watchouts: components["schemas"]["Watchout"][];
+        };
+        /** NotebookDocument */
+        NotebookDocument: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "briefs" | "research" | "compare" | "journal" | "reviews";
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Size */
+            size: number;
+            /** Ticker */
+            ticker?: string | null;
+            /** Problem */
+            problem?: string | null;
+            meta?: components["schemas"]["JournalMeta"] | null;
+            /** Review Due */
+            review_due: boolean;
+            /** Markdown */
+            markdown: string;
+            /** Headings */
+            headings: components["schemas"]["GuideHeading"][];
+        };
+        /** NotebookEntry */
+        NotebookEntry: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "briefs" | "research" | "compare" | "journal" | "reviews";
+            /** Name */
+            name: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string;
+            /** Size */
+            size: number;
+            /** Ticker */
+            ticker?: string | null;
+            /** Problem */
+            problem?: string | null;
+            meta?: components["schemas"]["JournalMeta"] | null;
+            /** Review Due */
+            review_due: boolean;
+        };
+        /** NotebookListing */
+        NotebookListing: {
+            /** Briefs */
+            briefs: components["schemas"]["NotebookEntry"][];
+            /** Research */
+            research: components["schemas"]["NotebookEntry"][];
+            /** Compare */
+            compare: components["schemas"]["NotebookEntry"][];
+            /** Journal */
+            journal: components["schemas"]["NotebookEntry"][];
+            /** Reviews */
+            reviews: components["schemas"]["NotebookEntry"][];
         };
         /** OldestInput */
         OldestInput: {
@@ -5733,6 +5850,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MoveResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    notebook_listing_api_notebook_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotebookListing"];
+                };
+            };
+        };
+    };
+    notebook_document_api_notebook__kind___name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotebookDocument"];
                 };
             };
             /** @description Validation Error */

@@ -6,17 +6,9 @@ import { Search } from "../components/Search";
 import { tickerPath } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { date } from "../lib/format";
+import { NAV } from "../lib/nav";
 import { recent } from "../lib/recent";
 
-const SECTIONS = [
-  ["/regime", "Regime", "Risk-on/off vote, breadth, credit, volatility"],
-  ["/rotation", "Sector rotation", "US & European sectors, regions vs ACWI"],
-  ["/themes", "Themes & factors", "Theme ETFs with UCITS alternatives, factors"],
-  ["/momentum", "Momentum", "Leaders per region, clusters, new entrants"],
-  ["/positioning", "Positioning & cycle", "FactSet revisions, OECD CLI, CFTC"],
-  ["/me", "My holdings & watchlist", "Returns vs ACWI, stops and targets"],
-  ["/data", "Data & coverage", "Sources, freshness, blind spots"],
-] as const;
 
 export function Home() {
   const { data } = useQuery({ queryKey: ["context"], queryFn: api.context });
@@ -35,11 +27,16 @@ export function Home() {
           {regime.asof && <span className="muted"> (as of {date(regime.asof)})</span>}.</>}
       </p>
       <Search autoFocus />
-      <div className="tiles">
-        {SECTIONS.map(([to, title, sub]) => (
-          <Link key={to} to={to} className="tile"><b>{title}</b><span>{sub}</span></Link>
-        ))}
-      </div>
+      {NAV.map((g) => (
+        <div key={g.id}>
+          <div className="section-title">{g.label}</div>
+          <div className="tiles home-tiles">
+            {g.pages.map((p) => (
+              <Link key={p.path} to={p.path} className="tile"><b>{p.label}</b><span>{p.blurb}</span></Link>
+            ))}
+          </div>
+        </div>
+      ))}
       {seen.length > 0 && (
         <>
           <div className="section-title">Recently viewed</div>

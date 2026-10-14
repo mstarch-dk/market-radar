@@ -31,6 +31,7 @@
 - `coverage.py`: per-source freshness and coverage, the update log `data/sources.json` (written atomically under a lock; each attempt is also an `ops` event, a ValueError a parse failure), and blind spots. `live()` overlays the current log on a built coverage section (`/api/coverage`). These feed the "Data & coverage" page and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
 - `profile.py`: one ticker's full profile (used by `radar info` and the API), including the risk section; `compare()` puts several side by side with ACWI (`radar info A B`, the `/compare` skill).
 - `guide.py`: the Danish books in `guide/` (see below): the manifest `guide/guide.yaml` (books → parts → chapters, `page_links`, `glossary_links`), one chapter per file reached only through the manifest, `{{settings:key}}` placeholders filled from settings.yaml (`|pct`, `|raw`), heading ids (one slug rule, used by the page and by links), prev/next and a section search.
+- `notebook.py`: the Notebook page's read-only view of what the skills write: `briefs/`, `research/` (+ `compare/`) and `journal/` (+ `reviews/`), with journal front matter (status, account, review date) parsed and *review due* worked out; documents are reached only through the listing.
 - `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).
 
 ## `guide/`

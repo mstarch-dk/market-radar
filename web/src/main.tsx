@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, StrictMode, Suspense, useEffect } from "react";
+import { lazy, StrictMode, Suspense, useEffect, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { Search } from "./components/Search";
@@ -18,32 +18,36 @@ import { Themes } from "./pages/Themes";
 import { Views } from "./pages/Views";
 import { Ticker } from "./pages/Ticker";
 import { pageChapter, useGuideTree } from "./lib/guide";
+import { ALL_PAGES, groupOf, lastPage, NAV, remember } from "./lib/nav";
 import "./styles.css";
 
-const Guide = lazy(() => import("./pages/Guide"));   // Markdown + KaTeX load only when the guide is opened
+// Markdown + KaTeX load only when the guide or the notebook is opened
+const Guide = lazy(() => import("./pages/Guide"));
+const Notebook = lazy(() => import("./pages/Notebook"));
 
-const PAGES = [
-  ["/regime", "Regime", <Regime />],
-  ["/rotation", "Sector rotation", <Rotation />],
-  ["/themes", "Themes & factors", <Themes />],
-  ["/momentum", "Momentum", <Momentum />],
-  ["/discover", "Discover", <Discover />],
-  ["/positioning", "Positioning & cycle", <Positioning />],
-  ["/me", "My holdings & watchlist", <Me />],
-  ["/views", "My market views", <Views />],
-  ["/portfolio", "Portfolio", <Portfolio />],
-  ["/returns", "Returns", <Performance />],
-  ["/data", "Data & coverage", <Data />],
-  ["/ops", "Operations", <Ops />],
-] as const;
+const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton" style={{ height: 400 }} aria-busy="true" />}>{el}</Suspense>;
+
+// what each page in lib/nav.ts shows (the groups, labels and order live there)
+const ELEMENTS: Record<string, ReactNode> = {
+  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />,
+  "/discover": <Discover />, "/positioning": <Positioning />,
+  "/me": <Me />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/views": <Views />,
+  "/notebook": lazyPage(<Notebook />),
+  "/data": <Data />, "/ops": <Ops />,
+};
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
 
 function Shell() {
-  const { pathname, hash } = useLocation();
+  const { pathname, hash, search } = useLocation();
   const home = pathname === "/";
   const guide = useGuideTree();
   const about = guide.data ? pageChapter(guide.data.page_links, pathname) : null;
+  const group = groupOf(pathname);
+  const showPages = group !== null && !pathname.startsWith("/ticker/");
+  useEffect(() => {
+    remember(pathname, search);
+  }, [pathname, search]);
   // a link from deep in a long table opens the next page at its top (a link to a #heading scrolls there instead)
   useEffect(() => {
     if (!hash) window.scrollTo(0, 0);   // block body: newer browsers return a Promise here, which React would take as a cleanup
@@ -65,15 +69,25 @@ function Shell() {
           Guide
         </Link>
       </header>
-      <nav className="tabs" aria-label="Dashboard">
-        {PAGES.map(([path, label]) => <NavLink key={path} to={path}>{label}</NavLink>)}
+      <nav className="groups" aria-label="Sections">
+        {NAV.map((g) => (
+          <Link key={g.id} to={lastPage(g)} className={group?.id === g.id ? "on" : ""}
+            aria-current={group?.id === g.id ? "true" : undefined}>{g.label}</Link>
+        ))}
         {about && <Link to={`/guide/${about}`} className="about-page" title="Kapitlet om denne side i brugervejledningen">? Om denne side</Link>}
       </nav>
+      {showPages && (
+        <nav className="tabs" aria-label={group.label}>
+          {group.pages.map((p) => <NavLink key={p.path} to={p.path} title={p.blurb}>{p.label}</NavLink>)}
+        </nav>
+      )}
+      {!showPages && <div className="nav-rule" />}
       <Routes>
         <Route path="/" element={<Home />} />
-        {PAGES.map(([path, , el]) => <Route key={path} path={path} element={el} />)}
+        {ALL_PAGES.map((p) => <Route key={p.path} path={p.path} element={ELEMENTS[p.path]} />)}
+        <Route path="/notebook/:kind/:name" element={lazyPage(<Notebook />)} />
         <Route path="/ticker/:symbol" element={<Ticker />} />
-        <Route path="/guide/*" element={<Suspense fallback={<div className="skeleton" style={{ height: 400 }} aria-busy="true" />}><Guide /></Suspense>} />
+        <Route path="/guide/*" element={lazyPage(<Guide />)} />
         <Route path="*" element={<p>Not found. <Link to="/">Back to search</Link></p>} />
       </Routes>
     </div>

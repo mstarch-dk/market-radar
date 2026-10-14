@@ -1,6 +1,6 @@
 # Mine markedssyn
 
-Et markedssyn er din egen, subjektive overbevisning om, hvor markederne er på vej hen: "europæiske forsvarsudgifter bliver ved med at stige", "AI-aktier er i en boble", "renterne i euroområdet stiger". På siden [My market views](/views) skriver du dem ned med hvor sikker du er, over hvilken horisont, og hvad der ville få dig til at skifte mening.
+Et markedssyn er din egen, subjektive overbevisning om, hvor markederne er på vej hen: "europæiske forsvarsudgifter bliver ved med at stige", "AI-aktier er i en boble", "renterne i euroområdet stiger". På siden [Market views](/views) skriver du dem ned med hvor sikker du er, over hvilken horisont, og hvad der ville få dig til at skifte mening.
 
 Radaren dømmer ikke dine syn. Den gør to ting:
 

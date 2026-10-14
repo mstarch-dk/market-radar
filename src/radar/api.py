@@ -25,7 +25,7 @@ from .api_models import (
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
-    GuideChapter, GuideHit, GuideTree,
+    GuideChapter, GuideHit, GuideTree, NotebookDocument, NotebookListing,
 )
 from .config import settings
 from .config import ROOT
@@ -735,6 +735,25 @@ def move_rows(pid: int, body: MoveIn) -> dict:
         raise HTTPException(422, {"message": "Not moved: " + problems[0],
                                   "issues": [{"level": "error", "field": "portfolio", "message": p} for p in problems]})
     return {"moved": userstore.move_transactions(pid, body.to, body.ids, symbols)}
+
+
+# ---------------- the notebook: briefs, research memos and the journal (notebook.py; read-only) ----------------
+
+@app.get("/api/notebook", response_model=NotebookListing)
+def notebook_listing() -> dict:
+    from . import notebook
+
+    return notebook.listing()
+
+
+@app.get("/api/notebook/{kind}/{name}", response_model=NotebookDocument)
+def notebook_document(kind: str, name: str) -> dict:
+    from . import notebook
+
+    try:
+        return notebook.document(kind, name)
+    except notebook.NotFound:
+        raise HTTPException(404, f"No {kind} document {name}.") from None
 
 
 # ---------------- the guide: Danish user guide and textbook (guide/, guide.py) ----------------

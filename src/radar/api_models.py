@@ -1615,3 +1615,44 @@ class GuideHit(Strict):
     section: str | None = None
     anchor: str | None = None
     snippet: str
+
+
+# ---------------- the notebook (notebook.py): briefs, research memos and the decision journal ----------------
+
+NotebookKind = Literal["briefs", "research", "compare", "journal", "reviews"]
+
+
+class JournalMeta(Strict):
+    """A journal entry's front matter (missing fields are None, never guessed)."""
+    ticker: str | None = None
+    action: str | None = None
+    account: str | None = None
+    horizon: str | None = None
+    status: str | None = None
+    review_by: str | None = None
+    views: list[Any] | None = None
+
+
+class NotebookEntry(Strict):
+    kind: NotebookKind
+    name: str
+    title: str
+    date: str
+    size: int
+    ticker: str | None = None
+    problem: str | None = None
+    meta: JournalMeta | None = None
+    review_due: bool
+
+
+class NotebookListing(Strict):
+    briefs: list[NotebookEntry]
+    research: list[NotebookEntry]
+    compare: list[NotebookEntry]
+    journal: list[NotebookEntry]
+    reviews: list[NotebookEntry]
+
+
+class NotebookDocument(NotebookEntry):
+    markdown: str
+    headings: list[GuideHeading]

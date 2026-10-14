@@ -77,7 +77,7 @@ Bruger du Claude Code-kommandoerne (`/market-brief`, `/research`, `/compare`, `/
 1. Kopier `investor.example.md` til `notes/investor.md`.
 2. Udfyld dine konti (fx aktiesparekonto og frie midler, med de samme navne som dine porteføljer i appen), din typiske holdeperiode, maksimal positionsstørrelse og hvad du undgår.
 
-Mappen `notes/` bliver på din computer og deles aldrig. Dine markedssyn skal ikke stå i filen; de hører hjemme på siden *My market views*. Se [Claude Code-skills](brugervejledning/claude-code).
+Mappen `notes/` bliver på din computer og deles aldrig. Dine markedssyn skal ikke stå i filen; de hører hjemme på siden *Market views*. Se [Claude Code-skills](brugervejledning/claude-code).
 
 ## Udvikleropsætning
 

@@ -1,8 +1,8 @@
 # Sådan finder du rundt
 
-Dette kapitel er en tur rundt i brugerfladen: topbjælken, fanerne, søgningen, tickerlinks og tabellerne, som går igen på næsten alle sider. Til sidst forklares, hvordan du bruger selve guiden. Appens brugerflade er på engelsk; knapper og kolonner står derfor på engelsk i kursiv her.
+Dette kapitel er en tur rundt i brugerfladen: topbjælken, menuen, søgningen, tickerlinks og tabellerne, som går igen på næsten alle sider. Til sidst forklares, hvordan du bruger selve guiden. Appens brugerflade er på engelsk; knapper og kolonner står derfor på engelsk i kursiv her.
 
-## Topbjælken og fanerne
+## Topbjælken og menuen
 
 Øverst på hver side er en topbjælke med:
 
@@ -10,10 +10,18 @@ Dette kapitel er en tur rundt i brugerfladen: topbjælken, fanerne, søgningen, 
 - **Søgefeltet**, på alle sider undtagen forsiden, hvor søgefeltet i stedet står midt på siden.
 - Linket ***Guide***, som åbner denne guide.
 
-Under topbjælken ligger fanerne: *Regime*, *Sector rotation*, *Themes & factors*, *Momentum*, *Discover*, *Positioning & cycle*, *My holdings & watchlist*, *My market views*, *Portfolio*, *Returns*, *Data & coverage* og *Operations*. Rækkefølgen følger arbejdsgangen: først markedet som helhed, så rotation og navne, så dig selv, og til sidst data og drift. Et kort over siderne står i [Hvad er Market Radar?](brugervejledning/hvad-er-market-radar#et-kort-over-siderne).
+Under topbjælken er menuen i to rækker. Den øverste har tre grupper, og den nederste viser siderne i den gruppe, du er i:
+
+| Gruppe | Sider |
+|---|---|
+| *Markets* | *Regime*, *Sector rotation*, *Themes & factors*, *Momentum*, *Discover*, *Positioning & cycle* |
+| *Mine* | *Holdings & watchlist*, *Portfolio*, *Returns*, *Market views*, *Notebook* |
+| *System* | *Data & coverage*, *Operations* |
+
+Klikker du på en gruppe, kommer du tilbage til den side, du sidst så i gruppen (første gang til dens første side). Rækkefølgen følger arbejdsgangen: først markedet, så dig selv og dine noter, og til sidst data og drift. Står du på en tickerprofil, er *Markets* markeret. Til højre i grupperækken står *? Om denne side*. Et kort over siderne står i [Hvad er Market Radar?](brugervejledning/hvad-er-market-radar#et-kort-over-siderne).
 
 ### Forsiden
-Forsiden har et stort søgefelt, det aktuelle regime (fx *Risk-on* med dato) og fliser til de vigtigste sider. Under fliserne står:
+Forsiden har et stort søgefelt, det aktuelle regime (fx *Risk-on* med dato) og fliser til alle sider, ordnet i de samme tre grupper som menuen. Under fliserne står:
 
 - *Recently viewed*: de tickers, du senest har åbnet.
 - *Holdings* og *Watchlist*: genveje til dine egne navne.
@@ -46,7 +54,7 @@ Alle tickers i appen er links til deres profil. Holder du musen over et link et 
 Du kan bevæge musen ind i kortet og klikke på knapperne. Ved siden af linket står en lille markering, hvis navnet er dit: *held* for en beholdning og *watch* for et navn på din watchlist.
 
 ### Watchlist-stjernen
-I tabellerne står en stjerne yderst til højre. ☆ sætter navnet på din watchlist, ★ tager det af igen. En udfyldt prik (●) betyder, at du ejer navnet; beholdninger kan ikke sættes på watchlist. Et navn på watchlist kommer med i den daglige opdatering og på siden [My holdings & watchlist](/me).
+I tabellerne står en stjerne yderst til højre. ☆ sætter navnet på din watchlist, ★ tager det af igen. En udfyldt prik (●) betyder, at du ejer navnet; beholdninger kan ikke sættes på watchlist. Et navn på watchlist kommer med i den daglige opdatering og på siden [Holdings & watchlist](/me).
 
 ## Tabellerne
 
@@ -107,7 +115,7 @@ Til højre står *På denne side*: kapitlets overskrifter. Klik på en overskrif
 Guiden har sin egen søgning, der søger i begge bøger. Den finder afsnit, der indeholder alle de ord, du skriver, og viser kapitel, afsnit og et uddrag. Træffere i titler og overskrifter står først.
 
 ### Om denne side
-På hver side i appen er der et link, *Om denne side*, der åbner det kapitel i brugervejledningen, der handler om netop den side. På forsiden fører det hertil.
+På hver side i appen er der et link, *? Om denne side* yderst til højre i grupperækken, der åbner det kapitel i brugervejledningen, der handler om netop den side. På forsiden fører det hertil.
 
 ### Levende tal
 Tærskler og vinduer i guiden (fx at regimet regner VIX under {{settings:regime.vix_calm}} som roligt, eller at momentumlisten viser top {{settings:momentum.top_n}}) læses direkte fra `config/settings.yaml`. Ændrer du en indstilling, følger teksten med.

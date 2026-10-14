@@ -116,6 +116,6 @@ Tærsklerne ligger i `config/discovery.yaml`. *New to radar*, *52w high*, *Trend
 2. **Se på heatmappet**, grupperet efter sektor. Klumper hittene sig i én sektor, er det et tegn på en bredere bevægelse; sammenlign med [Sector rotation](/rotation).
 3. **Sortér tabellen** efter *Δ score* eller *Score*, og fjern tyndt handlede navne med filteret *Thin* på *✗ No*.
 4. **Åbn de interessante navne.** Tickerprofilen viser graf, regnskabsdato, analytikere og risiko.
-5. **Sæt dem på watchlist (☆).** Så kommer de med i den daglige opdatering og på [My holdings & watchlist](/me), og de er ikke længere *new to radar*.
+5. **Sæt dem på watchlist (☆).** Så kommer de med i den daglige opdatering og på [Holdings & watchlist](/me), og de er ikke længere *new to radar*.
 
 Momentum i små selskaber er stærkere, men også mere skrøbelig end i store. Læs [Momentumeffekten](laerebog/momentumeffekten) og [Radarens momentumscore](laerebog/momentumscore), før du lægger meget vægt på et enkelt hit.

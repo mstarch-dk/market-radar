@@ -67,6 +67,9 @@ export type DoctorCheck = S["DoctorCheck"];
 export type GuideTree = S["GuideTree"];
 export type GuideChapter = S["GuideChapter"];
 export type GuideHit = S["GuideHit"];
+export type NotebookListing = S["NotebookListing"];
+export type NotebookEntry = S["NotebookEntry"];
+export type NotebookDocument = S["NotebookDocument"];
 export type ImportParams = { filename: string; preset?: string; portfolio?: number; mapping?: Record<string, string>;
   symbols?: Record<string, string>; confirm?: boolean };
 
@@ -133,6 +136,8 @@ export const api = {
     get<VoteOption[]>("/api/settings/regime-votes", "PUT", JSON.stringify({ votes }), "application/json"),
   coverage: () => get<CoverageView>("/api/coverage"),
   guideTree: () => get<GuideTree>("/api/guide"),
+  notebook: () => get<NotebookListing>("/api/notebook"),
+  notebookDocument: (kind: string, name: string) => get<NotebookDocument>(`/api/notebook/${enc(kind)}/${enc(name)}`),
   guideChapter: (book: string, slug: string) => get<GuideChapter>(`/api/guide/${enc(book)}/${enc(slug)}`),
   guideSearch: (q: string) => get<GuideHit[]>(`/api/guide/search?q=${enc(q)}`),
   opsSummary: (days: number) => get<OpsSummary>(`/api/ops/summary?days=${days}`),

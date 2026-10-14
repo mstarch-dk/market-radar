@@ -1,6 +1,6 @@
 # Mine beholdninger og watchlist
 
-Siden [My holdings & watchlist](/me) viser dine egne navne i tre tabeller: det, du ejer nu (*Holdings*), det, du holder øje med (*Watchlist*), og det, du har solgt (*Sold positions*). Hvert navn får radarens momentum, dit afkast i DKK målt mod en skyggeposition i ACWI, regelbaserede advarsler og, for beholdninger, et mekanisk stop og kursmål.
+Siden [Holdings & watchlist](/me) viser dine egne navne i tre tabeller: det, du ejer nu (*Holdings*), det, du holder øje med (*Watchlist*), og det, du har solgt (*Sold positions*). Hvert navn får radarens momentum, dit afkast i DKK målt mod en skyggeposition i ACWI, regelbaserede advarsler og, for beholdninger, et mekanisk stop og kursmål.
 
 Tallene regnes live ud fra de seneste kurser, hver gang du åbner siden. Regimet og rotationsgrafens kvadranter, som stoppet bruger, kommer fra den seneste opdatering.
 

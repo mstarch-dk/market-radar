@@ -19,7 +19,7 @@ Always run Python through uv; the frontend uses pnpm.
 - Watchlist: add or remove from any ticker page in the web app (stored in `userdata/radar.db`, survives re-imports). `watchlist:` in `config/universe.yaml` still works for fixed extras.
 - `uv run radar bundle-holdings [--out FILE] [--include-virtual]` / `unbundle-holdings [--file FILE]`: carry your data to another machine: the real portfolios (all with `--include-virtual`) with their transactions, kinds and tags, the watchlist edits, market views and regime vote choices, as one base64 text. Restoring takes a database backup first and gives each portfolio in the bundle exactly its rows. The file holds your holdings: keep it private.
 
-- `uv run radar views [--json] [--archived]`: your market views (the *My market views* page) with the radar's evidence for each. Personal; the skills read it.
+- `uv run radar views [--json] [--archived]`: your market views (the *Market views* page) with the radar's evidence for each. Personal; the skills read it.
 
 ## Single ticker
 - `uv run radar info <TICKER> [--refresh]`: the full ticker profile as JSON (price development, momentum, technicals, stop levels, analyst estimates, valuation, ETF look-through, peers). The old flat keys stay at the top for `/research`. `--refresh` re-fetches Yahoo fundamentals now.
