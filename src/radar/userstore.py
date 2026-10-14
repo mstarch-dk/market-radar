@@ -1,4 +1,4 @@
-"""The user's own stateful data, kept locally in userdata/radar.db (SQLite; gitignored, never committed).
+"""Your own stateful data, kept locally in userdata/radar.db (SQLite; gitignored, never committed).
 
 Today it holds watchlist edits made in the web app. It is the home for more of the same kind later (ticker
 notes, targets, alarms, peer comparisons): add a table with a new entry in MIGRATIONS, never edit an old one.

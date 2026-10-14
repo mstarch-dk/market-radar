@@ -6,13 +6,15 @@ argument-hint: <ticker> <ticker> [...] [--personal] [--horizon 3m]
 
 # Compare tickers
 
+Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+
 Output goes to `research/compare/YYYY-MM-DD_<T1>-<T2>[-...].md`. Reply with the summary table and a link.
 Everything here is analysis of a setup, not a recommendation to buy or sell.
 
 **Defaults:**
-- **Horizon:** 3 months (the user's 1–6-month momentum focus).
+- **Horizon:** 3 months (the radar's 1–6-month momentum focus), unless `notes/investor.md` or the user says otherwise.
 - **Personal data:** off. Use `--personal` only when the user asks for it or passes the flag. Without it, don't use
-  the user's positions, journal or memos, and don't infer them.
+  their positions, journal or memos, and don't infer them.
 
 ## Data conventions (the JSON you'll read)
 - **Units:**

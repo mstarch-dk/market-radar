@@ -1,0 +1,10 @@
+# Paths left out of the public export (globs relative to the repo root; see scripts/publish_public.py).
+briefs/              # monthly briefs name the owner's holdings
+journal/
+research/
+exports/
+notes/
+userdata/
+.github/workflows/monthly-brief.yml   # needs the owner's secrets; the public repo has its own workflows (publish/overlay)
+publish/             # the export's own configuration
+scripts/publish_public.py

@@ -10,7 +10,7 @@ The journal makes decisions deliberate and reviewable. Each entry records *why* 
 
 ## Mode 1: record a decision (`/journal buy RHM.DE …`)
 
-1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.
+1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (the accounts listed in `notes/investor.md`; without that file, e.g. aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.
 2. Run `uv run radar info <TICKER>` and snapshot the key numbers into the entry.
 3. Link `research/<TICKER>.md` if it exists.
 4. Write `journal/YYYY-MM-DD-<TICKER>-<action>.md`:
@@ -20,14 +20,14 @@ The journal makes decisions deliberate and reviewable. Each entry records *why* 
 date: YYYY-MM-DD
 ticker: <TICKER>
 action: buy|add|trim|sell|pass
-account: ASK-Broker|Broker-frie-midler
+account: <account name from notes/investor.md, e.g. ASK | frie-midler>
 horizon: <e.g. 3 months>
 status: open        # open → closed when the position is exited or the thesis is resolved
 review_by: YYYY-MM-DD
 ---
 # <Action> <Name> (<TICKER>)
 
-## Why (thesis, the user's words)
+## Why (thesis, in the user's words)
 ## Radar at decision time
 score, trend, 1/3/6m, rel 3m vs ACWI, sector quadrant, regime
 ## Exit rules

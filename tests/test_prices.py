@@ -115,7 +115,7 @@ def price_store(tmp_path, monkeypatch):
     calls = []
 
     def install(world: dict[str, pd.DataFrame]):
-        def fake(tickers, start):
+        def fake(tickers, start, progress=None):
             calls.append((sorted(tickers), start))
             frames = [w[w["date"] >= pd.Timestamp(start)] for t, w in world.items() if t in tickers]
             return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=ingest.COLUMNS)

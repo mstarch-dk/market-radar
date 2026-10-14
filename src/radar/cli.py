@@ -1,6 +1,6 @@
 import typer
 
-from . import ingest, report, universe
+from . import universe
 
 app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, regime and holdings signals.")
 
@@ -8,66 +8,17 @@ app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, 
 @app.command()
 def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S&P 500 constituent list")):
     """Download new prices (incremental) and macro series. Each source is logged in data/sources.json."""
-    tickers = universe.all_price_tickers(refresh_constituents)
-    typer.echo(f"Updating {len(tickers)} tickers…")
+    from . import updater
 
-    def prices():
-        res = ingest.update_prices(tickers)
-        msg = f"{res['rows']:,} rows, {res['new']} new tickers"
-        if res["rebased"]:
-            msg += f"; re-downloaded after a dividend/split re-based the history: {', '.join(res['rebased'])}"
-        if res["missing"]:
-            msg += f"; no data for {len(res['missing'])}: {', '.join(res['missing'])}"
-        return msg
-
-    def fred():
-        failed = ingest.update_fred(list(universe.macro_fred()))
-        if failed:
-            raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
-        return f"{len(universe.macro_fred())} series"
-
-    _run_steps({"prices": ("Prices", prices)})
-    universe.names(tickers)  # warm the name cache
-    universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
-    _run_steps({"fred": ("Macro (FRED)", fred)})
-    update_external()
-
-
-def update_external():
-    """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
-    from . import external
-    from .config import settings
-
-    h = universe.holdings()
-    mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
-    _run_steps({
-        "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),
-        "oecd": ("OECD leading indicators", external.update_oecd_cli),
-        "factset": ("FactSet earnings insight",
-                    lambda: f"report {d}" if (d := external.update_factset()) else "no new report"),
-        "analyst": ("Analyst targets", lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"])),
-    })
-
-
-def _run_steps(steps: dict) -> None:
-    """Run update steps {source key: (label, fn)}; a failure is logged and the cached data is kept."""
-    from . import coverage
-
-    for key, (label, step) in steps.items():
-        try:
-            msg = step()
-            typer.echo(f"{label}: {msg}.")
-            coverage.record(key, True, msg)
-        except Exception as e:  # network/format problems shouldn't block the rest of the radar
-            typer.echo(f"{label}: FAILED ({type(e).__name__}: {e}); using cached data.")
-            coverage.record(key, False, error=f"{type(e).__name__}: {e}")
+    updater.update(typer.echo, refresh_constituents)
 
 
 @app.command(name="report")
 def build_report():
     """Build reports/dashboard.json (the web app's data) and reports/summary.json."""
-    res = report.build()
-    typer.echo(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}")
+    from . import updater
+
+    res = updater.build_report(typer.echo)
     typer.echo(f"{res['dashboard']} – view it with `uv run radar serve --open`")
 
 
@@ -76,6 +27,22 @@ def run(refresh_constituents: bool = False):
     """update + report."""
     update(refresh_constituents)
     build_report()
+
+
+@app.command()
+def doctor(offline: bool = typer.Option(False, "--offline", help="Skip the network checks")):
+    """Check that everything Market Radar needs is in place, and say how to fix what isn't."""
+    from . import health
+
+    checks = health.checks(offline=offline)
+    marks = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL", "info": "info"}
+    for c in checks:
+        typer.echo(f"[{marks[c['status']]}] {c['name']}: {c['detail']}")
+        if c.get("fix") and c["status"] in ("warn", "fail"):
+            typer.echo(f"       → {c['fix']}")
+    failed = [c for c in checks if c["status"] == "fail"]
+    typer.echo("All good." if not failed else f"{len(failed)} problem(s) to fix (see → above).")
+    raise typer.Exit(1 if failed else 0)
 
 
 @app.command(name="import-yahoo")
@@ -94,8 +61,8 @@ def import_yahoo(csv_path: str):
 @app.command()
 def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbols"),
          refresh: bool = typer.Option(False, help="Re-fetch Yahoo fundamentals and estimates now"),
-         personal: bool = typer.Option(False, "--personal", help="With several tickers: include the user's positions, "
-                                       "holdings rows and correlations with the user's holdings (left out by default)"),
+         personal: bool = typer.Option(False, "--personal", help="With several tickers: include your positions, "
+                                       "holdings rows and correlations with your holdings (left out by default)"),
          out: str = typer.Option(None, "--out", help="Write the JSON to this file instead of printing it")):
     """Everything the radar knows about one ticker, as JSON (fetches prices if it isn't tracked yet).
 
@@ -125,6 +92,17 @@ def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbol
 @app.command()
 def serve(port: int = 8780, open_browser: bool = typer.Option(False, "--open", help="Open the app in the browser")):
     """Run the web app (dashboard, ticker profiles, watchlist) on http://127.0.0.1:<port>."""
+    import socket
+    import webbrowser
+
+    url = f"http://127.0.0.1:{port}/"
+    with socket.socket() as sock:
+        if sock.connect_ex(("127.0.0.1", port)) == 0:   # already running (e.g. the start script double-clicked twice)
+            typer.echo(f"Market Radar is already running at {url}")
+            if open_browser:
+                webbrowser.open(url)
+            return
+
     import uvicorn
 
     from .api import WEB_DIST
@@ -133,9 +111,8 @@ def serve(port: int = 8780, open_browser: bool = typer.Option(False, "--open", h
         typer.echo("web/dist is missing: run `pnpm -C web install` and `pnpm -C web build` first (the API still runs).")
     if open_browser:
         import threading
-        import webbrowser
 
-        threading.Timer(1.5, webbrowser.open, [f"http://127.0.0.1:{port}/"]).start()
+        threading.Timer(1.5, webbrowser.open, [url]).start()
     uvicorn.run("radar.api:app", host="127.0.0.1", port=port, log_level="warning")
 
 

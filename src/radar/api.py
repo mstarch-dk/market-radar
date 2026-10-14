@@ -3,19 +3,21 @@ from the last `radar run`, the live holdings table and watchlist edits, plus the
 Binds to 127.0.0.1 only; there is no authentication."""
 from __future__ import annotations
 
+import tempfile
 import threading
+from pathlib import Path
 from datetime import date
 
 import pandas as pd
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, profile, tickers, universe, userstore
+from . import dashboard, mine, profile, tickers, universe, updater, userstore
 from .api_models import (
     AppContext, CoverageView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
-    Series, TickerSummary, WatchState,
+    Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
 )
 from .config import settings
 from .config import ROOT
@@ -82,7 +84,7 @@ def search(q: str = Query(..., min_length=1, max_length=60)) -> list[dict]:
 
 @app.get("/api/context", response_model=AppContext)
 def context() -> dict:
-    """Regime and the user's holdings and watchlist, for the start page."""
+    """Regime and your holdings and watchlist, for the start page."""
     h = universe.holdings()
     h = h[h["status"].isin(["holding", "watch"])] if not h.empty else h
     names = universe.names(list(h["symbol"])) if not h.empty else {}
@@ -132,7 +134,7 @@ def get_coverage() -> dict:
     return _view("coverage")
 
 
-# ---------------- the user's holdings and watchlist ----------------
+# ---------------- your holdings and watchlist ----------------
 
 @app.get("/api/me", response_model=MeView)
 def get_me() -> dict:
@@ -190,6 +192,52 @@ def unwatch(symbol: str) -> dict:
     if st == "watch":
         userstore.unwatch(symbol)
     return {"symbol": symbol, "my_status": _status(symbol)}
+
+
+# ---------------- refreshing data and importing a portfolio (no terminal needed) ----------------
+
+@app.get("/api/update", response_model=UpdateStatus)
+def update_status() -> dict:
+    """The data refresh started from the app: status, log lines and price-download progress."""
+    return updater.JOB.state
+
+
+@app.post("/api/update", response_model=UpdateStatus)
+def start_update() -> dict:
+    """Start downloading new data and rebuilding the dashboard in the background (one at a time)."""
+    if not updater.JOB.start():
+        raise HTTPException(409, "An update is already running.")
+    return updater.JOB.state
+
+
+MAX_IMPORT_BYTES = 5_000_000
+
+
+@app.post("/api/import", response_model=ImportResult)
+async def import_portfolio(request: Request) -> dict:
+    """Import a Yahoo Finance portfolio CSV (sent as the request body) as holdings, sold positions and watchlist.
+    Replaces the previous import; watchlist edits made in the app are kept."""
+    body = await request.body()
+    if not body.strip():
+        raise HTTPException(400, "The file is empty.")
+    if len(body) > MAX_IMPORT_BYTES:
+        raise HTTPException(413, "That file is too large for a portfolio export.")
+    header = body.decode("utf-8-sig", errors="replace").splitlines()[0]
+    cols = {c.strip().strip('"') for c in header.split(",")}
+    if not {"Symbol", "Quantity"} <= cols:
+        raise HTTPException(400, "This doesn't look like a Yahoo Finance portfolio export: it needs the columns "
+                                 "Symbol and Quantity (Yahoo: My Portfolio → Export).")
+    # a temporary copy: the import rewrites holdings.csv / transactions.csv only once the file has been read
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "yahoo_portfolio.csv"
+        path.write_bytes(body)
+        try:
+            df, warnings = universe.import_yahoo_csv(str(path))
+        except Exception as e:
+            raise HTTPException(400, f"Couldn't read this Yahoo Finance export ({type(e).__name__}: {e}).") from e
+    counts = df["status"].value_counts()
+    return {"holdings": int(counts.get("holding", 0)), "sold": int(counts.get("sold", 0)),
+            "watch": int(counts.get("watch", 0)), "warnings": {k: list(v) for k, v in warnings.items()}}
 
 
 if WEB_DIST.exists():

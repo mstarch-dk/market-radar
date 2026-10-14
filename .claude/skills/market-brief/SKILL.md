@@ -5,7 +5,7 @@ description: Refresh the market radar and write a dated market brief covering wh
 
 # Market brief
 
-Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice.
+Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice. Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
 
 ## Steps
 
@@ -34,7 +34,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - The Fed Beige Book (8 times a year), IMF World Economic Outlook (April and October), and the ECB monetary policy statements.
    - Company IR pages and earnings call coverage for momentum names.
 
-   **The user's own notes:** if `notes/bloomberg.md` exists, read the entries from the last month. The user pastes takeaways there from a subscription. Treat them as leads to verify and link, not as sources to cite.
+   **The user's own notes:** if `notes/` has reading notes (e.g. `notes/bloomberg.md`), read the entries from the last month. They are takeaways the user pasted from paid sources. Treat them as leads to verify and link, not as sources to cite.
 5. **Write the brief** in the structure below. Keep it under about 900 words, and use tables for numbers.
 6. Reply with a 3–5 line summary and a link to the file.
 
@@ -59,7 +59,7 @@ What's leading, what's rotating in or out, and the drivers (with links). For the
 ## Momentum – new leaders
 New entrants by region, grouped by theme where possible, each with one line on why it's moving.
 
-## My portfolio in this context
+## Your portfolio in this context
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)

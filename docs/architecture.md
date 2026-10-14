@@ -5,6 +5,7 @@
 - `config/settings.yaml`: thresholds (regime, momentum, rotation, stops, coverage limits).
 
 ## `src/radar/`
+- `updater.py`: the update steps behind `radar update`/`run` (each source logged, failures keep the cache) and the background job the app's *Update data* button runs. `health.py`: `radar doctor`.
 - `ingest.py`: yfinance prices and FRED series → `data/*.parquet`. `config.write_parquet` writes atomically, so a running server never reads a half-written file.
 - `external.py`: CFTC positioning, OECD leading indicators, the FactSet Earnings Insight PDF, Yahoo analyst consensus for holdings and watchlist, and Yahoo ticker detail (`fetch_detail` / `detail`, cached in `data/profiles/`).
 - `universe.py`: config access, S&P 500 constituents (SSGA SPY holdings), names, currencies, sectors, Yahoo import, positive list.
@@ -20,6 +21,10 @@
 
 ## `web/`
 Vite + React + TypeScript app served by `radar serve`: the only UI (the old static `radar.html` is gone). The CI brief doesn't depend on it; it reads `summary.json`.
+
+## Sharing and releases
+- This repo is private (its history holds personal briefs). `scripts/publish_public.py` exports HEAD without the paths in `publish/exclude.txt`, adds `publish/overlay/` (the public repo's release and smoke workflows), runs a leak check against `notes/leak-patterns.txt` and the git author, and commits into a clone of the public repo as "Market Radar". Pushing and tagging are manual.
+- A `v*` tag in the public repo builds the release zip (`scripts/build_release_zip.py`: tracked files + prebuilt `web/dist`) that non-technical users download and start with `Start Market Radar.cmd` / `.command` (they install uv if needed, `uv sync`, `radar serve --open`).
 
 ## Local vs committed
 - `data/`, `reports/`, `imports/*`, `notes/` and `userdata/` are gitignored. They hold local data, personal holdings, the user's own reading notes (`notes/bloomberg.md`, read by `/market-brief`) and the user's edits from the web app. Unlike `data/`, `userdata/` can't be re-downloaded.

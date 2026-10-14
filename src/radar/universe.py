@@ -256,10 +256,6 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     tx_all = tx_all.dropna(subset=["Quantity", "Purchase Price", "Trade Date"])
     tx_all = tx_all.rename(columns={"Symbol": "symbol", "Trade Date": "date", "Transaction Type": "type",
                                     "Quantity": "quantity", "Purchase Price": "price"})
-    TRANSACTIONS_FILE.parent.mkdir(exist_ok=True)
-    tx_all[["symbol", "date", "type", "quantity", "price"]].sort_values(["symbol", "date"], kind="stable").to_csv(
-        TRANSACTIONS_FILE, index=False)
-
     rows, warnings = [], {}
     for sym, lots in raw.groupby("Symbol", sort=True):
         if _is_market_symbol(sym):
@@ -273,7 +269,10 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
         if warn:
             warnings[sym] = warn
     df = pd.DataFrame(rows, columns=HOLDING_COLS)
+    # both files are written only once everything has been read, so a bad export leaves the previous import intact
     HOLDINGS_FILE.parent.mkdir(exist_ok=True)
+    tx_all[["symbol", "date", "type", "quantity", "price"]].sort_values(["symbol", "date"], kind="stable").to_csv(
+        TRANSACTIONS_FILE, index=False)
     df.to_csv(HOLDINGS_FILE, index=False)
     return df, warnings
 

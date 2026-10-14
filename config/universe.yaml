@@ -111,7 +111,7 @@ etf_groups:
   themes:
     label: Themes
     region: Global
-    # Signals use the liquid US-listed ETF. The UCITS fields are what you'd buy: search Saxo/Danske by ISIN.
+    # Signals use the liquid US-listed ETF. The UCITS fields are what you'd buy: search your broker by ISIN.
     # ISINs were matched by fund name in SKAT's 2026 positive list. Verify the share class on justETF.
     items:
       - {ticker: SMH,  name: Semiconductors,      ucits: VVSM.DE, ucits_name: VanEck Semiconductor,              isin: IE00BMC38736}

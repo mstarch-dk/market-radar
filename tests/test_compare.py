@@ -36,7 +36,7 @@ def test_personal_data_is_left_out_by_default(env):
     s1 = c["tickers"]["S1"]
     assert c["personal_included"] is False and "mine" not in c
     assert s1["identity"]["my_status"] is None and s1["identity"]["my_position"] is None
-    assert "since entry" not in json.dumps(s1["levels"])                     # stop not anchored on his buy date
+    assert "since entry" not in json.dumps(s1["levels"])                     # stop not anchored on the buy date
     p = profile.compare(["S1", "S2"], personal=True)
     assert p["tickers"]["S1"]["identity"]["my_status"] == "holding" and p["mine"]["S1"]["since_buy"] is not None
 

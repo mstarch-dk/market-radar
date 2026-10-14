@@ -1,0 +1,34 @@
+name: Release zip
+
+# Push a tag like v0.1 to build the download for non-technical users: the repo plus the prebuilt web app.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm -C web install --frozen-lockfile
+      - run: pnpm -C web build
+      - uses: astral-sh/setup-uv@v6
+      - name: Build the zip
+        run: uv run --no-project python scripts/build_release_zip.py --out "dist-release/market-radar-${GITHUB_REF_NAME}.zip" --prefix "market-radar-${GITHUB_REF_NAME}"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist-release/*.zip
+          body: |
+            **Download `market-radar-${{ github.ref_name }}.zip` below**, unzip it, and double-click
+            `Start Market Radar.cmd` (Windows) or `Start Market Radar.command` (Mac). See the README for details.

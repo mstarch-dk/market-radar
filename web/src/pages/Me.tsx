@@ -6,6 +6,7 @@ import { GaugeDots, Graded, worst } from "../components/Gauge";
 import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { WatchButton } from "../components/WatchButton";
+import { ImportPortfolio } from "../components/ImportPortfolio";
 import { date, num, pct } from "../lib/format";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
@@ -105,10 +106,7 @@ export function Me() {
               position</b>: the same DKK amounts invested in ACWI on the same dates, with sells removing the same fraction.
               &ldquo;Since sell&rdquo; shows how the stock has moved after your last sale. Add names to the watchlist from any ticker page.
             </PageHead>
-            {d.rows.length === 0 && (
-              <p className="note">No holdings yet. Export your Yahoo Finance portfolio to CSV and run{" "}
-                <code>radar import-yahoo &lt;file.csv&gt;</code>, or add tickers to the watchlist from their ticker pages.</p>
-            )}
+            {d.rows.length === 0 && <p className="note">No holdings yet. Import them below, or star tickers to build a watchlist.</p>}
             {sections.map(([title, rows, cols]) => rows.length > 0 && (
               <section key={title} className="group">
                 <h2>{title} ({rows.length})</h2>
@@ -122,6 +120,10 @@ export function Me() {
                 )}
               </section>
             ))}
+            <details className="import-details" open={d.rows.length === 0}>
+              <summary>Import or re-import your portfolio from Yahoo Finance</summary>
+              <ImportPortfolio />
+            </details>
           </>
         );
       }}

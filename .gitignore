@@ -14,8 +14,16 @@ imports/*
 # personal reading notes (may quote paid sources such as Bloomberg); local only, so the CI brief does not see them
 notes/
 
-# The user's own edits from the web app (watchlist; later notes, targets, alarms): local only, CI gets the watchlist via HOLDINGS_BUNDLE
+# your own edits from the web app (watchlist; later notes, targets, alarms): local only, CI gets the watchlist via HOLDINGS_BUNDLE
 userdata/
 
 # ticker comparisons written by `radar info A B --out` / the /compare skill (may hold personal data with --personal)
 exports/
+
+# your briefs, research memos and decision journal: they name your holdings and decisions (CI's brief PR force-adds its file)
+briefs/
+research/
+journal/
+
+# release zips built by scripts/build_release_zip.py
+dist-release/

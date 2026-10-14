@@ -745,3 +745,26 @@ class MeView(Strict):
     generated: str
     regime: str | None = None
     rows: list[MyRow]
+
+
+class UpdateProgress(Strict):
+    done: int
+    total: int
+    label: str
+
+
+class UpdateStatus(Strict):
+    status: Literal["idle", "running", "done", "failed"]
+    started: str | None = None
+    finished: str | None = None
+    log: list[str]
+    progress: UpdateProgress | None = None
+    error: str | None = None
+
+
+class ImportResult(Strict):
+    holdings: int
+    sold: int
+    watch: int
+    warnings: dict[str, list[str]]
+

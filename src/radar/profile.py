@@ -190,8 +190,8 @@ def _section(status: str, source: str, asof=None, **data) -> dict:
 
 def build(ticker: str, market: Market | None = None, refresh: bool = False, anonymous: bool = False) -> dict:
     """The full profile of `ticker` (a Yahoo symbol). Raises TickerNotFound without price data. `anonymous`
-    builds it as if the user held nothing: no status or position, stops anchored on the recent high instead of
-    the user's entry, and no overlap with the user's holdings, so nothing personal can be read from it."""
+    builds it as if you held nothing: no status or position, stops anchored on the recent high instead of
+    your entry, and no overlap with your holdings, so nothing personal can be read from it."""
     cfg = settings()
     market = ensure_prices(ticker, market)
     closes = market.closes

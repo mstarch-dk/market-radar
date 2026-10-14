@@ -1,7 +1,7 @@
 """Risk and return statistics from weekly returns: beta (with its standard error), alpha, idiosyncratic and
 downside risk, Sharpe/Sortino, drawdowns, factor attribution and correlations.
 
-Everything is computed on weekly (Friday) returns in DKK, the currency the user experiences, over the windows in
+Everything is computed on weekly (Friday) returns in DKK, the currency a Danish investor experiences, over the windows in
 settings.yaml `risk:`. Each result reports how many weeks it used. With fewer than `min_weeks` there is no
 result (None), never a guess. These are descriptive statistics of the past: a 52-week beta is noisy, so its
 standard error and R² are part of the output.

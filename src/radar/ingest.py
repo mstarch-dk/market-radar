@@ -23,10 +23,13 @@ def load_prices() -> pd.DataFrame:
     return pd.read_parquet(PRICES_FILE)
 
 
-def _download(tickers: list[str], start: date) -> pd.DataFrame:
+def _download(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
+    """Yahoo daily bars from `start`, in batches; `progress(done, total)` is called after each batch."""
     frames = []
     for i in range(0, len(tickers), BATCH):
         batch = tickers[i:i + BATCH]
+        if progress:
+            progress(i, len(tickers))
         raw = yf.download(batch, start=start.isoformat(), auto_adjust=False, group_by="ticker",
                           threads=True, progress=False)
         if raw is None or raw.empty:
@@ -67,7 +70,8 @@ def rescaled(existing: pd.DataFrame, fresh: pd.DataFrame) -> list[str]:
     return sorted(first.index[changed])
 
 
-def update_prices(tickers: list[str]) -> dict:
+def update_prices(tickers: list[str], progress=None) -> dict:
+    """Incremental price update (full history for new tickers). `progress(done, total)` reports batches."""
     existing = load_prices()
     if not existing.empty:
         existing["date"] = pd.to_datetime(existing["date"])
@@ -78,12 +82,12 @@ def update_prices(tickers: list[str]) -> dict:
     known = [t for t in tickers if t in last.index]
     full_start = date.today() - timedelta(days=int(365.25 * settings()["history_years"]))
 
-    full = _download(new, full_start) if new else pd.DataFrame(columns=COLUMNS)
+    full = _download(new, full_start, progress) if new else pd.DataFrame(columns=COLUMNS)
     inc = pd.DataFrame(columns=COLUMNS)
     rebased: list[str] = []
     if known:
         start = pd.Timestamp(last[known].min()).date() - timedelta(days=OVERLAP_DAYS)
-        inc = _norm_dates(_download(known, start))
+        inc = _norm_dates(_download(known, start, progress))
         rebased = rescaled(existing, inc)
         if rebased:
             inc = inc[~inc["ticker"].isin(rebased)]

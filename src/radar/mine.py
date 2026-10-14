@@ -1,4 +1,4 @@
-"""The user's holdings, watchlist and sold positions: momentum, DKK return vs a shadow ACWI position, flags and
+"""Your holdings, watchlist and sold positions: momentum, DKK return vs a shadow ACWI position, flags and
 stop/take-profit levels. Used by `radar run` (summary.json) and live by the web API (`/api/me`)."""
 from __future__ import annotations
 

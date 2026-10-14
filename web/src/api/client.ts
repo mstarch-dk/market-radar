@@ -21,6 +21,8 @@ export type MeView = S["MeView"];
 export type MyRow = S["MyRow"];
 export type WatchState = S["WatchState"];
 export type TickerSummary = S["TickerSummary"];
+export type UpdateStatus = S["UpdateStatus"];
+export type ImportResult = S["ImportResult"];
 
 export class ApiError extends Error {
   constructor(
@@ -31,8 +33,8 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(url: string, method = "GET"): Promise<T> {
-  const r = await fetch(url, { method });
+async function get<T>(url: string, method = "GET", body?: BodyInit, contentType?: string): Promise<T> {
+  const r = await fetch(url, { method, body, headers: contentType ? { "Content-Type": contentType } : undefined });
   if (!r.ok) {
     let detail = r.statusText;
     try {
@@ -61,6 +63,9 @@ export const api = {
   coverage: () => get<CoverageView>("/api/coverage"),
   me: () => get<MeView>("/api/me"),
   tickers: () => get<TickerSummary[]>("/api/tickers"),
+  updateStatus: () => get<UpdateStatus>("/api/update"),
+  startUpdate: () => get<UpdateStatus>("/api/update", "POST"),
+  importPortfolio: (csv: string) => get<ImportResult>("/api/import", "POST", csv, "text/csv"),
   watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
   unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };

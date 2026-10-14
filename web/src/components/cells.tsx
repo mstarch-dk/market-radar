@@ -4,6 +4,8 @@ import { ApiError } from "../api/client";
 import { date, pct, tone, type Maybe } from "../lib/format";
 import { QUAD_KIND } from "./quadrants";
 import { Badge } from "./ui";
+import { UpdatePanel } from "./UpdatePanel";
+import { Welcome } from "../pages/Welcome";
 
 export { QUAD_KIND };
 
@@ -56,7 +58,7 @@ export function PageHead({ title, asof, generated, ageDays, stale, children }: {
       <h1>{title}</h1>
       {stale && (
         <div className="notes" role="alert">
-          This data is {ageDays} days old. Run <code>uv run radar run</code> to refresh it before acting on it.
+          This data is {ageDays} days old. Update it before acting on it. <UpdatePanel compact />
         </div>
       )}
       {asof && (
@@ -74,13 +76,12 @@ export function Loaded<T>({ q, title, children }: { q: UseQueryResult<T>; title:
   if (q.isPending) return <><PageHead title={title} /><div className="skeleton" style={{ height: 400 }} aria-busy="true" /></>;
   if (q.isError) {
     const e = q.error;
+    if (e instanceof ApiError && e.status === 503) return <Welcome />;   // no data downloaded yet
     return (
       <>
         <PageHead title={title} />
         <div className="error">
-          {e instanceof ApiError && e.status === 503
-            ? <>No dashboard data yet. Run <code>uv run radar run</code> (or <code>uv run radar report</code> on cached data), then retry.</>
-            : `Couldn't load: ${e.message}`}{" "}
+          {`Couldn't load: ${e.message}`}{" "}
           <button type="button" className="btn small" onClick={() => q.refetch()} disabled={q.isFetching}>
             {q.isFetching ? "Retrying…" : "Retry"}
           </button>

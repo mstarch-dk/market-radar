@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "radar-app",
-      "runtimeExecutable": "C:\\dev\\market-radar\\.venv\\Scripts\\radar.exe",
-      "runtimeArgs": ["serve", "--port", "8780"],
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "radar", "serve", "--port", "8780"],
       "port": 8780
     }
   ]

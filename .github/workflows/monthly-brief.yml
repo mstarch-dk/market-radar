@@ -72,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
-          git add "briefs/$today.md" data/snapshots/
+          git add -f "briefs/$today.md" data/snapshots/   # briefs/ is gitignored (holdings); the private repo keeps them
           git commit -m "Market brief $today"
           git push -u origin "$branch"
           tldr=$(awk '/^## TL;DR/{f=1;next} /^## /{f=0} f' "briefs/$today.md")

@@ -4,6 +4,8 @@ Always run Python through uv; the frontend uses pnpm.
 
 ## Data and report
 - `uv run radar run`: incremental update of prices, FRED and non-price data (CFTC, OECD CLI, FactSet, analyst consensus), then build `reports/dashboard.json` (served by the web app) and `reports/summary.json` (read by the skills). A failing non-price source logs a warning and keeps its cached data.
+- `uv run radar doctor [--offline]`: plain-language setup check (Python, web build, data age, positive list, portfolio, investor profile, the data services), with how to fix each problem. The start scripts run it when something fails.
+- The web app can do the same without a terminal: *Update data* (Data & coverage page, stale banner, welcome page) and *Import from Yahoo Finance* (holdings page).
 - `uv run radar update` / `uv run radar report`: the two halves of `run`. `update --refresh-constituents` re-fetches the S&P 500 list.
 
 ## Holdings

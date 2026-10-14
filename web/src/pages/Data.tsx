@@ -3,6 +3,7 @@ import { api, type CoverageView } from "../api/client";
 import { Loaded, PageHead, Signal } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { TickerList } from "../components/TickerLink";
+import { UpdatePanel } from "../components/UpdatePanel";
 import { date } from "../lib/format";
 
 type Source = CoverageView["sources"][number];
@@ -39,6 +40,7 @@ export function Data() {
               data shows as <Signal s="n/a" />. Ages are counted from the data date ({date(d.asof)}); limits are in
               config/settings.yaml (<code>coverage:</code>).
             </PageHead>
+            <UpdatePanel />
             <h2>Sources</h2>
             <div className="card"><DataTable id="src" csvName="sources" rows={d.sources} cols={cols} rowKey={(s) => s.key} /></div>
             <h2>How the readings are built</h2>

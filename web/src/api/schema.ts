@@ -67,7 +67,7 @@ export interface paths {
         };
         /**
          * Context
-         * @description Regime and the user's holdings and watchlist, for the start page.
+         * @description Regime and your holdings and watchlist, for the start page.
          */
         get: operations["context_api_context_get"];
         put?: never;
@@ -224,6 +224,51 @@ export interface paths {
          * @description Take a symbol off the watchlist. A holding can't be removed (409): that comes from the Yahoo import.
          */
         delete: operations["unwatch_api_watchlist__symbol__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Update Status
+         * @description The data refresh started from the app: status, log lines and price-download progress.
+         */
+        get: operations["update_status_api_update_get"];
+        put?: never;
+        /**
+         * Start Update
+         * @description Start downloading new data and rebuilding the dashboard in the background (one at a time).
+         */
+        post: operations["start_update_api_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Portfolio
+         * @description Import a Yahoo Finance portfolio CSV (sent as the request body) as holdings, sold positions and watchlist.
+         *     Replaces the previous import; watchlist edits made in the app are kept.
+         */
+        post: operations["import_portfolio_api_import_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -694,6 +739,19 @@ export interface components {
             /** My Status */
             my_status?: ("holding" | "watch" | "sold") | null;
             my_position?: components["schemas"]["Position"] | null;
+        };
+        /** ImportResult */
+        ImportResult: {
+            /** Holdings */
+            holdings: number;
+            /** Sold */
+            sold: number;
+            /** Watch */
+            watch: number;
+            /** Warnings */
+            warnings: {
+                [key: string]: string[];
+            };
         };
         /** Indicator */
         Indicator: {
@@ -1618,6 +1676,32 @@ export interface components {
             /** My Status */
             my_status?: ("holding" | "watch" | "sold") | null;
         };
+        /** UpdateProgress */
+        UpdateProgress: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
+            /** Label */
+            label: string;
+        };
+        /** UpdateStatus */
+        UpdateStatus: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "idle" | "running" | "done" | "failed";
+            /** Started */
+            started?: string | null;
+            /** Finished */
+            finished?: string | null;
+            /** Log */
+            log: string[];
+            progress?: components["schemas"]["UpdateProgress"] | null;
+            /** Error */
+            error?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1988,6 +2072,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_status_api_update_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+        };
+    };
+    start_update_api_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+        };
+    };
+    import_portfolio_api_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
                 };
             };
         };

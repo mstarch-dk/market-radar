@@ -20,6 +20,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `GET /api/regime`, `/api/rotation`, `/api/momentum`, `/api/positioning`, `/api/coverage`: the sections of `reports/dashboard.json` from the last `radar run`, each with `asof`, `generated`, `age_days` and `stale` (older than `coverage.max_age.prices`; the pages then show a warning).
 - `GET /api/tickers`: every tracked symbol in brief (price, 1d/1m/3m, score or quadrant, 6-month weekly sparkline, your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime for the stop levels come from the dashboard).
+- `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines, price-download progress; 409 while running).
+- `POST /api/import`: a Yahoo Finance portfolio CSV as the request body (header checked; read from a temp copy; the previous import is kept if the file is bad).
+- Without `reports/dashboard.json` the pages show a welcome page (download data, import a portfolio) instead of an error.
 - `PUT` / `DELETE /api/watchlist/{symbol}`: add or remove a watchlist symbol (`userstore`); unknown symbols are 404, removing a holding is 409.
 - An untracked ticker is downloaded on its first lookup (~10 s). It is kept in `prices.parquet` but not added to the daily update. A failing Yahoo section returns `status: missing`; an unknown symbol returns 404.
 

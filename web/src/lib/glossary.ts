@@ -25,7 +25,7 @@ export const GLOSSARY = {
   rs_mom: "RS-Momentum: whether that relative trend is accelerating, centred on 100. Above 100 = gaining relative strength.",
   new: "NEW: entered the top list since the earlier snapshot.",
   ucits: "A UCITS-domiciled ETF tracking the same theme, which a Danish investor can buy. Verify the share class on justETF.",
-  isin: "The fund's ISIN, used to look it up at Saxo or Danske and on SKAT's positive list.",
+  isin: "The fund's ISIN, used to look it up at your broker and on SKAT's positive list.",
   positive_list: "SKAT's positive list of share-based investment companies. yes: lager taxation as share income in frie midler, and eligible for the aktiesparekonto. no: taxed as capital income, not ASK-eligible. ?: not checked.",
   since_buy: "Open position's total return in DKK (currency moves and dividends included, dividends treated as reinvested), average-cost method.",
   bench_since_buy: "Shadow position: the same DKK amounts invested in ACWI on the same dates, with sells removing the same fraction. Would the index have done better with this money?",

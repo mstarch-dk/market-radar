@@ -19,7 +19,7 @@ export function Themes() {
               capital income in frie midler, which is usually less favourable, and it isn&apos;t eligible for the ASK. Prefer a
               positive-list alternative. Confirm current rules on skat.dk.{" "}
               {year
-                ? <span className="muted">Checked against SKAT&apos;s {year} list. Search Saxo or Danske by ISIN to find the exact share class.</span>
+                ? <span className="muted">Checked against SKAT&apos;s {year} list. Search your broker by ISIN to find the exact share class.</span>
                 : <span className="muted">Positive list not loaded. Put SKAT&apos;s list in imports/positivliste.xlsx and add <code>isin:</code> to ETFs in universe.yaml.</span>}
             </PageHead>
             {groups.length > 1 && <nav className="jump">{groups.map((g) => <a key={g.key} href={`#${g.key}`}>{g.label}</a>)}</nav>}

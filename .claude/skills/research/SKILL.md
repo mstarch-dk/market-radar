@@ -6,6 +6,8 @@ argument-hint: <yahoo-ticker>
 
 # Research memo
 
+Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+
 Output goes to `research/<TICKER>.md`. If the file already exists, keep the earlier content and add a new dated `## Update YYYY-MM-DD` section at the top that states what changed, especially whether the thesis still holds.
 
 ## Steps
