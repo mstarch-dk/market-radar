@@ -15,10 +15,17 @@ markets:
   europe:
     label: Europe
     kind: stock
-    stoxx600: true                        # every STOXX Europe 600 member (iShares EXSA holdings), any size
+    index: stoxx600                       # every STOXX Europe 600 member (iShares EXSA holdings), any size
     exchanges: [GER, PAR, AMS, MIL, MCE, EBS, LSE, BRU, VIE, LIS, ISE, WSE]
     min_cap_dkk: 1.5e+9                   # names outside the STOXX 600 need at least this market cap
     min_count: {GER: 150, PAR: 120, LSE: 300}
+  us:
+    label: US (S&P 500)
+    kind: stock
+    index: sp500                          # the S&P 500 members (iShares CSPX holdings), any size
+    members_only: true                    # no other US names; too few members in the file = keep the cache
+    exchanges: [NMS, NYQ]                 # screened only for the members' market caps (Cboe-listed ones: size unknown)
+    screen_min_cap: 2.0e+9                # USD; a member below it (or missing) is kept with its size unknown
   etfs:
     label: UCITS ETFs
     kind: etf

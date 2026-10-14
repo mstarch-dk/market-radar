@@ -27,7 +27,7 @@ REPORT_FILE = REPORTS / "discovery.json"
 
 Log = Callable[[str], None]
 Progress = Callable[[int, int], None]
-STOXX_KEEP: set[str] = set()   # STOXX 600 members found while building: never dropped as duplicates
+INDEX_KEEP: set[str] = set()   # index members (STOXX 600, S&P 500) found while building: never dropped as duplicates
 UNIVERSE_COLS = ["ticker", "name", "market", "kind", "exchange", "country", "currency", "market_cap_dkk",
                  "sector", "industry", "category", "isin"]
 
@@ -73,24 +73,35 @@ def load_universe() -> pd.DataFrame:
 
 
 def _stocks(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
-    quotes = {code: sources.screen_exchange(code) for code in mk["exchanges"]}
-    keep, stoxx = set(), None
-    if mk.get("stoxx600"):
-        stoxx = sources.fetch_stoxx600()
-        stoxx = stoxx[stoxx["exchange"].isin(mk["exchanges"])]   # Nordic members belong to the Nordic market
-        keep = set(stoxx["ticker"])
-        STOXX_KEEP.update(keep)
-    df = sources.home_listings(quotes, fx, mk["min_cap_dkk"], keep)
-    sources.check_counts(df, mk.get("min_count"), mk["label"])
-    if stoxx is not None:
-        extra = stoxx[~stoxx["ticker"].isin(set(df["ticker"]))]
-        log(f"  {len(stoxx)} STOXX 600 members, {len(extra)} of them not in Yahoo's screener (kept, size unknown)")
+    """A stock market: Yahoo's screener on its exchanges, plus every member of its index (if any), any size.
+    With `members_only` the screener only supplies the members' market caps; sectors then come from the index
+    file (a sector screen of the big US exchanges would cost hundreds of calls)."""
+    min_cap = mk.get("screen_min_cap", 5e7)
+    quotes = {code: sources.screen_exchange(code, min_cap) for code in mk["exchanges"]}
+    keep, members, what = set(), None, None
+    if mk.get("index"):
+        what = sources.INDEXES[mk["index"]][2]
+        members = sources.fetch_index(mk["index"])
+        if not mk.get("members_only"):           # Nordic STOXX members belong to the Nordic market
+            members = members[members["exchange"].isin(mk["exchanges"])]
+        keep = set(members["ticker"])
+        INDEX_KEEP.update(keep)
+    if mk.get("members_only"):
+        if members is None:
+            raise ValueError(f"{mk['label']}: members_only needs an index")
+        quotes = {code: [q for q in qs if q.get("symbol") in keep] for code, qs in quotes.items()}
+    df = sources.home_listings(quotes, fx, mk.get("min_cap_dkk", 0), keep)
+    if not mk.get("members_only"):
+        sources.check_counts(df, mk.get("min_count"), mk["label"])
+    hints = {}
+    if members is not None:
+        screened = {q.get("symbol") for qs in quotes.values() for q in qs}
+        extra = members[~members["ticker"].isin(screened)]
+        log(f"  {len(members)} {what} members, {len(extra)} of them not in Yahoo's screener (kept, size unknown)")
         df = pd.concat([df, extra.drop(columns="sector_hint")], ignore_index=True)
-        hints = dict(zip(stoxx["ticker"], stoxx["sector_hint"]))
-    else:
-        hints = {}
+        hints = dict(zip(members["ticker"], members["sector_hint"]))
     df["kind"] = "stock"
-    secs = sources.screen_sectors(mk["exchanges"])
+    secs = {} if mk.get("members_only") else sources.screen_sectors(mk["exchanges"])
     df["sector"] = df["ticker"].map(secs).fillna(df["ticker"].map(hints)).fillna("")
     return df
 
@@ -145,7 +156,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     stocks, seen = [], []
     for f in frames:
         if not f.empty and (f["kind"] == "stock").all():
-            f = sources.drop_known_names(f, seen, keep=set(f["ticker"]) & STOXX_KEEP)
+            f = sources.drop_known_names(f, seen, keep=set(f["ticker"]) & INDEX_KEEP)
             seen += list(f["name"])
         stocks.append(f)
     frames = stocks

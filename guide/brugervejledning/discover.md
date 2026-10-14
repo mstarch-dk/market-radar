@@ -1,6 +1,6 @@
 # Discover
 
-Siden [Discover](/discover) kaster et bredere net end resten af radaren. Hvor *Momentum* rangerer radarens faste lister (ca. 700 aktier og ETF'er), scanner Discover flere tusinde nordiske og europæiske aktier og alle UCITS-ETF'er på SKATs positivliste. Formålet er at finde navne, **før** de når momentumlisterne: små og mellemstore selskaber, der er begyndt at bevæge sig, nye toppe, trendvendinger og fonde, du ikke kendte.
+Siden [Discover](/discover) kaster et bredere net end resten af radaren. Hvor *Momentum* rangerer radarens faste lister (ca. 700 aktier og ETF'er), scanner Discover flere tusinde nordiske og europæiske aktier, alle aktier i S&P 500 og alle UCITS-ETF'er på SKATs positivliste. Formålet er at finde navne, **før** de når momentumlisterne: små og mellemstore selskaber, der er begyndt at bevæge sig, nye toppe, trendvendinger og fonde, du ikke kendte.
 
 Siden har to dele: et **heatmap** øverst og en **screener** (en filtrerbar tabel) nedenunder. De viser de samme navne og er koblet sammen.
 
@@ -10,7 +10,7 @@ Siden har to dele: et **heatmap** øverst og en **screener** (en filtrerbar tabe
 
 Discover bygger på sin egen scanning, adskilt fra den daglige opdatering, så den daglige opdatering forbliver hurtig. Scanningen rører ikke radarens øvrige data, og intet fra den indgår i regimet, bredden eller momentumsiden.
 
-- **Første gang** viser siden en forklaring og knappen *Run the first discovery scan*. Den første scanning slår omkring 3.000 navne op og tager et stykke tid.
+- **Første gang** viser siden en forklaring og knappen *Run the first discovery scan*. Den første scanning slår omkring 3.500 navne op og tager et stykke tid.
 - **Senere** starter du en ny scanning med *Scan again* ved siden af markedsvælgeren, eller med `uv run radar discover` i terminalen. Det tager nogle minutter.
 - **Listen over navne** bygges igen cirka månedligt; kurserne hentes ved hver scanning.
 - Er scanningen ældre end {{settings:coverage.max_age.discovery_prices}} dage, viser siden et banner, *This scan is N days old*, med *Scan again*.
@@ -25,7 +25,12 @@ Kør den cirka en gang om ugen. Se [Data og opdatering](brugervejledning/data-og
 |---|---|
 | *Nordic* | Aktier noteret i København, Stockholm, Oslo og Helsinki (primærnotering), over en mindste markedsværdi |
 | *Europe* | Alle medlemmer af STOXX Europe 600 plus større selskaber på de øvrige europæiske hovedbørser |
+| *US (S&P 500)* | Alle medlemmer af S&P 500, uanset størrelse, og ingen andre amerikanske aktier |
 | *UCITS ETFs* | ETF'er fra SKATs positivliste, fundet på Yahoo via deres ISIN |
+
+Medlemmerne af S&P 500 kommer fra beholdningen i iShares' S&P 500-ETF (CSPX), og deres sektor er indeksets GICS-sektor, oversat til Yahoos navne. Markedsværdien kommer fra Yahoos screener; mangler den, står størrelsen som ukendt.
+
+> **Bemærk:** Amerikanske aktier kan ikke ligge på en aktiesparekonto, kun i frie midler. Et hit i *US (S&P 500)* er derfor et kandidatnavn til de frie midler, eller en grund til at lede efter en UCITS-ETF med samme tema.
 
 Markedet for UCITS-ETF'er kræver, at positivlisten ligger i `imports/positivliste.xlsx`; se [Installation og første start](brugervejledning/installation#skats-positivliste). Findes en fond i flere andelsklasser eller på flere børser, vælges én, så den samme fond ikke tæller flere gange.
 

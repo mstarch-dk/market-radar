@@ -2,13 +2,15 @@ import json
 
 import numpy as np
 import pandas as pd
+import pytest
 from fastapi.testclient import TestClient
 
 import world
+from conftest import FIXTURES
 from radar import api, coverage, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
-from radar.discovery import scan
+from radar.discovery import scan, sources
 
 CFG = discovery_config() | {"markets": {
     "nordic": {"label": "Nordic", "kind": "stock"},
@@ -89,3 +91,26 @@ def test_prices_refused_by_yahoo_are_asked_for_again(tmp_data, monkeypatch):
     res = scan.update_prices(tickers, log=lambda m: None, sleep=waits.append, waits=(1, 2))
     assert res["got"] == 10 and res["missing"] == []
     assert calls[1] == tickers[4:] and waits == [1]
+
+
+def test_us_market_keeps_only_sp500_members_with_caps_and_index_sectors(monkeypatch):
+    members = sources.parse_sp500((FIXTURES / "ishares_cspx_holdings.csv").read_text(encoding="utf-8"), min_rows=5)
+    q = lambda sym, name, cap: {"symbol": sym, "longName": name, "currency": "USD", "financialCurrency": "USD",
+                                "marketCap": cap, "quoteType": "EQUITY"}
+    screens = {"NMS": [q("NVDA", "NVIDIA Corporation", 4e12), q("GOOGL", "Alphabet Inc.", 3e12),
+                       q("GOOG", "Alphabet Inc.", 3e12), q("PLTR", "Palantir", 3e11)],
+               "NYQ": [q("BRK-B", "Berkshire Hathaway Inc.", 1e12), q("BF-B", "Brown-Forman", 1e10)]}
+    calls = []
+    monkeypatch.setattr(sources, "screen_exchange", lambda code, min_cap=5e7, **kw: calls.append(min_cap) or screens[code])
+    monkeypatch.setattr(sources, "fetch_index", lambda key: members)
+    monkeypatch.setattr(sources, "screen_sectors", lambda codes: pytest.fail("no sector screen for the US"))
+    mk = {"label": "US (S&P 500)", "kind": "stock", "index": "sp500", "members_only": True,
+          "exchanges": ["NMS", "NYQ"], "screen_min_cap": 2e9}
+    df = scan._stocks("us", mk, {"DKK": 1.0, "USD": 6.5}, log=lambda s: None).set_index("ticker")
+    assert calls == [2e9, 2e9]
+    assert "PLTR" not in df.index                                   # not a member
+    assert ("GOOGL" in df.index) != ("GOOG" in df.index)            # one row per company, not re-added as extra
+    assert df.loc["NVDA", "market_cap_dkk"] == 4e12 * 6.5 and df.loc["NVDA", "sector"] == "Technology"
+    assert {"AMZN", "CBOE"} <= set(df.index)                        # members the screen missed are kept…
+    assert pd.isna(df.loc["AMZN", "market_cap_dkk"])                # …with their size unknown, not 0
+    assert df.loc["BRK-B", "sector"] == "Financial Services" and (df["kind"] == "stock").all()

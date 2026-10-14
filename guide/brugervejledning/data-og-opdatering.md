@@ -60,9 +60,9 @@ uv run radar report    # kun rapporten, ud fra de data, der allerede ligger loka
 
 ## Discover-scanningen er separat
 
-Siden [Discover](/discover) bygger på en meget bredere liste af navne (nordiske og europæiske aktier og UCITS-ETF'er fra positivlisten, i alt flere tusinde). Den scanning ville gøre den daglige opdatering langsom, så den kører for sig:
+Siden [Discover](/discover) bygger på en meget bredere liste af navne (nordiske og europæiske aktier, aktierne i S&P 500 og UCITS-ETF'er fra positivlisten, i alt flere tusinde). Den scanning ville gøre den daglige opdatering langsom, så den kører for sig:
 
-- Første gang starter du den på Discover-siden med *Run the first discovery scan*. Den slår omkring 3.000 navne op og tager et stykke tid.
+- Første gang starter du den på Discover-siden med *Run the first discovery scan*. Den slår omkring 3.500 navne op og tager et stykke tid.
 - Senere starter du den med *Scan again* på samme side, eller med `uv run radar discover` i terminalen. Den tager nogle minutter.
 - Listen over navne bygges igen cirka månedligt; kurserne hentes ved hver scanning.
 - Scanningen rører ikke radarens øvrige data, og *Update data* kører ikke scanningen.

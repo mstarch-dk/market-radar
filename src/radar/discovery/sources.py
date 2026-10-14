@@ -1,5 +1,6 @@
-"""Where the discovery universe comes from: Yahoo's equity screener (Nordic and European listings), the STOXX
-Europe 600 members (iShares EXSA holdings) and SKAT's positive list mapped from ISIN to Yahoo ETF symbols.
+"""Where the discovery universe comes from: Yahoo's equity screener (Nordic, European and US listings), index
+members from iShares holdings files (STOXX Europe 600 via EXSA, S&P 500 via CSPX) and SKAT's positive list mapped
+from ISIN to Yahoo ETF symbols.
 
 Every source checks that it parsed a plausible number of names and raises otherwise, so a changed layout fails
 loudly and the cached universe is kept (scan.py)."""
@@ -23,8 +24,10 @@ EXCHANGES = {
     "LSE": (".L", "United Kingdom", {"GBP", "GBp"}), "BRU": (".BR", "Belgium", {"EUR"}),
     "VIE": (".VI", "Austria", {"EUR"}), "LIS": (".LS", "Portugal", {"EUR"}), "ISE": (".IR", "Ireland", {"EUR"}),
     "WSE": (".WA", "Poland", {"PLN"}), "ATH": (".AT", "Greece", {"EUR"}),
+    "NMS": ("", "United States", {"USD"}), "NYQ": ("", "United States", {"USD"}),
+    "BTS": ("", "United States", {"USD"}),
 }
-SUFFIX_EXCHANGE = {v[0]: k for k, v in EXCHANGES.items()}
+SUFFIX_EXCHANGE = {v[0]: k for k, v in EXCHANGES.items() if v[0]}
 EUROPEAN_CCY = {"EUR", "GBP", "CHF", "SEK", "NOK", "DKK", "PLN"}
 # a company reporting in one of these currencies is at home only on these exchanges; elsewhere it is a cross-listing
 CCY_HOME = {"DKK": {"CPH"}, "SEK": {"STO"}, "NOK": {"OSL"}, "CHF": {"EBS"}, "GBP": {"LSE"}, "PLN": {"WSE"}}
@@ -162,11 +165,16 @@ def check_counts(df: pd.DataFrame, min_count: dict[str, int], what: str) -> None
                          + ", ".join(f"{k} {n} < {min_count[k]}" for k, n in short.items()) + ")")
 
 
-# ---------------- STOXX Europe 600 (iShares EXSA holdings) ----------------
+# ---------------- index members (iShares holdings: EXSA for the STOXX Europe 600, CSPX for the S&P 500) ----------------
 
 STOXX600_URL = ("https://www.ishares.com/de/privatanleger/de/produkte/251931/"
                 "ishares-stoxx-europe-600-ucits-etf-de/latest-holdings.csv")
 STOXX600_MIN = 550
+SP500_URL = ("https://www.ishares.com/de/privatanleger/de/produkte/253743/"
+             "ishares-core-sp-500-ucits-etf/latest-holdings.csv")
+SP500_MIN = 490
+# index key (discovery.yaml `index:`) -> (holdings file, fewest stocks it may hold, display name)
+INDEXES = {"stoxx600": (STOXX600_URL, STOXX600_MIN, "STOXX 600"), "sp500": (SP500_URL, SP500_MIN, "S&P 500")}
 
 # iShares' exchange names (German site) -> Yahoo exchange code
 ISHARES_EXCHANGES = {
@@ -178,6 +186,7 @@ ISHARES_EXCHANGES = {
     "warsaw stock exchange/equities/main market": "WSE", "athens exchange s.a. cash market": "ATH",
     "omx nordic exchange copenhagen a/s": "CPH", "oslo bors asa": "OSL", "nasdaq omx helsinki ltd.": "HEL",
     "nasdaq omx nordic": "STO",
+    "new york stock exchange inc.": "NYQ", "nasdaq": "NMS", "cboe bzx": "BTS",
 }
 # iShares' German GICS sector names -> Yahoo's sector names (used when Yahoo has no sector for a name)
 ISHARES_SECTORS = {
@@ -188,8 +197,9 @@ ISHARES_SECTORS = {
 }
 
 
-def parse_stoxx600(text: str, min_rows: int = STOXX600_MIN) -> pd.DataFrame:
-    """iShares' EXSA holdings CSV (German locale) -> ticker (Yahoo symbol), name, exchange, country, sector."""
+def parse_holdings(text: str, min_rows: int, what: str) -> pd.DataFrame:
+    """An iShares holdings CSV (German locale) -> ticker (Yahoo symbol), name, exchange, country, sector hint.
+    Cash, futures and unlisted lines are skipped."""
     rows = list(csv.reader(io.StringIO(text)))
     head = next((i for i, r in enumerate(rows) if r and r[0].strip() == "Emittententicker"), None)
     if head is None:
@@ -212,14 +222,24 @@ def parse_stoxx600(text: str, min_rows: int = STOXX600_MIN) -> pd.DataFrame:
         out.append({"ticker": sym + EXCHANGES[code][0], "name": d["Name"].strip().title(), "exchange": code,
                     "country": EXCHANGES[code][1], "sector_hint": ISHARES_SECTORS.get(d["Sektor"].strip(), "")})
     if len(out) < min_rows:
-        raise ValueError(f"only {len(out)} stocks in the STOXX 600 holdings file (expected ≥ {min_rows})")
+        raise ValueError(f"only {len(out)} stocks in the {what} holdings file (expected ≥ {min_rows})")
     return pd.DataFrame(out).drop_duplicates("ticker")
 
 
-def fetch_stoxx600() -> pd.DataFrame:
-    resp = net.get(STOXX600_URL, timeout=60)
+def parse_stoxx600(text: str, min_rows: int = STOXX600_MIN) -> pd.DataFrame:
+    return parse_holdings(text, min_rows, "STOXX 600")
+
+
+def parse_sp500(text: str, min_rows: int = SP500_MIN) -> pd.DataFrame:
+    return parse_holdings(text, min_rows, "S&P 500")
+
+
+def fetch_index(key: str) -> pd.DataFrame:
+    """The members of one index in INDEXES, from its iShares holdings file."""
+    url, n, what = INDEXES[key]
+    resp = net.get(url, timeout=60)
     resp.raise_for_status()
-    return parse_stoxx600(resp.content.decode("utf-8-sig", errors="replace"))
+    return parse_holdings(resp.content.decode("utf-8-sig", errors="replace"), n, what)
 
 
 # ---------------- UCITS ETFs: SKAT's positive list -> Yahoo symbols ----------------

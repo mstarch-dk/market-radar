@@ -140,8 +140,9 @@ function NoScan() {
     <>
       <PageHead title="Discover">
         Discover looks beyond the radar&apos;s own lists: Nordic and European stocks from Yahoo&apos;s screener, every STOXX
-        Europe 600 member and the ETFs on SKAT&apos;s positive list. It runs as a separate scan so the daily update stays
-        fast. The first scan takes a while (it looks up about 3,000 names once); later scans take a few minutes.
+        Europe 600 and S&amp;P 500 member and the ETFs on SKAT&apos;s positive list. It runs as a separate scan so the daily
+        update stays fast. The first scan takes a while (it looks up about 3,500 names once); later scans take a few
+        minutes.
       </PageHead>
       <UpdatePanel job="discover" label="Run the first discovery scan" />
     </>

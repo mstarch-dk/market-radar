@@ -29,7 +29,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser (historik fra før din første handel), tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
 | **FactSet** Earnings Insight (offentlig PDF) | Forward P/E, yield gap | Ja | **Nej.** Ophavsretligt beskyttet analyse |
 | **State Street (SSGA)**, SPY-beholdninger | S&P 500-medlemmer | Ja | **Nej.** Indeksmedlemmer tilhører S&P Dow Jones Indices |
-| **iShares (BlackRock)**, fondsbeholdninger | ETF-gennemsyn, *Discover*-universet | Ja | **Nej.** Indeksmedlemmer tilhører indeksudbyderne (MSCI, STOXX m.fl.) |
+| **iShares (BlackRock)**, fondsbeholdninger | ETF-gennemsyn, *Discover*-universet (medlemmerne af STOXX Europe 600 og S&P 500) | Ja | **Nej.** Indeksmedlemmer tilhører indeksudbyderne (MSCI, STOXX, S&P Dow Jones Indices m.fl.) |
 | **AAII** Sentiment Survey | Sentiment | Ja | **Nej.** Ophavsret hos AAII |
 | **Cboe**, put/call-forhold | Sentiment | Ja | **Nej.** Cboes markedsdata |
 | **FRED**, serier fra tredjeparter (fx `BAMLH0A0HYM2`, ICE BofA high yield-spænd) | Kreditspænd | Ja | **Nej.** Ophavsret hos seriens ejer; ICE begrænser videregivelse |

@@ -15,7 +15,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - Sources older than their `coverage.max_age` turn stale and stop voting in the regime.
 - Yahoo detail units are inconsistent: dividend yield and expense ratio arrive in percent, margins as fractions, debt/equity ×100. `external.parse_*` normalise to fractions and range-check them; implausible values are dropped with a note instead of shown.
 - Discovery market caps: Yahoo's screener reports `marketCap` in the quote currency, except that GBp (pence) quotes have caps in GBP. They are converted to DKK at the latest FX close; a missing cap or rate stays missing (size unknown), never 0. Traded value uses `raw_close × volume`, divided by 100 for GBp.
-- The discovery universe is today's listings only (no delisted names: survivorship bias), and its sectors come from the screener's own sector filter. Industries are shown only where the radar's sector cache already has them.
+- The discovery universe is today's listings only (no delisted names: survivorship bias), and its sectors come from the screener's own sector filter (for the S&P 500 market, which skips that filter: the index's GICS sector from the iShares file, mapped to Yahoo's names). Industries are shown only where the radar's sector cache already has them.
 - Analyst targets are converted to the radar's price units by the ratio of our close to Yahoo's price on the fetch date. This handles GBp vs GBP and ADR ratios.
 
 ## Valuation (`valuation.py`, `signals/valuation.py`)

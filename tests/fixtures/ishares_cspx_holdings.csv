@@ -1,0 +1,13 @@
+Fondsposition per,"13.Okt.2026"
+
+Emittententicker,Name,Sektor,Anlageklasse,Marktwert,Gewichtung (%),Nominalwert,Nominale,Kurs,Standort,Börse,Marktwährung
+"NVDA","NVIDIA","IT","Aktien","1.000,00","8,00","1.000,00","10,00","100,00","Vereinigte Staaten","NASDAQ","USD"
+"GOOGL","ALPHABET CLASS A","Kommunikation","Aktien","900,00","3,00","900,00","9,00","100,00","Vereinigte Staaten","NASDAQ","USD"
+"GOOG","ALPHABET CLASS C","Kommunikation","Aktien","800,00","2,50","800,00","8,00","100,00","Vereinigte Staaten","NASDAQ","USD"
+"BRK B","BERKSHIRE HATHAWAY INC CLASS B","Finanzwesen","Aktien","700,00","1,50","700,00","7,00","100,00","Vereinigte Staaten","New York Stock Exchange Inc.","USD"
+"AMZN","AMAZON.COM INC","Zyklische Konsumgüter ","Aktien","600,00","3,70","600,00","6,00","100,00","Vereinigte Staaten","NASDAQ","USD"
+"BF B","BROWN FORMAN CORP CLASS B","Nichtzyklische Konsumgüter","Aktien","50,00","0,01","50,00","1,00","100,00","Vereinigte Staaten","New York Stock Exchange Inc.","USD"
+"CBOE","CBOE GLOBAL MARKETS INC","Finanzwesen","Aktien","40,00","0,05","40,00","1,00","100,00","Vereinigte Staaten","Cboe BZX","USD"
+"HOLX","HOLOGIC INC","Gesundheitsversorgung","Aktien","0,01","0,00","0,01","1,00","0,01","Vereinigte Staaten","NO MARKET (E.G. UNLISTED)","USD"
+"USD","USD CASH","Barmittel & Derivate","Geldmarkt","10,00","0,01","10,00","10,00","100,00","Vereinigte Staaten","-","USD"
+"ESZ6","S&P500 EMINI DEC 26","Barmittel & Derivate","Futures","0,00","0,00","10,00","1,00","100,00","-","Index And Options Market","USD"

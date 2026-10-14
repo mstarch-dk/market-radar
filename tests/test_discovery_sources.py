@@ -27,6 +27,18 @@ def test_stoxx600_layout_change_or_short_file_raises():
         sources.parse_stoxx600(text.replace("Emittententicker", "Ticker"), min_rows=1)
 
 
+def test_sp500_holdings_parse_to_plain_us_symbols():
+    df = sources.parse_sp500((FIXTURES / "ishares_cspx_holdings.csv").read_text(encoding="utf-8"), min_rows=5)
+    t = df.set_index("ticker")
+    assert t.loc["NVDA", "exchange"] == "NMS" and t.loc["NVDA", "country"] == "United States"
+    assert t.loc["BRK-B", "exchange"] == "NYQ" and t.loc["BRK-B", "sector_hint"] == "Financial Services"
+    assert t.loc["BF-B", "sector_hint"] == "Consumer Defensive" and t.loc["CBOE", "exchange"] == "BTS"
+    assert t.loc["AMZN", "sector_hint"] == "Consumer Cyclical"
+    assert not {"HOLX", "USD", "ESZ6"} & set(t.index)            # unlisted, cash and futures rows are dropped
+    with pytest.raises(ValueError, match="S&P 500"):
+        sources.parse_sp500((FIXTURES / "ishares_cspx_holdings.csv").read_text(encoding="utf-8"))   # 7 < 490
+
+
 def _q(sym, name, ccy, fin, cap, qt="EQUITY"):
     return {"symbol": sym, "longName": name, "currency": ccy, "financialCurrency": fin, "marketCap": cap,
             "quoteType": qt}

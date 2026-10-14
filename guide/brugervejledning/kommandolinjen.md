@@ -27,7 +27,7 @@ Kommandoerne og appen deler de samme data. Kører appen, mens du ændrer noget p
 | `radar run` | Henter nye data og bygger rapporten. Det samme som *Update data* i appen |
 | `radar update` | Kun den første halvdel: henter kurser, makroserier og de øvrige kilder |
 | `radar report` | Kun den anden halvdel: bygger `reports/dashboard.json` og `reports/summary.json` fra de data, der er |
-| `radar discover` | Den separate Discover-scanning (nordiske og europæiske aktier, ETF'er fra positivlisten) |
+| `radar discover` | Den separate Discover-scanning (nordiske og europæiske aktier, S&P 500, ETF'er fra positivlisten) |
 | `radar doctor` | Sundhedstjekket |
 | `radar ops` | Driftsloggen: forespørgsler, fejl og pauser |
 
