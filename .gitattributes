@@ -1,3 +1,13 @@
+# every text file is stored with LF and checked out with LF, whatever the editor or OS
+* text=auto eol=lf
+
+# binaries: never touch
+*.xlsx    binary
+*.pdf     binary
+*.png     binary
+*.jpg     binary
+*.parquet binary
+
 # start scripts: Windows needs CRLF, macOS needs LF
 *.cmd     text eol=crlf
 *.command text eol=lf
