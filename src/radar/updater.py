@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 from typing import Callable
 
-from . import coverage, external, ingest, report, sentiment, universe, valuation
+from . import coverage, external, ingest, ops, report, sentiment, universe, valuation
 from .config import settings
 
 Log = Callable[[str], None]
@@ -20,12 +20,13 @@ def _steps(steps: dict, log: Log) -> None:
     """Run update steps {source key: (label, fn)}; a failure is logged and the cached data is kept."""
     for key, (label, step) in steps.items():
         try:
-            msg = step()
+            with ops.context(source=key):   # the step's requests are attributed to it
+                msg = step()
             log(f"{label}: {msg}.")
             coverage.record(key, True, msg)
         except Exception as e:  # network/format problems shouldn't block the rest of the radar
             log(f"{label}: FAILED ({type(e).__name__}: {e}); using cached data.")
-            coverage.record(key, False, error=f"{type(e).__name__}: {e}")
+            coverage.record(key, False, error=f"{type(e).__name__}: {e}", exc=e)
 
 
 def update(log: Log = print, refresh_constituents: bool = False, progress: Callable[[int, int], None] | None = None) -> None:
@@ -51,8 +52,9 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
 
     _steps({"prices": ("Prices", prices)}, log)
     log("Looking up names and sectors (the first time this takes a few minutes)…")
-    universe.names(tickers)  # warm the name cache
-    universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
+    with ops.context(source="reference"):
+        universe.names(tickers)  # warm the name cache
+        universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
     _steps({"fred": ("Macro (FRED)", fred)}, log)
     update_external(log)
 
@@ -89,9 +91,10 @@ class UpdateJob:
     """One data refresh at a time, run in a thread; its log and progress can be polled."""
 
     def __init__(self, work: Callable[[Log, Callable[[int, int], None]], None] | None = None,
-                 label: str = "Downloading prices"):
+                 label: str = "Downloading prices", kind: str = "update"):
         self._lock = threading.Lock()
         self._label = label
+        self._kind = kind     # the job's kind in the operations log
         self._work = work or (lambda log, progress: (update(log, progress=progress), build_report(log)))
         self.state = {"status": "idle", "started": None, "finished": None, "log": [], "progress": None, "error": None}
 
@@ -108,20 +111,25 @@ class UpdateJob:
                 return False
             self.state = {"status": "running", "started": datetime.now().isoformat(timespec="seconds"), "finished": None,
                           "log": [], "progress": None, "error": None}
-        threading.Thread(target=self._run, name="radar-update", daemon=True).start()
+        jid = ops.job_start(self._kind)
+        threading.Thread(target=self._run, args=(jid,), name="radar-update", daemon=True).start()
         return True
 
-    def _run(self) -> None:
+    def _run(self, jid: int | None = None) -> None:
+        status, error = "done", None
         try:
-            self._work(self._log, self._progress)
-            self.state["status"] = "done"
+            with ops.context(job=jid):
+                self._work(self._log, self._progress)
         except BaseException as e:   # SystemExit from report.build (no prices) included: report it, don't die
-            self.state["error"] = f"{type(e).__name__}: {e}"
-            self._log(f"Stopped: {self.state['error']}")
-            self.state["status"] = "failed"
+            status, error = "failed", f"{type(e).__name__}: {e}"
+            self._log(f"Stopped: {error}")
+            ops.event("error", "job", f"{self._kind} stopped: {error}", exc=e)
         finally:
-            self.state["finished"] = datetime.now().isoformat(timespec="seconds")
-            self.state["progress"] = None
+            ops.job_finish(jid, status, error, self.state["log"])
+            ops.prune()
+            # the status changes last, so whoever waits for it sees the operations log complete
+            self.state.update(error=error, finished=datetime.now().isoformat(timespec="seconds"), progress=None,
+                              status=status)
 
 
 def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
@@ -131,4 +139,4 @@ def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
 
 
 JOB = UpdateJob()
-DISCOVER_JOB = UpdateJob(_discover, "Scanning")  # the separate discovery scan (Discover page)
+DISCOVER_JOB = UpdateJob(_discover, "Scanning", "discover")  # the separate discovery scan (Discover page)

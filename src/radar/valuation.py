@@ -16,11 +16,10 @@ import re
 from datetime import date, datetime, timezone
 
 import pandas as pd
-import requests
 
+from . import net
 from .config import DATA, discovery_config, settings, write_parquet
 
-UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
 DIR = DATA / "valuation"
 STOCKS_FILE = DIR / "stocks.parquet"
 ETFS_FILE = DIR / "etfs.parquet"
@@ -211,9 +210,8 @@ def update_stocks(force: bool = False) -> str:
 
 def _lookups(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> int:
     import logging
-    import time
 
-    import yfinance as yf
+    yf = net.yf()
 
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
     n = 0
@@ -225,7 +223,6 @@ def _lookups(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> int:
         if info.get("quoteType") == "EQUITY":
             rows[t] = quote_valuation(info_as_quote(t, info), fx, rng, check_estimates=True)
             n += 1
-        time.sleep(0.3)
     return n
 
 
@@ -267,9 +264,8 @@ def etf_tickers() -> list[str]:
 
 def update_etfs(force: bool = False) -> str:
     import logging
-    import time
 
-    import yfinance as yf
+    yf = net.yf()
 
     cfg = _cfg()
     due, old = _snapshot_due(ETFS_FILE, cfg["snapshot_days"])
@@ -286,7 +282,6 @@ def update_etfs(force: bool = False) -> str:
         if eh is None or eh.empty:
             continue
         rows.append({"ticker": t} | fund_valuation(eh.iloc[:, 0].to_dict(), tuple(cfg["fund_pe_range"])))
-        time.sleep(0.2)
     if not rows:
         raise ValueError(f"no fund data for any of {len(tickers)} ETFs: has Yahoo changed?")
     df = pd.DataFrame(rows).reindex(columns=ETF_COLS)
@@ -338,7 +333,7 @@ def _market_merge(name: str, s: pd.Series) -> None:
 
 
 def update_cape() -> str:
-    resp = requests.get(MULTPL_URL, headers=UA, timeout=60)
+    resp = net.get(MULTPL_URL, timeout=60)
     resp.raise_for_status()
     s = parse_multpl(resp.text)
     _market_merge("cape", s)
@@ -346,7 +341,7 @@ def update_cape() -> str:
 
 
 def update_erp() -> str:
-    resp = requests.get(DAMODARAN_URL, headers=UA, timeout=60)
+    resp = net.get(DAMODARAN_URL, timeout=60)
     resp.raise_for_status()
     df = parse_damodaran(resp.content)
     _market_merge("erp", df.set_index("date")["erp"])

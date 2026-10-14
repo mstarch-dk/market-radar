@@ -8,6 +8,7 @@ checked against today, since an update that keeps failing makes the whole report
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date, datetime
 
 import pandas as pd
@@ -15,6 +16,7 @@ import pandas as pd
 from .config import DATA, HOLDINGS_FILE, POSITIVE_LIST_FILE, TRANSACTIONS_FILE
 
 LOG_FILE = DATA / "sources.json"
+_log_lock = threading.Lock()  # the update and the discovery scan can record at the same time
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
 NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii"}  # never "the regime's oldest input"
@@ -61,16 +63,42 @@ def load_log() -> dict:
         return {}
 
 
-def record(source: str, ok: bool, detail: str | None = None, error: str | None = None) -> None:
-    """Log one update attempt. A failure keeps the last success, so the page can say how old the data is."""
-    log = load_log()
-    now = datetime.now().isoformat(timespec="seconds")
-    entry = log.get(source, {}) | {"last_attempt": now, "detail": detail, "error": None if ok else error}
+def record(source: str, ok: bool, detail: str | None = None, error: str | None = None,
+           exc: BaseException | None = None) -> None:
+    """Log one update attempt. A failure keeps the last success, so the page can say how old the data is. Each
+    attempt is also an event in the operations log (a failure with its traceback when `exc` is given; a
+    ValueError is a parse failure: the source answered, but not in the shape we expect)."""
+    from . import ops
+
+    with _log_lock:
+        log = load_log()
+        now = datetime.now().isoformat(timespec="seconds")
+        entry = log.get(source, {}) | {"last_attempt": now, "detail": detail, "error": None if ok else error}
+        if ok:
+            entry["last_success"] = now
+        log[source] = entry
+        DATA.mkdir(exist_ok=True)
+        tmp = LOG_FILE.with_name(LOG_FILE.name + ".tmp")
+        tmp.write_text(json.dumps(log, indent=1), encoding="utf-8")
+        tmp.replace(LOG_FILE)
     if ok:
-        entry["last_success"] = now
-    log[source] = entry
-    DATA.mkdir(exist_ok=True)
-    LOG_FILE.write_text(json.dumps(log, indent=1), encoding="utf-8")
+        ops.event("info", "source", detail or "updated", source=source)
+    else:
+        ops.event("error", "parse" if isinstance(exc, ValueError) else "source", error or "failed", source=source,
+                  exc=exc)
+
+
+def live(view: dict, log: dict | None = None) -> dict:
+    """A built coverage section with each source's last attempt, success and error from the update log as it is
+    now, and `failing` worked out again from them."""
+    log = load_log() if log is None else log
+    rows = []
+    for r in view["sources"]:
+        entry = log.get(r["key"])
+        rows.append(r if entry is None else r | {"last_attempt": entry.get("last_attempt"),
+                                                  "last_success": entry.get("last_success"),
+                                                  "error": entry.get("error")})
+    return view | {"sources": rows, "failing": [r["name"] for r in rows if r["error"]]}
 
 
 # ---------------- freshness ----------------

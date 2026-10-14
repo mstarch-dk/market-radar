@@ -420,6 +420,13 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .symbol-picker input { padding: 6px 8px; }
 .effect { margin: 10px 0 4px; }
 .warn-text { color: var(--warn); }
+.mono { font-family: var(--mono); }
+.ops-tiles .tile b { font-size: 20px; font-weight: 600; }
+.daybars { display: block; }
+details.ops-detail summary { cursor: pointer; }
+details.ops-detail pre { max-height: 240px; max-width: 720px; overflow: auto; font-size: 11px; background: var(--surface-2);
+  padding: 8px; border-radius: 6px; white-space: pre-wrap; }
+details.card > summary { cursor: pointer; }
 .confirm { display: flex; gap: 6px; align-items: center; }
 .tx-actions { display: flex; gap: 8px; margin-top: 10px; }
 .row-actions { display: inline-flex; gap: 10px; }

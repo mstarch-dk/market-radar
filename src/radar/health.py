@@ -7,13 +7,20 @@ from datetime import date, datetime
 
 from .config import POSITIVE_LIST_FILE, PRICES_FILE, REPORTS, ROOT, settings
 
-# the services `radar update` reads from (no API keys needed)
+# the services `radar update` and the discovery scan read from (no API keys needed); any answer below 500 is "up"
 SERVICES = {
     "Yahoo Finance (prices)": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1d",
     "FRED (US macro)": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10",
     "CFTC (futures positioning)": "https://publicreporting.cftc.gov/",
     "OECD (leading indicators)": "https://sdmx.oecd.org/public/rest/",
     "FactSet (earnings insight)": "https://advantage.factset.com/",
+    "ECB (euro-area rates)": "https://data-api.ecb.europa.eu/service/",
+    "SSGA (S&P 500 constituents)": "https://www.ssga.com/",
+    "iShares (STOXX 600 holdings)": "https://www.ishares.com/",
+    "multpl.com (Shiller CAPE)": "https://www.multpl.com/",
+    "Damodaran (equity risk premium)": "https://pages.stern.nyu.edu/~adamodar/",
+    "CBOE (put/call ratios)": "https://www.cboe.com/",
+    "AAII (sentiment survey)": "https://www.aaii.com/",
 }
 
 
@@ -87,14 +94,18 @@ def checks(offline: bool = False) -> list[dict]:
                       None if profile.exists() else "Copy investor.example.md to notes/investor.md and fill it in."))
 
     if not offline:
-        import requests
+        from . import net
 
         for name, url in SERVICES.items():
             try:
-                r = requests.get(url, timeout=8, headers={"User-Agent": "market-radar doctor"})
+                r = net.get(url, source="doctor", timeout=8, retries=0, expected=tuple(range(400, 500)))
                 ok = r.status_code < 500
                 out.append(_check(f"Internet: {name}", "ok" if ok else "warn", f"HTTP {r.status_code}",
                                   "The service may be down for a moment; updates keep the last data and retry next time."))
+            except net.Throttled as e:
+                out.append(_check(f"Internet: {name}", "warn", str(e),
+                                  "Market Radar paused this site after it asked us to slow down; it resumes by itself "
+                                  "(or clear the pause on the Operations page)."))
             except Exception as e:
                 out.append(_check(f"Internet: {name}", "fail", f"no connection ({type(e).__name__})",
                                   "Check the internet connection, or whether a firewall or VPN blocks Python."))

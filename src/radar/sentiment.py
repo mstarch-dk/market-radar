@@ -8,11 +8,10 @@ import time
 from datetime import date, timedelta
 
 import pandas as pd
-import requests
 
+from . import net
 from .config import DATA, settings, write_parquet
 
-UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
 PUTCALL_FILE = DATA / "putcall.parquet"
 AAII_FILE = DATA / "aaii.parquet"
 
@@ -42,7 +41,7 @@ def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str
     """Fetch every weekday since the last stored one (a year back on the first run). A missing day (holiday, not
     yet published) is skipped; nothing new for a week of weekdays means the source has moved: raise."""
     today = today or date.today()
-    get = get or (lambda url: requests.get(url, headers=UA, timeout=30))
+    get = get or (lambda url: net.get(url, timeout=30, expected=(403, 404)))
     old = load_putcall()
     start = (pd.to_datetime(old["date"]).max().date() + timedelta(days=1) if not old.empty
              else today - timedelta(days=settings()["sentiment"]["putcall_backfill_days"]))
@@ -97,7 +96,7 @@ def load_aaii() -> pd.DataFrame:
 
 
 def update_aaii() -> str:
-    resp = requests.get(AAII_URL, headers=UA, timeout=60)
+    resp = net.get(AAII_URL, timeout=60)
     resp.raise_for_status()
     df = parse_aaii(resp.content)
     write_parquet(df, AAII_FILE, index=False)

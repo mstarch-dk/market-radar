@@ -90,6 +90,33 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     - "News, events and policy only enter through the web research in /market-brief."
     - "Yahoo data is unofficial and comes without a quality guarantee. All prices are end-of-day."
 
+network:                   # src/radar/net.py: every external request is paced per host, recorded (ops.db) and retried
+  default:                 # any host not listed below
+    rate: 4                # requests a second (token bucket) ...
+    burst: 8               # ... with this many allowed at once after a quiet spell
+    concurrency: 4         # parallel requests at most
+    retries: 2             # plain HTTP only: 429, 5xx, timeouts and connection errors; exponential backoff + Retry-After
+    backoff: 2             # seconds before the first retry (doubles, plus jitter)
+    max_wait: 120          # a Retry-After longer than this gives up instead of blocking the step
+    budget: null           # soft daily request count; going over is a warning on the Operations page, never a block
+  hosts:                   # glob patterns, first match wins; hosts matching one pattern share its limits
+    "*.yahoo.com": {rate: 5, burst: 10, concurrency: 4, budget: 20000}   # yfinance (its own retries)
+    "fred.stlouisfed.org": {rate: 2, burst: 4}
+    "cdn.cboe.com": {rate: 4, burst: 4, concurrency: 1}
+    "advantage.factset.com": {rate: 1, burst: 2, concurrency: 1}
+    "www.multpl.com": {rate: 0.5, burst: 1, concurrency: 1}
+    "pages.stern.nyu.edu": {rate: 0.5, burst: 1, concurrency: 1}
+    "www.aaii.com": {rate: 0.5, burst: 1, concurrency: 1}
+  cooldown:                # pause a host that keeps answering 429 (shared by the app and the CLI through ops.db)
+    trip: 3                # this many 429s ...
+    window_min: 10         # ... within this many minutes
+    cooldown_min: 15       # first pause; doubles for each repeat within a day
+    max_cooldown_min: 120
+
+ops:                       # the operations log (data/ops.db, the Operations page, `radar ops`)
+  keep_requests_days: 30
+  keep_events_days: 180    # events and job runs
+
 valuation:                 # src/radar/valuation.py and signals/valuation.py
   snapshot_days: 6         # a new P/E snapshot when the last one is older than this (weekly)
   fallback_max: 120        # tracked stocks the screener misses, looked up one by one (yfinance .info)

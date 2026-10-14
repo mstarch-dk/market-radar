@@ -12,11 +12,9 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
-import requests
-
+from . import net
 from .config import DATA, universe_config, write_parquet
 
-UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
 COT_FILE = DATA / "cot.parquet"
 CLI_FILE = DATA / "oecd_cli.parquet"
 FACTSET_FILE = DATA / "factset.parquet"
@@ -39,8 +37,8 @@ COT_HISTORY_YEARS = 4
 def _cot_fetch(dataset: str, codes: list[str], since: date) -> list[dict]:
     where = (f"cftc_contract_market_code in({','.join(repr(c) for c in codes)}) "
              f"AND report_date_as_yyyy_mm_dd > '{since.isoformat()}'")
-    resp = requests.get(f"https://publicreporting.cftc.gov/resource/{dataset}.json",
-                        params={"$where": where, "$limit": 50000}, headers=UA, timeout=60)
+    resp = net.get(f"https://publicreporting.cftc.gov/resource/{dataset}.json",
+                   params={"$where": where, "$limit": 50000}, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
@@ -134,7 +132,7 @@ def parse_oecd_cli(text: str) -> pd.DataFrame:
 def update_oecd_cli() -> str:
     areas = _cfg().get("oecd_cli", {})
     start = (date.today() - timedelta(days=365 * 6)).strftime("%Y-%m")
-    resp = requests.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), headers=UA, timeout=60)
+    resp = net.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), timeout=60)
     resp.raise_for_status()
     df = parse_oecd_cli(resp.text)
     DATA.mkdir(exist_ok=True)
@@ -187,7 +185,7 @@ def update_ecb() -> str:
     start = (date.today() - timedelta(days=365 * 6)).isoformat()
     out = {}
     for key, (sid, _label) in series.items():
-        resp = requests.get(ECB_URL.format(key=sid, start=start), headers=UA, timeout=60)
+        resp = net.get(ECB_URL.format(key=sid, start=start), timeout=60)
         resp.raise_for_status()
         out[key] = parse_ecb(resp.text)
     df = pd.DataFrame(out).sort_index()
@@ -258,7 +256,7 @@ def update_factset() -> str | None:
         d = date.today() - timedelta(days=back)
         if d in seen:
             return None  # newest report already stored
-        resp = requests.get(FACTSET_URL.format(d=d), headers=UA, timeout=60)
+        resp = net.get(FACTSET_URL.format(d=d), timeout=60, expected=(403, 404))
         if resp.status_code != 200 or not resp.content.startswith(b"%PDF"):
             continue
         pages = _factset_pages(resp.content)
@@ -307,8 +305,7 @@ def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
 
     The history is kept so the levels can tell whether targets are being raised or cut.
     """
-    import yfinance as yf
-    from concurrent.futures import ThreadPoolExecutor
+    yf = net.yf()
 
     existing = load_analyst()
     today = pd.Timestamp(date.today())
@@ -324,7 +321,7 @@ def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
             return None
         return row | {"ticker": t, "fetched": today} if row else None
 
-    with ThreadPoolExecutor(8) as ex:
+    with net.pool(8) as ex:
         rows = [r for r in ex.map(fetch, due) if r]
     if not rows:
         raise RuntimeError(f"no data for {len(due)} tickers")
@@ -390,7 +387,7 @@ def fetch_detail(ticker: str) -> dict:
     import logging
     from datetime import datetime
 
-    import yfinance as yf
+    yf = net.yf()
 
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)  # 404s for funds are expected, not news
     t = yf.Ticker(ticker)

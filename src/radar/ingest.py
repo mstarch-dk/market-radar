@@ -5,9 +5,9 @@ import io
 from datetime import date, timedelta
 
 import pandas as pd
-import requests
 import yfinance as yf
 
+from . import net
 from .config import DATA, FRED_FILE, PRICES_FILE, settings, write_parquet
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
@@ -25,6 +25,7 @@ def load_prices() -> pd.DataFrame:
 
 def _download(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
     """Yahoo daily bars from `start`, in batches; `progress(done, total)` is called after each batch."""
+    net.install_yfinance()
     frames = []
     for i in range(0, len(tickers), BATCH):
         batch = tickers[i:i + BATCH]
@@ -118,7 +119,7 @@ def update_fred(series: list[str]) -> list[str]:
     for sid in series:
         url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
         try:
-            resp = requests.get(url, timeout=30)
+            resp = net.get(url, timeout=30)
             resp.raise_for_status()
             cols[sid] = parse_fred_csv(resp.text, sid)
         except Exception as e:

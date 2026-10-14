@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import typer
 
 from . import universe
@@ -5,12 +7,29 @@ from . import universe
 app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, regime and holdings signals.")
 
 
+@contextmanager
+def _job(kind: str):
+    """Record a CLI run in the operations log (data/ops.db) like the app's jobs; yields its log function."""
+    from datetime import datetime
+
+    from . import ops
+
+    lines: list[str] = []
+
+    def log(line: str) -> None:
+        typer.echo(line)
+        lines.append(f"{datetime.now():%H:%M:%S} {line}")
+    with ops.job(kind, lines):
+        yield log
+
+
 @app.command()
 def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S&P 500 constituent list")):
     """Download new prices (incremental) and macro series. Each source is logged in data/sources.json."""
     from . import updater
 
-    updater.update(typer.echo, refresh_constituents)
+    with _job("cli_update") as log:
+        updater.update(log, refresh_constituents)
 
 
 @app.command(name="report")
@@ -25,8 +44,12 @@ def build_report():
 @app.command()
 def run(refresh_constituents: bool = False):
     """update + report."""
-    update(refresh_constituents)
-    build_report()
+    from . import updater
+
+    with _job("cli_run") as log:
+        updater.update(log, refresh_constituents)
+        res = updater.build_report(log)
+    typer.echo(f"{res['dashboard']} – view it with `uv run radar serve --open`")
 
 
 @app.command()
@@ -39,7 +62,8 @@ def discover(refresh_universe: bool = typer.Option(False, "--refresh-universe",
     def progress(done: int, total: int) -> None:
         typer.echo(f"  … {done} of {total}")
 
-    scan.run(typer.echo, progress, refresh_universe)
+    with _job("cli_discover") as log:
+        scan.run(log, progress, refresh_universe)
 
 
 @app.command()
@@ -84,6 +108,41 @@ def doctor(offline: bool = typer.Option(False, "--offline", help="Skip the netwo
     failed = [c for c in checks if c["status"] == "fail"]
     typer.echo("All good." if not failed else f"{len(failed)} problem(s) to fix (see → above).")
     raise typer.Exit(1 if failed else 0)
+
+
+@app.command(name="ops")
+def ops_summary(days: int = typer.Option(7, help="Look back this many days"),
+                errors: bool = typer.Option(False, "--errors", help="Also list the latest error events")):
+    """External requests per host and source (count, errors, 429s, latency), paused hosts and the last jobs, from
+    the operations log (data/ops.db)."""
+    from . import net, ops
+
+    s = ops.summary(days, net.limits)
+    lu = s["last_update"]
+    typer.echo(f"Last {days} days. Requests in 24 h: {s['requests_24h']:,} ({s['errors_24h']:,} failed); "
+               f"error events in 24 h: {s['error_events_24h']}.")
+    typer.echo("Last update: " + (f"{lu['status']} ({lu['kind']}, started {lu['started'][:16].replace('T', ' ')})"
+                                  if lu else "none recorded"))
+    for c in s["cooldowns"]:
+        typer.echo(f"PAUSED {c['host']} until {c['until'][:16].replace('T', ' ')}: {c['reason']}")
+    for h in s["over_budget"]:
+        typer.echo(f"OVER BUDGET {h} (today)")
+    if not s["rows"]:
+        typer.echo("No requests recorded in this period.")
+    else:
+        def ms(v):
+            return "–" if v is None else f"{v:,.0f}"
+        typer.echo(f"{'host':32} {'source':20} {'requests':>8} {'err %':>6} {'429':>5} {'p50 ms':>7} {'p95 ms':>7}  last error")
+        for r in s["rows"]:
+            typer.echo(f"{r['host'][:32]:32} {(r['source'] or '–')[:20]:20} {r['requests']:>8,} {r['error_pct']:>6.1f} "
+                       f"{r['throttled']:>5} {ms(r['p50_ms']):>7} {ms(r['p95_ms']):>7}  {(r['last_error'] or '')[:60]}")
+    if errors:
+        typer.echo("")
+        evs = ops.events(level="error", limit=20)
+        if not evs:
+            typer.echo("No error events.")
+        for e in evs:
+            typer.echo(f"{e['ts'][:16].replace('T', ' ')} [{e['kind']}] {e['source'] or '–'}: {e['message'][:120]}")
 
 
 @app.command(name="import-yahoo")

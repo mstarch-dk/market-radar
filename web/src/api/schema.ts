@@ -178,11 +178,140 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Coverage */
+        /**
+         * Get Coverage
+         * @description The coverage section, with each source's last attempt and error read live from data/sources.json (a
+         *     failure after the last report build shows at once).
+         */
         get: operations["get_coverage_api_coverage_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Summary */
+        get: operations["ops_summary_api_ops_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Events */
+        get: operations["ops_events_api_ops_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Requests */
+        get: operations["ops_requests_api_ops_requests_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Jobs */
+        get: operations["ops_jobs_api_ops_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ops Job */
+        get: operations["ops_job_api_ops_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/doctor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops Doctor
+         * @description `radar doctor` from the app; with `probe`, every data source is contacted once (a few seconds).
+         */
+        get: operations["ops_doctor_api_ops_doctor_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ops/cooldown/{host}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Ops Clear Cooldown
+         * @description End a paused host's cooldown now; 404 if it isn't paused.
+         */
+        delete: operations["ops_clear_cooldown_api_ops_cooldown__host__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1333,6 +1462,20 @@ export interface components {
             markets: components["schemas"]["DiscoveryMarket"][];
             thresholds: components["schemas"]["DiscoveryThresholds"];
         };
+        /** DoctorCheck */
+        DoctorCheck: {
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "warn" | "fail" | "info";
+            /** Detail */
+            detail: string;
+            /** Fix */
+            fix?: string | null;
+        };
         /** Effect */
         Effect: {
             /** Symbol */
@@ -2291,6 +2434,168 @@ export interface components {
             asof?: string | null;
             /** Age Days */
             age_days?: number | null;
+        };
+        /** OpsCooldown */
+        OpsCooldown: {
+            /** Host */
+            host: string;
+            /** Until */
+            until: string;
+            /** Reason */
+            reason?: string | null;
+            /** Strikes */
+            strikes: number;
+        };
+        /** OpsEvent */
+        OpsEvent: {
+            /** Id */
+            id: number;
+            /** Ts */
+            ts: string;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "info" | "warn" | "error";
+            /** Kind */
+            kind: string;
+            /** Source */
+            source?: string | null;
+            /** Message */
+            message: string;
+            /** Detail */
+            detail?: string | null;
+            /** Job Id */
+            job_id?: number | null;
+        };
+        /** OpsJob */
+        OpsJob: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Started */
+            started: string;
+            /** Finished */
+            finished?: string | null;
+            /** Status */
+            status: string;
+            /** Error */
+            error?: string | null;
+            /** Duration S */
+            duration_s?: number | null;
+        };
+        /** OpsJobDetail */
+        OpsJobDetail: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Started */
+            started: string;
+            /** Finished */
+            finished?: string | null;
+            /** Status */
+            status: string;
+            /** Error */
+            error?: string | null;
+            /** Duration S */
+            duration_s?: number | null;
+            /** Log */
+            log: string[];
+            /** Requests */
+            requests: number;
+            /** Errors */
+            errors: number;
+        };
+        /** OpsRequest */
+        OpsRequest: {
+            /** Id */
+            id: number;
+            /** Ts */
+            ts: string;
+            /** Job Id */
+            job_id?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Host */
+            host: string;
+            /** Method */
+            method: string;
+            /** Path */
+            path: string;
+            /** Status */
+            status?: number | null;
+            /** Ok */
+            ok: boolean;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Bytes */
+            bytes?: number | null;
+            /** Attempt */
+            attempt: number;
+            /** Throttled */
+            throttled: boolean;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * OpsRow
+         * @description Requests to one host for one source over the window. p50/p95 are None without timed requests.
+         */
+        OpsRow: {
+            /** Host */
+            host: string;
+            /** Source */
+            source?: string | null;
+            /** Requests */
+            requests: number;
+            /** Errors */
+            errors: number;
+            /** Error Pct */
+            error_pct: number;
+            /** Throttled */
+            throttled: number;
+            /** P50 Ms */
+            p50_ms?: number | null;
+            /** P95 Ms */
+            p95_ms?: number | null;
+            /** Last */
+            last: string;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Error At */
+            last_error_at?: string | null;
+            /** Today */
+            today: number;
+            /** Budget */
+            budget?: number | null;
+            /** Cooldown Until */
+            cooldown_until?: string | null;
+            /** Daily */
+            daily: number[];
+        };
+        /** OpsSummary */
+        OpsSummary: {
+            /** Days */
+            days: number;
+            /** Dates */
+            dates: string[];
+            /** Generated */
+            generated: string;
+            /** Requests 24H */
+            requests_24h: number;
+            /** Errors 24H */
+            errors_24h: number;
+            /** Error Events 24H */
+            error_events_24h: number;
+            last_update?: components["schemas"]["OpsJob"] | null;
+            /** Cooldowns */
+            cooldowns: components["schemas"]["OpsCooldown"][];
+            /** Over Budget */
+            over_budget: string[];
+            /** Rows */
+            rows: components["schemas"]["OpsRow"][];
         };
         /** Overall */
         Overall: {
@@ -3982,6 +4287,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+        };
+    };
+    ops_summary_api_ops_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_events_api_ops_events_get: {
+        parameters: {
+            query?: {
+                level?: string | null;
+                kind?: string | null;
+                source?: string | null;
+                limit?: number;
+                before?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsEvent"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_requests_api_ops_requests_get: {
+        parameters: {
+            query?: {
+                host?: string | null;
+                source?: string | null;
+                status?: number | null;
+                limit?: number;
+                before?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsRequest"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_jobs_api_ops_jobs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsJob"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_job_api_ops_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsJobDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_doctor_api_ops_doctor_get: {
+        parameters: {
+            query?: {
+                probe?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoctorCheck"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_clear_cooldown_api_ops_cooldown__host__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                host: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": boolean;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

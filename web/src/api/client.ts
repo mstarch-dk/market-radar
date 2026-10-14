@@ -57,6 +57,13 @@ export type ImportRow = S["ImportRow"];
 export type ImportRecord = S["ImportRecord"];
 export type ImportCommitResult = S["ImportCommitResult"];
 export type Preset = S["Preset"];
+export type OpsSummary = S["OpsSummary"];
+export type OpsRow = S["OpsRow"];
+export type OpsEvent = S["OpsEvent"];
+export type OpsJob = S["OpsJob"];
+export type OpsJobDetail = S["OpsJobDetail"];
+export type OpsRequest = S["OpsRequest"];
+export type DoctorCheck = S["DoctorCheck"];
 export type ImportParams = { filename: string; preset?: string; portfolio?: number; mapping?: Record<string, string>;
   symbols?: Record<string, string>; confirm?: boolean };
 
@@ -122,6 +129,13 @@ export const api = {
   setRegimeVotes: (votes: Record<string, boolean>) =>
     get<VoteOption[]>("/api/settings/regime-votes", "PUT", JSON.stringify({ votes }), "application/json"),
   coverage: () => get<CoverageView>("/api/coverage"),
+  opsSummary: (days: number) => get<OpsSummary>(`/api/ops/summary?days=${days}`),
+  opsEvents: () => get<OpsEvent[]>("/api/ops/events?limit=500"),
+  opsRequests: () => get<OpsRequest[]>("/api/ops/requests?limit=300"),
+  opsJobs: () => get<OpsJob[]>("/api/ops/jobs"),
+  opsJob: (id: number) => get<OpsJobDetail>(`/api/ops/jobs/${id}`),
+  opsDoctor: (probe: boolean) => get<DoctorCheck[]>(`/api/ops/doctor?probe=${probe}`),
+  clearCooldown: (host: string) => get<boolean>(`/api/ops/cooldown/${enc(host)}`, "DELETE"),
   discover: () => get<DiscoveryView>("/api/discover"),
   discoverStatus: () => get<UpdateStatus>("/api/discover/scan"),
   startDiscover: () => get<UpdateStatus>("/api/discover/scan", "POST"),

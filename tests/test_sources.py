@@ -10,7 +10,7 @@ import openpyxl
 import pandas as pd
 import pytest
 
-from radar import external, ingest, universe
+from radar import external, ingest, net, universe
 from conftest import FIXTURES
 
 
@@ -51,8 +51,8 @@ def test_update_fred_keeps_cached_series_when_one_fails(tmp_path, monkeypatch):
                 raise ConnectionError("503")
 
     good = (FIXTURES / "fred_DGS10.csv").read_text()
-    monkeypatch.setattr(ingest.requests, "get",
-                        lambda url, timeout: Resp(good) if url.endswith("DGS10") else Resp("", ok=False))
+    monkeypatch.setattr(net.requests, "get",
+                        lambda url, **k: Resp(good) if url.endswith("DGS10") else Resp("", ok=False))
     failed = ingest.update_fred(["DGS10", "T10Y2Y"])
     assert failed == ["T10Y2Y (ConnectionError)"]
     out = pd.read_parquet(fred_file)
@@ -132,7 +132,7 @@ def _factset_env(tmp_path, monkeypatch, text):
 
     class Resp:
         status_code, content = 200, b"%PDF-1.7 ..."
-    monkeypatch.setattr(external.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(net.requests, "get", lambda *a, **k: Resp())
     monkeypatch.setattr(external, "_factset_pages", lambda pdf: ["Key Metrics\n" + text])
 
 

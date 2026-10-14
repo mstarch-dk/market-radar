@@ -51,6 +51,12 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - Positions are derived with the average-cost method (gennemsnitsmetoden): fees are part of the acquisition cost, a sale removes cost in proportion. Per portfolio and pooled; the pool is right for the return vs ACWI but not for tax, where an aktiesparekonto is separate.
 - **Cash rows** (DEPOSIT, WITHDRAW, DIVIDEND, FEE, INTEREST) carry an amount in DKK. A trade's DKK cash effect is quantity × price ± fee at its booked `fx_rate`, else Yahoo's rate that day. A virtual portfolio can only spend what was deposited; a real one with a cash ledger warns; a real one without cash rows isn't checked. DIVIDEND rows count only under the dividend policy `cash`: with the default `reinvested`, adjusted prices already contain the dividends.
 
+## External requests and the operations log (`net.py`, `ops.py`)
+- Every external request is recorded with its host and **path only**: the query string is never stored, and `key=`, `api_key=`, `token=`, `crumb=` and the like in a path are masked. Rows hold status (None when no answer came), duration (time on the wire, not the waits between retries), size, attempt number and the source/job it belongs to.
+- An error is a request with no answer or an HTTP status ≥ 400, except statuses a caller marks as expected (FactSet's daily probe and CBOE's holidays answer 403/404). A 429 is counted separately; `trip` of them within `window_min` pause the host (15 min, doubling per repeat within a day, at most `max_cooldown_min`). While paused, requests fail at once with `Throttled` and the step keeps its cached data, like any failure.
+- Budgets are soft: going over a host's daily count is a warning event, never a block. Latency percentiles are left out (None), not 0, when nothing was timed.
+- yfinance requests are paced and recorded but retried by yfinance itself; our retry policy applies to plain HTTP only.
+
 ## Returns over time (`performance.py`)
 - Each portfolio is valued in DKK at every close of the benchmark's calendar (a row on a non-trading day counts on the next session). `reinvested` (default): adjusted closes, each lot's shares scaled by adjusted/traded close on its trade date (as the holdings table's shadow method); `cash`: traded closes plus DIVIDEND rows.
 - **Funding**: `ledger` when the portfolio has deposits or withdrawals (value = holdings + cash; only deposits and withdrawals are money in or out); `implicit` otherwise (every buy is new money, every sale or income money taken out).

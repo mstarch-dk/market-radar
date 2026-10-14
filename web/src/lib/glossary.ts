@@ -90,6 +90,11 @@ export const GLOSSARY = {
   putcall: "CBOE's equity put/call ratio (puts traded per call), 10-day average, ranked against the last 3 years. High = heavy hedging or fear (contrarian: supportive); low = complacency.",
   not_voting: "A switchable indicator group that is off in the vote (settings.yaml regime.votes, or the switches on this page): its reading is shown but not counted.",
   views_align: "How the name lines up with your market views (your own subjective beliefs, on the My market views page): fits = it would gain if your views are right, against = it would suffer, mixed = both. Weighted by how sure you are. Hover the badge for the reasons.",
+  ops_errors: "Requests that failed: no answer (timeout, connection refused) or an HTTP error status. Answers a source is expected to give (a FactSet report not published that day, a CBOE holiday) don't count.",
+  ops_429: "HTTP 429 \"Too Many Requests\": the site asks us to slow down. A few within minutes pause the site for a while (a cooldown, longer each time it repeats within a day); its data is kept as it was meanwhile.",
+  ops_latency: "How long requests took: p50 = half were faster (the typical request), p95 = 95% were faster (the slow tail). Includes retries' own time, not the waits between them.",
+  ops_budget: "Requests to this site today against its soft daily budget (settings.yaml network.hosts). Going over is only a warning, never a block.",
+  ops_kind: "source: a data source updated or failed. parse: it answered, but not in the expected shape (often a changed layout). api: a server error in the app. job: an update or scan stopped. throttle: a site paused, resumed or over budget. doctor: a health check.",
 } as const;
 
 export const glossary = (k: string | undefined): string | undefined =>

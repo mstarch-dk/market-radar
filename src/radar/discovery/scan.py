@@ -13,7 +13,7 @@ from typing import Callable
 
 import pandas as pd
 
-from .. import coverage, ingest, universe
+from .. import coverage, ingest, net, ops, universe
 from ..config import DATA, REPORTS, discovery_config, settings, write_parquet
 from ..signals import discovery as sig
 from . import sources
@@ -37,7 +37,7 @@ UNIVERSE_COLS = ["ticker", "name", "market", "kind", "exchange", "country", "cur
 def fx_rates() -> dict[str, float]:
     """Latest DKK rate per currency (DKK = 1): from the radar's own price store when it is recent, else Yahoo.
     Raises if neither has rates."""
-    import yfinance as yf
+    yf = net.yf()
 
     pairs = {c: t for c, t in universe.FX_DKK.items() if t and c != "GBp"}
     stored = ingest.load_prices()
@@ -283,12 +283,13 @@ def run(log: Log = print, progress: Progress | None = None, refresh_universe: bo
     if refresh_universe or age is None or age > cfg["universe_max_age_days"]:
         log("Building the discovery universe (Yahoo screener, STOXX 600, positive list)…")
         try:
-            df = build_universe(log, progress)
+            with ops.context(source="discovery_universe"):
+                df = build_universe(log, progress)
             coverage.record("discovery_universe", True, f"{len(df)} names")
         except PartialFailure as e:
-            coverage.record("discovery_universe", False, error=str(e))
+            coverage.record("discovery_universe", False, error=str(e), exc=e)
         except Exception as e:
-            coverage.record("discovery_universe", False, error=f"{type(e).__name__}: {e}")
+            coverage.record("discovery_universe", False, error=f"{type(e).__name__}: {e}", exc=e)
             if load_universe().empty:
                 raise
             log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
@@ -297,12 +298,13 @@ def run(log: Log = print, progress: Progress | None = None, refresh_universe: bo
     tickers = sorted(set(meta["ticker"]) | {universe.benchmark()} | set(fx_tickers))
     log(f"Downloading prices for {len(tickers)} names…")
     try:
-        res = update_prices(tickers, progress, log)
+        with ops.context(source="discovery_prices"):
+            res = update_prices(tickers, progress, log)
         msg = f"{res['got']} of {res['requested']} names"
         coverage.record("discovery_prices", True, msg + (f"; no data for {len(res['missing'])}" if res["missing"] else ""))
         log(f"Prices: {msg}.")
     except Exception as e:
-        coverage.record("discovery_prices", False, error=f"{type(e).__name__}: {e}")
+        coverage.record("discovery_prices", False, error=f"{type(e).__name__}: {e}", exc=e)
         log(f"Prices: FAILED ({type(e).__name__}: {e}); using the previous download.")
     out = build_report()
     log(f"Discovery: {out['scored']} of {out['names']} names scored (data as of {out['asof']}) in "

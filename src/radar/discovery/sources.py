@@ -11,9 +11,8 @@ import re
 from typing import Callable
 
 import pandas as pd
-import requests
 
-UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
+from .. import net
 
 # Yahoo exchange code -> (symbol suffix, country, the currency a home listing reports in)
 EXCHANGES = {
@@ -41,8 +40,8 @@ def screen_exchange(code: str, min_cap: float = 5e7, page: int = 250, limit: int
                     sector: str | None = None) -> list[dict]:
     """Every equity Yahoo lists on one exchange above `min_cap` (in its own reporting units), all pages;
     optionally only one sector."""
-    import yfinance as yf
-    from yfinance import EquityQuery as Q
+    yf = net.yf()
+    Q = yf.EquityQuery
 
     parts = [Q("eq", ["exchange", code]), Q("gt", ["intradaymarketcap", min_cap])]
     if sector:
@@ -71,7 +70,10 @@ def screen_sectors(codes: list[str], min_cap: float = 5e7) -> dict[str, str]:
 
 
 def throttled(e: Exception) -> bool:
-    """Yahoo's answers to too many requests: 429, or a 401 "Invalid Crumb" once its session cookie is refused."""
+    """Yahoo's answers to too many requests: 429, or a 401 "Invalid Crumb" once its session cookie is refused.
+    A host we have paused (net.Throttled) is not worth waiting for here: its cooldown is much longer."""
+    if isinstance(e, net.Throttled):
+        return False
     msg = str(e).lower()
     return any(s in msg for s in ("rate limit", "too many", "429", "invalid crumb", "401"))
 
@@ -215,7 +217,7 @@ def parse_stoxx600(text: str, min_rows: int = STOXX600_MIN) -> pd.DataFrame:
 
 
 def fetch_stoxx600() -> pd.DataFrame:
-    resp = requests.get(STOXX600_URL, headers=UA, timeout=60)
+    resp = net.get(STOXX600_URL, timeout=60)
     resp.raise_for_status()
     return parse_stoxx600(resp.content.decode("utf-8-sig", errors="replace"))
 
@@ -234,7 +236,7 @@ def positive_list_funds(pl: pd.DataFrame) -> pd.DataFrame:
 
 
 def search_isin(isin: str) -> list[dict]:
-    import yfinance as yf
+    yf = net.yf()
 
     return yf.Search(isin, max_results=10, news_count=0).quotes
 
@@ -245,8 +247,6 @@ def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
     """ISIN -> best Yahoo ETF listing (exchange preference order). Looked-up ISINs are cached, unresolved ones
     too (symbol empty), so each ISIN is searched once; a failed search is not cached and retried next time.
     At most `budget` new ISINs are searched per call, so Yahoo isn't flooded; the rest follow on later scans."""
-    from concurrent.futures import ThreadPoolExecutor
-
     done = set(cached["isin"]) if not cached.empty else set()
     todo = [i for i in isins if i not in done][:budget]
     rank = {e: n for n, e in enumerate(exchanges)}
@@ -268,7 +268,7 @@ def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
                 "yahoo_name": q.get("longname") or q.get("shortname") or "",
                 "quote_type": "ETF" if etfs else (quotes[0].get("quoteType", "") if quotes else "")}
     found = []
-    with ThreadPoolExecutor(workers) as ex:
+    with net.pool(workers) as ex:
         for n, r in enumerate(ex.map(one, todo)):
             if r:
                 found.append(r)

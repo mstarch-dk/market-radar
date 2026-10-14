@@ -8,6 +8,7 @@ import { Discover } from "./pages/Discover";
 import { Home } from "./pages/Home";
 import { Me } from "./pages/Me";
 import { Momentum } from "./pages/Momentum";
+import { Ops } from "./pages/Ops";
 import { Performance } from "./pages/Performance";
 import { Portfolio } from "./pages/Portfolio";
 import { Positioning } from "./pages/Positioning";
@@ -30,6 +31,7 @@ const PAGES = [
   ["/portfolio", "Portfolio", <Portfolio />],
   ["/returns", "Returns", <Performance />],
   ["/data", "Data & coverage", <Data />],
+  ["/ops", "Operations", <Ops />],
 ] as const;
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });

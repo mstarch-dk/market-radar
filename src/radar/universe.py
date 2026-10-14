@@ -9,11 +9,10 @@ from dataclasses import dataclass
 from datetime import date
 
 import pandas as pd
-import requests
 
+from . import net
 from .config import DATA, HOLDINGS_FILE, POSITIVE_LIST_FILE, TRANSACTIONS_FILE, settings, universe_config
 
-UA = {"User-Agent": "Mozilla/5.0 (market-radar personal research script)"}
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
 SPY_HOLDINGS = ("https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/"
                 "etfs/us/holdings-daily-us-en-spy.xlsx")
@@ -52,7 +51,7 @@ SPY_MIN_HOLDINGS = 450  # fewer means the file layout changed; the cached list i
 
 
 def _spy_holdings() -> pd.DataFrame:
-    resp = requests.get(SPY_HOLDINGS, headers=UA, timeout=60)
+    resp = net.get(SPY_HOLDINGS, timeout=60)
     resp.raise_for_status()
     return parse_spy_holdings(resp.content)
 
@@ -86,11 +85,14 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
     if offline or (not refresh and cached and time.time() - cache_file.stat().st_mtime < max_age):
         return cached
     try:
-        df = _spy_holdings()
+        from . import ops
+
+        with ops.context(source="constituents"):
+            df = _spy_holdings()
     except Exception as e:
         if not cached:
             raise
-        coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list")
+        coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list", exc=e)
         return cached
     DATA.mkdir(exist_ok=True)
     df.to_csv(cache_file, index=False)
@@ -110,8 +112,7 @@ def names(tickers: list[str]) -> dict[str, str]:
     cached = dict(pd.read_csv(cache_file).values) if cache_file.exists() else {}
     missing = [t for t in tickers if t not in out and t not in cached]
     if missing:
-        import yfinance as yf
-        from concurrent.futures import ThreadPoolExecutor
+        yf = net.yf()
 
         def lookup(t):
             try:
@@ -119,7 +120,7 @@ def names(tickers: list[str]) -> dict[str, str]:
                 return t, info.get("longName") or info.get("shortName") or t
             except Exception:
                 return t, t
-        with ThreadPoolExecutor(8) as ex:
+        with net.pool(8) as ex:
             cached |= dict(ex.map(lookup, missing))
         pd.DataFrame(list(cached.items()), columns=["ticker", "name"]).to_csv(cache_file, index=False)
     return {t: out.get(t) or cached.get(t, t) for t in tickers}
@@ -131,8 +132,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
     cached = pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()         else pd.DataFrame(columns=["ticker", "sector", "industry"])
     missing = sorted(set(tickers) - set(cached["ticker"]))
     if missing:
-        import yfinance as yf
-        from concurrent.futures import ThreadPoolExecutor
+        yf = net.yf()
 
         def lookup(t):
             try:
@@ -140,7 +140,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
                 return {"ticker": t, "sector": info.get("sector") or "", "industry": info.get("industry") or ""}
             except Exception:
                 return None  # not cached, so it is retried next run
-        with ThreadPoolExecutor(8) as ex:
+        with net.pool(8) as ex:
             found = [r for r in ex.map(lookup, missing) if r]
         cached = pd.concat([cached, pd.DataFrame(found)], ignore_index=True)
         DATA.mkdir(exist_ok=True)
@@ -172,15 +172,14 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
     cached = dict(pd.read_csv(cache_file).values) if cache_file.exists() else {}
     missing = [t for t in tickers if t not in cached]
     if missing:
-        import yfinance as yf
-        from concurrent.futures import ThreadPoolExecutor
+        yf = net.yf()
 
         def lookup(t):
             try:
                 return t, yf.Ticker(t).fast_info.get("currency")
             except Exception:
                 return t, None
-        with ThreadPoolExecutor(8) as ex:
+        with net.pool(8) as ex:
             cached |= {t: c for t, c in ex.map(lookup, missing) if c}
         DATA.mkdir(exist_ok=True)
         pd.DataFrame(list(cached.items()), columns=["ticker", "currency"]).to_csv(cache_file, index=False)

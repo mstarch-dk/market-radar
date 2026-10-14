@@ -302,9 +302,9 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
 
 def yahoo_search(q: str) -> list[dict]:
     try:
-        import yfinance as yf
+        from .. import net
 
-        quotes = yf.Search(q, max_results=6, news_count=0).quotes
+        quotes = net.yf().Search(q, max_results=6, news_count=0).quotes
     except Exception:
         return []
     return [{"symbol": x["symbol"], "name": x.get("longname") or x.get("shortname"),

@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 import tempfile
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from datetime import date
 
@@ -15,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, portfolio, profile, tickers, universe, updater, userstore, valuation
+from . import dashboard, mine, net, ops, portfolio, profile, tickers, universe, updater, userstore, valuation
 from .api_models import (
     AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
@@ -23,13 +24,21 @@ from .api_models import (
     MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
+    DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
 )
 from .config import settings
 from .config import ROOT
 
 WEB_DIST = ROOT / "web" / "dist"
 
-app = FastAPI(title="Market Radar", version="0.1.0")
+@asynccontextmanager
+async def _lifespan(_app):
+    ops.mark_interrupted()   # a job 'running' in the log from an earlier server can't still be running
+    ops.prune()
+    yield
+
+
+app = FastAPI(title="Market Radar", version="0.1.0", lifespan=_lifespan)
 _lock = threading.Lock()  # one price download / market reload at a time
 _market: profile.Market | None = None
 
@@ -63,6 +72,27 @@ TagQ = Query(None, description="Portfolios carrying any of these tags (repeatabl
 ScopeQ = Query(None, description="real | virtual | all (when no portfolio or tag is given)")
 
 
+NOT_RECORDED = {503}   # "no dashboard / scan yet" is a state the pages explain, not an operational error
+
+
+@app.middleware("http")
+async def _record_errors(request: Request, call_next):
+    """Attribute the app's own Yahoo calls to the page area asking ("app:ticker"), and keep server errors (5xx,
+    with the traceback when one was raised) in the operations log. 4xx are user input, not recorded."""
+    path = request.url.path
+    area = path.split("/")[2] if path.startswith("/api/") and path.count("/") >= 2 else None
+    with ops.context(source=f"app:{area}" if area else None):
+        try:
+            resp = await call_next(request)
+        except Exception as e:
+            ops.event("error", "api", f"{request.method} {path}: {type(e).__name__}: {e}", source=f"app:{area}",
+                      exc=e)
+            raise
+    if resp.status_code >= 500 and resp.status_code not in NOT_RECORDED:
+        ops.event("error", "api", f"{request.method} {path}: HTTP {resp.status_code}", source=f"app:{area}")
+    return resp
+
+
 @app.get("/api/ticker/{symbol}", response_model=Profile)
 def get_profile(symbol: str, refresh: bool = False) -> dict:
     global _market
@@ -90,11 +120,10 @@ def get_series(symbol: str, days: int = Query(756, ge=20, le=5000)) -> dict:
 @app.get("/api/search", response_model=list[SearchHit])
 def search(q: str = Query(..., min_length=1, max_length=60)) -> list[dict]:
     """Yahoo's symbol search (stocks and funds), with tracked names first."""
-    import yfinance as yf
-
     tracked = set(universe.all_price_tickers(offline=True))
     try:
-        quotes = yf.Search(q, max_results=10, news_count=0).quotes
+        with ops.context(source="search"):
+            quotes = net.yf().Search(q, max_results=10, news_count=0).quotes
     except Exception as e:
         raise HTTPException(502, f"Yahoo search failed: {type(e).__name__}") from e
     hits = [{"symbol": x["symbol"], "name": x.get("longname") or x.get("shortname"),
@@ -173,7 +202,62 @@ def get_positioning() -> dict:
 
 @app.get("/api/coverage", response_model=CoverageView)
 def get_coverage() -> dict:
-    return _view("coverage")
+    """The coverage section, with each source's last attempt and error read live from data/sources.json (a
+    failure after the last report build shows at once)."""
+    from . import coverage
+
+    return coverage.live(_view("coverage"))
+
+
+# ---------------- operations: external requests, events, jobs, throttling (ops.py) ----------------
+
+@app.get("/api/ops/summary", response_model=OpsSummary)
+def ops_summary(days: int = Query(7, ge=1, le=90)) -> dict:
+    return ops.summary(days, net.limits)
+
+
+@app.get("/api/ops/events", response_model=list[OpsEvent])
+def ops_events(level: str | None = None, kind: str | None = None, source: str | None = None,
+               limit: int = Query(200, ge=1, le=1000), before: int | None = None) -> list[dict]:
+    return ops.events(level, kind, source, limit, before)
+
+
+@app.get("/api/ops/requests", response_model=list[OpsRequest])
+def ops_requests(host: str | None = None, source: str | None = None, status: int | None = None,
+                 limit: int = Query(200, ge=1, le=1000), before: int | None = None) -> list[dict]:
+    return ops.requests(host, source, status, limit, before)
+
+
+@app.get("/api/ops/jobs", response_model=list[OpsJob])
+def ops_jobs(limit: int = Query(50, ge=1, le=500)) -> list[dict]:
+    return ops.jobs(limit)
+
+
+@app.get("/api/ops/jobs/{job_id}", response_model=OpsJobDetail)
+def ops_job(job_id: int) -> dict:
+    j = ops.job_detail(job_id)
+    if j is None:
+        raise HTTPException(404, f"No job {job_id}.")
+    return j
+
+
+@app.get("/api/ops/doctor", response_model=list[DoctorCheck])
+def ops_doctor(probe: bool = False) -> list[dict]:
+    """`radar doctor` from the app; with `probe`, every data source is contacted once (a few seconds)."""
+    from . import health
+
+    with ops.context(source="doctor"):
+        return health.checks(offline=not probe)
+
+
+@app.delete("/api/ops/cooldown/{host}", response_model=bool)
+def ops_clear_cooldown(host: str) -> bool:
+    """End a paused host's cooldown now; 404 if it isn't paused."""
+    if not ops.clear_cooldown(host):
+        raise HTTPException(404, f"{host} is not paused.")
+    net.reset()
+    ops.event("info", "throttle", f"{host}: pause cleared by hand")
+    return True
 
 
 # ---------------- your market views (subjective beliefs) ----------------

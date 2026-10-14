@@ -6,7 +6,8 @@
 ## Fixtures
 - `tests/fixtures/` holds trimmed copies of real payloads (FRED, OECD, CFTC, FactSet text, Yahoo ticker detail). When a source changes format, fix the parser and refresh its fixture from a real response.
 - `tests/world.py` is a small synthetic market whose answers are known in advance (geometric prices, one holding, one watchlist name). It is shared by the report, profile and API tests; `world.install()` patches config, caches and Yahoo lookups.
-- `tests/conftest.py`'s `tmp_data` points every module-level data path (including `userdata/`) at a temp directory.
+- `tests/conftest.py`'s `tmp_data` points every module-level data path (including `userdata/`) at a temp directory. An autouse fixture gives every test its own `ops.db` and resets the network limiter, so no test writes to `data/ops.db`.
+- `test_net.py` drives the limiter, retries and cooldowns with a fake clock (`net.clock` / `net.sleep`) and a stubbed `net.requests.get`; HTTP stubs patch `net.requests.get`, since every plain request goes through `net.get`. `test_ops.py` covers the log, its housekeeping, jobs and the Operations endpoints.
 
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.

@@ -2,10 +2,19 @@ from pathlib import Path
 
 import pytest
 
-from radar import coverage, external, sentiment, tickers, universe, userstore, valuation
+from radar import coverage, external, net, ops, sentiment, tickers, universe, userstore, valuation
 from radar.discovery import scan
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def _ops_db(tmp_path_factory, monkeypatch):
+    """Every test records requests and events into its own operations log, never data/ops.db."""
+    monkeypatch.setattr(ops, "DB", tmp_path_factory.mktemp("ops") / "ops.db")
+    net.reset()
+    yield
+    net.reset()
 
 
 @pytest.fixture
