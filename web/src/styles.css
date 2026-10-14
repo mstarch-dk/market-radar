@@ -526,3 +526,11 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .vw-row { padding: 6px 0; border-top: 1px solid var(--line); }
 .archived-views summary { cursor: pointer; margin: 8px 0; color: var(--ink-2); }
 @media (max-width: 640px) { .views-grid { grid-template-columns: 1fr; } .view-row input { min-width: 0; flex: 1; } }
+
+/* Regime: which indicator groups vote */
+.card.votes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
+.card.votes .sub, .card.votes p { flex-basis: 100%; margin: 0; }
+.card.votes label.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* Positioning: valuation and sentiment cards */
+.hero .big .unit { font-size: 0.6em; font-weight: 500; color: var(--muted); }

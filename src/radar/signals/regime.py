@@ -38,16 +38,18 @@ def _ret(s: pd.Series, n: int) -> float:
 SHORT = "less than 3 months of history"
 
 
-def _ind(name, value, status, note, source="prices", asof=None, gauge=None):
+def _ind(name, value, status, note, source="prices", asof=None, gauge=None, group=None):
     """One regime row. `source` is the data source key (coverage.py), `asof` the last data point used,
-    `gauge` the reading graded between the same thresholds the vote uses (gauges.make; display only)."""
+    `gauge` the reading graded between the same thresholds the vote uses (gauges.make; display only).
+    `group` names a switchable set of rows (settings.yaml regime.votes); None = always votes."""
     return {"name": name, "value": value, "status": status, "note": note, "source": source,
-            "asof": None if asof is None else pd.Timestamp(asof).date().isoformat(), "gauge": gauge}
+            "asof": None if asof is None else pd.Timestamp(asof).date().isoformat(), "gauge": gauge,
+            "group": group, "votes": True}
 
 
-def _na(name, source, note="no data"):
+def _na(name, source, note="no data", group=None):
     """A configured indicator without data: shown, but not counted."""
-    return _ind(name, "–", NA, note, source)
+    return _ind(name, "–", NA, note, source, group=group)
 
 
 def _last(s: pd.Series):
@@ -56,10 +58,10 @@ def _last(s: pd.Series):
 
 def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dict, labels: dict,
                macro: dict[str, str], cfg: dict, cli: pd.DataFrame | None = None,
-               factset: dict | None = None) -> tuple[list[dict], dict[str, pd.Series]]:
+               factset: dict | None = None, market_val: dict | None = None) -> tuple[list[dict], dict[str, pd.Series]]:
     """`macro` maps the names in universe.yaml macro.yahoo to tickers; `cli` is external.cli_table(),
-    `factset` the latest external.load_factset() row. An indicator whose input is missing stays as an
-    "n/a" row, so the page shows what the reading is not based on."""
+    `factset` the latest external.load_factset() row, `market_val` signals.valuation.market(). An indicator
+    whose input is missing stays as an "n/a" row, so the page shows what the reading is not based on."""
     out, breadth = [], {}
     vix_ticker, vix3m_ticker = macro.get("VIX"), macro.get("VIX3M")
     copper_ticker, gold_ticker, oil_ticker = macro.get("Copper"), macro.get("Gold"), macro.get("Oil (WTI)")
@@ -146,6 +148,17 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
     else:
         out.append(_na("Credit (US HY spread)", "fred"))
 
+    s = series("BAMLHE00EHYIOAS")
+    if len(s) > 63:
+        avg = s.iloc[-126:].mean()
+        st = ON if s.iloc[-1] < avg * 0.97 else OFF if s.iloc[-1] > avg * 1.03 else NEUTRAL
+        trend = "widening (stress building)" if s.iloc[-1] > avg else "tightening (supports risk)"
+        out.append(_ind("Euro credit (HY spread)", f"{s.iloc[-1]:.2f}%", st, f"vs 6m average {avg:.2f}%: {trend}",
+                        "fred", _last(s), gz.make(gz.band(1.03, 0.97, ("widening", "steady", "tightening")), s.iloc[-1] / avg),
+                        group="credit_eu"))
+    else:
+        out.append(_na("Euro credit (HY spread)", "fred", group="credit_eu"))
+
     s = series("T10Y2Y")
     if len(s):
         inverted = s.iloc[-1] < 0
@@ -227,6 +240,28 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         out.append(_na("Earnings revisions (S&P 500)", "factset",
                        "the latest FactSet report's growth figures could not be read" if factset else "no data"))
 
+    mv = market_val or {}
+    c = mv.get("cape")
+    if c and c.get("pct_all") is not None:
+        pct = c["pct_all"]
+        st = OFF if pct >= cfg["cape_rich_pct"] else ON if pct <= cfg["cape_cheap_pct"] else NEUTRAL
+        out.append(_ind("Valuation (Shiller CAPE, US)", f"{c['value']:.1f}", st,
+                        f"{pct:.0f}th percentile since {c['since'][:4]} ({c['pct_1990']:.0f}th since 1990), median "
+                        f"{c['median']:.1f}; risk-off at or above the {cfg['cape_rich_pct']}th", "cape", c["asof"],
+                        gz.gauge("cape_pct", pct), group="valuation"))
+    else:
+        out.append(_na("Valuation (Shiller CAPE, US)", "cape", group="valuation"))
+    e = mv.get("erp")
+    if e and e.get("pct") is not None:
+        pct = e["pct"]
+        st = OFF if pct <= cfg["erp_low_pct"] else ON if pct >= cfg["erp_high_pct"] else NEUTRAL
+        out.append(_ind("Equity risk premium (Damodaran, S&P 500)", f"{e['value']:.2%}", st,
+                        f"{pct:.0f}th percentile since {e['since'][:4]}, median {e['median']:.2%}; "
+                        f"risk-off at or below the {cfg['erp_low_pct']}th", "erp", e["asof"],
+                        gz.gauge("erp_pct", pct), group="valuation"))
+    else:
+        out.append(_na("Equity risk premium (Damodaran, S&P 500)", "erp", group="valuation"))
+
     return out, breadth
 
 
@@ -244,12 +279,27 @@ def apply_freshness(inds: list[dict], ref, max_age: dict[str, int]) -> list[dict
     return inds
 
 
-def overall(inds: list[dict]) -> dict:
-    """Net vote of the risk-on / risk-off rows. Neutral rows inform; n/a and stale rows don't count at all."""
-    count = {s: sum(i["status"] == s for i in inds) for s in (ON, OFF, NEUTRAL, NA, STALE)}
+def apply_votes(inds: list[dict], votes: dict[str, bool]) -> list[dict]:
+    """Mark each row voting or not: a row in a group switched off (settings.yaml regime.votes, or your choice on
+    the Regime page) keeps its reading but leaves the vote. Rows without a group always vote."""
+    for i in inds:
+        i["votes"] = i.get("group") is None or bool(votes.get(i["group"], True))
+    return inds
+
+
+def overall(inds: list[dict], votes: dict[str, bool] | None = None) -> dict:
+    """Net vote of the voting risk-on / risk-off rows. Neutral rows inform; n/a and stale rows don't count at
+    all, and nor do rows whose group is switched off in `votes`."""
+    if votes is not None:
+        apply_votes(inds, votes)
+    voting = [i for i in inds if i.get("votes", True)]
+    count = {s: sum(i["status"] == s for i in voting) for s in (ON, OFF, NEUTRAL, NA, STALE)}
     on, off = count[ON], count[OFF]
     scored = on + off
     net = (on - off) / scored if scored else 0
     label = "Risk-on" if net > 0.33 else "Risk-off" if net < -0.33 else "Mixed"
+    groups = sorted({i["group"] for i in inds if i.get("group")})
     return {"label": label, "on": on, "off": off, "neutral": count[NEUTRAL], "na": count[NA],
-            "stale": count[STALE], "total": len(inds), "net": round(net, 2)}
+            "stale": count[STALE], "total": len(voting), "net": round(net, 2),
+            "not_voting": len(inds) - len(voting),
+            "voting_groups": [g for g in groups if any(i.get("votes", True) for i in inds if i.get("group") == g)]}

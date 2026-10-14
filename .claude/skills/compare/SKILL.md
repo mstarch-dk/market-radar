@@ -33,6 +33,7 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 - **`risk.factors`:** loadings on ACWI and on tilts (factor ETFs and the sector ETF minus ACWI), with t-stats.
   This shows whether a "great stock" is really momentum, value or sector exposure.
 - **`table`:** rows `{metric, direction, values: {SYM: v, ACWI: v}, best}`. Use it rather than re-deriving numbers.
+- **P/E vs peers:** `fundamentals.snapshot.pe_vs_sector` is each stock's P/E on next year's EPS against its sector's median among its radar peers (funds: `pe_vs_acwi`). Use it in the valuation row so names in different markets are compared with their own sector, and say when it is missing (too few peers).
 - **P/E basis:** `fundamentals.forward_pe` is Yahoo's and may be on next year's EPS. Use the table rows "P/E on
   this year's / next year's EPS estimate" and always name the year. A low P/E on a cyclical's record earnings is
   a peak signal as much as a value signal; treat it as both, not as an argument for one side.

@@ -11,6 +11,7 @@ import { ImportPortfolio } from "../components/ImportPortfolio";
 import { PortfolioPicker, usePortfolioSel } from "../components/PortfolioPicker";
 import { formatSel, isDefaultSel } from "../lib/portfolioSel";
 import { date, num, pct } from "../lib/format";
+import { stockValCols } from "../components/valuationCols";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
   search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol, csvHeader: "Ticker",
@@ -31,6 +32,13 @@ const common: Col<MyRow>[] = [
 ];
 const SIGNALS = { rsi14: "RSI 14", score: "Momentum score", from_high: "52w high", stop_dist: "Stop", tp_dist: "Target",
   excess_vs_acwi: "vs ACWI (DKK)" };
+
+const valuation: Col<MyRow>[] = [
+  { key: "pe", label: "P/E", name: "P/E (stocks: next year's EPS; funds: Yahoo fund P/E)", sort: (r) => r.pe_fy1 ?? r.pe,
+    help: "pe_fy1", csv: (r) => r.pe_fy1 ?? r.pe,
+    render: (r) => <Graded g={r.val_gauges?.pe_vs_sector ?? r.val_gauges?.pe_vs_acwi}>{num(r.pe_fy1 ?? r.pe, 1)}</Graded> },
+  ...stockValCols<MyRow>().filter((c) => c.key !== "pe_fy1").map((c) => ({ ...c, hidden: true })),
+];
 
 const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} />, help: "flags",
   filter: { kind: "enum", value: (r) => [...r.flags, ...(r.levels?.flags ?? [])] }, csv: (r) => r.flags };
@@ -64,7 +72,7 @@ function Flags({ r }: { r: MyRow }) {
 }
 
 const holdingCols: Col<MyRow>[] = [
-  name, ...common,
+  name, ...common, ...valuation,
   { key: "since_buy", label: "Since buy (DKK)", sort: (r) => r.since_buy, help: "since_buy",
     render: (r) => <Graded g={r.gauges?.excess_vs_acwi}>{pct(r.since_buy)}</Graded> },
   { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, help: "bench_since_buy",
@@ -76,7 +84,7 @@ const holdingCols: Col<MyRow>[] = [
   flags,
 ];
 const watchCols: Col<MyRow>[] = [
-  name, ...common, flags,
+  name, ...common, ...valuation, flags,
   { key: "edit", label: "", name: "Watch", render: (r) => <WatchButton symbol={r.symbol} status={r.status} compact />, csv: false },
 ];
 const soldCols: Col<MyRow>[] = [

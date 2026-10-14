@@ -26,6 +26,7 @@ export type ViewsCatalogue = S["ViewsCatalogue"];
 export type ViewAlignment = S["ViewAlignment"];
 export type AlignCompact = S["AlignCompact"];
 export type PositioningView = S["PositioningView"];
+export type VoteOption = S["VoteOption"];
 export type CoverageView = S["CoverageView"];
 export type LineChartData = S["LineChart"];
 export type MeView = S["MeView"];
@@ -118,6 +119,8 @@ export const api = {
   rotation: () => get<RotationView>("/api/rotation"),
   momentum: () => get<MomentumView>("/api/momentum"),
   positioning: () => get<PositioningView>("/api/positioning"),
+  setRegimeVotes: (votes: Record<string, boolean>) =>
+    get<VoteOption[]>("/api/settings/regime-votes", "PUT", JSON.stringify({ votes }), "application/json"),
   coverage: () => get<CoverageView>("/api/coverage"),
   discover: () => get<DiscoveryView>("/api/discover"),
   discoverStatus: () => get<UpdateStatus>("/api/discover/scan"),

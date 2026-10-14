@@ -17,6 +17,7 @@ from .config import DATA, HOLDINGS_FILE, POSITIVE_LIST_FILE, TRANSACTIONS_FILE
 LOG_FILE = DATA / "sources.json"
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
+NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii"}  # never "the regime's oldest input"
 
 # key -> display name, provider, official source?, cadence, what it feeds
 SOURCES = {
@@ -38,6 +39,16 @@ SOURCES = {
     "discovery_universe": ("Discovery universe", "Yahoo screener, iShares STOXX 600 holdings, positive list → Yahoo",
                            False, "monthly re-build", "Discover"),
     "discovery_prices": ("Discovery prices", "Yahoo Finance via yfinance", False, "each discovery scan", "Discover"),
+    "valuation_stocks": ("Stock valuation & EPS estimates", "Yahoo screener (consensus estimates)", False, "weekly snapshot",
+                         "P/E vs sector, EPS revisions (Momentum, Discover, holdings, ticker pages)"),
+    "valuation_etfs": ("ETF valuation", "Yahoo fund data", False, "weekly snapshot", "Rotation, Themes (P/E vs ACWI)"),
+    "cape": ("Shiller CAPE (US)", "multpl.com (Shiller's method; unofficial)", False, "monthly + current estimate",
+             "Positioning (valuation), Regime (if switched on)"),
+    "erp": ("Implied equity risk premium", "Aswath Damodaran, NYU Stern", True, "monthly",
+            "Positioning (valuation), Regime (if switched on)"),
+    "ecb": ("Euro-area rates", "ECB Data Portal", True, "daily", "Positioning"),
+    "putcall": ("Put/call ratios", "CBOE daily market statistics", True, "daily", "Positioning (sentiment)"),
+    "aaii": ("Investor sentiment survey", "AAII (weekly)", False, "weekly", "Positioning (sentiment)"),
 }
 
 
@@ -184,10 +195,11 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
         rows.append(_row("holdings", None, ref, None, "no import", "", log, state=MISSING))
 
     rows += _discovery_rows(today, max_age, log)
+    rows += _valuation_rows(ref, max_age, log, stock_tickers)
 
     reg = regime_counts(indicators)
     dated = [r for r in rows if r["age_days"] is not None and r["status"] in (OK, STALE) and r["key"] != "prices"
-             and r["max_age"] is not None and not r["key"].startswith("discovery")]
+             and r["max_age"] is not None and not r["key"].startswith("discovery") and r["key"] not in NOT_REGIME]
     oldest = max(dated, key=lambda r: r["age_days"], default=None)
     return {
         "sources": rows, "regime": reg,
@@ -214,6 +226,43 @@ def _discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
         last = pd.Timestamp(d.max()) if len(d) else None
     rows.append(_row("discovery_prices", last, today, max_age.get("discovery_prices"),
                      "separate from the daily update", "Run it from the Discover page or `radar discover`", log))
+    return rows
+
+
+def _valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
+    """The valuation snapshots, the market's valuation (CAPE, ERP), euro-area rates and the sentiment series."""
+    from . import external, sentiment, valuation
+
+    rows = []
+    st = valuation.load_stocks()
+    now = valuation.latest(st)
+    weeks = len(valuation.snapshot_dates(st))
+    have = now.reindex([t for t in stock_tickers if t in now.index])
+    rows.append(_row("valuation_stocks", pd.to_datetime(st["date"]).max() if not st.empty else None, ref,
+                     max_age.get("valuation_stocks"),
+                     f"{int(have['pe_fy1'].notna().sum())} of {len(stock_tickers)} tracked stocks with a forward P/E; "
+                     f"{len(now):,} names in all" if not now.empty else "no snapshot yet",
+                     f"{weeks} weekly snapshot{'s' if weeks != 1 else ''}; EPS revisions need 4 and 12 weeks", log))
+    et = valuation.load_etfs()
+    enow = valuation.latest(et)
+    rows.append(_row("valuation_etfs", pd.to_datetime(et["date"]).max() if not et.empty else None, ref,
+                     max_age.get("valuation_etfs"),
+                     f"{int(enow['pe'].notna().sum())} ETFs with a P/E" if not enow.empty else "no snapshot yet",
+                     "Yahoo stores fund multiples inverted (earnings yield); turned around here", log))
+    mk = valuation.load_market()
+    for key, series, detail in (("cape", "cape", "monthly since 1871"), ("erp", "erp", "monthly since 2008")):
+        s = valuation.market_series(series, mk)
+        rows.append(_row(key, s.index.max() if len(s) else None, ref, max_age.get(key),
+                         f"{len(s):,} months" if len(s) else "not loaded", detail, log))
+    ecb = external.load_ecb()
+    rows.append(_row("ecb", ecb.dropna(how="all").index.max() if not ecb.empty else None, ref, max_age.get("ecb"),
+                     f"{len(ecb.columns)} series" if not ecb.empty else "not loaded", "Euro area AAA 10Y yield", log))
+    pc = sentiment.load_putcall()
+    rows.append(_row("putcall", pd.to_datetime(pc["date"]).max() if not pc.empty else None, ref, max_age.get("putcall"),
+                     f"{len(pc)} trading days" if not pc.empty else "not loaded", "Total, equity and index ratios", log))
+    aa = sentiment.load_aaii()
+    rows.append(_row("aaii", pd.to_datetime(aa["date"]).max() if not aa.empty else None, ref, max_age.get("aaii"),
+                     f"{len(aa):,} weeks" if not aa.empty else "not loaded", "Bullish / neutral / bearish members", log))
     return rows
 
 

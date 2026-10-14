@@ -9,16 +9,18 @@ from . import dashboard, snapshot
 from .config import REPORTS
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
-                    "quadrant_local", "ucits", "ucits_name", "isin", "positive_list")
-SUMMARY_MOMENTUM = ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new")
+                    "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
+SUMMARY_MOMENTUM = ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new", "pe_fy1",
+                    "pe_vs_sector", "eps_rev_4w", "eps_rev_12w")
 SUMMARY_ME = ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "from_high", "since_buy", "bench_since_buy",
-              "last_sell_date", "since_sell", "flags")
+              "last_sell_date", "since_sell", "flags", "pe_fy1", "pe_cy", "pe_vs_sector", "eps_rev_4w", "eps_rev_12w",
+              "earnings_date", "pe", "pe_vs_acwi")
 SUMMARY_SOURCES = ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")
 
 
 def _plain(row: dict) -> dict:
     """A row without its display gauges: summary.json keeps the keys the skills were written against."""
-    return {k: v for k, v in row.items() if k not in ("gauge", "gauges")}
+    return {k: v for k, v in row.items() if k not in ("gauge", "gauges", "val_gauges")}
 
 
 def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> dict:
@@ -38,6 +40,15 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
+        # market valuation (CAPE, Damodaran ERP, yield gap), EPS-revision breadth outside the S&P 500 (Yahoo
+        # consensus, weekly snapshots) and contrarian sentiment (AAII, CBOE put/call); None = no data yet
+        "valuation": {k: _plain(v) if isinstance(v, dict) else v for k, v in d["positioning"]["valuation"].items()
+                      if k != "charts"},
+        "revisions_regional": {**d["positioning"]["revisions"],
+                               "windows": [w | {"rows": [_plain(r) for r in w["rows"]]}
+                                           for w in d["positioning"]["revisions"]["windows"]]},
+        "sentiment": {k: ({x: y for x, y in v.items() if x not in ("gauge", "history")} if v else None)
+                      for k, v in d["positioning"]["sentiment"].items()},
         "stale_tickers": cov["stale_tickers"],
         "coverage": {
             "regime": cov["regime"], "oldest_input": cov["oldest"], "failing_sources": cov["failing"],

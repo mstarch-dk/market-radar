@@ -54,3 +54,12 @@ etf_categories:
   - [Europe, [EUROPE, EURO, EMU, GERMANY, DAX, FRANCE, UK, "FTSE 100", NORDIC, SWEDEN, DENMARK, SWITZERLAND, ITALY, SPAIN, POLAND]]
   - [US & North America, [" US", USA, "S&P 500", "S&P500", NASDAQ, "NORTH AMERICA", "RUSSELL", "DOW JONES"]]
   - [Global, [WORLD, GLOBAL, ACWI, "ALL COUNTRY", DEVELOPED]]
+
+# The weekly P/E and EPS-estimate snapshot (src/radar/valuation.py, `radar update`): Yahoo's screener per exchange.
+# Nordic and European names come from the markets' exchanges above; US names from these. Tracked stocks the screens
+# miss (Asia, the smallest S&P 500 members) are looked up one by one (settings.yaml valuation.fallback_max).
+valuation:
+  us:
+    exchanges: [NMS, NYQ]
+    min_cap: 2.0e+9                       # USD
+    min_count: {NMS: 300, NYQ: 300}       # fewer means Yahoo's screener changed: keep the last snapshot

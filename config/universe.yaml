@@ -189,12 +189,17 @@ macro:
     BAMLH0A0HYM2: US high-yield spread
     DTWEXBGS: USD broad index
     DGS3MO: US 3-month T-bill (risk-free rate for Sharpe/alpha)
+    BAMLHE00EHYIOAS: Euro high-yield spread (ICE BofA; FRED keeps only ~3 years)
+    DFII10: US 10Y real yield (TIPS)
+    T10YIE: US 10Y breakeven inflation
   fred_views:               # only read by the market-views evidence check (not the regime; slower cadence is fine)
     ECBDFR: ECB deposit facility rate
     IRLTLT01EZM156N: Euro area 10Y government yield (monthly)
 
 # Non-price data (src/radar/external.py), all free and keyless.
 external:
+  ecb:                      # ECB Data Portal (SDMX, CSV): key -> [series key, label]
+    EA10Y: ["YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y", "Euro area 10Y yield (AAA curve, spot)"]
   cot:                      # CFTC Commitments of Traders: market name -> CFTC contract code
     tff:                    # Traders in Financial Futures (asset managers, leveraged funds)
       S&P 500: "13874A"

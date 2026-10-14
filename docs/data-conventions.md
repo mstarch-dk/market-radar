@@ -17,6 +17,22 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - The discovery universe is today's listings only (no delisted names: survivorship bias), and its sectors come from the screener's own sector filter. Industries are shown only where the radar's sector cache already has them.
 - Analyst targets are converted to the radar's price units by the ratio of our close to Yahoo's price on the fetch date. This handles GBp vs GBP and ADR ratios.
 
+## Valuation (`valuation.py`, `signals/valuation.py`)
+- **Stocks**: a weekly snapshot (one per ISO week; a re-run replaces it) of Yahoo's screener per exchange (`discovery.yaml` markets + `valuation.us`), plus one-by-one lookups for tracked names it misses (Asia). Every exchange must return its minimum count, or the step fails and the last snapshot stays.
+- **Mixed currencies in one quote**: when a company reports in another currency than it trades in (Shell: pence / USD, Vestas: DKK / EUR), Yahoo's trailing and next-year EPS come converted into the trading currency (pounds for pence quotes), this year's EPS in the reporting currency. So `pe_ttm` and `pe_fy1` are price / EPS in the trading currency (they match Yahoo's own trailing and forward P/E), and `pe_cy` uses the price converted into the reporting currency. Yahoo's own `priceEpsCurrentYear` is wrong for those names and isn't used. No rate (Yahoo has no CNY/DKK quote) means no `pe_cy`, never a mixed ratio.
+- **Bases**: `pe_fy1` = next fiscal year's consensus EPS (the tables' "P/E next yr"), `pe_cy` = this fiscal year, `pe_ttm` = trailing 12 months. Negative or zero earnings, a P/E outside 1–300, and (one-by-one lookups only) a next-year EPS more than 3× or under ⅓ of the trailing one give no P/E, with a note in the snapshot.
+- **P/E vs sector**: `pe_fy1` divided by the median of the same Yahoo sector among the stock's peers: its radar group (Momentum, holdings) or its Discover market. At least `valuation.min_peers` names with a P/E, else missing.
+- **EPS revisions**: the change in the next-year EPS between the latest snapshot and the one closest to 4 or 12 weeks earlier (±4 days); missing until those exist. When the fiscal year has rolled over (this year's estimate is now last time's next year), the same year is compared. Names with `cross_ccy` are left out: Yahoo converts their estimate at today's rate, so an FX move would look like a revision.
+- **Funds**: Yahoo's `funds_data.equity_holdings` stores multiples inverted (earnings yield: 0.0312 for a fund on 32× earnings); they are turned around and range-checked (P/E 3–150). Yahoo doesn't say whether a fund's P/E is trailing or forward. `pe_vs_acwi` divides by ACWI's own fund P/E (same basis); `pe_pct` (percentile in its own history) needs 26 weekly snapshots.
+- **Market**: Shiller CAPE monthly since 1871 from multpl.com (Shiller's method; it matches Shiller's own file where both are final; Shiller's public file stopped at Sep 2024), Damodaran's implied ERP on trailing-12-month cash flows (his headline number, monthly since 2008), and the yield gap: 100 / FactSet's forward P/E − FRED `DFII10`. Percentiles exclude the latest point.
+
+## Sentiment (`sentiment.py`)
+- CBOE: one JSON per trading day; a 403/404 day is skipped (holiday, not yet published); a week of weekdays with nothing raises. The equity ratio's 10-day average is ranked against ~3 years, once 60 days exist.
+- AAII: the weekly `.xls`; the header row must read Bullish / Neutral / Bearish and the three shares must add up to ~100%. The bull − bear spread is ranked since 1987. Both are contrarian readings and never vote.
+
+## Regime votes
+- Rows carry a `group`; groups in `settings.yaml regime.votes` (credit_eu on, valuation off by default) can be switched off. A switched-off row keeps its reading and gauge but leaves the vote. Your choice (the Regime page) is stored in `userdata` (`meta.regime_votes`), applied live by `/api/regime`, `/api/me` and the ticker pages, used by the next `radar report` (summary.json) and carried in the CI holdings bundle.
+
 ## Graded readings (gauges)
 - `signals/gauges.py` grades a reading between its thresholds: anchors (value, score) are interpolated to a score in [-1, 1] (+ favourable, green; − warning, red), cut into 9 levels, with a granular word ("near overbought"). One-way risk measures (VIX, ATR %, beta, crowding) are `sequential` and never turn green.
 - Specs live in `settings.yaml` `gauges:`; regime rows build theirs from the `regime:` thresholds, so a threshold is written once. The regime vote itself is unchanged.

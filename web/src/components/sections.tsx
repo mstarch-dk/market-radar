@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { GaugeBadge, GaugeBar } from "./Gauge";
+import { GaugeBadge, GaugeBar, Graded } from "./Gauge";
+import { Sparkline } from "./Sparkline";
 import { Term } from "./Term";
 import { TickerLink } from "./TickerLink";
 import { Link } from "react-router-dom";
@@ -253,10 +254,38 @@ export function AnalystCard({ p }: { p: Profile }) {
   );
 }
 
+/** The ticker in the weekly valuation snapshot: P/E against its sector (stocks) or ACWI (funds), EPS revisions,
+ * and the P/E over the stored weeks. */
+function SnapshotRows({ s }: { s: NonNullable<Profile["fundamentals"]["snapshot"]> }) {
+  const g = s.gauges ?? {};
+  const times = (v: Maybe) => (isNum(v) ? `${num(v, 2)}×` : "–");
+  const fund = s.kind === "fund";
+  return (
+    <>
+      <h3>Weekly snapshot{s.asof && <span className="muted small"> · {date(s.asof)} · {s.weeks} week{s.weeks === 1 ? "" : "s"} stored</span>}</h3>
+      <KV rows={[
+        [fund ? "Fund P/E (Yahoo)" : "P/E on next year's EPS", <Graded g={fund ? g.pe_vs_acwi : g.pe_vs_sector}>{num(s.pe, 1)}</Graded>,
+          { help: fund ? "fund_pe" : "pe_fy1" }],
+        [fund ? "vs ACWI" : `vs sector median${s.sector ? ` (${s.sector})` : ""}`,
+          <Graded g={fund ? g.pe_vs_acwi : g.pe_vs_sector}>{times(fund ? s.pe_vs_acwi : s.pe_vs_sector)}</Graded>,
+          { help: fund ? "pe_vs_acwi" : "pe_vs_sector", hint: (fund ? g.pe_vs_acwi : g.pe_vs_sector)?.label }],
+        ["P/E percentile (own history)", num(s.pe_pct, 0), { hide: !fund, help: "pe_pct",
+          hint: isNum(s.pe_pct) ? undefined : "needs 26 weeks" }],
+        ["EPS estimate change 4w / 12w", <><Graded g={g.eps_rev}>{pct(s.eps_rev_4w)}</Graded> / {pct(s.eps_rev_12w)}</>,
+          { hide: fund, help: "eps_rev", hint: isNum(s.eps_rev_4w) ? undefined : "builds up over 4 and 12 weeks" }],
+        ["P/E over the stored weeks", s.history.length > 1 ? <Sparkline values={s.history.map((h) => h.pe)} /> : "–",
+          { hide: s.history.length < 2 }],
+      ]} />
+    </>
+  );
+}
+
 export function FundamentalsCard({ p }: { p: Profile }) {
   const f = p.fundamentals;
   return (
     <Card title="Valuation & fundamentals" meta={f}>
+      {f.snapshot && <SnapshotRows s={f.snapshot} />}
+      {f.snapshot && <h3>Yahoo profile</h3>}
       <KV rows={[
         ["Market cap", `${compact(f.market_cap)} ${f.currency ?? ""}`, { hint: isNum(f.market_cap_dkk) && f.currency !== "DKK" ? `${compact(f.market_cap_dkk)} DKK` : undefined }],
         ["P/E trailing / forward", `${num(f.trailing_pe, 1)} / ${num(f.forward_pe, 1)}`],
@@ -290,6 +319,7 @@ export function EtfCard({ p }: { p: Profile }) {
         ["Positive list (SKAT)", id.positive_list ?? "not checked", { hint: id.isin ?? "no ISIN in config", hide: !id.etf_group, help: "positive_list" }],
         ["UCITS version", id.ucits ? <TickerLink symbol={id.ucits} /> : "–", { hide: !id.ucits, help: "ucits" }],
       ]} />
+      {p.fundamentals.snapshot && <SnapshotRows s={p.fundamentals.snapshot} />}
       {e.sector_weights.length > 0 && (
         <>
           <h3>Sectors</h3>

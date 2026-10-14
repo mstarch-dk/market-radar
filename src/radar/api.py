@@ -15,14 +15,14 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, portfolio, profile, tickers, universe, updater, userstore
+from . import dashboard, mine, portfolio, profile, tickers, universe, updater, userstore, valuation
 from .api_models import (
     AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
     PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
-    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage,
+    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
 )
 from .config import settings
 from .config import ROOT
@@ -133,7 +133,27 @@ def _view(key: str) -> dict:
 
 @app.get("/api/regime", response_model=RegimeView)
 def get_regime() -> dict:
-    return _view("regime")
+    """The regime of the last `radar run`, voted with your current choice of indicator groups."""
+    view = _view("regime")
+    view["overall"], view["indicators"] = dashboard.regime_now(_dashboard())
+    return view | {"votes": dashboard.vote_options()}
+
+
+@app.get("/api/settings/regime-votes", response_model=list[VoteOption])
+def get_regime_votes() -> list[dict]:
+    return dashboard.vote_options()
+
+
+@app.put("/api/settings/regime-votes", response_model=list[VoteOption])
+def put_regime_votes(body: VotesIn) -> list[dict]:
+    """Which switchable indicator groups count in the regime vote (stored in userdata; the default is
+    settings.yaml regime.votes). Takes effect at once here, and in summary.json from the next `radar report`."""
+    known = set(settings()["regime"].get("votes") or {})
+    unknown = sorted(set(body.votes) - known)
+    if unknown:
+        raise HTTPException(422, f"unknown group(s): {', '.join(unknown)}; known: {', '.join(sorted(known))}")
+    userstore.meta_set("regime_votes", (userstore.meta_get("regime_votes") or {}) | body.votes)
+    return dashboard.vote_options()
 
 
 @app.get("/api/rotation", response_model=RotationView)
@@ -240,7 +260,11 @@ def get_discover() -> dict:
     if d is None:
         raise HTTPException(503, "No discovery scan yet: start one on this page or run `uv run radar discover`.")
     age = (date.today() - date.fromisoformat(d["asof"])).days
-    return {"age_days": age, "stale": age > settings()["coverage"]["max_age"]["discovery_prices"], **d}
+    ctx = valuation.context()
+    markets = [m | {"rows": dashboard.with_valuation(m["rows"], ctx, "fund" if m["kind"] == "etf" else "stock", "disc")}
+               for m in d["markets"]]
+    return {"age_days": age, "stale": age > settings()["coverage"]["max_age"]["discovery_prices"], **d,
+            "markets": markets}
 
 
 @app.get("/api/discover/scan", response_model=UpdateStatus)
@@ -266,12 +290,13 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
     sel = _selection(portfolio, tag, scope)
     d = _dashboard()
     rot_rows = [r for g in d["rotation"]["groups"] for r in g["rows"]]
-    regime_label = d["regime"]["overall"]["label"]
+    regime_label = dashboard.regime_now(d)[0]["label"]
     with _lock:
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
                           settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
+    rows = dashboard.with_valuation(rows, valuation.context())
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}
 

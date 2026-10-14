@@ -1,6 +1,6 @@
 # Testing
 
-- `uv run pytest -q`: parsers, signals, holdings import, config integrity, ticker profiles, the API, the user store, portfolios and their upgrade from accounts (`test_portfolios.py`), the cash ledger (`test_cash.py`), returns over time with hand-checkable numbers (`test_performance.py`), forks and simulated runs (`test_simulate.py`), and an end-to-end `report.build()` (summary.json keys, dashboard.json against the API models). Also run in CI. `test_marketing.py` keeps `marketing/` consistent (shots ↔ features ↔ page, seed dates and names).
+- `uv run pytest -q`: parsers, signals, holdings import, config integrity, ticker profiles, the API, the user store, portfolios and their upgrade from accounts (`test_portfolios.py`), the cash ledger (`test_cash.py`), returns over time with hand-checkable numbers (`test_performance.py`), forks and simulated runs (`test_simulate.py`), and an end-to-end `report.build()` (summary.json keys, dashboard.json against the API models). Also run in CI. `test_valuation.py`: the valuation and sentiment parsers on trimmed real payloads, P/E on Yahoo's mixed currencies, revisions and percentiles, and the switchable regime votes. `test_marketing.py` keeps `marketing/` consistent (shots ↔ features ↔ page, seed dates and names).
 - `pnpm -C web test`: frontend formatters and the table state (URL round trip, filters, sorting, CSV). `pnpm -C web build` type-checks the UI against the generated API schema.
 
 ## Fixtures

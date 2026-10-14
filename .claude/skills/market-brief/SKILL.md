@@ -16,6 +16,10 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `momentum_top10` (with sector and industry), new entrants and drop-outs per region, and `momentum_clusters`: industries or sectors over-represented among a region's leaders.
    - `positioning_cot`: CFTC net positioning, with `3y high` / `3y low` flags.
    - `leading_indicators`: OECD CLI cycle phase per area.
+   - `valuation`: Shiller CAPE (`value`, `pct_all` since 1871, `pct_1990`), Damodaran's implied equity risk premium (`erp.value`, `erp.pct` since 2008) and the `yield_gap` (forward earnings yield minus the US 10Y real yield). `null` = no data. Whether these vote is in `regime.voting_groups` (the user switches valuation on or off on the Regime page); say which way they would tilt the vote when they don't count.
+   - `revisions_regional`: EPS-revision breadth from Yahoo consensus per radar region and Discover market (`windows[].rows`: `up`, `down`, `net` over 4 and 12 weeks). Empty windows mean the weekly snapshots don't go back far enough yet: say "building history", not "no revisions".
+   - `sentiment`: the AAII survey (`spread` = bull − bear, `pct` since 1987, `flag` extreme fear / euphoria) and CBOE's equity put/call (`equity_10d`, `pct` over 3 years). Contrarian and US-centred; they never vote.
+   - Per row in `momentum_top10` and `me`: `pe_fy1` (P/E on next year's consensus EPS), `pe_vs_sector` (vs its sector's median among its peers: 0.8 = 20% cheaper) and `eps_rev_4w` / `eps_rev_12w`; in `rotation`: the fund `pe` and `pe_vs_acwi`.
    - `earnings_factset`: S&P 500 growth estimate vs the start of the quarter, guidance, forward P/E, and the sectors with upward or downward revisions.
    - The `me` list: holdings, watchlist and sold positions with flags (the user's real portfolios pooled; virtual ones are never in it).
    - `portfolios`: each real portfolio's returns over time in DKK (time-weighted, 1m / 3m / YTD / 1y and since its start) next to ACWI's, with its tax kind and notes (gaps, funding). Report these as they are; a `null` is missing data, not zero.
@@ -30,7 +34,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - ETFs that moved **Improving → Leading** or **Leading → Weakening**, and the biggest rank changes
    - Themes in Leading or Improving that have a UCITS ticker
    - Momentum clusters and new entrants, especially an industry cluster with NEW names, which suggests a theme forming
-   - **Confirmation or divergence.** For example, a sector leading in the RRG that also has upward FactSet revisions is confirmed; leadership without revisions or breadth is fragile. Also flag CFTC `3y high`/`3y low` readings in markets that matter to the rotation (crowding risk).
+   - **Confirmation or divergence.** For example, a sector leading in the RRG that also has upward FactSet revisions is confirmed; leadership without revisions or breadth is fragile. Outside the US, use `revisions_regional` the same way. A momentum leader on a P/E far above its sector (`pe_vs_sector` well above 1) with falling estimates is the most fragile kind. Also flag CFTC `3y high`/`3y low` readings in markets that matter to the rotation (crowding risk).
    - Holdings flagged `losing momentum` or `below 200d`, watchlist names flagged `turning up`, and sold names with a strong move since the sale
 4. **Research the "why"**: use WebSearch (standard mode; send the searches together) for the drivers behind the top items over the last 2–4 weeks: earnings, guidance, macro data, policy, flows. Prefer primary or reputable sources. Every factual claim about news needs a link. Useful free sources:
    - Bloomberg markets headlines RSS (`https://feeds.bloomberg.com/markets/news.rss`): headlines and short summaries only. Don't try to read paywalled articles.
@@ -55,7 +59,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 Indicator table (only those that changed or matter), plus one paragraph of interpretation.
 
 ## Positioning & cycle
-One short paragraph covering three things: the earnings revision trend and which sectors it favours, the cycle phase from the OECD CLI, and any CFTC extremes. Say whether they confirm or contradict the price-based rotation.
+One short paragraph covering: the earnings revision trend (FactSet, and the regional breadth once it has history) and which sectors it favours, the cycle phase from the OECD CLI, any CFTC extremes, the market's valuation (CAPE and ERP percentiles, the yield gap) and sentiment (AAII, put/call) when either is at an extreme. Say whether they confirm or contradict the price-based rotation. Valuation is context for the 1–6-month horizon, not a timing signal.
 
 ## Rotation – sectors, regions & themes
 What's leading, what's rotating in or out, and the drivers (with links). For themes, give the UCITS ticker and its positive-list status.

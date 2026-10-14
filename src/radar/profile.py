@@ -179,7 +179,30 @@ def _regime() -> dict:
     d = dashboard.load()
     if d is None:
         return {"label": None, "asof": None}
-    return {"label": d["regime"]["overall"]["label"], "asof": d["asof"], "net": d["regime"]["overall"].get("net")}
+    overall = dashboard.regime_now(d)[0]   # with your current choice of voting groups
+    return {"label": overall["label"], "asof": d["asof"], "net": overall.get("net")}
+
+
+def _valuation_snapshot(ticker: str) -> dict | None:
+    """The weekly valuation snapshot for this ticker (valuation.py): P/E against its sector peers and EPS
+    revisions for a stock, P/E against ACWI for a fund, plus its P/E over the stored weeks. None when the
+    snapshot doesn't have it."""
+    from . import valuation
+
+    ctx = valuation.context()
+    fund = ticker in ctx.etf
+    if not fund and ticker not in ctx.now.index:
+        return None
+    f = ctx.fund(ticker) if fund else ctx.stock(ticker)
+    hist = valuation.load_etfs() if fund else valuation.load_stocks()
+    col = "pe" if fund else "pe_fy1"
+    h = hist[hist["ticker"] == ticker].sort_values("date")
+    return {"kind": "fund" if fund else "stock", "asof": ctx.etf_asof if fund else ctx.asof, "weeks": len(h),
+            "pe": f.get(col), "pe_vs_sector": f.get("pe_vs_sector"), "pe_vs_acwi": f.get("pe_vs_acwi"),
+            "pe_pct": f.get("pe_pct"), "eps_rev_4w": f.get("eps_rev_4w"), "eps_rev_12w": f.get("eps_rev_12w"),
+            "sector": None if fund else ctx.sector.get(ticker), "gauges": f["val_gauges"],
+            "history": [{"date": pd.Timestamp(d).date().isoformat(), "pe": float(v)}
+                        for d, v in zip(h["date"], h[col]) if pd.notna(v)]}
 
 
 def _section(status: str, source: str, asof=None, **data) -> dict:
@@ -348,7 +371,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     if fund.get("market_cap") and currency != "GBp" and fx is not None:
         fund["market_cap_dkk"] = fund["market_cap"] * float(fx.iloc[-1])
     fundamentals = _section((raw_status if any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency")) else MISSING),
-                            "Yahoo Finance", detail_asof, **fund, beta_radar=beta)
+                            "Yahoo Finance", detail_asof, **fund, beta_radar=beta, snapshot=_valuation_snapshot(ticker))
 
     # --- ETF look-through
     etf = None

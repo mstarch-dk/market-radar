@@ -148,9 +148,10 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
     return cached.set_index("ticker").reindex(tickers).fillna("")
 
 
+# CAD: for the P/E of US listings that report in it (valuation.price_in); Yahoo has no CNY/DKK quote
 FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", "GBp": "GBPDKK=X",
           "SEK": "SEKDKK=X", "NOK": "NOKDKK=X", "CHF": "CHFDKK=X", "PLN": "PLNDKK=X",
-          "JPY": "JPYDKK=X", "HKD": "HKDDKK=X"}
+          "JPY": "JPYDKK=X", "HKD": "HKDDKK=X", "CAD": "CADDKK=X"}
 
 
 def fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:

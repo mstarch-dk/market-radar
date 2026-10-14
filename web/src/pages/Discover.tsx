@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { fundValCols, stockValCols } from "../components/valuationCols";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ApiError, api, type DiscoveryMarket, type DiscoveryRow, type DiscoveryView } from "../api/client";
@@ -90,6 +91,7 @@ function columns(kind: DiscoveryMarket["kind"]): Col<DiscoveryRow>[] {
       render: (r) => <b className="num">{num(r.score, 0)}</b> },
     { key: "dscore", label: "Δ score", name: "Score change (1m)", sort: (r) => r.d_score, help: "d_score", filter: { kind: "range", unit: "num" },
       render: (r) => <span className={`num ${fmt.tone(r.d_score)}`}>{fmt.signed(r.d_score)}</span> },
+    ...(stock ? stockValCols<DiscoveryRow>() : fundValCols<DiscoveryRow>()),
     { key: "r1w", label: "1w", sort: (r) => r.r1w, render: (r) => <Pct v={r.r1w} />, help: "r1w", heat: true },
     { key: "r1m", label: "1m", sort: (r) => r.r1m, render: (r) => <Pct v={r.r1m} />, help: "r1m", heat: true },
     { key: "r3m", label: "3m", sort: (r) => r.r3m, render: (r) => <Pct v={r.r3m} />, help: "r3m", heat: true, filter: { kind: "range", unit: "pct" } },

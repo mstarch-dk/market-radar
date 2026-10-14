@@ -163,6 +163,43 @@ def cli_table(cli: pd.DataFrame, labels: dict[str, str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# ---------------- ECB Data Portal (euro-area rates) ----------------
+
+ECB_FILE = DATA / "ecb.parquet"
+ECB_URL = "https://data-api.ecb.europa.eu/service/data/{key}?startPeriod={start}&format=csvdata"
+
+
+def parse_ecb(text: str) -> pd.Series:
+    """One ECB SDMX series as CSV (`format=csvdata`) → a dated series."""
+    csv = pd.read_csv(io.StringIO(text))
+    if not {"TIME_PERIOD", "OBS_VALUE"} <= set(csv.columns) or csv.empty:
+        raise ValueError("no TIME_PERIOD / OBS_VALUE in the ECB's answer: has the format changed?")
+    if csv["KEY"].nunique() > 1:
+        raise ValueError(f"{csv['KEY'].nunique()} series in one answer: the key matches more than one series")
+    s = pd.Series(pd.to_numeric(csv["OBS_VALUE"], errors="coerce").values,
+                  index=pd.PeriodIndex(csv["TIME_PERIOD"], freq="D").to_timestamp()
+                  if len(str(csv["TIME_PERIOD"].iloc[0])) == 10 else pd.PeriodIndex(csv["TIME_PERIOD"], freq="M").to_timestamp())
+    return s.dropna().sort_index()
+
+
+def update_ecb() -> str:
+    series = _cfg().get("ecb", {})
+    start = (date.today() - timedelta(days=365 * 6)).isoformat()
+    out = {}
+    for key, (sid, _label) in series.items():
+        resp = requests.get(ECB_URL.format(key=sid, start=start), headers=UA, timeout=60)
+        resp.raise_for_status()
+        out[key] = parse_ecb(resp.text)
+    df = pd.DataFrame(out).sort_index()
+    DATA.mkdir(exist_ok=True)
+    write_parquet(df, ECB_FILE)
+    return ", ".join(f"{k} {s.index[-1]:%d %b}" for k, s in out.items())
+
+
+def load_ecb() -> pd.DataFrame:
+    return pd.read_parquet(ECB_FILE) if ECB_FILE.exists() else pd.DataFrame()
+
+
 # ---------------- FactSet Earnings Insight ----------------
 
 FACTSET_URL = ("https://advantage.factset.com/hubfs/Website/Resources%20Section/Research%20Desk/"

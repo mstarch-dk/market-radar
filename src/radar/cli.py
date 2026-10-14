@@ -194,6 +194,7 @@ BUNDLE_WATCHLIST = "watchlist.csv"          # the web app's watchlist edits
 BUNDLE_YAHOO_WATCH = "yahoo_watch.json"     # the watchlist of the last Yahoo import
 BUNDLE_VIEWS = "views.json"                 # your market views (the /views page)
 BUNDLE_PORTFOLIOS = "portfolios.json"       # the portfolios: kind, mode, tags (real ones unless --include-virtual)
+BUNDLE_VOTES = "regime_votes.json"          # which indicator groups vote in the regime (the Regime page switches)
 LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the transaction store
 
 
@@ -201,8 +202,8 @@ LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the 
 def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help="Store it directly as the HOLDINGS_BUNDLE GitHub secret"),
                     include_virtual: bool = typer.Option(False, "--include-virtual",
                                                          help="Pack virtual portfolios too (left out by default)")):
-    """Pack your portfolios (real ones: stored transactions, kinds and tags), watchlists and market views as
-    base64 for the HOLDINGS_BUNDLE secret.
+    """Pack your portfolios (real ones: stored transactions, kinds and tags), watchlists, market views and regime
+    vote choices as base64 for the HOLDINGS_BUNDLE secret.
 
     Usage: uv run radar bundle-holdings --set-secret   (needs the GitHub CLI, signed in)
     """
@@ -222,6 +223,7 @@ def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help=
         z.writestr(BUNDLE_WATCHLIST, userstore.export_watchlist_csv())
         z.writestr(BUNDLE_YAHOO_WATCH, json.dumps(userstore.meta_get("yahoo_watch", [])))
         z.writestr(BUNDLE_VIEWS, userstore.export_views_json())
+        z.writestr(BUNDLE_VOTES, json.dumps(userstore.meta_get("regime_votes", {})))
     data = base64.b64encode(buf.getvalue()).decode("ascii")
     if not set_secret:
         typer.echo(data)
@@ -267,6 +269,8 @@ def unbundle_holdings():
             universe.ensure_migrated()
             what = ", ".join(LEGACY_FILES)
         n = userstore.import_watchlist_csv(z.read(BUNDLE_WATCHLIST).decode("utf-8")) if BUNDLE_WATCHLIST in names else 0
+        if BUNDLE_VOTES in names:
+            userstore.meta_set("regime_votes", json.loads(z.read(BUNDLE_VOTES)))
         n_views = userstore.import_views_json(z.read(BUNDLE_VIEWS).decode("utf-8")) if BUNDLE_VIEWS in names else 0
     typer.echo(f"Restored {what}, {n} watchlist edits and {n_views} market views.")
 

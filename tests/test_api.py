@@ -120,3 +120,33 @@ def test_old_dashboard_is_flagged_stale(built, monkeypatch):
     monkeypatch.setattr(api, "date", Later)
     r = built.get("/api/momentum").json()
     assert r["age_days"] >= 30 and r["stale"] is True
+
+
+def test_regime_vote_switches(client):
+    """Valuation stretched in the world's market data: off by default, two more risk-off votes when switched on,
+    at once in /api/regime and in summary.json from the next report."""
+    import pandas as pd
+
+    from radar import valuation
+
+    months = pd.date_range(end=world.IDX[-1], periods=440, freq="MS")     # fresh as of the world's last day
+    valuation._market_merge("cape", pd.Series(range(10, 450), index=months, dtype=float))        # last = highest
+    valuation._market_merge("erp", pd.Series([0.08 - i * 0.0001 for i in range(440)], index=months))  # last = lowest
+    report.build()
+    before = client.get("/api/regime").json()
+    assert {v["group"]: v["on"] for v in before["votes"]} == {"credit_eu": True, "valuation": False}
+    rows = {i["name"].split(" (")[0]: i for i in before["indicators"]}
+    assert rows["Valuation"]["status"] == "risk-off" and not rows["Valuation"]["votes"]
+
+    r = client.put("/api/settings/regime-votes", json={"votes": {"valuation": True}})
+    assert r.status_code == 200 and {v["group"]: v["on"] for v in r.json()}["valuation"] is True
+    after = client.get("/api/regime").json()
+    assert after["overall"]["off"] == before["overall"]["off"] + 2 and after["overall"]["not_voting"] == 0
+    api_models.RegimeView(**after)
+
+    import json
+    out = report.build()
+    summary = json.loads((report.REPORTS / "summary.json").read_text(encoding="utf-8"))
+    assert "valuation" in summary["regime"]["voting_groups"] and summary["regime"]["off"] == after["overall"]["off"]
+    assert out["regime"] == after["overall"]["label"]
+    assert client.put("/api/settings/regime-votes", json={"votes": {"crypto": True}}).status_code == 422

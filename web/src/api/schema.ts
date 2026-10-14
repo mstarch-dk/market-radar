@@ -85,9 +85,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Regime */
+        /**
+         * Get Regime
+         * @description The regime of the last `radar run`, voted with your current choice of indicator groups.
+         */
         get: operations["get_regime_api_regime_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/regime-votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Regime Votes */
+        get: operations["get_regime_votes_api_settings_regime_votes_get"];
+        /**
+         * Put Regime Votes
+         * @description Which switchable indicator groups count in the regime vote (stored in userdata; the default is
+         *     settings.yaml regime.votes). Takes effect at once here, and in summary.json from the next `radar report`.
+         */
+        put: operations["put_regime_votes_api_settings_regime_votes_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -810,6 +835,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Aaii */
+        Aaii: {
+            /** Asof */
+            asof: string;
+            /** Bullish */
+            bullish: number;
+            /** Neutral */
+            neutral: number;
+            /** Bearish */
+            bearish: number;
+            /** Spread */
+            spread: number;
+            /** Spread 8W */
+            spread_8w: number;
+            /** Pct */
+            pct?: number | null;
+            /** Flag */
+            flag?: string | null;
+            gauge?: components["schemas"]["Gauge"] | null;
+            /** History */
+            history: components["schemas"]["AaiiPoint"][];
+        };
+        /** AaiiPoint */
+        AaiiPoint: {
+            /** Date */
+            date: string;
+            /** Spread */
+            spread: number;
+        };
         /** AlignCompact */
         AlignCompact: {
             /**
@@ -943,6 +997,22 @@ export interface components {
             ex_dividend?: string | null;
             /** Dividend Date */
             dividend_date?: string | null;
+        };
+        /** CapeReading */
+        CapeReading: {
+            /** Value */
+            value: number;
+            /** Asof */
+            asof: string;
+            /** Pct All */
+            pct_all?: number | null;
+            /** Pct 1990 */
+            pct_1990?: number | null;
+            /** Median */
+            median: number;
+            /** Since */
+            since: string;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
         /** CashRow */
         CashRow: {
@@ -1137,6 +1207,37 @@ export interface components {
         };
         /** DiscoveryRow */
         DiscoveryRow: {
+            /** Pe */
+            pe?: number | null;
+            /** Pe Vs Acwi */
+            pe_vs_acwi?: number | null;
+            /** Pe Pct */
+            pe_pct?: number | null;
+            /**
+             * Val Gauges
+             * @default {}
+             */
+            val_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+            /** Pe Fy1 */
+            pe_fy1?: number | null;
+            /** Pe Cy */
+            pe_cy?: number | null;
+            /** Pe Ttm */
+            pe_ttm?: number | null;
+            /** Pb */
+            pb?: number | null;
+            /** Div Yield */
+            div_yield?: number | null;
+            /** Pe Vs Sector */
+            pe_vs_sector?: number | null;
+            /** Eps Rev 4W */
+            eps_rev_4w?: number | null;
+            /** Eps Rev 12W */
+            eps_rev_12w?: number | null;
+            /** Earnings Date */
+            earnings_date?: string | null;
             /** Ticker */
             ticker: string;
             /** Name */
@@ -1263,6 +1364,20 @@ export interface components {
             growth?: number | null;
             /** Index Growth */
             index_growth?: number | null;
+        };
+        /** ErpReading */
+        ErpReading: {
+            /** Value */
+            value: number;
+            /** Asof */
+            asof: string;
+            /** Pct */
+            pct?: number | null;
+            /** Median */
+            median: number;
+            /** Since */
+            since: string;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
         /** Etf */
         Etf: {
@@ -1470,6 +1585,7 @@ export interface components {
              * @default []
              */
             notes: string[];
+            snapshot?: components["schemas"]["ValuationSnapshot"] | null;
         };
         /**
          * Gauge
@@ -1724,6 +1840,13 @@ export interface components {
             /** Asof */
             asof?: string | null;
             gauge?: components["schemas"]["Gauge"] | null;
+            /** Group */
+            group?: string | null;
+            /**
+             * Votes
+             * @default true
+             */
+            votes: boolean;
         };
         /** Issue */
         Issue: {
@@ -1823,6 +1946,17 @@ export interface components {
             /** T */
             t?: number | null;
         };
+        /** MarketValuation */
+        MarketValuation: {
+            cape?: components["schemas"]["CapeReading"] | null;
+            erp?: components["schemas"]["ErpReading"] | null;
+            yield_gap?: components["schemas"]["YieldGap"] | null;
+            /**
+             * Charts
+             * @default []
+             */
+            charts: components["schemas"]["LineChart"][];
+        };
         /** MeView */
         MeView: {
             /** Asof */
@@ -1906,6 +2040,31 @@ export interface components {
         };
         /** MomentumRow */
         MomentumRow: {
+            /** Pe Fy1 */
+            pe_fy1?: number | null;
+            /** Pe Cy */
+            pe_cy?: number | null;
+            /** Pe Ttm */
+            pe_ttm?: number | null;
+            /** Pb */
+            pb?: number | null;
+            /** Div Yield */
+            div_yield?: number | null;
+            /** Pe Vs Sector */
+            pe_vs_sector?: number | null;
+            /** Eps Rev 4W */
+            eps_rev_4w?: number | null;
+            /** Eps Rev 12W */
+            eps_rev_12w?: number | null;
+            /** Earnings Date */
+            earnings_date?: string | null;
+            /**
+             * Val Gauges
+             * @default {}
+             */
+            val_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
             /** Ticker */
             ticker: string;
             /** Name */
@@ -2022,6 +2181,37 @@ export interface components {
         };
         /** MyRow */
         MyRow: {
+            /** Pe */
+            pe?: number | null;
+            /** Pe Vs Acwi */
+            pe_vs_acwi?: number | null;
+            /** Pe Pct */
+            pe_pct?: number | null;
+            /**
+             * Val Gauges
+             * @default {}
+             */
+            val_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+            /** Pe Fy1 */
+            pe_fy1?: number | null;
+            /** Pe Cy */
+            pe_cy?: number | null;
+            /** Pe Ttm */
+            pe_ttm?: number | null;
+            /** Pb */
+            pb?: number | null;
+            /** Div Yield */
+            div_yield?: number | null;
+            /** Pe Vs Sector */
+            pe_vs_sector?: number | null;
+            /** Eps Rev 4W */
+            eps_rev_4w?: number | null;
+            /** Eps Rev 12W */
+            eps_rev_12w?: number | null;
+            /** Earnings Date */
+            earnings_date?: string | null;
             /** Symbol */
             symbol: string;
             /** Name */
@@ -2120,6 +2310,23 @@ export interface components {
             total: number;
             /** Net */
             net: number;
+            /**
+             * Not Voting
+             * @default 0
+             */
+            not_voting: number;
+            /**
+             * Voting Groups
+             * @default []
+             */
+            voting_groups: string[];
+        };
+        /** PePoint */
+        PePoint: {
+            /** Date */
+            date: string;
+            /** Pe */
+            pe: number;
         };
         /** Peer */
         Peer: {
@@ -2410,6 +2617,10 @@ export interface components {
             cli: components["schemas"]["CliRow"][];
             /** Cot */
             cot: components["schemas"]["CotRow"][];
+            valuation?: components["schemas"]["MarketValuation"] | null;
+            revisions?: components["schemas"]["Revisions"] | null;
+            sentiment?: components["schemas"]["Sentiment"] | null;
+            rates?: components["schemas"]["Rates"] | null;
         };
         /** PositionsView */
         PositionsView: {
@@ -2513,6 +2724,39 @@ export interface components {
             context: components["schemas"]["Context"];
             views?: components["schemas"]["ViewAlignment"] | null;
         };
+        /** PutCall */
+        PutCall: {
+            /** Asof */
+            asof: string;
+            /** Total */
+            total?: number | null;
+            /** Equity */
+            equity?: number | null;
+            /** Index */
+            index?: number | null;
+            /** Equity 10D */
+            equity_10d: number;
+            /** Pct */
+            pct?: number | null;
+            /** Days */
+            days: number;
+            gauge?: components["schemas"]["Gauge"] | null;
+        };
+        /** RateLatest */
+        RateLatest: {
+            /** Value */
+            value: number;
+            /** Asof */
+            asof: string;
+        };
+        /** Rates */
+        Rates: {
+            /** Latest */
+            latest: {
+                [key: string]: components["schemas"]["RateLatest"];
+            };
+            chart?: components["schemas"]["LineChart"] | null;
+        };
         /** Reason */
         Reason: {
             /** Signal */
@@ -2581,9 +2825,55 @@ export interface components {
             overall: components["schemas"]["Overall"];
             /** Indicators */
             indicators: components["schemas"]["Indicator"][];
+            /**
+             * Votes
+             * @default []
+             */
+            votes: components["schemas"]["VoteOption"][];
             /** Charts */
             charts: components["schemas"]["LineChart"][];
             coverage: components["schemas"]["RegimeCoverage"];
+        };
+        /** RevisionRow */
+        RevisionRow: {
+            /** Group */
+            group: string;
+            /** Label */
+            label: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "radar" | "discover";
+            /** Names */
+            names: number;
+            /** Up */
+            up: number;
+            /** Down */
+            down: number;
+            /** Net */
+            net: number;
+            /** Median */
+            median: number;
+            gauge?: components["schemas"]["Gauge"] | null;
+        };
+        /** RevisionWindow */
+        RevisionWindow: {
+            /** Weeks */
+            weeks: number;
+            /** Base */
+            base?: string | null;
+            /** Rows */
+            rows: components["schemas"]["RevisionRow"][];
+        };
+        /** Revisions */
+        Revisions: {
+            /** Weeks Stored */
+            weeks_stored: number;
+            /** Asof */
+            asof?: string | null;
+            /** Windows */
+            windows: components["schemas"]["RevisionWindow"][];
         };
         /** Risk */
         Risk: {
@@ -2682,6 +2972,19 @@ export interface components {
         };
         /** RotationRow */
         RotationRow: {
+            /** Pe */
+            pe?: number | null;
+            /** Pe Vs Acwi */
+            pe_vs_acwi?: number | null;
+            /** Pe Pct */
+            pe_pct?: number | null;
+            /**
+             * Val Gauges
+             * @default {}
+             */
+            val_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
             /** Ticker */
             ticker: string;
             /** Name */
@@ -2788,6 +3091,11 @@ export interface components {
             sector: string;
             /** Weight */
             weight: number;
+        };
+        /** Sentiment */
+        Sentiment: {
+            aaii?: components["schemas"]["Aaii"] | null;
+            putcall?: components["schemas"]["PutCall"] | null;
         };
         /** Series */
         Series: {
@@ -3113,6 +3421,45 @@ export interface components {
             ctx?: Record<string, never>;
         };
         /**
+         * ValuationSnapshot
+         * @description This ticker in the weekly valuation snapshot (stocks: P/E on next year's EPS vs its sector; funds: Yahoo
+         *     fund P/E vs ACWI).
+         */
+        ValuationSnapshot: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "fund";
+            /** Asof */
+            asof?: string | null;
+            /** Weeks */
+            weeks: number;
+            /** Pe */
+            pe?: number | null;
+            /** Pe Vs Sector */
+            pe_vs_sector?: number | null;
+            /** Pe Vs Acwi */
+            pe_vs_acwi?: number | null;
+            /** Pe Pct */
+            pe_pct?: number | null;
+            /** Eps Rev 4W */
+            eps_rev_4w?: number | null;
+            /** Eps Rev 12W */
+            eps_rev_12w?: number | null;
+            /** Sector */
+            sector?: string | null;
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+            /** History */
+            history: components["schemas"]["PePoint"][];
+        };
+        /**
          * ViewAlignment
          * @description How a name lines up with your market views (your subjective beliefs).
          */
@@ -3295,6 +3642,24 @@ export interface components {
             templates: components["schemas"]["ViewTemplate"][];
             catalogue: components["schemas"]["ViewsCatalogue"];
         };
+        /** VoteOption */
+        VoteOption: {
+            /** Group */
+            group: string;
+            /** Label */
+            label: string;
+            /** On */
+            on: boolean;
+            /** Default */
+            default: boolean;
+        };
+        /** VotesIn */
+        VotesIn: {
+            /** Votes */
+            votes: {
+                [key: string]: boolean;
+            };
+        };
         /** WatchState */
         WatchState: {
             /** Symbol */
@@ -3327,6 +3692,20 @@ export interface components {
             r1y?: number | null;
             /** Ytd */
             ytd?: number | null;
+        };
+        /** YieldGap */
+        YieldGap: {
+            /** Earnings Yield */
+            earnings_yield: number;
+            /** Real Yield */
+            real_yield: number;
+            /** Value */
+            value: number;
+            /** Asof */
+            asof: string;
+            /** Fwd Pe */
+            fwd_pe: number;
+            gauge?: components["schemas"]["Gauge"] | null;
         };
     };
     responses: never;
@@ -3470,6 +3849,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegimeView"];
+                };
+            };
+        };
+    };
+    get_regime_votes_api_settings_regime_votes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoteOption"][];
+                };
+            };
+        };
+    };
+    put_regime_votes_api_settings_regime_votes_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VotesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoteOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

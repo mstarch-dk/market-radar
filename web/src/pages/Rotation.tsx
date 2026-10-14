@@ -11,6 +11,7 @@ import { WatchStar } from "../components/WatchButton";
 import { date, num } from "../lib/format";
 import { filterRows } from "../lib/tableState";
 import { useTableState } from "../lib/useTableState";
+import { fundValCols } from "../components/valuationCols";
 
 /** ETF groups shown on the Themes page; every other group is a sector/region rotation. */
 export const THEME_GROUPS = ["themes", "factors"];
@@ -60,8 +61,8 @@ function ucitsCols(year: string | null | undefined): Col<RotationRow>[] {
 
 export function GroupSection({ g, tail, themes, plYear }: { g: RotationGroup; tail: number; themes: boolean; plYear?: string | null }) {
   const cols = themes
-    ? [...base, ...rel, above, ...rs, ...ucitsCols(plYear), star]
-    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...rs, star];
+    ? [...base, ...rel, above, ...fundValCols<RotationRow>(), ...rs, ...ucitsCols(plYear), star]
+    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...fundValCols<RotationRow>(), ...rs, star];
   const [state] = useTableState(g.key);
   const [hovered, setHovered] = useState<string | null>(null);
   // the graphs show the same rows as the filtered table

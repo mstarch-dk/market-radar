@@ -20,6 +20,13 @@ regime:
   copper_gold_band: 0.05   # copper/gold ratio 3m change beyond +-5% votes
   oil_shock: 0.30          # WTI up more than 30% in 3 months = risk-off
   revisions_band: 0.5      # FactSet: change in quarter's growth estimate (pct pts) beyond +-band votes
+  cape_rich_pct: 90        # Shiller CAPE percentile (monthly since 1871) at or above = stretched (risk-off)
+  cape_cheap_pct: 10       # at or below = cheap (risk-on)
+  erp_low_pct: 10          # Damodaran implied ERP percentile (monthly since 2008) at or below = thin premium (risk-off)
+  erp_high_pct: 90         # at or above = ample premium (risk-on)
+  votes:                   # which indicator groups count in the vote (the Regime page can override this for you)
+    credit_eu: true        # euro high-yield spread, next to the US one
+    valuation: false       # CAPE and the equity risk premium: slow-moving, not a 1-6-month timing signal
 
 positioning:
   lookback_weeks: 156      # CFTC percentile window (3 years)
@@ -65,16 +72,38 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     analyst: 21            # Yahoo consensus used for take-profit levels
     discovery_universe: 45 # the discovery scan's list of names (re-built monthly)
     discovery_prices: 10   # the discovery scan's prices (run it weekly)
+    valuation_stocks: 10   # weekly P/E and EPS-estimate snapshot (Yahoo screener)
+    valuation_etfs: 10     # weekly ETF P/E snapshot (Yahoo fund data)
+    cape: 45               # Shiller CAPE (multpl.com), monthly with a current estimate
+    erp: 45                # Damodaran implied equity risk premium, monthly
+    ecb: 14
+    putcall: 7             # CBOE daily put/call ratios
+    aaii: 14               # AAII weekly sentiment survey
   blind_spots:             # what the radar does not see; shown on the page and in summary.json
-    - "Valuation: no P/E, earnings yield or equity risk premium. Only analyst price targets, and only for holdings and watchlist."
-    - "Flows and sentiment: no fund flows, sentiment surveys (AAII, fund manager survey), options positioning, short interest or insider activity."
-    - "Earnings revisions cover the S&P 500 only (FactSet). Nothing for Europe, the Nordics or Asia."
-    - "Macro and credit are mostly US (FRED). Europe is seen only through the OECD leading indicator and price trends."
-    - "Company fundamentals (margins, balance sheets, guidance) are not modelled."
+    - "Valuation comes from Yahoo's consensus estimates (unofficial, weekly snapshots) and, for the US market, Shiller's CAPE and Damodaran's risk premium. Its own history for stocks and ETFs only starts with the first snapshot, so percentiles and revisions take weeks to appear."
+    - "Earnings revisions: FactSet for the S&P 500; elsewhere only changes in Yahoo's consensus between snapshots (names that report in another currency than they trade in are left out, as Yahoo converts their estimates at today's rate)."
+    - "Flows and sentiment: no fund flows, fund manager survey, short interest or insider activity. Sentiment is the AAII survey and CBOE put/call ratios, both US-centred."
+    - "Macro and credit are mostly US (FRED). Europe is seen through the euro high-yield spread, the euro-area 10Y yield (ECB), the OECD leading indicator and price trends; no euro-area inflation (the official series stops at Dec 2025 in the free sources)."
+    - "Company fundamentals beyond Yahoo's summary (margins, balance sheets, guidance) are not modelled."
     - "The universe is a sample: US = today's S&P 500, so breadth history has survivorship bias; Europe, Nordic and Asia are curated lists."
     - "Discover widens the search (Nordic and European listings from Yahoo's screener, the STOXX 600, positive-list ETFs), but it is still Yahoo data: small caps are noisier, thinly traded names can jump, and today's list has no delisted names."
-    - "News, events, earnings dates and policy only enter through the web research in /market-brief."
+    - "News, events and policy only enter through the web research in /market-brief."
     - "Yahoo data is unofficial and comes without a quality guarantee. All prices are end-of-day."
+
+valuation:                 # src/radar/valuation.py and signals/valuation.py
+  snapshot_days: 6         # a new P/E snapshot when the last one is older than this (weekly)
+  fallback_max: 120        # tracked stocks the screener misses, looked up one by one (yfinance .info)
+  pe_range: [1, 300]       # a P/E outside this is dropped with a note (a unit or currency mix-up, not a valuation)
+  fund_pe_range: [3, 150]
+  rel_band: 0.2            # P/E vs sector median: below 1 - band = cheap, above 1 + band = rich
+  min_peers: 5             # a sector median needs at least this many names with a P/E
+  revision_band: 0.01      # a forward EPS change within +-1% counts as unchanged
+  etf_history_weeks: 26    # an ETF's P/E percentile needs this many weekly snapshots
+
+sentiment:                 # src/radar/sentiment.py
+  putcall_backfill_days: 365
+  putcall_lookback_days: 756   # percentile of the 10-day average equity put/call over ~3 years
+  aaii_extreme_pct: 10         # bull-bear spread percentile at or below = extreme fear, at or above 100-x = euphoria
 
 gauges:                    # graded readings (signals/gauges.py): colour by closeness to a threshold, not just a word
   # anchors: [value, score] points; score +1 = good/bullish/cheap (green), -1 = warning (red), interpolated between.
@@ -190,3 +219,66 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     labels: [[-0.05, behind ACWI], [0.05, level with ACWI], [null, ahead of ACWI]]
     ticks: [0]
     range: [-0.4, 0.4]
+  # valuation and sentiment (signals/valuation.py); +1 = cheap / supportive, -1 = stretched
+  pe_vs_sector:            # forward P/E divided by its sector's median in the same region
+    scale: diverging
+    anchors: [[0.5, 1], [0.8, 0.5], [1, 0], [1.25, -0.5], [2, -1]]
+    labels: [[0.8, cheap vs sector], [0.95, a little cheaper], [1.05, in line], [1.25, a little dearer], [null, rich vs sector]]
+    ticks: [0.8, 1, 1.25]
+    range: [0.3, 2.5]
+  pe_vs_acwi:              # an ETF's P/E divided by ACWI's
+    scale: diverging
+    anchors: [[0.5, 1], [0.8, 0.5], [1, 0], [1.25, -0.5], [2, -1]]
+    labels: [[0.8, cheaper than ACWI], [0.95, a little cheaper], [1.05, like ACWI], [1.25, a little dearer], [null, dearer than ACWI]]
+    ticks: [0.8, 1, 1.25]
+    range: [0.3, 2.5]
+  pe_pct:                  # an ETF's P/E against its own stored history (percentile)
+    scale: diverging
+    anchors: [[0, 1], [20, 0.5], [50, 0], [80, -0.5], [100, -1]]
+    labels: [[20, low for it], [80, normal for it], [null, high for it]]
+    ticks: [20, 50, 80]
+    range: [0, 100]
+  eps_rev:                 # change in the next-year EPS estimate between snapshots
+    scale: diverging
+    unit: pct
+    anchors: [[-0.1, -1], [-0.02, -0.4], [0, 0], [0.02, 0.4], [0.1, 1]]
+    labels: [[-0.03, cut], [-0.01, trimmed], [0.01, unchanged], [0.03, nudged up], [null, raised]]
+    ticks: [0]
+    range: [-0.15, 0.15]
+  revision_breadth:        # % of names with higher minus lower EPS estimates
+    scale: diverging
+    unit: pct
+    anchors: [[-0.4, -1], [-0.1, -0.3], [0, 0], [0.1, 0.3], [0.4, 1]]
+    labels: [[-0.2, mostly cut], [-0.05, more cuts], [0.05, balanced], [0.2, more raised], [null, mostly raised]]
+    ticks: [0]
+    range: [-0.6, 0.6]
+  cape_pct:                # Shiller CAPE percentile since 1871: high = stretched
+    scale: diverging
+    anchors: [[0, 1], [10, 0.6], [50, 0], [90, -0.6], [100, -1]]
+    labels: [[10, cheap], [30, below average], [70, average], [90, above average], [null, stretched]]
+    ticks: [10, 50, 90]
+    range: [0, 100]
+  erp_pct:                 # implied equity risk premium percentile: low = thin premium for owning stocks
+    scale: diverging
+    anchors: [[0, -1], [10, -0.6], [50, 0], [90, 0.6], [100, 1]]
+    labels: [[10, thin premium], [30, below average], [70, average], [90, above average], [null, ample premium]]
+    ticks: [10, 50, 90]
+    range: [0, 100]
+  yield_gap:               # forward earnings yield minus the 10Y real yield (pct pts)
+    scale: diverging
+    anchors: [[0, -1], [1.5, -0.4], [3, 0], [4.5, 0.4], [6, 1]]
+    labels: [[1.5, thin], [3, below average], [4.5, average], [null, wide]]
+    ticks: [1.5, 3, 4.5]
+    range: [-1, 8]
+  aaii_pct:                # bull-bear spread percentile; contrarian: fear is green, euphoria red
+    scale: diverging
+    anchors: [[0, 1], [10, 0.6], [50, 0], [90, -0.6], [100, -1]]
+    labels: [[10, extreme fear], [30, fearful], [70, normal], [90, optimistic], [null, euphoria]]
+    ticks: [10, 50, 90]
+    range: [0, 100]
+  putcall_pct:             # equity put/call 10-day average percentile; contrarian: heavy put buying is green
+    scale: diverging
+    anchors: [[0, -1], [10, -0.6], [50, 0], [90, 0.6], [100, 1]]
+    labels: [[10, complacent], [30, calm], [70, normal], [90, hedging], [null, fearful]]
+    ticks: [10, 50, 90]
+    range: [0, 100]

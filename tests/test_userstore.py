@@ -99,6 +99,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     userstore.save_view({"statement": "AI is in a bubble", "conviction": 4,
                          "exposures": [{"kind": "etf", "key": "SMH", "effect": -1}],
                          "indicators": [{"indicator": "semis", "expect": "down"}]})
+    userstore.meta_set("regime_votes", {"valuation": True})
     bundle = CliRunner().invoke(cli.app, ["bundle-holdings"]).output.strip()
 
     for f in (tmp_data / "userdata").iterdir():                         # a fresh CI checkout
@@ -109,6 +110,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
     [v] = userstore.views()
     assert v["statement"] == "AI is in a bubble" and v["exposures"] == [{"kind": "etf", "key": "SMH", "effect": -1}]
+    assert userstore.meta_get("regime_votes") == {"valuation": True}   # the CI brief votes like the app
 
 
 def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):

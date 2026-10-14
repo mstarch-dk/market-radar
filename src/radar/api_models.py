@@ -28,6 +28,30 @@ class Gauge(Strict):
     hi: float
 
 
+class StockValuation(Strict):
+    """A stock's valuation from the weekly snapshot (valuation.py): P/E on trailing, this-year and next-year
+    consensus EPS, against its sector's median among the same peers, and the change in the next-year EPS estimate
+    over 4 and 12 weeks (None until the snapshots go back that far)."""
+    pe_fy1: Num = None
+    pe_cy: Num = None
+    pe_ttm: Num = None
+    pb: Num = None
+    div_yield: Num = None
+    pe_vs_sector: Num = None
+    eps_rev_4w: Num = None
+    eps_rev_12w: Num = None
+    earnings_date: str | None = None
+    val_gauges: dict[str, Gauge] = {}      # graded pe_vs_sector and eps_rev (kept apart from the momentum gauges)
+
+
+class FundValuation(Strict):
+    """A fund's multiples from Yahoo fund data: P/E, relative to ACWI's and its percentile in its own stored history."""
+    pe: Num = None
+    pe_vs_acwi: Num = None
+    pe_pct: Num = None
+    val_gauges: dict[str, Gauge] = {}
+
+
 class Watchout(Strict):
     key: str
     label: str
@@ -269,6 +293,28 @@ class Analyst(Section):
     gauges: dict[str, Gauge] = {}
 
 
+class PePoint(Strict):
+    date: str
+    pe: float
+
+
+class ValuationSnapshot(Strict):
+    """This ticker in the weekly valuation snapshot (stocks: P/E on next year's EPS vs its sector; funds: Yahoo
+    fund P/E vs ACWI)."""
+    kind: Literal["stock", "fund"]
+    asof: str | None = None
+    weeks: int
+    pe: Num = None
+    pe_vs_sector: Num = None
+    pe_vs_acwi: Num = None
+    pe_pct: Num = None
+    eps_rev_4w: Num = None
+    eps_rev_12w: Num = None
+    sector: str | None = None
+    gauges: dict[str, Gauge] = {}
+    history: list[PePoint]
+
+
 class Fundamentals(Section):
     market_cap: Num = None
     market_cap_dkk: Num = None
@@ -295,6 +341,7 @@ class Fundamentals(Section):
     employees: int | None = None
     beta_radar: Num = None
     notes: list[str] = []
+    snapshot: ValuationSnapshot | None = None
 
 
 class Holding(Strict):
@@ -454,8 +501,10 @@ class Overall(Strict):
     neutral: int
     na: int
     stale: int
-    total: int
+    total: int                             # the rows that vote
     net: float
+    not_voting: int = 0                    # rows in a group switched off (regime.votes)
+    voting_groups: list[str] = []
 
 
 class Indicator(Strict):
@@ -466,6 +515,19 @@ class Indicator(Strict):
     source: str
     asof: str | None = None
     gauge: Gauge | None = None
+    group: str | None = None               # a switchable set of rows (settings.yaml regime.votes); None = always votes
+    votes: bool = True
+
+
+class VoteOption(Strict):
+    group: str
+    label: str
+    on: bool
+    default: bool
+
+
+class VotesIn(Strict):
+    votes: dict[str, bool]
 
 
 class ChartSeries(Strict):
@@ -503,11 +565,12 @@ class RegimeCoverage(Strict):
 class RegimeView(Snapshot):
     overall: Overall
     indicators: list[Indicator]
+    votes: list[VoteOption] = []
     charts: list[LineChart]
     coverage: RegimeCoverage
 
 
-class RotationRow(Strict):
+class RotationRow(FundValuation):
     ticker: str
     name: str
     rank: int | None = None
@@ -560,7 +623,7 @@ class RotationView(Snapshot):
     groups: list[RotationGroup]
 
 
-class MomentumRow(Strict):
+class MomentumRow(StockValuation):
     ticker: str
     name: str | None = None
     sector: str | None = None
@@ -602,7 +665,7 @@ class MomentumView(Snapshot):
     regions: list[MomentumRegion]
 
 
-class DiscoveryRow(Strict):
+class DiscoveryRow(StockValuation, FundValuation):
     ticker: str
     name: str | None = None
     kind: Literal["stock", "etf"]
@@ -703,10 +766,117 @@ class CotRow(Strict):
     gauge: Gauge | None = None
 
 
+class CapeReading(Strict):
+    value: float
+    asof: str
+    pct_all: Num = None
+    pct_1990: Num = None
+    median: float
+    since: str
+    gauge: Gauge | None = None
+
+
+class ErpReading(Strict):
+    value: float
+    asof: str
+    pct: Num = None
+    median: float
+    since: str
+    gauge: Gauge | None = None
+
+
+class YieldGap(Strict):
+    earnings_yield: float
+    real_yield: float
+    value: float
+    asof: str
+    fwd_pe: float
+    gauge: Gauge | None = None
+
+
+class MarketValuation(Strict):
+    cape: CapeReading | None = None
+    erp: ErpReading | None = None
+    yield_gap: YieldGap | None = None
+    charts: list[LineChart] = []
+
+
+class RevisionRow(Strict):
+    group: str
+    label: str
+    scope: Literal["radar", "discover"]
+    names: int
+    up: float
+    down: float
+    net: float
+    median: float
+    gauge: Gauge | None = None
+
+
+class RevisionWindow(Strict):
+    weeks: int
+    base: str | None = None                # the snapshot compared with; None while the history is shorter
+    rows: list[RevisionRow]
+
+
+class Revisions(Strict):
+    weeks_stored: int
+    asof: str | None = None
+    windows: list[RevisionWindow]
+
+
+class AaiiPoint(Strict):
+    date: str
+    spread: float
+
+
+class Aaii(Strict):
+    asof: str
+    bullish: float
+    neutral: float
+    bearish: float
+    spread: float
+    spread_8w: float
+    pct: Num = None
+    flag: str | None = None
+    gauge: Gauge | None = None
+    history: list[AaiiPoint]
+
+
+class PutCall(Strict):
+    asof: str
+    total: Num = None
+    equity: Num = None
+    index: Num = None
+    equity_10d: float
+    pct: Num = None
+    days: int
+    gauge: Gauge | None = None
+
+
+class Sentiment(Strict):
+    aaii: Aaii | None = None
+    putcall: PutCall | None = None
+
+
+class RateLatest(Strict):
+    value: float
+    asof: str
+
+
+class Rates(Strict):
+    latest: dict[str, RateLatest]
+    chart: LineChart | None = None
+
+
 class PositioningView(Snapshot):
     factset: FactSet | None = None
     cli: list[CliRow]
     cot: list[CotRow]
+    valuation: MarketValuation | None = None
+    revisions: Revisions | None = None
+    sentiment: Sentiment | None = None
+    rates: Rates | None = None
 
 
 class Source(Strict):
@@ -765,7 +935,7 @@ class MyLevels(Strict):
     analyst: MyAnalyst | None = None
 
 
-class MyRow(Strict):
+class MyRow(StockValuation, FundValuation):
     symbol: str
     name: str | None = None
     status: MyStatus

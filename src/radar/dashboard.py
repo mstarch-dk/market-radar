@@ -12,11 +12,12 @@ from datetime import date, datetime
 import numpy as np
 import pandas as pd
 
-from . import coverage, external, mine, snapshot, universe
+from . import coverage, external, mine, sentiment, snapshot, universe, valuation
 from .config import REPORTS, settings, universe_config
 from .ingest import load_fred, load_prices, wide
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation
+from .signals import valuation as sv
 
 FILE_NAME = "dashboard.json"
 
@@ -87,6 +88,44 @@ def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_
     return sorted(out, key=lambda c: -c["count"] / max(c["expected"], 0.5))
 
 
+# ---------------- regime votes (settings.yaml regime.votes, overridden from the Regime page) ----------------
+
+VOTE_GROUPS = {"credit_eu": "Euro high-yield spread", "valuation": "Valuation (CAPE, equity risk premium)"}
+
+
+def effective_votes() -> dict[str, bool]:
+    """Which indicator groups count in the regime vote: the defaults in settings.yaml, then your choice."""
+    from . import userstore
+
+    votes = {k: bool(v) for k, v in (settings()["regime"].get("votes") or {}).items()}
+    chosen = userstore.meta_get("regime_votes") or {}
+    return votes | {k: bool(v) for k, v in chosen.items() if k in votes}
+
+
+def regime_now(d: dict) -> tuple[dict, list[dict]]:
+    """The stored indicators, voted again with the current choice of groups (a switch on the Regime page takes
+    effect at once, without a new `radar run`)."""
+    inds = [dict(i) for i in d["regime"]["indicators"]]
+    return regime.overall(inds, effective_votes()), inds
+
+
+def vote_options() -> list[dict]:
+    defaults = settings()["regime"].get("votes") or {}
+    now = effective_votes()
+    return [{"group": g, "label": VOTE_GROUPS.get(g, g), "on": now[g], "default": bool(defaults[g])} for g in defaults]
+
+
+def with_valuation(rows: list[dict], ctx: valuation.Context, kind: str = "auto", peers: str = "radar") -> list[dict]:
+    """Add the valuation fields to table rows: `kind` stock (P/E vs sector, EPS revisions), fund (P/E vs ACWI)
+    or auto (a fund when the ETF snapshot has it)."""
+    out = []
+    for r in rows:
+        t = r.get("ticker") or r.get("symbol")
+        fund = kind == "fund" or (kind == "auto" and t in ctx.etf)
+        out.append(r | (ctx.fund(t) if fund else ctx.stock(t, peers)))
+    return out
+
+
 # ---------------- compute ----------------
 
 ROTATION_KEYS = ("ticker", "name", "rank", "rank_change", "quadrant", "quadrant_local", "rel_r1m", "rel_r3m", "rel_r6m",
@@ -128,10 +167,14 @@ def compute() -> Computed:
     fs_hist = external.load_factset()
     fs = fs_hist.iloc[-1].to_dict() if not fs_hist.empty else None
     macro = universe.macro_yahoo()
-    inds, breadth = regime.indicators(closes, fred, bench, groups, labels, macro, cfg["regime"], cli, fs)
+    mk = valuation.load_market()
+    market_val = sv.market(valuation.market_series("cape", mk), valuation.market_series("erp", mk),
+                           fs.get("fwd_pe") if fs else None,
+                           fred["DFII10"] if "DFII10" in fred else pd.Series(dtype=float))
+    inds, breadth = regime.indicators(closes, fred, bench, groups, labels, macro, cfg["regime"], cli, fs, market_val)
     max_age = cfg["coverage"]["max_age"]
     regime.apply_freshness(inds, asof, max_age)
-    overall = regime.overall(inds)
+    overall = regime.overall(inds, effective_votes())
     rg = cfg["regime"]
     b = closes[bench].dropna()
     charts = [
@@ -141,7 +184,10 @@ def compute() -> Computed:
                    (rg["breadth_weak"], rg["breadth_strong"])),
     ]
     if "BAMLH0A0HYM2" in fred:
-        charts.append(line_chart({"HY spread %": fred["BAMLH0A0HYM2"]}, "US high-yield credit spread (%)"))
+        hy = {"US HY spread %": fred["BAMLH0A0HYM2"]}
+        if "BAMLHE00EHYIOAS" in fred:
+            hy["Euro HY spread %"] = fred["BAMLHE00EHYIOAS"]
+        charts.append(line_chart(hy, "High-yield credit spreads, US and euro (%)"))
     hl = regime.net_highs_lows(closes, sorted({t for ts in groups.values() for t in ts}))
     if not hl.empty:
         band = rg["highs_lows_band"]
@@ -160,6 +206,9 @@ def compute() -> Computed:
         order = [a for a in ext.get("oecd_cli", {}) if a in cli_raw.columns]
         charts.append(line_chart({ext["oecd_cli"][a]: cli_raw[a] for a in order[:4]},
                                  "OECD leading indicators (100 = trend)", hlines=(100,), days=2000))
+
+    # --- valuation per ticker (weekly snapshots)
+    vctx = valuation.Context()
 
     # --- rotation (sectors, regions, themes, factors)
     insts = universe.etfs()
@@ -189,9 +238,9 @@ def compute() -> Computed:
             local_q = {t: rotation.quadrant(lratio[t].iloc[-1], lmom[t].iloc[-1]) for t in tickers}
             mask = rot["group"] == key
             rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)
-        grp["rows"] = [{k: r.get(k) for k in ROTATION_KEYS}
-                       | {"gauges": gz.gauges({"rs_ratio": r.get("rs_ratio"), "rs_mom": r.get("rs_mom")})}
-                       for r in _records(rot[rot["group"] == key])]
+        grp["rows"] = with_valuation([{k: r.get(k) for k in ROTATION_KEYS}
+                                      | {"gauges": gz.gauges({"rs_ratio": r.get("rs_ratio"), "rs_mom": r.get("rs_mom")})}
+                                      for r in _records(rot[rot["group"] == key])], vctx, "fund")
         rot_groups.append(grp)
 
     # --- momentum
@@ -210,9 +259,10 @@ def compute() -> Computed:
         top["new"] = [prev_top is not None and t not in prev_top for t in top["ticker"]]
         regions.append({
             "key": region, "label": labels.get(region, region),
-            "rows": [{k: r.get(k) for k in MOMENTUM_KEYS}
-                     | {"gauges": gz.gauges({"score": r.get("score"), "from_high": r.get("from_high"),
-                                             "vol_surge": r.get("vol_surge")})} for r in _records(top)],
+            "rows": with_valuation([{k: r.get(k) for k in MOMENTUM_KEYS}
+                                    | {"gauges": gz.gauges({"score": r.get("score"), "from_high": r.get("from_high"),
+                                                            "vol_surge": r.get("vol_surge")})}
+                                    for r in _records(top)], vctx, "stock"),
             "entrants": [t for t, n in zip(top["ticker"], top["new"]) if n],
             "dropped": sorted(prev_top - set(top["ticker"])) if prev_top is not None else [],
             "clusters": _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"]),
@@ -222,8 +272,9 @@ def compute() -> Computed:
     raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
     rot_rows = _records(rot[["ticker", "ucits", "quadrant"]])
     own = prices.set_index("date").groupby("ticker")["close"]
-    me = mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes, raw_closes, lead, rot_rows,
-                    overall["label"], cfg, sessions=lambda s: own.get_group(s).sort_index())
+    me = with_valuation(mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes, raw_closes, lead,
+                                   rot_rows, overall["label"], cfg, sessions=lambda s: own.get_group(s).sort_index()),
+                        vctx)
 
     # --- positioning & cycle (non-price data)
     cot = external.load_cot()
@@ -253,12 +304,46 @@ def compute() -> Computed:
                      "positive_list_year": pl_year, "groups": rot_groups},
         "momentum": {"prev": mprev_d.isoformat() if mprev_d else None, "top_n": top_n, "regions": regions},
         "positioning": {"factset": fs_ctx,
+                        "valuation": market_val | {"charts": _valuation_charts(mk)},
+                        "revisions": vctx.breadth(),
+                        "sentiment": {"aaii": sv.aaii(sentiment.load_aaii(), cfg["sentiment"]["aaii_extreme_pct"]),
+                                      "putcall": sv.putcall(sentiment.load_putcall(),
+                                                            cfg["sentiment"]["putcall_lookback_days"])},
+                        "rates": _rates(fred),
                         "cli": [r | {"gauge": gz.gauge("cli_chg", r["chg_3m"])} for r in _records(cli)] if not cli.empty else [],
                         "cot": [r | {"gauge": gz.gauge("cot_pct", r["percentile"])} for r in _records(cot_tab)]
                         if not cot_tab.empty else []},
         "coverage": _clean(cov),
     }
     return Computed(data, me, rot, lead)
+
+
+def _valuation_charts(mk: pd.DataFrame) -> list[dict]:
+    charts = []
+    cape = valuation.market_series("cape", mk)
+    if len(cape):
+        charts.append(line_chart({"CAPE": cape}, "Shiller CAPE, S&P 500 (monthly since 1871; line = median)", 1,
+                                 (float(cape.median()),), days=len(cape)))
+    erp = valuation.market_series("erp", mk)
+    if len(erp):
+        charts.append(line_chart({"Implied ERP %": erp * 100},
+                                 "Implied equity risk premium, S&P 500 (Damodaran, %; line = median)", 2,
+                                 (float(erp.median() * 100),), days=len(erp)))
+    return charts
+
+
+def _rates(fred: pd.DataFrame) -> dict:
+    """US vs euro-area 10Y yields and US real yields and breakevens: one chart plus the latest values."""
+    ecb = external.load_ecb()
+    series = {}
+    for name, frame, key in (("US 10Y", fred, "DGS10"), ("Euro area 10Y (AAA)", ecb, "EA10Y"),
+                             ("US 10Y real", fred, "DFII10"), ("US 10Y breakeven", fred, "T10YIE")):
+        if key in frame:
+            series[name] = frame[key]
+    latest = {k: {"value": float(v.dropna().iloc[-1]), "asof": v.dropna().index[-1].date().isoformat()}
+              for k, v in series.items() if len(v.dropna())}
+    chart = line_chart(series, "10-year yields: US, euro area (AAA), US real and breakeven (%)", 2) if series else None
+    return {"latest": latest, "chart": chart}
 
 
 # ---------------- reading the stored snapshot ----------------

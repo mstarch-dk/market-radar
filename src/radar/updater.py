@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 from typing import Callable
 
-from . import coverage, external, ingest, report, universe
+from . import coverage, external, ingest, report, sentiment, universe, valuation
 from .config import settings
 
 Log = Callable[[str], None]
@@ -67,6 +67,13 @@ def update_external(log: Log = print) -> None:
         "factset": ("FactSet earnings insight",
                     lambda: f"report {d}" if (d := external.update_factset()) else "no new report"),
         "analyst": ("Analyst targets", lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"])),
+        "ecb": ("ECB euro-area rates", external.update_ecb),
+        "cape": ("Shiller CAPE (multpl.com)", valuation.update_cape),
+        "erp": ("Equity risk premium (Damodaran)", valuation.update_erp),
+        "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
+        "aaii": ("AAII sentiment survey", sentiment.update_aaii),
+        "valuation_etfs": ("ETF valuation (Yahoo fund data)", valuation.update_etfs),
+        "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)", valuation.update_stocks),
     }, log)
 
 

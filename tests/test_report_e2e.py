@@ -36,7 +36,7 @@ def test_summary_schema(summary):
     assert set(summary) - {"_res", "_dash"} == {
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
-        "earnings_factset", "stale_tickers", "coverage", "portfolios"}
+        "earnings_factset", "stale_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment"}
     assert summary["asof"] == IDX[-1].date().isoformat()
 
 
@@ -54,7 +54,8 @@ def test_regime_votes(summary):
           "VIX term structure", "Credit"}
     assert {k for k, v in st.items() if v == "risk-on"} == on
     assert {k for k, v in st.items() if v == "n/a"} == {"Equal vs cap weight", "Copper/gold ratio", "Oil",
-                                                        "Leading indicators", "Earnings revisions"}
+                                                        "Leading indicators", "Earnings revisions", "Euro credit",
+                                                        "Valuation", "Equity risk premium"}
     assert summary["regime"]["label"] == "Risk-on" and summary["regime"]["on"] == 7 and summary["regime"]["off"] == 0
 
 
@@ -94,7 +95,7 @@ def test_coverage(summary):
     src = {s["key"]: s for s in cov["sources"]}
     assert src["prices"]["status"] == "ok" and src["fred"]["status"] == "ok"
     assert src["cftc"]["status"] == src["oecd"]["status"] == src["factset"]["status"] == "missing"
-    assert cov["regime"]["current"] == len(summary["indicators"]) - 5
+    assert cov["regime"]["current"] == len(summary["indicators"]) - 8      # 5 + euro credit, CAPE, ERP (no data)
     assert cov["blind_spots"] == settings()["coverage"]["blind_spots"]
 
 
