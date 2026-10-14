@@ -92,17 +92,34 @@ def import_yahoo(csv_path: str):
 
 
 @app.command()
-def info(ticker: str, refresh: bool = typer.Option(False, help="Re-fetch Yahoo fundamentals and estimates now")):
-    """Everything the radar knows about one ticker, as JSON (fetches prices if it isn't tracked yet)."""
+def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbols"),
+         refresh: bool = typer.Option(False, help="Re-fetch Yahoo fundamentals and estimates now"),
+         personal: bool = typer.Option(False, "--personal", help="With several tickers: include the user's positions, "
+                                       "holdings rows and correlations with the user's holdings (left out by default)"),
+         out: str = typer.Option(None, "--out", help="Write the JSON to this file instead of printing it")):
+    """Everything the radar knows about one ticker, as JSON (fetches prices if it isn't tracked yet).
+
+    With several tickers: a side-by-side comparison for /compare (profiles, ACWI as the benchmark candidate,
+    correlations and a metrics table). Personal data is left out unless --personal is given."""
     import json
+    from pathlib import Path
 
     from . import profile
 
-    try:
-        p = profile.build(ticker.strip().upper(), refresh=refresh)
-    except profile.TickerNotFound as e:
-        raise typer.Exit(str(e))
-    typer.echo(json.dumps(profile.legacy_info(p), indent=1, default=str))
+    if len(tickers) == 1:
+        try:
+            data = profile.legacy_info(profile.build(tickers[0].strip().upper(), refresh=refresh))
+        except profile.TickerNotFound as e:
+            raise typer.Exit(str(e))
+    else:
+        data = profile.compare(tickers, personal=personal)
+    text = json.dumps(data, indent=1, default=str)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+        typer.echo(f"Wrote {out} ({len(text) // 1024} KB).")
+    else:
+        typer.echo(text)
 
 
 @app.command()

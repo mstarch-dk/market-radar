@@ -46,6 +46,12 @@ stops:                     # rule-based stop / take-profit for holdings (signals
   info_anchor_days: 63     # `radar info` for a non-held ticker anchors on this window's high
   include: []              # theme funds outside etf_groups that should get levels too (broad index funds don't)
 
+risk:                      # signals/risk.py: weekly returns in DKK
+  windows: {1y: 52, 3y: 156}
+  min_weeks: 26            # fewer weeks: no statistic (null), never a guess
+  factors: [MTUM, VLUE, QUAL, USMV]   # factor ETFs for attribution (as tilts vs ACWI); only those with prices are used
+  budget: 0.01             # risk budget: position size at which hitting the rule stop costs 1% of the portfolio
+
 analyst:
   max_age_days: 7          # re-fetch Yahoo consensus for holdings/watchlist after this
 

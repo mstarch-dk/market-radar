@@ -1,5 +1,6 @@
 """The local user-data store and how its watchlist overlay combines with the Yahoo import."""
 import sqlite3
+from contextlib import closing
 
 import pandas as pd
 
@@ -25,7 +26,7 @@ def test_reading_creates_nothing(tmp_data):
 
 def test_schema_is_versioned(tmp_data):
     userstore.watch("AAA")
-    with sqlite3.connect(tmp_data / "userdata" / userstore.DB_NAME) as con:
+    with closing(sqlite3.connect(tmp_data / "userdata" / userstore.DB_NAME)) as con:
         assert con.execute("PRAGMA user_version").fetchone()[0] == len(userstore.MIGRATIONS)
     userstore.watch("BBB")                               # reopening doesn't re-run migrations
     assert userstore.watchlist_overlay() == {"AAA": "add", "BBB": "add"}

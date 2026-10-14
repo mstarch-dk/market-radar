@@ -145,3 +145,10 @@ def test_gauges_grade_the_readings(env):
     assert p["analyst"]["gauges"] == {}                                           # no analyst data: nothing graded
     keys = [w["key"] for w in p["context"]["watchouts"]]
     assert "rsi14" in keys and all(w["level"] <= -3 for w in p["context"]["watchouts"])
+
+
+def test_risk_section_is_honest_about_flat_synthetic_prices(env):
+    # the synthetic world grows at a constant rate, so ACWI never varies week to week: no beta exists
+    r = profile.build("S1")["risk"]
+    assert r["status"] == "missing" and r["windows"] == {} and r["factors"] is None
+    assert r["currency"] == "DKK" and r["benchmark"] == "ACWI"

@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import { GaugeBadge, GaugeBar } from "./Gauge";
+import { Term } from "./Term";
 import { TickerLink } from "./TickerLink";
 import type { Profile, Windows } from "../api/client";
+import type { components } from "../api/schema";
+
+type RiskWindow = components["schemas"]["RiskWindow"];
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
 import { Badge, Card, KV, Signed } from "./ui";
 
@@ -105,6 +109,55 @@ export function LevelsCard({ p }: { p: Profile }) {
         ))}
       </ul>
       <p className="small muted">A mechanical rule for review, not advice.</p>
+    </Card>
+  );
+}
+
+export function RiskCard({ p }: { p: Profile }) {
+  const r = p.risk;
+  if (!r) return null;
+  const w = ["1y", "3y"].filter((k) => r.windows[k]);
+  const f2 = (v: number | null | undefined, d = 2) => num(v, d);
+  const row = (label: ReactNode, cell: (x: RiskWindow) => ReactNode) => (
+    <tr><td>{label}</td>{w.map((k) => <td key={k}>{cell(r.windows[k]!)}</td>)}</tr>
+  );
+  return (
+    <Card title="Risk vs ACWI (DKK, weekly)" meta={r}>
+      {w.length === 0 ? <p className="empty">Not enough weekly history.</p> : (
+        <div className="scroll">
+          <table className="t">
+            <thead><tr><th />{w.map((k) => <th key={k}>{k} <span className="muted small">({r.windows[k]!.n_weeks}w)</span></th>)}</tr></thead>
+            <tbody>
+              {row("Return, annualised", (x) => <Signed v={x.return_ann}>{pct(x.return_ann)}</Signed>)}
+              {row("Volatility", (x) => pct(x.vol_ann, 1, false))}
+              {row(<Term k="risk_beta">Beta ± se (R²)</Term>, (x) => <>{f2(x.beta)} <span className="muted small">± {f2(x.beta_se)} ({f2(x.r2)})</span></>)}
+              {row(<Term k="downside_beta">Downside beta</Term>, (x) => f2(x.downside_beta))}
+              {row(<Term k="risk_alpha">Alpha (t)</Term>, (x) => <><Signed v={x.alpha_ann}>{pct(x.alpha_ann)}</Signed> <span className="muted small">({f2(x.alpha_t, 1)})</span></>)}
+              {row(<Term k="idio_vol">Stock-specific vol</Term>, (x) => pct(x.idio_vol_ann, 1, false))}
+              {row(<Term k="sharpe">Sharpe / Sortino</Term>, (x) => `${f2(x.sharpe)} / ${f2(x.sortino)}`)}
+              {row("Max drawdown (weeks under)", (x) => <><Signed v={x.max_dd}>{pct(x.max_dd)}</Signed> <span className="muted small">({x.max_dd_weeks}w)</span></>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {r.factors && (
+        <>
+          <h3><Term k="factor_tilts">Factor tilts ({r.factors.n_weeks}w, R² {f2(r.factors.r2)})</Term></h3>
+          <div className="badges">
+            {r.factors.loadings.map((l) => (
+              <Badge key={l.factor} kind={l.t != null && Math.abs(l.t) >= 2 ? (l.beta! > 0 ? "accent" : "warn") : ""}>
+                {l.factor} {f2(l.beta)} <span className="muted">t {f2(l.t, 1)}</span>
+              </Badge>
+            ))}
+          </div>
+          <p className="small muted">Residual alpha {pct(r.factors.alpha_ann)} a year (t {f2(r.factors.alpha_t, 1)}). Highlighted: |t| ≥ 2.</p>
+        </>
+      )}
+      {r.budget != null && (
+        <KV rows={[[<Term k="risk_budget">Size at {pct(r.budget_risk, 0, false)} risk</Term>,
+          r.budget > 1 ? "over 100% (stop very close)" : pct(r.budget, 0, false), { hint: "of the portfolio, at the rule stop" }]]} />
+      )}
+      {r.notes.length > 0 && <p className="small muted">{r.notes.join(" ")}</p>}
     </Card>
   );
 }

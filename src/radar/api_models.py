@@ -173,6 +173,49 @@ class Levels(Section):
     gauges: dict[str, Gauge] = {}
 
 
+class RiskWindow(Strict):
+    n_weeks: int
+    return_ann: Num = None
+    vol_ann: Num = None
+    beta: Num = None
+    beta_se: Num = None
+    r2: Num = None
+    corr: Num = None
+    alpha_ann: Num = None
+    alpha_t: Num = None
+    alpha_basis: str
+    idio_vol_ann: Num = None
+    downside_beta: Num = None
+    sharpe: Num = None
+    sortino: Num = None
+    max_dd: Num = None
+    max_dd_weeks: int | None = None
+
+
+class Loading(Strict):
+    factor: str
+    beta: Num = None
+    t: Num = None
+
+
+class Factors(Strict):
+    n_weeks: int
+    r2: Num = None
+    alpha_ann: Num = None
+    alpha_t: Num = None
+    loadings: list[Loading]
+
+
+class Risk(Section):
+    currency: str
+    benchmark: str
+    windows: dict[str, RiskWindow]
+    factors: Factors | None = None
+    budget: Num = None
+    budget_risk: Num = None
+    notes: list[str] = []
+
+
 class Recommendation(Strict):
     period: str | None = None
     strong_buy: int
@@ -324,6 +367,7 @@ class Profile(Strict):
     momentum: Momentum
     technicals: Technicals
     levels: Levels
+    risk: Risk | None = None
     analyst: Analyst
     fundamentals: Fundamentals
     etf: Etf | None = None

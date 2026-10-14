@@ -21,3 +21,9 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - A missing value is not graded (no gauge), never treated as 0. Gauges are display data: `summary.json` leaves them out.
 - Watch-outs are gauges at level −3 or below, excluding traits (beta, ATR %) and the hypothetical stop/target of a ticker you don't hold.
 
+## Risk statistics (`signals/risk.py`)
+- Weekly (Friday) returns in DKK; the week still in progress is left out (it covers fewer days). Windows: 1y and 3y (`settings.yaml` `risk:`), each reporting its `n_weeks`; under `min_weeks` there is no statistic.
+- Beta comes with its standard error and R²; alpha (Jensen, annualised) with its t-stat. With the FRED 3-month T-bill (`DGS3MO`) returns are excess returns and Sharpe/Sortino exist; without it they are null and alpha is on raw returns (`alpha_basis` says which).
+- Factor tilts regress on ACWI plus factor/sector ETFs *minus ACWI*, so a loading means exposure beyond the market. Descriptive: short samples, correlated factors.
+- One-year betas are noisy (XLE's 1y beta was −0.9 while its 3y beta is +0.45): compare windows and read the standard error before relying on either.
+

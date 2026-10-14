@@ -4,6 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .risk import weekly
+
 TRADING_DAYS = 252
 
 
@@ -53,8 +55,9 @@ def max_drawdown(close: pd.Series, n: int = TRADING_DAYS) -> float:
 
 
 def beta_corr(close: pd.Series, bench: pd.Series, weeks: int = 52) -> tuple[float, float]:
-    """Beta and correlation against the benchmark on weekly (Friday) returns over `weeks`."""
-    w = pd.concat([close, bench], axis=1, keys=["x", "b"], sort=True).resample("W-FRI").last().pct_change().dropna().iloc[-weeks:]
+    """Beta and correlation against the benchmark on weekly (Friday) returns over `weeks` (complete weeks only;
+    see risk.weekly)."""
+    w = pd.concat([weekly(close), weekly(bench)], axis=1, keys=["x", "b"], sort=True).dropna().iloc[-weeks:]
     if len(w) < 26 or w["b"].var() == 0:
         return float("nan"), float("nan")
     beta = w["x"].cov(w["b"]) / w["b"].var()

@@ -15,11 +15,11 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from . import dashboard, external, ingest, universe
+from . import dashboard, external, ingest, mine, universe
 from .config import PRICES_FILE, settings, universe_config
 from .mine import _fx_to_dkk, _pct_vs
 from .signals import gauges as gz
-from .signals import levels, momentum, rotation, technicals
+from .signals import levels, momentum, risk, rotation, technicals
 
 OK, STALE, MISSING = "ok", "stale", "missing"
 WINDOWS = {"r1w": 5, "r1m": 21, "r3m": 63, "r6m": 126, "r1y": 252}
@@ -48,6 +48,7 @@ class Market:
     _leaders: pd.DataFrame | None = field(default=None, repr=False)
     _isins: tuple | None = field(default=None, repr=False)
     _raw: pd.DataFrame | None = field(default=None, repr=False)
+    _fred: pd.DataFrame | None = field(default=None, repr=False)
 
     @classmethod
     def load(cls) -> Market:
@@ -75,6 +76,11 @@ class Market:
             self._leaders = lead.assign(sector=lead["ticker"].map(sec["sector"]),
                                         industry=lead["ticker"].map(sec["industry"]))
         return self._leaders
+
+    def fred(self) -> pd.DataFrame:
+        if self._fred is None:
+            self._fred = ingest.load_fred()
+        return self._fred
 
     def raw_closes(self) -> pd.DataFrame | None:
         """Traded (unadjusted) closes, for the dividend factor in holding returns."""
@@ -182,8 +188,10 @@ def _section(status: str, source: str, asof=None, **data) -> dict:
 
 # ---------------- the profile ----------------
 
-def build(ticker: str, market: Market | None = None, refresh: bool = False) -> dict:
-    """The full profile of `ticker` (a Yahoo symbol). Raises TickerNotFound without price data."""
+def build(ticker: str, market: Market | None = None, refresh: bool = False, anonymous: bool = False) -> dict:
+    """The full profile of `ticker` (a Yahoo symbol). Raises TickerNotFound without price data. `anonymous`
+    builds it as if the user held nothing: no status or position, stops anchored on the recent high instead of
+    the user's entry, and no overlap with the user's holdings, so nothing personal can be read from it."""
     cfg = settings()
     market = ensure_prices(ticker, market)
     closes = market.closes
@@ -205,7 +213,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
     look = external.parse_fund((raw or {}).get("fund") or {}, info) if is_fund else None
 
     # --- identity
-    h = universe.holdings()
+    h = universe.holdings() if not anonymous else pd.DataFrame(columns=universe.HOLDING_COLS)
     mine = h[h["symbol"] == ticker]
     status = mine.iloc[0]["status"] if len(mine) else None
     etf_cfg = next((e for e in universe.etfs() if ticker in (e.ticker, e.ucits)), None)
@@ -332,6 +340,9 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
                    **(lv or {}), regime=regime["label"],
                    gauges=gz.gauges({"stop_dist": (lv or {}).get("stop_pct"), "tp_dist": (lv or {}).get("tp_pct")}))
 
+    # --- risk: weekly DKK returns vs ACWI, factor tilts, and the position size the rule stop allows
+    risk_sec = risk_section(ticker, market, close, fx, setf, (lv or {}).get("stop_pct"), last_date)
+
     # --- fundamentals
     fund = external.parse_fundamentals(info)          # all keys, None where Yahoo has nothing
     if fund.get("market_cap") and currency != "GBp" and fx is not None:
@@ -373,11 +384,44 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False) -> d
     watchouts = gz.watchouts({k: v for sec in (tech, mom, lvl, analyst) for k, v in sec["gauges"].items()},
                              skip=set() if status == "holding" else {"stop_dist", "tp_dist"})
     out = {"symbol": ticker, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
-           "identity": identity, "price": price, "momentum": mom, "technicals": tech, "levels": lvl,
+           "identity": identity, "price": price, "momentum": mom, "technicals": tech, "levels": lvl, "risk": risk_sec,
            "analyst": analyst, "fundamentals": fundamentals, "etf": etf, "peers": peer_sec,
            "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {},
                        "watchouts": watchouts}}
     return clean(out)
+
+
+def risk_section(ticker: str, market: Market, close: pd.Series, fx: pd.Series | None, sector_etf_: str | None,
+                 stop_pct, asof) -> dict:
+    """Risk statistics in DKK over the configured windows (see signals/risk.py), factor tilts vs ACWI (the factor
+    ETFs and the sector ETF) and the risk budget at the rule stop."""
+    rc = settings()["risk"]
+    closes = market.closes
+    bench = universe.benchmark()
+    usd = _fx_to_dkk(closes, universe.currencies([bench])[bench])
+    if fx is None or usd is None:
+        return _section(MISSING, "radar (prices, FRED 3m T-bill)", asof, currency="DKK", benchmark=bench,
+                        windows={}, factors=None, budget=None, notes=["no DKK rate for this currency"])
+
+    def dkk(px: pd.Series, rate: pd.Series) -> pd.Series:
+        return risk.weekly((px * rate.reindex(px.index).ffill()).dropna())
+
+    y = dkk(close, fx)
+    mkt = dkk(closes[bench].dropna(), usd)
+    rf = market.fred()["DGS3MO"] if "DGS3MO" in market.fred() else None
+    windows = {k: risk.window_stats(y, mkt, rf, n, rc["min_weeks"]) for k, n in rc["windows"].items()}
+    windows = {k: v for k, v in windows.items() if v}
+    tilts = {f: dkk(closes[f].dropna(), usd) for f in rc["factors"] if f in closes and f != ticker}
+    if sector_etf_ and sector_etf_ in closes and sector_etf_ != ticker:
+        tilts[f"sector {sector_etf_}"] = dkk(closes[sector_etf_].dropna(), usd)
+    longest = max(rc["windows"].values())
+    factors = risk.factor_loadings(y, mkt, tilts, rf, longest, rc["min_weeks"]) if tilts else None
+    notes = []
+    if rf is None:
+        notes.append("no risk-free rate yet (FRED DGS3MO): Sharpe and Sortino are not computed, alpha uses raw returns")
+    return _section(OK if windows else MISSING, "radar (prices, FRED 3m T-bill)", asof, currency="DKK", benchmark=bench,
+                    windows=windows, factors=factors, budget=risk.risk_budget(stop_pct, rc["budget"]),
+                    budget_risk=rc["budget"], notes=notes)
 
 
 def legacy_info(p: dict) -> dict:
@@ -416,3 +460,140 @@ def series(ticker: str, market: Market, days: int = 756) -> dict:
     df["rel_acwi"] = 100 * df["rel_acwi"] / df["rel_acwi"].dropna().iloc[0]   # rebased to 100 at the window start
     df.index = df.index.strftime("%Y-%m-%d")
     return clean({"symbol": ticker, "dates": list(df.index), **{k: df[k].tolist() for k in df.columns}})
+
+
+# ---------------- several tickers side by side ----------------
+
+# (label, path into the profile, direction: "higher" / "lower" is better, None = context only)
+COMPARE_METRICS = [
+    ("Momentum score (region)", "momentum.score", "higher"),
+    ("Return 1m", "price.returns.r1m", "higher"),
+    ("Return 3m", "price.returns.r3m", "higher"),
+    ("Return 6m", "price.returns.r6m", "higher"),
+    ("Return 12-1m", "momentum.r12_1", "higher"),
+    ("Return 6m in DKK", "price.returns_dkk.r6m", "higher"),
+    ("vs ACWI 3m", "price.vs_acwi.r3m", "higher"),
+    ("From 52w high", "momentum.from_high", "higher"),
+    ("Trend intact", "momentum.trend_ok", None),
+    ("RSI 14", "technicals.rsi14", None),
+    ("Volatility 1y (DKK)", "risk.windows.1y.vol_ann", "lower"),
+    ("Beta 3y", "risk.windows.3y.beta", None),
+    ("Downside beta 3y", "risk.windows.3y.downside_beta", "lower"),
+    ("Alpha 3y (annual)", "risk.windows.3y.alpha_ann", "higher"),
+    ("Alpha 3y t-stat", "risk.windows.3y.alpha_t", None),
+    ("Sharpe 3y", "risk.windows.3y.sharpe", "higher"),
+    ("Max drawdown 3y", "risk.windows.3y.max_dd", "higher"),
+    ("P/E on this year's EPS estimate", "derived.pe_0y", "lower"),
+    ("P/E on next year's EPS estimate", "derived.pe_1y", "lower"),
+    ("Forward P/E (Yahoo's basis)", "fundamentals.forward_pe", None),
+    ("EV/EBITDA", "fundamentals.ev_ebitda", "lower"),
+    ("Revenue growth", "fundamentals.revenue_growth", "higher"),
+    ("Earnings growth", "fundamentals.earnings_growth", "higher"),
+    ("Operating margin", "fundamentals.operating_margin", "higher"),
+    ("Return on equity", "fundamentals.return_on_equity", "higher"),
+    ("Debt/equity", "fundamentals.debt_to_equity", "lower"),
+    ("Dividend yield", "fundamentals.dividend_yield", None),
+    ("Analyst upside", "analyst.upside", "higher"),
+    ("Analyst target change 30d", "analyst.target_change", "higher"),
+    ("EPS estimate change 30d (this year)", "analyst.eps.0y.chg_30d", "higher"),
+    ("Next earnings", "analyst.calendar.next_earnings", None),
+    ("Distance to rule stop", "levels.stop_pct", None),
+    ("Position size at 1% risk", "risk.budget", None),
+]
+
+
+def _get(d, path: str):
+    """Value at a dotted path; list items are matched on their `period` (e.g. analyst.eps.0y)."""
+    for part in path.split("."):
+        if isinstance(d, list):
+            d = next((x for x in d if isinstance(x, dict) and x.get("period") == part), None)
+        elif isinstance(d, dict):
+            d = d.get(part)
+        else:
+            return None
+        if d is None:
+            return None
+    return d
+
+
+def _derived(p: dict) -> dict:
+    """P/E on the consensus EPS for this and next fiscal year, so the basis is explicit (Yahoo's `forwardPE`
+    may use either). Only when the EPS is quoted in the price's currency; otherwise null, not a mixed ratio."""
+    out = {}
+    price, ccy = p["price"]["last"], p["price"]["currency"]
+    for key, period in (("pe_0y", "0y"), ("pe_1y", "+1y")):
+        e = next((x for x in p["analyst"]["eps"] if x["period"] == period), None)
+        ok = e and e.get("eps") and e["eps"] > 0 and (e.get("currency") or ccy) == ccy
+        out[key] = price / e["eps"] if ok else None
+    return out
+
+
+def compare(symbols: list[str], personal: bool = False, market: Market | None = None) -> dict:
+    """Several tickers side by side, with ACWI as the always-present alternative: full profiles, the market
+    regime, weekly-return correlations (DKK) and a table of key metrics with the best value per row. Without
+    `personal` the profiles are built anonymously (see build). An unknown ticker becomes an error entry."""
+    market = market or Market.load()
+    bench = universe.benchmark()
+    rc = settings()["risk"]
+    tickers: dict[str, dict] = {}
+    for sym in dict.fromkeys(s.strip().upper() for s in symbols):
+        try:
+            market = ensure_prices(sym, market)
+            tickers[sym] = build(sym, market, anonymous=not personal)
+        except TickerNotFound as e:
+            tickers[sym] = {"error": str(e)}
+    ok = {s: p for s, p in tickers.items() if "error" not in p}
+
+    # ACWI: the zero-effort alternative every candidate has to beat
+    closes = market.closes
+    usd = _fx_to_dkk(closes, universe.currencies([bench])[bench])
+    b = closes[bench].dropna()
+    mkt = risk.weekly((b * usd.reindex(b.index).ffill()).dropna()) if usd is not None else None
+    rf = market.fred()["DGS3MO"] if "DGS3MO" in market.fred() else None
+    # ACWI against itself: beta 1 and alpha 0 by definition; the regression's error terms are numerical noise
+    self_fit = {"beta_se": None, "r2": None, "alpha_t": None, "idio_vol_ann": None, "downside_beta": 1.0}
+    bench_block = {"symbol": bench, "name": universe.names([bench]).get(bench), "returns": _windows(b, b.index[-1]),
+                   "risk": {k: (w | self_fit | {"alpha_ann": 0.0, "beta": 1.0, "corr": 1.0}) if w else None
+                            for k, n in rc["windows"].items()
+                            for w in [risk.window_stats(mkt, mkt, rf, n, rc["min_weeks"]) if mkt is not None else None]}}
+
+    # correlations of weekly DKK returns: the candidates, ACWI, and (personal) the current holdings
+    series = {}
+    for sym in [*ok, bench] + (sorted(set(universe.holdings().query("status == 'holding'")["symbol"]) - set(ok))
+                               if personal else []):
+        if sym not in closes:
+            continue
+        fx = _fx_to_dkk(closes, universe.currencies([sym])[sym])
+        if fx is not None:
+            s = closes[sym].dropna()
+            series[sym] = risk.weekly((s * fx.reindex(s.index).ffill()).dropna())
+    corr = risk.correlation(series, rc["windows"]["1y"], rc["min_weeks"])
+
+    bench_profile = {"price": {"returns": bench_block["returns"]}, "risk": {"windows": bench_block["risk"]}}
+    derived = {s: _derived(p) for s, p in ok.items()}
+    table = []
+    for label, path, direction in COMPARE_METRICS:
+        values = {s: clean(_get(p | {"derived": derived[s]}, path)) for s, p in ok.items()}
+        acwi = clean(_get(bench_profile, path))
+        if acwi is not None:
+            values[bench] = acwi
+        nums = {s: v for s, v in values.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+        best = (max(nums, key=nums.get) if direction == "higher" else min(nums, key=nums.get)) \
+            if direction and len(nums) > 1 else None
+        table.append({"metric": label, "path": path, "direction": direction, "values": values, "best": best})
+
+    d = dashboard.load()
+    regime = None
+    if d:
+        regime = {"asof": d["asof"], "overall": d["regime"]["overall"],
+                  "indicators": [{k: i.get(k) for k in ("name", "value", "status", "gauge")} for i in d["regime"]["indicators"]]}
+    out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
+           "asof": closes[bench].dropna().index[-1].date().isoformat(),
+           "personal_included": personal, "regime": regime, "benchmark": bench_block,
+           "tickers": tickers, "correlation": corr, "table": table}
+    if personal:
+        rot = [r for g in (d or {}).get("rotation", {}).get("groups", []) for r in g["rows"]]
+        rows = mine.table(closes, market.highs, market.lows, market.volumes, market.raw_closes(), market.leaders(), rot,
+                          (regime or {}).get("overall", {}).get("label"), settings(), sessions=lambda s: market.bars(s)["close"])
+        out["mine"] = {r["symbol"]: r for r in rows if r["symbol"] in ok}
+    return clean(out)

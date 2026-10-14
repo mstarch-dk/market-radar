@@ -47,6 +47,13 @@ export const GLOSSARY = {
   bb: "Bollinger %B: where the price sits between the lower (0) and upper (1) 20-day/2σ band.",
   beta: "Sensitivity to ACWI from weekly returns over a year: 1.2 = moves 20% more than the index. Correlation shows how tightly it follows.",
   signals: "One dot per graded reading, coloured by how close it is to its thresholds: green leans favourable, orange to red is a warning, grey is neutral. Hover for each reading and its nearest threshold. Sorting puts the most worrying rows first or last.",
+  risk_beta: "Beta vs ACWI on complete weekly returns in DKK, with its standard error (±) and R². A beta of 1.3 ± 0.4 could be anything from 0.9 to 1.7; a low R² means ACWI explains little of the moves. Compare 1y with 3y before trusting either.",
+  risk_alpha: "Jensen's alpha: the yearly return not explained by beta to ACWI (over T-bills when the risk-free rate is available). The t-stat says how distinguishable from luck it is: below about 2, treat it as noise.",
+  downside_beta: "Beta measured only in weeks when ACWI fell: how hard the stock tends to fall with the market. Above the normal beta = more downside exposure than upside.",
+  idio_vol: "Volatility not explained by ACWI (stock-specific risk). Diversifies away across many names, concentrates in a few.",
+  sharpe: "Excess return over T-bills per unit of volatility, annualised. Sortino uses only downside volatility.",
+  factor_tilts: "A regression on ACWI plus factor ETFs (momentum, value, quality, min-vol) and the sector ETF, each as a tilt vs ACWI. A loading with |t| above about 2 says the stock behaves like that factor; the remaining alpha is what isn't explained. Descriptive only: short sample, correlated factors.",
+  risk_budget: "Position size (share of the portfolio) at which a fall to the rule stop costs 1% of the portfolio. A tight stop allows a bigger position; above 100% means the stop is too close for this rule to bound the risk.",
   max_age: "Days since the source's latest data point / the limit after which it counts as stale.",
 } as const;
 

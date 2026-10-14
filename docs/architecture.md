@@ -8,14 +8,14 @@
 - `ingest.py`: yfinance prices and FRED series → `data/*.parquet`. `config.write_parquet` writes atomically, so a running server never reads a half-written file.
 - `external.py`: CFTC positioning, OECD leading indicators, the FactSet Earnings Insight PDF, Yahoo analyst consensus for holdings and watchlist, and Yahoo ticker detail (`fetch_detail` / `detail`, cached in `data/profiles/`).
 - `universe.py`: config access, S&P 500 constituents (SSGA SPY holdings), names, currencies, sectors, Yahoo import, positive list.
-- `signals/`: `rotation.py` (RRG), `momentum.py`, `regime.py`, `levels.py` (rule-based trailing ATR stop / take-profit with reasons, for held stocks, theme ETFs and ticker profiles), `technicals.py` (RSI, MACD, Bollinger, volatility, drawdown, beta).
+- `signals/`: `risk.py` (weekly DKK beta ± se, alpha, downside beta, Sharpe/Sortino, drawdowns, factor tilts, correlations, risk budget), `gauges.py` (graded readings), `rotation.py` (RRG), `momentum.py`, `regime.py`, `levels.py` (rule-based trailing ATR stop / take-profit with reasons, for held stocks, theme ETFs and ticker profiles), `technicals.py` (RSI, MACD, Bollinger, volatility, drawdown, beta).
 - `dashboard.py`: every market-wide reading as data (regime with chart series, rotation with RRG tails, momentum leaders, positioning, coverage). `compute()` has no side effects; `load()` reads `reports/dashboard.json` for the API.
 - `report.py`: `radar report` writes `dashboard.json` and the compact `summary.json` (a contract with the skills: its keys don't change without them), then the rank snapshots.
 - `mine.py`: the holdings/watchlist/sold table (DKK return vs a shadow ACWI position, flags, stop levels). `radar run` uses it for summary.json; the API recomputes it live.
 - `userstore.py`: the user's own edits in `userdata/radar.db` (SQLite, versioned with `PRAGMA user_version` + `MIGRATIONS`). Today: watchlist adds/removes, an overlay on the Yahoo import that `universe.holdings()` applies and that survives `import-yahoo`. New stateful data (notes, targets, alarms) gets a new table here.
 - `snapshot.py`: rank history for "new" and "Δ rank".
 - `coverage.py`: per-source freshness and coverage, the update log `data/sources.json`, and blind spots. These feed the "Data & coverage" page and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
-- `profile.py`: one ticker's full profile (used by `radar info` and the API).
+- `profile.py`: one ticker's full profile (used by `radar info` and the API), including the risk section; `compare()` puts several side by side with ACWI (`radar info A B`, the `/compare` skill).
 - `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).
 
 ## `web/`

@@ -520,6 +520,19 @@ export interface components {
             /** Fwd Pe */
             fwd_pe?: number | null;
         };
+        /** Factors */
+        Factors: {
+            /** N Weeks */
+            n_weeks: number;
+            /** R2 */
+            r2?: number | null;
+            /** Alpha Ann */
+            alpha_ann?: number | null;
+            /** Alpha T */
+            alpha_t?: number | null;
+            /** Loadings */
+            loadings: components["schemas"]["Loading"][];
+        };
         /** Fundamentals */
         Fundamentals: {
             /**
@@ -774,6 +787,15 @@ export interface components {
              * @enum {string}
              */
             status: "holding" | "watch" | "sold";
+        };
+        /** Loading */
+        Loading: {
+            /** Factor */
+            factor: string;
+            /** Beta */
+            beta?: number | null;
+            /** T */
+            t?: number | null;
         };
         /** MeView */
         MeView: {
@@ -1167,6 +1189,7 @@ export interface components {
             momentum: components["schemas"]["Momentum"];
             technicals: components["schemas"]["Technicals"];
             levels: components["schemas"]["Levels"];
+            risk?: components["schemas"]["Risk"] | null;
             analyst: components["schemas"]["Analyst"];
             fundamentals: components["schemas"]["Fundamentals"];
             etf?: components["schemas"]["Etf"] | null;
@@ -1244,6 +1267,71 @@ export interface components {
             /** Charts */
             charts: components["schemas"]["LineChart"][];
             coverage: components["schemas"]["RegimeCoverage"];
+        };
+        /** Risk */
+        Risk: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "stale" | "missing";
+            /** Source */
+            source: string;
+            /** Asof */
+            asof?: string | null;
+            /** Currency */
+            currency: string;
+            /** Benchmark */
+            benchmark: string;
+            /** Windows */
+            windows: {
+                [key: string]: components["schemas"]["RiskWindow"];
+            };
+            factors?: components["schemas"]["Factors"] | null;
+            /** Budget */
+            budget?: number | null;
+            /** Budget Risk */
+            budget_risk?: number | null;
+            /**
+             * Notes
+             * @default []
+             */
+            notes: string[];
+        };
+        /** RiskWindow */
+        RiskWindow: {
+            /** N Weeks */
+            n_weeks: number;
+            /** Return Ann */
+            return_ann?: number | null;
+            /** Vol Ann */
+            vol_ann?: number | null;
+            /** Beta */
+            beta?: number | null;
+            /** Beta Se */
+            beta_se?: number | null;
+            /** R2 */
+            r2?: number | null;
+            /** Corr */
+            corr?: number | null;
+            /** Alpha Ann */
+            alpha_ann?: number | null;
+            /** Alpha T */
+            alpha_t?: number | null;
+            /** Alpha Basis */
+            alpha_basis: string;
+            /** Idio Vol Ann */
+            idio_vol_ann?: number | null;
+            /** Downside Beta */
+            downside_beta?: number | null;
+            /** Sharpe */
+            sharpe?: number | null;
+            /** Sortino */
+            sortino?: number | null;
+            /** Max Dd */
+            max_dd?: number | null;
+            /** Max Dd Weeks */
+            max_dd_weeks?: number | null;
         };
         /** Rotation */
         Rotation: {
