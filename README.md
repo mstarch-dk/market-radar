@@ -40,9 +40,11 @@ double-click the start script again.
 
 - **Update data:** on the *Data & coverage* page, click *Update data* (or click the button in the yellow banner
   that appears when the data is a week old). Updates take a minute or two.
-- **Your portfolio:** on *My holdings & watchlist*, choose *Import from Yahoo Finance*. In Yahoo Finance, open
-  your portfolio, choose *Export*, and pick the downloaded file. It stays on your computer. Import again whenever
-  your portfolio changes.
+- **Your portfolio:** on the *Portfolio* page, add your trades one by one (the price of that day is filled in
+  for you), or *Import…* them from your broker (Saxo, Nordnet, Danske Bank), Yahoo Finance or any spreadsheet. The
+  import shows every row before anything is saved and can be undone. Positions, average cost (fees included) and
+  your return vs the world index follow from the trades. Mark each trade's account (e.g. aktiesparekonto or frie
+  midler) to see positions per account.
 - **Watchlist:** click ☆ next to any ticker, or *Add to watchlist* on a ticker's page.
 - **Look up anything:** type a company or Yahoo symbol in the search box (press `/` to jump there). Nordic and
   European symbols have a suffix, e.g. `NOVO-B.CO`, `RHM.DE`, `ASML.AS`.
@@ -55,8 +57,8 @@ Everything you add stays in these folders on your computer and is never uploaded
 
 | Folder | What |
 |---|---|
-| `imports/` | Your imported Yahoo portfolio |
-| `userdata/` | Watchlist changes made in the app |
+| `userdata/` | Your trades, accounts, watchlist changes (and automatic backups in `userdata/backups/`) |
+| `imports/` | Old Yahoo import files (moved into `userdata/` automatically) |
 | `data/`, `reports/` | Downloaded market data and the dashboard (can be re-downloaded) |
 | `notes/` | Your own notes and investor profile (for the Claude skills) |
 | `briefs/`, `research/`, `journal/` | What the Claude skills write for you |

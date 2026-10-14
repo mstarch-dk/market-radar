@@ -1,0 +1,81 @@
+# Broker export formats (src/radar/importers). Each preset lists the column names it accepts per field (any
+# language variant), the words that mean buy and sell, and how numbers and dates are written.
+#
+# verified: true only once a real (anonymized) export of that broker passes tests/test_importers.py. Unverified
+# presets are a best guess from public descriptions; the import preview always shows the mapped rows before
+# anything is saved, and every column can be re-mapped by hand.
+
+yahoo:
+  label: Yahoo Finance portfolio export
+  verified: true
+  snapshot: true            # the export always contains the whole portfolio: it replaces the previous Yahoo import
+  default_type: BUY         # older exports have no transaction type: their lots are buys
+  watch_without_quantity: true
+  decimal: "."
+  date_formats: ["%Y%m%d"]
+  columns:
+    symbol: [Symbol]
+    date: [Trade Date]
+    type: [Transaction Type]
+    quantity: [Quantity]
+    price: [Purchase Price]
+    fee: [Commission]
+  buy: [BUY]
+  sell: [SELL]
+
+nordnet:
+  label: Nordnet (transactions export)
+  verified: false
+  decimal: ","
+  dayfirst: true
+  columns:
+    ext_ref: [Id, ID]
+    date: [Handelsdag, Trade day, Handelsdatum, Handelsdato]
+    type: [Transaktionstype, Transaction type, Transaktionstyp]
+    name: [Værdipapirer, Værdipapir, Security, Värdepapper]
+    isin: [ISIN]
+    quantity: [Antal, Quantity, Antall]
+    price: [Kurs, Price]
+    fee: [Samlede afgifter, Total fees, Avgifter, Kurtage, Courtage]
+    currency: [Valuta, Currency]
+    account: [Depot, Portfolio]
+  buy: [KØBT, KØB, BUY, KÖPT, KJØPT, BOUGHT]
+  sell: [SOLGT, SALG, SELL, SÅLT, SOLD]
+
+saxo:
+  label: Saxo (trades export)
+  verified: false
+  decimal: auto
+  dayfirst: true
+  columns:
+    ext_ref: [Trade ID, Handels-ID, TradeId, Order ID, Ordre-ID]
+    date: [Trade Date, Handelsdato, Trade date, TradeTime, Handelstidspunkt]
+    type: [B/S, Køb/Salg, Buy/Sell, Direction, Retning]
+    symbol: [Instrument Symbol, Symbol, Instrumentsymbol]
+    name: [Instrument, Instrument Description, Instrumentbeskrivelse]
+    isin: [ISIN, Instrument ISIN]
+    quantity: [Amount, Quantity, Antal, Mængde]
+    price: [Price, Pris, Kurs, Trade Price]
+    fee: [Commission, Kommission, Kurtage]
+    currency: [Instrument Currency, Currency, Valuta]
+    account: [Account ID, Konto, Account]
+  buy: [BOUGHT, BUY, KØBT, KØB, B]
+  sell: [SOLD, SELL, SOLGT, SALG, S]
+
+danske:
+  label: Danske Bank (depot transactions)
+  verified: false
+  decimal: ","
+  dayfirst: true
+  columns:
+    date: [Handelsdato, Dato, Handelsdag, Trade date]
+    type: [Transaktion, Transaktionstype, Handelstype, Type, Tekst]
+    name: [Fondsnavn, Papirnavn, Værdipapir, Navn]
+    isin: [ISIN, Fondskode, ISIN-kode]
+    quantity: [Antal, Stk., Stk, Mængde]
+    price: [Kurs, Handelskurs, Pris]
+    fee: [Kurtage, Gebyr, Omkostninger]
+    currency: [Valuta]
+    ext_ref: [Nota, Notanr., Notanummer, Referencenr.]
+  buy: [KØB, KØBT, BUY]
+  sell: [SALG, SOLGT, SELL]

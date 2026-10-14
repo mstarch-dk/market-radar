@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api, type MyRow } from "../api/client";
 import { Check, Loaded, PageHead, Pct } from "../components/cells";
@@ -120,6 +121,7 @@ export function Me() {
                 )}
               </section>
             ))}
+            <p className="note"><Link to="/portfolio">Add, correct or import trades on the Portfolio page →</Link></p>
             <details className="import-details" open={d.rows.length === 0}>
               <summary>Import or re-import your portfolio from Yahoo Finance</summary>
               <ImportPortfolio />

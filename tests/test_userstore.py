@@ -72,20 +72,41 @@ def test_holdings_without_any_file(tmp_data):
     assert list(h["symbol"]) == ["A"] and isinstance(h, pd.DataFrame)
 
 
-def test_holdings_bundle_round_trip_carries_the_watchlist_edits(tmp_data, monkeypatch):
+def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data, monkeypatch):
     from typer.testing import CliRunner
 
     from radar import cli, config
 
     monkeypatch.setattr(config, "IMPORTS", tmp_data)
-    _holdings(tmp_data, "W,watch,,,,,\n")
-    (tmp_data / "transactions.csv").write_text("symbol,date,type,quantity,price\n", encoding="utf-8")
+    _holdings(tmp_data, "W,watch,,,,,\nH,holding,2,10,2026-01-02,,\n")
+    (tmp_data / "transactions.csv").write_text("symbol,date,type,quantity,price\nH,2026-01-02,BUY,2,10\n",
+                                               encoding="utf-8")
     userstore.watch("A")
     userstore.unwatch("W")
     bundle = CliRunner().invoke(cli.app, ["bundle-holdings"]).output.strip()
 
-    (tmp_data / "userdata" / userstore.DB_NAME).unlink()            # a fresh CI checkout
-    (tmp_data / "holdings.csv").unlink()
+    for f in (tmp_data / "userdata").iterdir():                         # a fresh CI checkout
+        f.unlink() if f.is_file() else None
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": bundle})
-    assert res.exit_code == 0 and "2 watchlist edits" in res.output
-    assert list(universe.holdings()["symbol"]) == ["A"]
+    assert res.exit_code == 0 and "1 transactions and 2 watchlist edits" in res.output
+    h = universe.holdings().set_index("symbol")
+    assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
+
+
+def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):
+    import base64
+    import io
+    import zipfile
+
+    from typer.testing import CliRunner
+
+    from radar import cli, config
+
+    monkeypatch.setattr(config, "IMPORTS", tmp_data)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("holdings.csv", HEADER + "H,holding,2,10,2026-01-02,,\n")
+        z.writestr("transactions.csv", "symbol,date,type,quantity,price\nH,2026-01-02,BUY,2,10\n")
+    res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": base64.b64encode(buf.getvalue()).decode()})
+    assert res.exit_code == 0
+    assert universe.holdings().set_index("symbol").loc["H", "quantity"] == 2

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import io
+import pathlib
 import re
 import time
 from dataclasses import dataclass
+from datetime import date
 
 import pandas as pd
 import requests
@@ -201,95 +203,200 @@ def _is_market_symbol(sym: str) -> bool:
     return sym.startswith(("^", "$$")) or "=" in sym
 
 
-def _replay(lots: pd.DataFrame) -> tuple[dict, list[str]]:
-    """Replay BUY/SELL transactions with the average-cost method (gennemsnitsmetoden)."""
+TX_COLS = ["symbol", "date", "type", "quantity", "price", "fee", "account"]
+
+
+def replay(tx: pd.DataFrame) -> tuple[dict, list[str]]:
+    """Replay one symbol's BUY/SELL transactions with the average-cost method (gennemsnitsmetoden).
+
+    `tx` has the columns date, type, quantity, price and fee. Fees are part of the acquisition cost; a sale
+    removes cost in proportion and doesn't change the average. A sale larger than the position is capped and
+    reported, never silently accepted."""
     qty = cost = 0.0
     opened = last_sell_date = last_sell_price = None
     warnings = []
-    for _, t in lots.sort_values("Trade Date", kind="stable").iterrows():
-        q, px, kind = t["Quantity"], t["Purchase Price"], t["Transaction Type"]
+    for _, t in tx.sort_values("date", kind="stable").iterrows():
+        q, px, kind = t["quantity"], t["price"], t["type"]
+        fee = t.get("fee", 0)
+        fee = 0.0 if pd.isna(fee) else float(fee)
         if pd.isna(q) or pd.isna(px):
             continue
+        day = pd.Timestamp(t["date"])
         if kind not in ("BUY", "SELL"):
-            warnings.append(f"skipped a {kind} transaction on {t['Trade Date']:%Y-%m-%d}: only BUY/SELL are replayed")
+            warnings.append(f"skipped a {kind} transaction on {day:%Y-%m-%d}: only BUY/SELL are replayed")
             continue
         if kind == "SELL":
             if q > qty + 1e-9:
-                warnings.append(f"sold {q:g} on {t['Trade Date']:%Y-%m-%d} but held {qty:g} (split or missing buy?)")
+                warnings.append(f"sold {q:g} on {day:%Y-%m-%d} but held {qty:g} (split or missing buy?)")
                 q = qty
             cost -= cost / qty * q if qty else 0
             qty -= q
-            last_sell_date, last_sell_price = t["Trade Date"], px
+            last_sell_date, last_sell_price = day, px
         else:
             if qty <= 1e-9:
-                opened = t["Trade Date"]
+                opened = day
             qty += q
-            cost += q * px
+            cost += q * px + fee
     held = qty > 1e-9
     return {
         "status": "holding" if held else "sold",
         "quantity": round(qty, 6) if held else None,
         "avg_price": cost / qty if held else None,
-        "first_trade": opened.date().isoformat() if held and pd.notna(opened) else None,
-        "last_sell_date": last_sell_date.date().isoformat() if last_sell_date is not None and pd.notna(last_sell_date) else None,
+        "first_trade": opened.date().isoformat() if held and opened is not None else None,
+        "last_sell_date": last_sell_date.date().isoformat() if last_sell_date is not None else None,
         "last_sell_price": last_sell_price,
     }, warnings
 
 
-def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
-    """Normalise a Yahoo Finance portfolio export into imports/holdings.csv.
+def positions(tx: pd.DataFrame, by_account: bool = False) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    """Positions (holding or sold) derived from transactions, per symbol or per (symbol, account)."""
+    cols = HOLDING_COLS + ["accounts"] + (["account"] if by_account else [])
+    if tx.empty:
+        return pd.DataFrame(columns=cols), {}
+    keys = ["symbol", "account"] if by_account else ["symbol"]
+    rows, warnings = [], {}
+    for key, lots in tx.assign(account=tx["account"].fillna("")).groupby(keys, sort=True):
+        sym = key[0] if isinstance(key, tuple) else key
+        row, warn = replay(lots)
+        accts = sorted(a for a in lots["account"].unique() if a)
+        extra = {"account": key[1] or None} if by_account else {}
+        rows.append({"symbol": sym, **row, "accounts": ", ".join(accts) or None, **extra})
+        if warn:
+            warnings.setdefault(sym, []).extend(warn)
+    return pd.DataFrame(rows, columns=cols), warnings
 
-    Symbols with transactions become holdings (net quantity > 0) or sold positions; symbols without
-    transactions become watchlist. Indices, futures, FX and cash rows are skipped.
-    """
+
+def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]]]:
+    """A Yahoo Finance portfolio export as transaction rows, the symbols without transactions (its watchlist),
+    and a note per symbol for rows that were skipped (types other than BUY/SELL). Indices, futures, FX and cash
+    rows are left out."""
     raw = pd.read_csv(path)
     raw.columns = [c.strip() for c in raw.columns]
     raw["Quantity"] = pd.to_numeric(raw.get("Quantity"), errors="coerce")
     raw["Purchase Price"] = pd.to_numeric(raw.get("Purchase Price"), errors="coerce")
+    raw["Commission"] = pd.to_numeric(raw.get("Commission"), errors="coerce")
     trade = pd.to_numeric(raw.get("Trade Date"), errors="coerce").astype("Int64").astype("string")
     raw["Trade Date"] = pd.to_datetime(trade, format="%Y%m%d", errors="coerce")
     # older exports have no type: their lots are buys
     kind = raw.get("Transaction Type", pd.Series("", index=raw.index)).fillna("").astype(str).str.strip().str.upper()
     raw["Transaction Type"] = kind.replace("", "BUY")
+    raw = raw[~raw["Symbol"].map(_is_market_symbol)]
+    watch = sorted(s for s, lots in raw.groupby("Symbol") if lots["Quantity"].isna().all())
+    skipped: dict[str, list[str]] = {}
+    for _, r in raw[~raw["Transaction Type"].isin(["BUY", "SELL"]) & raw["Quantity"].notna()].iterrows():
+        day = f" on {r['Trade Date']:%Y-%m-%d}" if pd.notna(r["Trade Date"]) else ""
+        skipped.setdefault(r["Symbol"], []).append(
+            f"skipped a {r['Transaction Type']} transaction{day}: only BUY/SELL are replayed")
+    tx = raw[raw["Transaction Type"].isin(["BUY", "SELL"])].dropna(subset=["Quantity", "Purchase Price", "Trade Date"])
+    rows = [{"symbol": r["Symbol"], "date": r["Trade Date"].date().isoformat(), "type": r["Transaction Type"],
+             "quantity": float(r["Quantity"]), "price": float(r["Purchase Price"]),
+             "fee": 0.0 if pd.isna(r["Commission"]) else float(r["Commission"])} for _, r in tx.iterrows()]
+    return rows, watch, skipped
 
-    tx_all = raw[~raw["Symbol"].map(_is_market_symbol) & raw["Transaction Type"].isin(["BUY", "SELL"])]
-    tx_all = tx_all.dropna(subset=["Quantity", "Purchase Price", "Trade Date"])
-    tx_all = tx_all.rename(columns={"Symbol": "symbol", "Trade Date": "date", "Transaction Type": "type",
-                                    "Quantity": "quantity", "Purchase Price": "price"})
-    rows, warnings = [], {}
-    for sym, lots in raw.groupby("Symbol", sort=True):
-        if _is_market_symbol(sym):
-            continue
-        tx = lots.dropna(subset=["Quantity"])
-        if tx.empty:
-            rows.append({"symbol": sym, "status": "watch"})
-            continue
-        row, warn = _replay(tx)
-        rows.append({"symbol": sym, **row})
-        if warn:
-            warnings[sym] = warn
-    df = pd.DataFrame(rows, columns=HOLDING_COLS)
-    # both files are written only once everything has been read, so a bad export leaves the previous import intact
-    HOLDINGS_FILE.parent.mkdir(exist_ok=True)
-    tx_all[["symbol", "date", "type", "quantity", "price"]].sort_values(["symbol", "date"], kind="stable").to_csv(
-        TRANSACTIONS_FILE, index=False)
-    df.to_csv(HOLDINGS_FILE, index=False)
-    return df, warnings
+
+def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    """Import a Yahoo Finance portfolio export into the transaction store.
+
+    The export is a full snapshot of that Yahoo portfolio, so it replaces the transactions of the previous
+    Yahoo import (manual entries and other brokers' imports are kept) and its watchlist. Returns the positions
+    of the exported symbols and the replay warnings."""
+    from . import userstore
+
+    ensure_migrated()
+    rows, watch, skipped = _yahoo_rows(path)         # read everything before writing anything
+    userstore.add_import(rows, "yahoo", pathlib.Path(path).name, replace_source=True)
+    userstore.meta_set("yahoo_watch", watch)
+    exported = {r["symbol"] for r in rows} | set(watch)
+    pos, warnings = positions(transactions())
+    pos = pos[pos["symbol"].isin(exported)]
+    watch_rows = pd.DataFrame({"symbol": [w for w in watch if w not in set(pos["symbol"])], "status": "watch"})
+    df = pd.concat([pos, watch_rows], ignore_index=True)[HOLDING_COLS]
+    notes = {k: skipped.get(k, []) + warnings.get(k, []) for k in exported if skipped.get(k) or warnings.get(k)}
+    return df.sort_values("symbol").reset_index(drop=True), notes
+
+
+# ---------- the store, and moving the old CSV files into it ----------
+
+def _legacy_files() -> bool:
+    return HOLDINGS_FILE.exists() or TRANSACTIONS_FILE.exists()
+
+
+def ensure_migrated() -> None:
+    """Move the old Yahoo-import CSVs (imports/holdings.csv + transactions.csv) into the store, once.
+
+    The positions are rebuilt from the stored transactions and compared with the old holdings.csv; any
+    difference undoes the migration and keeps the CSVs in use (radar doctor reports it). On success the CSVs
+    are renamed to *.migrated.csv, never deleted."""
+    from . import userstore
+
+    if not _legacy_files() or userstore.meta_get("legacy_csv"):
+        return
+    old = pd.read_csv(HOLDINGS_FILE) if HOLDINGS_FILE.exists() else pd.DataFrame(columns=HOLDING_COLS)
+    tx = pd.read_csv(TRANSACTIONS_FILE) if TRANSACTIONS_FILE.exists() else pd.DataFrame(columns=TX_COLS)
+    rows = [{"symbol": r["symbol"], "date": str(r["date"])[:10], "type": r["type"], "quantity": float(r["quantity"]),
+             "price": float(r["price"]), "fee": 0.0} for _, r in tx.iterrows()]
+    imp = userstore.add_import(rows, "yahoo", "imports/transactions.csv (moved into the store)")
+    new, _ = positions(_store_frame())
+    problems = []
+    for _, o in old[old["status"].isin(["holding", "sold"])].iterrows():
+        n = new[new["symbol"] == o["symbol"]]
+        if n.empty or n.iloc[0]["status"] != o["status"]:
+            problems.append(f"{o['symbol']}: {o['status']} before, {n.iloc[0]['status'] if len(n) else 'missing'} after")
+        elif o["status"] == "holding" and not (abs(n.iloc[0]["quantity"] - o["quantity"]) < 1e-6
+                                                and abs(n.iloc[0]["avg_price"] - o["avg_price"]) <= 1e-6 * abs(o["avg_price"])):
+            problems.append(f"{o['symbol']}: {o['quantity']} @ {o['avg_price']} before, "
+                            f"{n.iloc[0]['quantity']} @ {n.iloc[0]['avg_price']} after")
+    if problems:
+        userstore.undo_import(imp["id"])
+        userstore.meta_set("legacy_csv", {"status": "failed", "problems": problems})
+        return
+    userstore.meta_set("yahoo_watch", sorted(old.loc[old["status"] == "watch", "symbol"].dropna()))
+    for f in (HOLDINGS_FILE, TRANSACTIONS_FILE):
+        if f.exists():
+            f.replace(f.with_name(f.stem + ".migrated.csv"))
+    userstore.meta_set("legacy_csv", {"status": "migrated", "at": date.today().isoformat(), "transactions": len(rows)})
+
+
+def _store_frame() -> pd.DataFrame:
+    from . import userstore
+
+    tx = pd.DataFrame(userstore.transactions(), columns=TX_COLS + ["id", "source"])
+    if tx.empty:
+        return pd.DataFrame(columns=TX_COLS)
+    tx["date"] = pd.to_datetime(tx["date"])
+    return tx[TX_COLS]
+
+
+def _legacy_mode() -> bool:
+    from . import userstore
+
+    m = userstore.meta_get("legacy_csv") or {}
+    return m.get("status") == "failed" and _legacy_files()
 
 
 def transactions() -> pd.DataFrame:
-    if not TRANSACTIONS_FILE.exists():
-        return pd.DataFrame(columns=["symbol", "date", "type", "quantity", "price"])
-    return pd.read_csv(TRANSACTIONS_FILE, parse_dates=["date"])
+    """Every BUY/SELL (symbol, date, type, quantity, price, fee, account), from the store."""
+    ensure_migrated()
+    if _legacy_mode():
+        tx = pd.read_csv(TRANSACTIONS_FILE, parse_dates=["date"]) if TRANSACTIONS_FILE.exists() else pd.DataFrame(columns=TX_COLS)
+        return tx.assign(fee=0.0, account=None)
+    return _store_frame()
 
 
 def holdings() -> pd.DataFrame:
-    """Holdings + watchlist from the Yahoo import plus `watchlist:` in universe.yaml, with the watchlist edits
-    made in the web app (userstore) on top: an add puts a symbol on the watchlist (a sold one too), a remove
-    takes a watchlist symbol off. Holdings are never changed by the overlay."""
+    """Holdings and sold positions derived from the transactions, plus the watchlist: the last Yahoo import's,
+    `watchlist:` in universe.yaml, and the edits made in the web app (userstore) on top. An add puts a symbol on
+    the watchlist (a sold one too), a remove takes a watchlist symbol off. Holdings are never changed by the
+    overlay."""
     from . import userstore
 
-    df = pd.read_csv(HOLDINGS_FILE) if HOLDINGS_FILE.exists() else pd.DataFrame(columns=HOLDING_COLS)
+    ensure_migrated()
+    if _legacy_mode():
+        df = pd.read_csv(HOLDINGS_FILE) if HOLDINGS_FILE.exists() else pd.DataFrame(columns=HOLDING_COLS)
+    else:
+        pos, _ = positions(transactions())
+        watch = [w for w in userstore.meta_get("yahoo_watch", []) if w not in set(pos["symbol"])]
+        df = pd.concat([pos, pd.DataFrame({"symbol": watch, "status": "watch"})], ignore_index=True)
     extra = [t for t in universe_config().get("watchlist") or [] if t not in set(df["symbol"])]
     if extra:
         df = pd.concat([df, pd.DataFrame({"symbol": extra, "status": "watch"})], ignore_index=True)

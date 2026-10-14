@@ -5,11 +5,12 @@ Always run Python through uv; the frontend uses pnpm.
 ## Data and report
 - `uv run radar run`: incremental update of prices, FRED and non-price data (CFTC, OECD CLI, FactSet, analyst consensus), then build `reports/dashboard.json` (served by the web app) and `reports/summary.json` (read by the skills). A failing non-price source logs a warning and keeps its cached data.
 - `uv run radar doctor [--offline]`: plain-language setup check (Python, web build, data age, positive list, portfolio, investor profile, the data services), with how to fix each problem. The start scripts run it when something fails.
-- The web app can do the same without a terminal: *Update data* (Data & coverage page, stale banner, welcome page) and *Import from Yahoo Finance* (holdings page).
+- The web app can do the same without a terminal: *Update data* (Data & coverage page, stale banner, welcome page), and the *Portfolio* page for entering, importing and correcting trades.
 - `uv run radar update` / `uv run radar report`: the two halves of `run`. `update --refresh-constituents` re-fetches the S&P 500 list.
 
 ## Holdings
-- `uv run radar import-yahoo imports/yahoo_portfolio.csv`: replays BUY/SELL transactions (average-cost method) into `imports/holdings.csv` and `imports/transactions.csv`. Unknown transaction types are skipped with a warning.
+- `uv run radar portfolio list [--symbol X] [--account A]` / `add BUY|SELL <ticker> <qty> <price> [--date] [--fee] [--account] [--yes]` / `export [--out file]`: the stored trades, checked like in the app (errors block; warnings need `--yes`).
+- `uv run radar import-yahoo imports/yahoo_portfolio.csv`: a Yahoo Finance export into the store (it replaces the previous Yahoo import; manual and broker trades are kept). Unknown transaction types are skipped with a warning.
 - Watchlist: add or remove from any ticker page in the web app (stored in `userdata/radar.db`, survives re-imports). `watchlist:` in `config/universe.yaml` still works for fixed extras.
 - `uv run radar bundle-holdings --set-secret`: refresh the HOLDINGS_BUNDLE secret used by the monthly GitHub Actions brief (holdings, transactions and the watchlist edits). Run it after each Yahoo import or watchlist change you want the brief to see.
 

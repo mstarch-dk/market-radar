@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 
-from .config import IMPORTS, POSITIVE_LIST_FILE, PRICES_FILE, REPORTS, ROOT, settings
+from .config import POSITIVE_LIST_FILE, PRICES_FILE, REPORTS, ROOT, settings
 
 # the services `radar update` reads from (no API keys needed)
 SERVICES = {
@@ -68,11 +68,19 @@ def checks(offline: bool = False) -> list[dict]:
         out.append(_check("SKAT positive list", "warn", "imports/positivliste.xlsx is missing",
                           "Download it from skat.dk; without it the positive-list column shows \"?\"."))
 
-    holdings = IMPORTS / "holdings.csv"
-    out.append(_check("Your portfolio", "info",
-                      "imported" if holdings.exists() else "not imported (optional)",
-                      None if holdings.exists() else
-                      "In the app: My holdings & watchlist → Import from Yahoo Finance."))
+    from . import universe, userstore
+
+    legacy = userstore.meta_get("legacy_csv") or {}
+    if legacy.get("status") == "failed":
+        out.append(_check("Your portfolio", "warn",
+                          "the old imports/*.csv files could not be moved into the store unchanged: "
+                          + "; ".join(legacy.get("problems", [])[:3]),
+                          "The old files are still used. Re-import from Yahoo Finance or enter the trades on the "
+                          "Portfolio page; nothing was lost."))
+    else:
+        n = len(universe.transactions())
+        out.append(_check("Your portfolio", "info", f"{n} transactions" if n else "no transactions yet (optional)",
+                          None if n else "In the app: Portfolio → add a trade, or import from your broker or Yahoo Finance."))
     profile = ROOT / "notes" / "investor.md"
     out.append(_check("Investor profile for Claude", "info",
                       "notes/investor.md found" if profile.exists() else "not set up (optional, for the Claude Code skills)",

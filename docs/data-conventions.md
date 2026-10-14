@@ -27,3 +27,10 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - Factor tilts regress on ACWI plus factor/sector ETFs *minus ACWI*, so a loading means exposure beyond the market. Descriptive: short samples, correlated factors.
 - One-year betas are noisy (XLE's 1y beta was −0.9 while its 3y beta is +0.45): compare windows and read the standard error before relying on either.
 
+## Your portfolio (`userstore.py`, `universe.py`, `portfolio.py`, `importers/`)
+- Trades are the source of truth, in `userdata/radar.db` (SQLite, versioned migrations, a backup in `userdata/backups/` before every import and undo). Each trade records its source (manual, yahoo, nordnet, …), its import and its account.
+- Positions are derived with the average-cost method (gennemsnitsmetoden): fees are part of the acquisition cost, a sale removes cost in proportion. Per account and in total; the total pools all accounts, which is right for the return vs ACWI but not for tax, where an aktiesparekonto is separate.
+- Prices are per share in the instrument's quote currency (as on Yahoo). The editor and the importers flag a price about 100× off (GBp vs GBP) or far from that day's traded close, and block a sale larger than the position.
+- Imports: presets for Yahoo (verified), Nordnet, Saxo and Danske Bank (unverified until a real export is added as a test fixture), generic column names otherwise. Instruments are matched to Yahoo symbols (remembered match, the radar's ISIN list, the symbol itself, Yahoo search); search hits must be confirmed. A Yahoo export is a snapshot and replaces the previous Yahoo import; other imports add rows and skip ones already stored.
+- The old `imports/holdings.csv` + `transactions.csv` move into the store once, automatically; if the rebuilt positions differ, the move is undone and the CSVs stay in use (`radar doctor` says so).
+

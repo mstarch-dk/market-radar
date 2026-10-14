@@ -58,7 +58,8 @@ def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Ser
         else:
             if qty <= 1e-9:
                 qty = units_px = cost = units = 0.0
-            amount = q * t["price"] * fx.asof(d)
+            fee = t.get("fee", 0)
+            amount = (q * t["price"] + (0.0 if pd.isna(fee) else fee)) * fx.asof(d)   # fees are part of the cost
             f = factor.asof(d) if not factor.empty else np.nan
             if not (np.isfinite(f) and f > 0):  # trade before the price history: price-only for that lot
                 f = factor.iloc[-1] if not factor.empty else 1.0

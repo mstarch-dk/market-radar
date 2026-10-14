@@ -13,6 +13,7 @@ The journal makes decisions deliberate and reviewable. Each entry records *why* 
 1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (the accounts listed in `notes/investor.md`; without that file, e.g. aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.
 2. Run `uv run radar info <TICKER>` and snapshot the key numbers into the entry.
 3. Link `research/<TICKER>.md` if it exists.
+   If the decision is an executed trade (buy, add, trim, sell) and the user gives the quantity and price, offer to record it in the portfolio too: `uv run radar portfolio add <BUY|SELL> <TICKER> <qty> <price> --date <date> --account <account>` (it checks the trade like the app does; show any warnings before adding `--yes`).
 4. Write `journal/YYYY-MM-DD-<TICKER>-<action>.md`:
 
 ```markdown

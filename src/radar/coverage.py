@@ -167,12 +167,14 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
                      f"{positive_list_year} sheet" if positive_list_year else "not loaded",
                      "imports/positivliste.xlsx", log, state=pl_state))
 
-    # holdings import
+    # your portfolio (the transaction store)
     if not holdings.empty:
+        from . import universe, userstore
+
         counts = holdings["status"].value_counts()
-        tx = pd.read_csv(TRANSACTIONS_FILE, parse_dates=["date"]) if TRANSACTIONS_FILE.exists() else pd.DataFrame()
-        latest_tx = f"latest transaction {_d(tx['date'].max())}" if not tx.empty else ""
-        rows.append(_row("holdings", _mtime(HOLDINGS_FILE), ref, None,
+        tx = universe.transactions()
+        latest_tx = f"{len(tx)} transactions, latest {_d(tx['date'].max())}" if not tx.empty else ""
+        rows.append(_row("holdings", _mtime(userstore.USERDATA / userstore.DB_NAME), ref, None,
                          f"{counts.get('holding', 0)} holdings, {counts.get('watch', 0)} watchlist, "
                          f"{counts.get('sold', 0)} sold", latest_tx, log, state=INFO))
     else:

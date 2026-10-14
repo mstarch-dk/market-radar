@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { ImportPortfolio } from "../components/ImportPortfolio";
 import { UpdatePanel } from "../components/UpdatePanel";
 
@@ -16,6 +17,8 @@ export function Welcome() {
         only fetch what's new and take about a minute.</p>
       <UpdatePanel label="Download market data" />
       <h2>2. Optional: add your portfolio</h2>
+      <p className="small muted">Enter your trades by hand on the <Link to="/portfolio">Portfolio page</Link>, or import them
+        from Yahoo Finance here:</p>
       <ImportPortfolio />
       <p className="small muted">You can also just look up any ticker with the search box at the top, and star names to
         build a watchlist.</p>

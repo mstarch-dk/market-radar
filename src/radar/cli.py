@@ -144,29 +144,31 @@ def ticker(symbol: str, port: int = 8780):
     serve(port, False)
 
 
-BUNDLE_FILES = ("holdings.csv", "transactions.csv")
-BUNDLE_WATCHLIST = "watchlist.csv"  # the web app's watchlist edits (userstore), exported as text
+BUNDLE_TX = "portfolio_transactions.csv"   # every stored transaction (userstore), as text
+BUNDLE_WATCHLIST = "watchlist.csv"          # the web app's watchlist edits
+BUNDLE_YAHOO_WATCH = "yahoo_watch.json"     # the watchlist of the last Yahoo import
+LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the transaction store
 
 
 @app.command(name="bundle-holdings")
 def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help="Store it directly as the HOLDINGS_BUNDLE GitHub secret")):
-    """Pack imports/holdings.csv + transactions.csv (+ the web app's watchlist edits) as base64 for the
-    HOLDINGS_BUNDLE secret.
+    """Pack your portfolio (stored transactions, watchlists) as base64 for the HOLDINGS_BUNDLE secret.
 
     Usage: uv run radar bundle-holdings --set-secret   (needs the GitHub CLI, signed in)
     """
     import base64
     import io
+    import json
     import zipfile
 
     from . import userstore
-    from .config import IMPORTS
 
+    universe.ensure_migrated()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in BUNDLE_FILES:
-            z.write(IMPORTS / name, name)
+        z.writestr(BUNDLE_TX, userstore.export_transactions_csv())
         z.writestr(BUNDLE_WATCHLIST, userstore.export_watchlist_csv())
+        z.writestr(BUNDLE_YAHOO_WATCH, json.dumps(userstore.meta_get("yahoo_watch", [])))
     data = base64.b64encode(buf.getvalue()).decode("ascii")
     if not set_secret:
         typer.echo(data)
@@ -179,13 +181,13 @@ def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help=
 
 @app.command(name="unbundle-holdings")
 def unbundle_holdings():
-    """Restore holdings from the HOLDINGS_BUNDLE environment variable (used in CI)."""
+    """Restore your portfolio from the HOLDINGS_BUNDLE environment variable (used in CI)."""
     import base64
     import io
+    import json
     import os
-    import zipfile
-
     import re
+    import zipfile
 
     from . import userstore
     from .config import IMPORTS
@@ -196,10 +198,85 @@ def unbundle_holdings():
         typer.echo("HOLDINGS_BUNDLE not set – running without holdings.")
         return
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(data))) as z:
-        for name in BUNDLE_FILES:
-            (IMPORTS / name).write_bytes(z.read(name))
-        n = userstore.import_watchlist_csv(z.read(BUNDLE_WATCHLIST).decode("utf-8"))             if BUNDLE_WATCHLIST in z.namelist() else 0
-    typer.echo(f"Restored {', '.join(BUNDLE_FILES)} and {n} watchlist edits.")
+        names = set(z.namelist())
+        if BUNDLE_TX in names:
+            n_tx = userstore.import_transactions_csv(z.read(BUNDLE_TX).decode("utf-8"))
+            if BUNDLE_YAHOO_WATCH in names:
+                userstore.meta_set("yahoo_watch", json.loads(z.read(BUNDLE_YAHOO_WATCH)))
+            userstore.meta_set("legacy_csv", {"status": "migrated", "at": "bundle"})
+            what = f"{n_tx} transactions"
+        else:                                     # an older bundle: the CSV files, moved into the store on first use
+            IMPORTS.mkdir(exist_ok=True)
+            for name in LEGACY_FILES:
+                (IMPORTS / name).write_bytes(z.read(name))
+            universe.ensure_migrated()
+            what = ", ".join(LEGACY_FILES)
+        n = userstore.import_watchlist_csv(z.read(BUNDLE_WATCHLIST).decode("utf-8")) if BUNDLE_WATCHLIST in names else 0
+    typer.echo(f"Restored {what} and {n} watchlist edits.")
+
+
+portfolio_app = typer.Typer(help="Your transactions (the portfolio store): list, add, export.")
+app.add_typer(portfolio_app, name="portfolio")
+
+
+@portfolio_app.command("list")
+def portfolio_list(symbol: str = typer.Option(None, help="Only this ticker"),
+                   account: str = typer.Option(None, help="Only this account")):
+    """Stored transactions, oldest first."""
+    from . import userstore
+
+    universe.ensure_migrated()
+    rows = userstore.transactions(symbol.upper() if symbol else None, account)
+    for t in rows:
+        typer.echo(f"{t['id']:>5}  {t['date']}  {t['type']:<4} {t['quantity']:>10g} {t['symbol']:<12} @ {t['price']:<10g}"
+                   f" fee {t['fee']:<6g} {t['account'] or '-':<12} {t['source']}")
+    typer.echo(f"{len(rows)} transactions.")
+
+
+@portfolio_app.command("add")
+def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: str = typer.Argument(...),
+                  quantity: float = typer.Argument(...), price: float = typer.Argument(...),
+                  date: str = typer.Option(None, help="Trade date YYYY-MM-DD (default: today)"),
+                  fee: float = typer.Option(0.0, help="Commission, in the price's currency"),
+                  account: str = typer.Option(None, help="e.g. ASK or 'frie midler'"),
+                  note: str = typer.Option(None),
+                  yes: bool = typer.Option(False, "--yes", help="Save despite warnings (errors always block)")):
+    """Add one trade, checked the same way as in the app."""
+    from datetime import date as _date
+
+    from . import portfolio, profile, userstore
+
+    universe.ensure_migrated()
+    row = {"symbol": symbol.strip().upper(), "date": date or _date.today().isoformat(), "type": type_.upper(),
+           "quantity": quantity, "price": price, "fee": fee, "account": account, "note": note}
+    try:
+        market = profile.ensure_prices(row["symbol"])
+    except profile.TickerNotFound as e:
+        raise typer.Exit(str(e))
+    issues = portfolio.validate(row, market)
+    for i in issues:
+        typer.echo(f"  {i['level'].upper()}: {i['message']}")
+    if any(i["level"] == "error" for i in issues) or (issues and not yes):
+        raise typer.Exit("Not saved." + ("" if any(i["level"] == "error" for i in issues) else " Add --yes to save anyway."))
+    tx_id = userstore.add_tx(row)
+    eff = portfolio.effect(row, exclude_id=tx_id)
+    typer.echo(f"Saved #{tx_id}. {row['symbol']}: {eff['before']['quantity']:g} → {eff['after']['quantity']:g} shares.")
+
+
+@portfolio_app.command("export")
+def portfolio_export(out: str = typer.Option(None, "--out", help="Write to this file instead of printing")):
+    """Every transaction as CSV (a backup)."""
+    from pathlib import Path
+
+    from . import userstore
+
+    universe.ensure_migrated()
+    text = userstore.export_transactions_csv()
+    if out:
+        Path(out).write_text(text, encoding="utf-8")
+        typer.echo(f"Wrote {out}.")
+    else:
+        typer.echo(text, nl=False)
 
 
 if __name__ == "__main__":

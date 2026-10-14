@@ -21,7 +21,11 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `GET /api/tickers`: every tracked symbol in brief (price, 1d/1m/3m, score or quadrant, 6-month weekly sparkline, your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime for the stop levels come from the dashboard).
 - `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines, price-download progress; 409 while running).
-- `POST /api/import`: a Yahoo Finance portfolio CSV as the request body (header checked; read from a temp copy; the previous import is kept if the file is bad).
+- `POST /api/import`: a Yahoo Finance portfolio CSV as the request body (the quick path on the holdings and welcome pages).
+- Portfolio editor (`/portfolio` page):
+  - `GET/POST /api/portfolio/transactions`, `PUT/DELETE /api/portfolio/transactions/{id}`, `POST /api/portfolio/transactions/restore` (undo a delete). Writes are validated (`portfolio.validate`); errors and unconfirmed warnings return 422 with `detail.issues`.
+  - `POST /api/portfolio/validate` (issues, before/after effect and price check while typing), `GET /api/portfolio/positions` (total and per account), `GET /api/portfolio/price-check`, `GET/POST /api/portfolio/accounts`, `GET /api/portfolio/export.csv`.
+  - Imports: `GET /api/portfolio/import/presets`, `POST /api/portfolio/import/preview` (file as the body; `preset`, `mapping`, `symbols`, `account` as query parameters; never writes), `POST /api/portfolio/import/commit` (re-runs the same preview server-side, then saves one undoable import), `GET /api/portfolio/imports`, `DELETE /api/portfolio/imports/{id}`.
 - Without `reports/dashboard.json` the pages show a welcome page (download data, import a portfolio) instead of an error.
 - `PUT` / `DELETE /api/watchlist/{symbol}`: add or remove a watchlist symbol (`userstore`); unknown symbols are 404, removing a holding is 409.
 - An untracked ticker is downloaded on its first lookup (~10 s). It is kept in `prices.parquet` but not added to the daily update. A failing Yahoo section returns `status: missing`; an unknown symbol returns 404.

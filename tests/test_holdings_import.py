@@ -51,15 +51,15 @@ def test_fully_sold_and_oversold_positions(imported):
     assert "sold 8 on 2025-02-05 but held 5" in warn["OVER"][0]
 
 
-def test_watchlist_market_rows_and_transactions_file(imported, tmp_data):
+def test_watchlist_market_rows_and_stored_transactions(imported, tmp_data):
     df, _ = imported(_row("WATCH"), _row("^VIX"), _row("EURUSD=X"), _row("$$CASH", 20260105, 1, 100, "BUY"),
                      _row("MSFT", 20260105, 400, 2, ""))       # older exports: no type means BUY
     assert df.loc["WATCH", "status"] == "watch"
     assert not {"^VIX", "EURUSD=X", "$$CASH"} & set(df.index)
     assert df.loc["MSFT", "status"] == "holding"
-    tx = pd.read_csv(tmp_data / "transactions.csv", parse_dates=["date"])
-    assert tx.to_dict("records") == [{"symbol": "MSFT", "date": pd.Timestamp("2026-01-05"), "type": "BUY",
-                                      "quantity": 2.0, "price": 400.0}]
+    tx = universe.transactions()
+    assert tx[["symbol", "date", "type", "quantity", "price", "fee"]].to_dict("records") == [
+        {"symbol": "MSFT", "date": pd.Timestamp("2026-01-05"), "type": "BUY", "quantity": 2.0, "price": 400.0, "fee": 0.0}]
     h = universe.holdings().set_index("symbol")                # + watchlist from universe.yaml
     assert h.loc["EXTRA", "status"] == "watch"
 
@@ -68,4 +68,4 @@ def test_unknown_transaction_types_are_skipped_with_a_warning(imported, tmp_data
     df, warn = imported(_row("KO", 20260105, 60, 10, "BUY"), _row("KO", 20260301, 0.5, 10, "DIVIDEND"))
     assert df.loc["KO", "quantity"] == 10 and df.loc["KO", "avg_price"] == pytest.approx(60.0)
     assert "skipped a DIVIDEND" in warn["KO"][0]
-    assert pd.read_csv(tmp_data / "transactions.csv")["type"].tolist() == ["BUY"]
+    assert universe.transactions()["type"].tolist() == ["BUY"]                 # only BUY/SELL are stored

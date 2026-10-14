@@ -274,10 +274,279 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transactions */
+        get: operations["list_transactions_api_portfolio_transactions_get"];
+        put?: never;
+        /** Add Transaction */
+        post: operations["add_transaction_api_portfolio_transactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Transaction
+         * @description Issues, the effect on the position and the price check for a row being typed, without saving it.
+         */
+        post: operations["check_transaction_api_portfolio_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/transactions/{tx_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Transaction */
+        put: operations["edit_transaction_api_portfolio_transactions__tx_id__put"];
+        post?: never;
+        /**
+         * Delete Transaction
+         * @description Delete one transaction; the response is the deleted row, which /restore puts back (undo).
+         */
+        delete: operations["delete_transaction_api_portfolio_transactions__tx_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/transactions/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Transaction */
+        post: operations["restore_transaction_api_portfolio_transactions_restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Positions */
+        get: operations["get_positions_api_portfolio_positions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/price-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Price Check */
+        get: operations["get_price_check_api_portfolio_price_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Accounts */
+        get: operations["get_accounts_api_portfolio_accounts_get"];
+        put?: never;
+        /** Save Account */
+        post: operations["save_account_api_portfolio_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Transactions
+         * @description Every transaction as CSV (a backup you can keep, or open in a spreadsheet).
+         */
+        get: operations["export_transactions_api_portfolio_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/import/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import Presets */
+        get: operations["import_presets_api_portfolio_import_presets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Preview
+         * @description What importing this file would do, without saving: format, column mapping, symbol matches, each row with
+         *     its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols.
+         */
+        post: operations["import_preview_api_portfolio_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/import/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Commit
+         * @description Save the import exactly as the same preview shows it (re-run here, so nothing unchecked gets in).
+         */
+        post: operations["import_commit_api_portfolio_import_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_api_portfolio_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Undo Import
+         * @description Remove every trade an import added (a backup of the database is taken first).
+         */
+        delete: operations["undo_import_api_portfolio_imports__import_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Account */
+        Account: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /** Note */
+            note?: string | null;
+        };
+        /** AccountIn */
+        AccountIn: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /** Note */
+            note?: string | null;
+            /** Old Name */
+            old_name?: string | null;
+        };
         /** Analyst */
         Analyst: {
             /**
@@ -464,6 +733,13 @@ export interface components {
             stale_tickers: string[];
             /** Blind Spots */
             blind_spots: string[];
+        };
+        /** Effect */
+        Effect: {
+            /** Symbol */
+            symbol: string;
+            before: components["schemas"]["PositionState"];
+            after: components["schemas"]["PositionState"];
         };
         /** Eps */
         Eps: {
@@ -740,6 +1016,75 @@ export interface components {
             my_status?: ("holding" | "watch" | "sold") | null;
             my_position?: components["schemas"]["Position"] | null;
         };
+        /** ImportCommitResult */
+        ImportCommitResult: {
+            /** Id */
+            id: number;
+            /** Added */
+            added: number;
+            /** Skipped */
+            skipped: number;
+            /** Replaced */
+            replaced: number;
+            /** Source */
+            source: string;
+        };
+        /** ImportCounts */
+        ImportCounts: {
+            /** Rows */
+            rows: number;
+            /** New */
+            new: number;
+            /** Duplicates */
+            duplicates: number;
+            /** Skipped */
+            skipped: number;
+            /** Errors */
+            errors: number;
+            /** Warnings */
+            warnings: number;
+        };
+        /** ImportPreview */
+        ImportPreview: {
+            /** Preset */
+            preset?: string | null;
+            /** Preset Label */
+            preset_label?: string | null;
+            /** Verified */
+            verified?: boolean | null;
+            /** Snapshot */
+            snapshot: boolean;
+            /** Columns */
+            columns: string[];
+            /** Mapping */
+            mapping: {
+                [key: string]: string;
+            };
+            /** Rows */
+            rows: components["schemas"]["ImportRow"][];
+            /** Symbols */
+            symbols: components["schemas"]["SymbolMatch"][];
+            /** Watch */
+            watch: string[];
+            counts: components["schemas"]["ImportCounts"];
+        };
+        /** ImportRecord */
+        ImportRecord: {
+            /** Id */
+            id: number;
+            /** Source */
+            source: string;
+            /** File Name */
+            file_name?: string | null;
+            /** Rows Added */
+            rows_added: number;
+            /** Rows Skipped */
+            rows_skipped: number;
+            /** At */
+            at: string;
+            /** Rows Now */
+            rows_now: number;
+        };
         /** ImportResult */
         ImportResult: {
             /** Holdings */
@@ -752,6 +1097,52 @@ export interface components {
             warnings: {
                 [key: string]: string[];
             };
+        };
+        /** ImportRow */
+        ImportRow: {
+            /** Row */
+            row: number;
+            /** Ident */
+            ident: string;
+            /** Symbol In */
+            symbol_in?: string | null;
+            /** Isin */
+            isin?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Type */
+            type?: ("BUY" | "SELL") | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Price */
+            price?: number | null;
+            /**
+             * Fee
+             * @default 0
+             */
+            fee: number;
+            /** Currency */
+            currency?: string | null;
+            /** Account */
+            account?: string | null;
+            /** Ext Ref */
+            ext_ref?: string | null;
+            /** Skip */
+            skip?: string | null;
+            /** Symbol */
+            symbol?: string | null;
+            /**
+             * Issues
+             * @default []
+             */
+            issues: components["schemas"]["Issue"][];
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
         };
         /** Indicator */
         Indicator: {
@@ -768,6 +1159,18 @@ export interface components {
             /** Asof */
             asof?: string | null;
             gauge?: components["schemas"]["Gauge"] | null;
+        };
+        /** Issue */
+        Issue: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "error" | "warning";
+            /** Field */
+            field: string;
+            /** Message */
+            message: string;
         };
         /** Levels */
         Levels: {
@@ -1184,6 +1587,38 @@ export interface components {
             /** First Trade */
             first_trade?: string | null;
         };
+        /** PositionRow */
+        PositionRow: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Account */
+            account?: string | null;
+            /** Accounts */
+            accounts?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Avg Price */
+            avg_price: number;
+            /** First Trade */
+            first_trade?: string | null;
+            /** Last */
+            last?: number | null;
+            /** Value */
+            value?: number | null;
+            /** Unrealized */
+            unrealized?: number | null;
+        };
+        /** PositionState */
+        PositionState: {
+            /** Quantity */
+            quantity: number;
+            /** Avg Price */
+            avg_price?: number | null;
+        };
         /** PositioningView */
         PositioningView: {
             /** Asof */
@@ -1199,6 +1634,28 @@ export interface components {
             cli: components["schemas"]["CliRow"][];
             /** Cot */
             cot: components["schemas"]["CotRow"][];
+        };
+        /** PositionsView */
+        PositionsView: {
+            /** Total */
+            total: components["schemas"]["PositionRow"][];
+            /** By Account */
+            by_account: components["schemas"]["PositionRow"][];
+            /** Warnings */
+            warnings: {
+                [key: string]: string[];
+            };
+            /** Transactions */
+            transactions: number;
+        };
+        /** Preset */
+        Preset: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Verified */
+            verified: boolean;
         };
         /** Price */
         Price: {
@@ -1235,6 +1692,24 @@ export interface components {
             from_low: number;
             /** Recent */
             recent: components["schemas"]["Bar"][];
+        };
+        /** PriceCheck */
+        PriceCheck: {
+            /** Symbol */
+            symbol: string;
+            /** Currency */
+            currency?: string | null;
+            /** Close */
+            close?: number | null;
+            /** Close Date */
+            close_date?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "ok" | "x100" | "div100" | "far" | "no_data";
+            /** Message */
+            message?: string | null;
         };
         /** Profile */
         Profile: {
@@ -1596,6 +2071,32 @@ export interface components {
             /** Error */
             error?: string | null;
         };
+        /** SymbolCandidate */
+        SymbolCandidate: {
+            /** Symbol */
+            symbol: string;
+            /** How */
+            how: string;
+            /** Name */
+            name?: string | null;
+            /** Exchange */
+            exchange?: string | null;
+        };
+        /** SymbolMatch */
+        SymbolMatch: {
+            /** Ident */
+            ident: string;
+            /** Isin */
+            isin?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["SymbolCandidate"][];
+            /** Chosen */
+            chosen?: string | null;
+            /** Certain */
+            certain: boolean;
+        };
         /** Technicals */
         Technicals: {
             /**
@@ -1675,6 +2176,83 @@ export interface components {
             asof?: string | null;
             /** My Status */
             my_status?: ("holding" | "watch" | "sold") | null;
+        };
+        /** TxCheck */
+        TxCheck: {
+            /** Issues */
+            issues: components["schemas"]["Issue"][];
+            effect?: components["schemas"]["Effect"] | null;
+            price?: components["schemas"]["PriceCheck"] | null;
+        };
+        /** TxIn */
+        TxIn: {
+            /** Symbol */
+            symbol: string;
+            /** Date */
+            date: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "BUY" | "SELL";
+            /** Quantity */
+            quantity: number;
+            /** Price */
+            price: number;
+            /**
+             * Fee
+             * @default 0
+             */
+            fee: number;
+            /** Account */
+            account?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+        };
+        /** TxResult */
+        TxResult: {
+            tx: components["schemas"]["TxRow"];
+            /** Issues */
+            issues: components["schemas"]["Issue"][];
+        };
+        /** TxRow */
+        TxRow: {
+            /** Id */
+            id: number;
+            /** Symbol */
+            symbol: string;
+            /** Date */
+            date: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "BUY" | "SELL";
+            /** Quantity */
+            quantity: number;
+            /** Price */
+            price: number;
+            /** Fee */
+            fee: number;
+            /** Account */
+            account?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Source */
+            source: string;
+            /** Import Id */
+            import_id?: number | null;
+            /** Ext Ref */
+            ext_ref?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
         };
         /** UpdateProgress */
         UpdateProgress: {
@@ -2132,6 +2710,471 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+        };
+    };
+    list_transactions_api_portfolio_transactions_get: {
+        parameters: {
+            query?: {
+                symbol?: string | null;
+                account?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_transaction_api_portfolio_transactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TxIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_transaction_api_portfolio_validate_post: {
+        parameters: {
+            query?: {
+                id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TxIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_transaction_api_portfolio_transactions__tx_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tx_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TxIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_transaction_api_portfolio_transactions__tx_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tx_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_transaction_api_portfolio_transactions_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TxRow"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TxRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_positions_api_portfolio_positions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionsView"];
+                };
+            };
+        };
+    };
+    get_price_check_api_portfolio_price_check_get: {
+        parameters: {
+            query: {
+                symbol: string;
+                date: string;
+                price?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_accounts_api_portfolio_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"][];
+                };
+            };
+        };
+    };
+    save_account_api_portfolio_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_transactions_api_portfolio_export_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    import_presets_api_portfolio_import_presets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preset"][];
+                };
+            };
+        };
+    };
+    import_preview_api_portfolio_import_preview_post: {
+        parameters: {
+            query?: {
+                filename?: string;
+                preset?: string | null;
+                mapping?: string | null;
+                symbols?: string | null;
+                account?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_commit_api_portfolio_import_commit_post: {
+        parameters: {
+            query?: {
+                filename?: string;
+                preset?: string | null;
+                mapping?: string | null;
+                symbols?: string | null;
+                account?: string | null;
+                confirm?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportCommitResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_api_portfolio_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecord"][];
+                };
+            };
+        };
+    };
+    undo_import_api_portfolio_imports__import_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
