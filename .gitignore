@@ -20,7 +20,7 @@ userdata/
 exports/
 
 # your briefs, research memos and decision journal: they name your holdings and decisions
-briefs/
+briefs/*
 research/
 journal/
 

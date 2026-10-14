@@ -1,0 +1,5 @@
+# Commits that only change formatting or line endings; hide them from git blame with
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Renormalise line endings to LF
+ff2d229acefd921586135b580ec9139c9da4e687
