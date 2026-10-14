@@ -49,6 +49,7 @@ Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på
 - Gør ikke `radar serve` tilgængelig på internettet eller dit netværk, så andre kan bruge den. Den lytter med vilje kun på `127.0.0.1`, altså din egen computer.
 - Respekter kildernes grænser. Radaren doserer sine forespørgsler og holder pause med en kilde, der beder om det (se [Drift](brugervejledning/drift)). Fjern ikke den begrænsning.
 - Angiv kilden, når du nævner et tal i noget, du offentliggør.
+- Briefens lytteversion (`/market-brief podcast`) er til din egen NotebookLM-notesbog, så du selv kan lytte til den. Teksten sendes til Google, så hold notesbogen og den lydfil, NotebookLM laver, private. Deler eller offentliggør du dem, videregiver du de data, de bygger på (se [Månedsbriefen](brugervejledning/maanedsbrief#som-podcast-notebooklm)).
 
 ## Hvis du vil tilbyde radaren til andre
 

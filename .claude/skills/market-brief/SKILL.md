@@ -1,11 +1,15 @@
 ---
 name: market-brief
-description: Refresh the market radar and write a dated market brief covering what changed in regime, sector/theme rotation and momentum, why it happened (web research), and what it means for the user's holdings, watchlist and research queue. Use when the user asks for a market brief, a market update, "what's moving", or runs /market-brief.
+description: Refresh the market radar and write a dated market brief in Danish (optionally with a listening version for a NotebookLM podcast) covering what changed in regime, sector/theme rotation and momentum, why it happened (web research), and what it means for the user's holdings, watchlist and research queue. Use when the user asks for a market brief, a market update, "what's moving", or runs /market-brief.
 ---
 
 # Market brief
 
 Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice. Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+
+**Write the brief in Danish.** Follow `guide/STIL.md` for tone ("du", plain and precise), number format (decimal comma, thousands with a dot, "5 %") and its fixed terminology table (fører / svækkes / halter / forbedres, markedsbredde, positivlisten, ASK / frie midler, markedssyn …). Keep tickers, indicator names and the app's UI terms as they appear in the app. Your reply to the user is in Danish too.
+
+**Arguments:** `podcast` also writes a listening version for NotebookLM (step 7); `personal` adds the personal sections to that listening version. Example: `/market-brief podcast` or `/market-brief podcast personal`.
 
 ## Steps
 
@@ -44,13 +48,16 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 
    **The user's own notes:** if `notes/` has reading notes (e.g. `notes/bloomberg.md`), read the entries from the last month. They are takeaways the user pasted from paid sources. Treat them as leads to verify and link, not as sources to cite.
 5. **Write the brief** in the structure below. Keep it under about 900 words, and use tables for numbers.
-6. Reply with a 3–5 line summary and a link to the file.
+6. Reply in Danish with a 3–5 line summary and a link to the file.
+7. **Only with `podcast`: write the listening version** `briefs/lyt/YYYY-MM-DD.md` (see *Listening version* below). It lives in a subfolder so the app's Notebook page doesn't list it as a second brief. Add one line to the reply with its path and "upload it in NotebookLM and pick Dansk".
 
 ## Brief structure
 
+Headings and labels are in Danish, exactly as below; the notes under each heading say what goes there.
+
 ```markdown
-# Market brief – YYYY-MM-DD
-*Data as of <asof>. Regime: <label> (<on> on / <off> off).*
+# Markedsbrief – YYYY-MM-DD
+*Data pr. <asof>. Regime: <label> (<on> for / <off> imod).*
 
 ## TL;DR
 3–5 bullets: the most important things that changed and why.
@@ -58,35 +65,59 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 ## Regime
 Indicator table (only those that changed or matter), plus one paragraph of interpretation.
 
-## Positioning & cycle
+## Positionering og cyklus
 One short paragraph covering: the earnings revision trend (FactSet, and the regional breadth once it has history) and which sectors it favours, the cycle phase from the OECD CLI, any CFTC extremes, the market's valuation (CAPE and ERP percentiles, the yield gap) and sentiment (AAII, put/call) when either is at an extreme. Say whether they confirm or contradict the price-based rotation. Valuation is context for the 1–6-month horizon, not a timing signal.
 
-## Rotation – sectors, regions & themes
+## Rotation – sektorer, regioner og temaer
 What's leading, what's rotating in or out, and the drivers (with links). For themes, give the UCITS ticker and its positive-list status.
 
-## Momentum – new leaders
+## Momentum – nye ledere
 New entrants by region, grouped by theme where possible, each with one line on why it's moving.
 
-## New on the radar (Discover)
+## Nyt på radaren (Discover)
 Only when the discovery scan is fresh: 3–5 names from outside the radar's lists (Nordic, Europe, positive-list ETFs), each with its score, Δscore or flag, size and one line on why it may be moving. State the scan date. Small caps are noisier: say so when a name is small or near the liquidity floor.
 
-## Your views vs the data
+## Dine markedssyn mod data
 Only when the user has active views. One line per view (highest conviction first): the statement, the radar's verdict (supported / contradicted / mixed / unclear / no data) and the readings behind it, plus anything from this month's research that bears on it. Where the data contradicts a high-conviction view, say so plainly and quote the user's own "what would change my mind". Frame it as their beliefs against the data, never as a forecast.
 
-## Your portfolio in this context
+## Din portefølje i den sammenhæng
 - Returns: each real portfolio vs ACWI over 3m and YTD (from `portfolios`), one line each; say plainly when a portfolio trails ACWI
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)
 
-## Research queue
+## Research-kø
 2–4 concrete candidates for `/research <ticker>`, each with a one-line reason.
 
-## Sources
+## Kilder
+```
+
+## Listening version (only with `podcast`)
+
+`briefs/lyt/YYYY-MM-DD.md` is a source for a NotebookLM Audio Overview: the same story as the brief, written in Danish to be heard rather than read. NotebookLM's hosts read it and talk about it, so it must stand on its own.
+
+- **Prose only**: no tables, no inline links, no ticker lists. Round numbers and say them in words ("knap 3 procent bedre end ACWI over tre måneder"). Name a company or fund in full before its ticker.
+- **Explain as you go**: spell out each acronym the first time (RRG, CAPE, ERP, ASK, OECD CLI) and give the "why" behind every move. Keep the confirmation/divergence logic: what supports a move and what makes it fragile.
+- **Length**: about 600–900 words, in the brief's order (TL;DR as an opening, then regime, positioning and cycle, rotation, momentum, Discover, research queue).
+- **Private by default**: the file is uploaded to Google, so leave out everything personal: *Dine markedssyn mod data*, *Din portefølje i den sammenhæng*, holdings, watchlist, sold names and anything from `notes/`. With `personal`, include them in the same spoken style.
+- Say "dette er analyse, ikke rådgivning" in the opening, and frame actions as things to review, as in the brief.
+- End with a short plain list of the sources (publisher and title, then the URL).
+
+Start the file with this block (fill in the date and variant):
+
+```markdown
+# Markedsbrief til lytning – YYYY-MM-DD
+*Kilde til NotebookLM. Variant: kun marked | med personlige afsnit. Fuld brief med tabeller og links: briefs/YYYY-MM-DD.md.*
+
+> **Sådan laver du podcasten:** Åbn notebooklm.google.com eller NotebookLM-appen → ny notesbog → tilføj denne fil som kilde (upload, eller indsæt teksten) → *Audio Overview* → *Customize*: vælg sproget Dansk og indsæt prompten herunder → *Generate*. Lyt i NotebookLM-appen.
+>
+> **Prompt:** Lav en dansk samtale på cirka 10 minutter mellem to værter til en privat dansk investor med en horisont på 1–6 måneder. Fokusér på hvad der har ændret sig siden sidst og hvorfor. Forklar fagudtryk kort, når de dukker op. Hold jer til kilden, og sig tydeligt at det er analyse, ikke rådgivning: ingen køb- eller salgsanbefalinger.
+
+---
 ```
 
 ## Ground rules
 - Facts come from the radar data or linked sources. Clearly label interpretation as interpretation.
 - Momentum is a starting point for research, not a buy signal. Say when a move looks news-driven and fragile.
 - Danish context: for ETF ideas, name a UCITS alternative and its positive-list status. Point out where account placement matters (aktiesparekonto vs frie midler).
-- Don't give personalised buy or sell instructions. Frame actions as questions to review.
+- Don't give personalised buy or sell instructions. Frame actions as questions to review ("værd at gennemgå", "overvej at se på"), never "køb" or "sælg".

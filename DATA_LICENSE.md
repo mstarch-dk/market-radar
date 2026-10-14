@@ -61,6 +61,9 @@ source above.
 - Respect the sources' limits. Market Radar paces its requests and pauses a host that asks it to slow down (see
   the *Operations* page). Don't remove that throttling or point many copies at one server.
 - When you quote a number in something you publish, name the source.
+- The brief's listening version (`/market-brief podcast`) is meant to be uploaded to your own NotebookLM
+  notebook for your own listening. That sends the text to Google, so keep the notebook and the generated
+  audio private: sharing or publishing them redistributes the data in them.
 
 ## Offering Market Radar to others
 

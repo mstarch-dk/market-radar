@@ -34,7 +34,9 @@ def folders(tmp_path, monkeypatch):
         d.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(notebook, "FOLDERS", dirs)
     (dirs["briefs"] / "2026-09-01.md").write_text("# Market brief – 2026-09-01\n\n## TL;DR\n- a\n", encoding="utf-8")
-    (dirs["briefs"] / "2026-10-01.md").write_text("# Market brief – 2026-10-01\n", encoding="utf-8")
+    (dirs["briefs"] / "2026-10-01.md").write_text("# Markedsbrief – 2026-10-01\n", encoding="utf-8")
+    (dirs["briefs"] / "lyt").mkdir()                                # the NotebookLM listening version
+    (dirs["briefs"] / "lyt" / "2026-10-01.md").write_text("# Markedsbrief til lytning\n", encoding="utf-8")
     (dirs["research"] / "NOVO-B.CO.md").write_text("# Novo Nordisk\n", encoding="utf-8")
     (dirs["compare"] / "2026-10-14_NVDA-AMD.md").write_text("# NVDA vs AMD\n", encoding="utf-8")
     (dirs["journal"] / "2026-09-01-RHM.DE-buy.md").write_text(ENTRY, encoding="utf-8")
@@ -46,7 +48,8 @@ def folders(tmp_path, monkeypatch):
 
 def test_listing_newest_first_with_journal_fields(folders):
     nb = NotebookListing.model_validate(notebook.listing(date(2026, 10, 14))).model_dump()
-    assert [b["name"] for b in nb["briefs"]] == ["2026-10-01", "2026-09-01"]
+    assert [b["name"] for b in nb["briefs"]] == ["2026-10-01", "2026-09-01"]   # briefs/lyt/ is not a second brief
+    assert nb["briefs"][0]["title"] == "Markedsbrief – 2026-10-01"
     assert nb["research"][0]["ticker"] == "NOVO-B.CO" and nb["compare"][0]["title"] == "NVDA vs AMD"
     entry = next(e for e in nb["journal"] if e["name"] == "2026-09-01-RHM.DE-buy")
     assert entry["meta"] == {"ticker": "RHM.DE", "action": "buy", "account": "ASK", "horizon": "3 months",

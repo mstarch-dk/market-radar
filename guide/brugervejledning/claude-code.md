@@ -37,7 +37,9 @@ Alt, hvad skills skriver, kan du læse i appen på siden [Notebook](/notebook) (
 
 Markedsbriefen opdaterer først radaren (`uv run radar run`) og læser derefter `reports/summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen under 10 dage gammel, læses den også, og dine markedssyn hentes med `radar views --json`.
 
-Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`.
+Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Briefen skrives på dansk.
+
+Med `/market-brief podcast` skriver Claude også en lytteversion i `briefs/lyt/`, som du kan gøre til en podcast i NotebookLM; se [Månedsbriefen](brugervejledning/maanedsbrief#som-podcast-notebooklm).
 
 Har du egne læsenoter i `notes/` (fx `notes/bloomberg.md`), bruges de som spor, der skal efterprøves, ikke som kilder.
 

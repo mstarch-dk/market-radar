@@ -18,11 +18,30 @@ Den committer intet og opretter ingen pull request. Briefen er din, og den ligge
 
 ## Hvad briefen indeholder
 
-Briefen har en fast opbygning: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine markedssyn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Den holder sig til 6–8 ting, der betyder noget, og hver påstand om nyheder har et kildelink. Manglende data skrives som manglende.
+Briefen er skrevet på dansk og har en fast opbygning: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine markedssyn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Den holder sig til 6–8 ting, der betyder noget, og hver påstand om nyheder har et kildelink. Manglende data skrives som manglende.
 
 Fordi den kører, hvor dine data er, får briefen det hele med: dine rigtige porteføljer og deres afkast mod ACWI, watchlist, markedssyn, Discover og dine noter.
 
 "Nye" momentumledere og "faldet ud" sammenlignes med radarens egne rangsnapshots i `data/snapshots/`, som bygges op, hver gang radaren opdateres. Har du kun opdateret få gange, er der mindre at sammenligne med i starten.
+
+## Som podcast (NotebookLM)
+
+Vil du hellere lytte til briefen, fx på vej på arbejde, kan Claude skrive en lytteversion, som du gør til en podcast i Googles NotebookLM (en *Audio Overview*, hvor to værter taler om stoffet).
+
+Skriv `/market-brief podcast`. Ud over den almindelige brief får du så `briefs/lyt/YYYY-MM-DD.md`: den samme historie skrevet til at blive hørt, uden tabeller og links, med tallene rundet af og sagt i ord og forkortelserne forklaret. Lytteversionen vises ikke på [Notebook](/notebook); den er kun til NotebookLM.
+
+Sådan laver du podcasten:
+
+1. Åbn [notebooklm.google.com](https://notebooklm.google.com) eller NotebookLM-appen på telefonen, og opret en ny notesbog.
+2. Tilføj lytteversionen som kilde: upload filen, eller indsæt teksten.
+3. Vælg *Audio Overview* → *Customize*, vælg sproget Dansk, og indsæt prompten, der står øverst i filen.
+4. Vælg *Generate*, og lyt i NotebookLM-appen, når lydfilen er klar.
+
+Det gratis NotebookLM laver kun et begrænset antal lydoversigter om dagen (cirka 3 i skrivende stund).
+
+> **Bemærk:** Teksten sendes til Google. Derfor er lytteversionen som standard kun om markedet: dine porteføljer, beholdninger, watchlist, solgte navne, markedssyn og noter er udeladt. Vil du have dem med, skriver du `/market-brief podcast personal`. Hold notesbogen og lydfilen private; se [Datakilder og licenser](brugervejledning/datalicenser).
+
+Vil du have en lytteversion hver måned, kan du bede Claude om at tilføje `podcast` til den planlagte opgave. Upload til NotebookLM sker stadig i hånden, for NotebookLM har ingen officiel adgang for programmer.
 
 ## Første gang
 
