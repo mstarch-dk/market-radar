@@ -1,0 +1,58 @@
+# The fictional investor in the marketing screenshots (scripts/marketing.py seed → .demo/userdata/radar.db).
+# Nobody's real holdings. Dates are relative to the day of the build ("-12mo", "-3w", "-10d"); a trade uses the
+# close on or before that day, and `dkk` buys as many whole shares as that amount pays for (at that day's rate),
+# so the history keeps its length and passes the app's price check on every rebuild.
+
+default: Frie midler
+
+portfolios:
+  - name: Aktiesparekonto
+    mode: real
+    kind: ask
+    note: Demo – fiktiv konto
+    rows:
+      - {type: DEPOSIT, at: -12mo, amount: 100000}
+      - {type: BUY, symbol: XDWD.DE, at: -12mo, dkk: 55000, fee: 15}
+      - {type: BUY, symbol: ASML.AS, at: -12mo, dkk: 40000, fee: 15}
+
+  - name: Frie midler
+    mode: real
+    kind: frie_midler
+    note: Demo – fiktiv konto
+    rows:
+      - {type: DEPOSIT, at: -12mo, amount: 70000}
+      - {type: BUY, symbol: MSFT, at: -12mo, dkk: 35000, fee: 5}
+      - {type: BUY, symbol: SAP.DE, at: -12mo, dkk: 32000, fee: 15}
+      - {type: DEPOSIT, at: -8mo, amount: 65000}
+      - {type: BUY, symbol: NOVO-B.CO, at: -8mo, dkk: 30000, fee: 29}
+      - {type: BUY, symbol: NVDA, at: -8mo, dkk: 32000, fee: 5}
+      - {type: SELL, symbol: SAP.DE, at: -23w, quantity: all, fee: 15}
+      - {type: BUY, symbol: DSV.CO, at: -22w, dkk: 25000, fee: 29}   # a week after the sale that pays for it (holidays differ by exchange)
+
+# Virtual copies for A/B tests: the portfolio as it stood at that day's close, then changed from there.
+forks:
+  - from: Frie midler
+    name: "A/B: Frie midler uden NVIDIA"
+    at: -6mo
+    tags: [ab-test]
+    rows:
+      - {type: SELL, symbol: NVDA, at: -6mo, fee: 5}
+
+watchlist: [NKT.CO, SAAB-B.ST, VWS.CO]
+
+# My market views, from the templates in config/views.yaml.
+views:
+  - template: ai_dominates
+    conviction: 4
+    horizon: 12m
+    rationale: Demo – AI-investeringerne fortsætter, og de største købere har råd til at blive ved.
+  - template: defence_up
+    conviction: 3
+    horizon: 3y
+    rationale: Demo – europæiske forsvarsbudgetter er vedtaget for flere år frem.
+  - template: obesity_drugs
+    conviction: 2
+    horizon: 3y
+    rationale: Demo – markedet for fedmemedicin vokser, men konkurrencen og prispresset er stigende.
+# A view that helps a whole region (e.g. europe_beats_us) marks every name there as "fits your views", which
+# makes the Views columns in the Momentum and Discover shots say nothing: prefer views that pick out names.

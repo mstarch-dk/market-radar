@@ -27,3 +27,9 @@ journal/
 
 # release zips built by scripts/build_release_zip.py
 dist-release/
+
+# demo copy of the app for the marketing screenshots (scripts/marketing.py workspace)
+.demo/
+
+# marketing screenshots: rebuilt by scripts/marketing.py shots on every edition; only the PDF is committed
+marketing/site/img/

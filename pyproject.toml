@@ -33,3 +33,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
 ]
+# screenshots and the PDF in marketing/ (scripts/marketing.py); drives the installed Microsoft Edge
+marketing = [
+    "playwright>=1.58",
+]

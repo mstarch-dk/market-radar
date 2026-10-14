@@ -32,6 +32,7 @@ Vite + React + TypeScript app served by `radar serve`: the only UI (the old stat
 
 ## Sharing and releases
 - This repo is private (its history holds personal briefs). `scripts/publish_public.py` exports HEAD without the paths in `publish/exclude.txt`, adds `publish/overlay/` (the public repo's release and smoke workflows), runs a leak check against `notes/leak-patterns.txt` and the git author, and commits into a clone of the public repo as "Market Radar". Pushing and tagging are manual.
+- `marketing/` holds the Danish brochure: the PDF and its sources are committed, the screenshots (`site/img/`) are rebuilt locally. `scripts/marketing.py` builds `.demo/`: a copy of the working tree minus `publish/exclude.txt`, the market data and a database seeded from `marketing/demo/seed.yaml` through the API, so screenshots never see `userdata/`. Shots are cropped by element (`marketing/shots.yaml`), and `check` reuses the public export's leak check.
 - A `v*` tag in the public repo builds the release zip (`scripts/build_release_zip.py`: tracked files + prebuilt `web/dist`) that non-technical users download and start with `Start Market Radar.cmd` / `.command` (they install uv if needed, `uv sync`, `radar serve --open`).
 
 ## Local vs committed

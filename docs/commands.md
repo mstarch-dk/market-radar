@@ -24,5 +24,8 @@ Always run Python through uv; the frontend uses pnpm.
 - `uv run radar info <T1> <T2> … [--personal] [--out exports/x.json]`: several tickers side by side, for `/compare`: profiles (built anonymously unless `--personal`), ACWI's returns and risk as the benchmark candidate, weekly DKK correlations and a metrics table with the best value per row. Unknown tickers become `error` entries. One ticker keeps the single-ticker output above.
 - `uv run radar serve [--open]` / `uv run radar ticker <TICKER>`: the local web app on http://127.0.0.1:8780 (dashboard pages and ticker profiles). See [web-app.md](web-app.md).
 
+## Marketing material
+- `uv run --group marketing python scripts/marketing.py workspace | seed | explore /path… | shots [ID…] | pdf | check | edition | all`: the Danish brochure in `marketing/` from a demo copy of the app (`.demo/`, port 8790, launch config `radar-demo`) with a fictional investor. The `/marketing` skill runs it; see [marketing/README.md](../marketing/README.md).
+
 ## Tests
 - `uv run pytest -q` (also run in CI) and `pnpm -C web test`. See [testing.md](testing.md).

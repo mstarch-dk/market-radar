@@ -24,6 +24,19 @@ def test_reading_creates_nothing(tmp_data):
     assert not (tmp_data / "userdata").exists()
 
 
+def test_first_connections_at_once_migrate_once(tmp_data):
+    """The app's first page load fires several requests at a new database; each must find the schema done
+    instead of re-running a step another connection already committed ("table imports already exists")."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def open_store(_):
+        with closing(userstore._connect()) as con:
+            return con.execute("PRAGMA user_version").fetchone()[0]
+
+    with ThreadPoolExecutor(8) as ex:
+        assert set(ex.map(open_store, range(16))) == {len(userstore.MIGRATIONS)}
+
+
 def test_schema_is_versioned(tmp_data):
     userstore.watch("AAA")
     with closing(sqlite3.connect(tmp_data / "userdata" / userstore.DB_NAME)) as con:

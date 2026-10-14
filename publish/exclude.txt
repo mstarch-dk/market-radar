@@ -8,3 +8,13 @@ userdata/
 .github/workflows/monthly-brief.yml   # needs the owner's secrets; the public repo has its own workflows (publish/overlay)
 publish/             # the export's own configuration
 scripts/publish_public.py
+# the marketing tooling needs scripts/publish_public.py (leak check); the public repo gets the PDF only
+marketing/site/
+scripts/marketing.py
+tests/test_marketing.py
+.claude/skills/marketing/
+marketing/demo/
+marketing/shots.yaml
+marketing/features.yaml
+marketing/edition.json
+marketing/README.md

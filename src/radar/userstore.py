@@ -188,7 +188,8 @@ def _migrate(con: sqlite3.Connection) -> None:
     """Bring the schema up to date. Each MIGRATIONS entry (one statement, or a tuple run as one unit) commits
     on its own, so a failing step leaves the database exactly as it was before that step. Foreign keys are
     off while migrating (so a table can be rebuilt) and checked before each commit. An existing database is
-    backed up before its first upgrade step."""
+    backed up before its first upgrade step. Each step takes the write lock and re-reads the version, so
+    connections opened at the same moment (the app's first page load) wait and skip what another one did."""
     version = con.execute("PRAGMA user_version").fetchone()[0]
     if version >= len(MIGRATIONS):
         return
@@ -198,7 +199,10 @@ def _migrate(con: sqlite3.Connection) -> None:
     con.execute("PRAGMA foreign_keys = OFF")      # only takes effect outside a transaction
     try:
         for i, step in enumerate(MIGRATIONS[version:], start=version + 1):
-            con.execute("BEGIN")
+            con.execute("BEGIN IMMEDIATE")
+            if con.execute("PRAGMA user_version").fetchone()[0] >= i:
+                con.execute("ROLLBACK")           # another connection committed this step first
+                continue
             try:
                 for sql in (step,) if isinstance(step, str) else step:
                     con.execute(sql)

@@ -6,6 +6,12 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "radar", "serve", "--port", "8780"],
       "port": 8780
+    },
+    {
+      "name": "radar-demo",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--directory", ".demo", "radar", "serve", "--port", "8790"],
+      "port": 8790
     }
   ]
 }

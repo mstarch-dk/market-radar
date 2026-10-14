@@ -1,0 +1,163 @@
+# Every screenshot in marketing/site/img/ (scripts/marketing.py shots [ID…], against the demo on port 8790).
+#
+# id        file name (img/<id>.png), referenced from index.html
+# feature   the features.yaml entry it illustrates
+# path      app path with query; {pf:NAME} is a demo portfolio's id, {forked:NAME} the day it was forked
+# viewport  desktop (1440×900, scale 1.5) | mobile (390×844, scale 2); scheme: light | dark
+# wait_for  a selector that must be visible before the shot; settle: extra ms after loading (default 1200)
+# clip      an element: {css, has_text (regex), nth}; `to:` a second element, the shot covers both and what's
+#           between (`edge: top` stops where `to` starts); pad (px, default 12); full_width; max_height.
+#           Without clip: the viewport (full_page: true for the whole page).
+# actions   before the shot: {css, has_text, do: click|hover|fill, text, settle} or {wait: ms}
+#
+# Locate by page structure and headings, never by pixel coordinates, so a layout change moves the frame
+# with it. A locator that matches nothing fails the shot instead of saving a wrong picture.
+
+shots:
+  - id: rotation
+    feature: rotation
+    path: /rotation
+    clip: {css: "section.group:has(h2:text-is('US sectors')) figure.rrg"}
+
+  - id: rotation_table
+    feature: rotation
+    path: /rotation
+    clip: {css: "section.group:has(h2:text-is('US sectors')) > .card"}
+
+  - id: regime
+    feature: regime
+    path: /regime
+    clip: {css: .page-head, to: {css: h2, has_text: "^Charts", edge: top}}
+
+  - id: regime_charts
+    feature: regime
+    path: /regime
+    clip: {css: .grid.charts, max_height: 640}
+
+  - id: momentum
+    feature: momentum
+    path: /momentum
+    clip: {css: section.group, has_text: "^Europe large caps"}
+
+  - id: themes
+    feature: themes
+    path: /themes
+    clip: {css: "section.group:has(h2:text-is('Themes')) > .card"}
+
+  - id: discover
+    feature: discover
+    path: /discover?mkt=europe&color=r3m
+    wait_for: .tm-card
+    clip: {css: .page-head, to: {css: .tm-card}}
+
+  - id: discover_table
+    feature: discover
+    path: /discover?mkt=nordic
+    wait_for: .tm-card
+    clip: {css: .sticky-tools, to: {css: ".sticky-tools ~ .card"}, max_height: 900}
+
+  - id: discover_etfs
+    feature: discover
+    path: /discover?mkt=etfs
+    wait_for: .tm-card
+    clip: {css: .tm-card}
+
+  - id: ticker_chart
+    feature: ticker
+    path: /ticker/NVDA
+    wait_for: section.card
+    clip: {css: "div:has(> h1)", to: {css: section.card, has_text: "^Chart"}}
+    settle: 2500
+
+  - id: ticker_cards
+    feature: ticker
+    path: /ticker/NVDA
+    wait_for: section.card
+    settle: 2500
+    clip: {css: section.card, has_text: "^Price development", to: {css: section.card, has_text: "^Analysts & estimates"}}
+
+  - id: ticker_views
+    feature: views
+    path: /ticker/NVDA
+    wait_for: section.card
+    settle: 2500
+    clip: {css: section.card, has_text: "^Your market views"}
+
+  - id: holdings
+    feature: holdings
+    path: /me
+    clip: {css: .page-head, to: {css: section.group, has_text: "^Holdings"}}
+
+  - id: sold
+    feature: holdings
+    path: /me
+    clip: {css: section.group, has_text: "^Watchlist", to: {css: section.group, has_text: "^Sold positions"}}
+
+  - id: views
+    feature: views
+    path: /views
+    clip: {css: .page-head, to: {css: .views-grid}}
+
+  - id: portfolio
+    feature: portfolio
+    path: /portfolio
+    clip: {css: .page-head, to: {css: section.group, has_text: "^Positions"}}
+
+  - id: portfolios
+    feature: returns
+    path: /portfolio
+    clip: {css: .card, has_text: "^Portfolios"}
+
+  - id: import
+    feature: portfolio
+    path: /portfolio
+    actions:
+      - {css: button, has_text: "^Import", do: click, settle: 1000}
+
+  - id: returns
+    feature: returns
+    path: /returns
+    clip: {css: .page-head, to: {css: "figure.line-chart ~ .card"}}
+
+  - id: returns_ab
+    feature: returns
+    path: "/returns?pf={pf:Frie midler},{pf:A/B: Frie midler uden NVIDIA}&from={forked:A/B: Frie midler uden NVIDIA}"
+    clip: {css: figure.line-chart, to: {css: "figure.line-chart ~ .card"}}
+
+  - id: positioning
+    feature: positioning
+    path: /positioning
+    clip: {css: .page-head, to: {css: "h2", has_text: "^Futures positioning", edge: top}}
+
+  - id: data
+    feature: data
+    path: /data
+    clip: {css: .page-head, to: {css: h2, has_text: "^How the readings", edge: top}}
+
+  - id: blindspots
+    feature: data
+    path: /data
+    clip: {css: h2, has_text: "^What the radar doesn", to: {css: h2, has_text: "^Missing tickers", edge: top}}
+
+  - id: hover
+    feature: ticker
+    path: /momentum
+    actions:
+      - {css: "section.group a", has_text: "^ASML Holding", do: hover, settle: 1500}
+
+  - id: dark_themes
+    feature: interface
+    path: /themes
+    scheme: dark
+    clip: {css: .page-head, to: {css: "section.group:has(h2:text-is('Themes')) .grid.wide-charts"}}
+
+  - id: mobile_ticker
+    feature: interface
+    path: /ticker/ASML.AS
+    viewport: mobile
+    settle: 2500
+
+  - id: mobile_holdings
+    feature: interface
+    path: /me
+    viewport: mobile

@@ -1,0 +1,103 @@
+# What the marketing material covers, one entry per feature (the /marketing skill diffs this against the app).
+#
+# id        stable key, used by shots.yaml (`feature:`) and edition.json
+# title     the Danish name in the brochure
+# section   the id="…" of the block in site/index.html that describes it
+# pages     app routes (web/src/App.tsx) the feature lives on; commands / skills: CLI commands and Claude skills
+# shots     images in shots.yaml that show it (check: each exists and is used in index.html)
+# since     the PR or commit that added or last changed it in a way the text must reflect
+
+features:
+  - id: regime
+    title: Markedsregime
+    section: regime
+    pages: [/regime]
+    shots: [regime, regime_charts]
+
+  - id: rotation
+    title: Rotationsgrafer (RRG)
+    section: rotation
+    pages: [/rotation]
+    shots: [rotation, rotation_table]
+
+  - id: themes
+    title: Temaer og faktorer med UCITS-tjek
+    section: themes
+    pages: [/themes]
+    shots: [themes]
+
+  - id: momentum
+    title: Momentum-ledere
+    section: momentum
+    pages: [/momentum]
+    shots: [momentum]
+
+  - id: discover
+    title: Discover (heatmap og screener)
+    section: discover
+    pages: [/discover]
+    commands: [radar discover]
+    shots: [discover, discover_table, discover_etfs]
+    since: "#12"
+
+  - id: ticker
+    title: Tickerprofil
+    section: ticker
+    pages: [/ticker/:symbol]
+    commands: [radar info, radar ticker]
+    shots: [ticker_chart, ticker_cards, hover]
+
+  - id: views
+    title: Mine markedssyn
+    section: views
+    pages: [/views]
+    commands: [radar views]
+    shots: [views, ticker_views]
+    since: "#13"
+
+  - id: holdings
+    title: Beholdninger, watchlist og solgte positioner
+    section: holdings
+    pages: [/me]
+    shots: [holdings, sold]
+
+  - id: portfolio
+    title: Porteføljeeditor og import
+    section: portfolio
+    pages: [/portfolio]
+    commands: [radar portfolio, radar import-yahoo]
+    shots: [portfolio, import]
+    since: "#11"
+
+  - id: returns
+    title: Afkast over tid og virtuelle porteføljer (A/B)
+    section: returns
+    pages: [/returns, /portfolio]
+    commands: [radar portfolios, radar performance]
+    shots: [returns, returns_ab, portfolios]
+    since: "#14"
+
+  - id: research
+    title: Skriftlig research med Claude Code
+    section: research
+    skills: [market-brief, research, compare, journal]
+    shots: []
+
+  - id: positioning
+    title: Positionering og cyklus
+    section: positioning
+    pages: [/positioning]
+    shots: [positioning]
+
+  - id: data
+    title: Data og dækning
+    section: data
+    pages: [/data]
+    commands: [radar doctor, radar update]
+    shots: [data, blindspots]
+
+  - id: interface
+    title: Lokal app, lyst/mørkt tema og mobil
+    section: interface
+    pages: [/]
+    shots: [dark_themes, mobile_ticker, mobile_holdings]

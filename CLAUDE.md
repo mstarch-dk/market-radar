@@ -20,6 +20,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `/research <ticker>` → `research/<TICKER>.md`
 - `/compare <t1> <t2> … [--personal]` → `research/compare/YYYY-MM-DD_<tickers>.md` (rubric incl. ACWI, bull/bear, red team, sizing, decision record)
 - `/journal …` and `/journal review` → `journal/`
+- `/marketing` → `marketing/` (Danish brochure, HTML + PDF, with screenshots of a demo copy holding a fictional investor; the PDF and its sources are committed, the screenshots aren't)
 
 ## Read before working on…
 - [docs/commands.md](docs/commands.md): every CLI command (imports, holdings bundle, ticker tools)

@@ -1,0 +1,535 @@
+<title>Market Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (~68ch) that widens to a 1120px stage for screenshots; the four rotation quadrants (forbedres / fører / svækkes / halter) are the recurring colour code. */
+:root {
+  --bg: #f3f4f2;
+  --surface: #ffffff;
+  --ink: #16191d;
+  --muted: #5b626b;
+  --line: #dcdfe0;
+  --accent: #2563c9;
+  --q-lead: #1f7a4a;
+  --q-improve: #2a64c4;
+  --q-weak: #a86a00;
+  --q-lag: #b23a3a;
+  --q-lead-bg: #e5f2ea;
+  --q-improve-bg: #e6eefa;
+  --q-weak-bg: #f8eedb;
+  --q-lag-bg: #f8e4e2;
+  --shot-shadow: 0 1px 2px rgba(20,30,40,.06), 0 8px 28px rgba(20,30,40,.08);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417; --surface: #1b1e22; --ink: #e9ebee; --muted: #9aa2ac; --line: #2c3036;
+    --accent: #6ea2f5; --q-lead: #5cc58b; --q-improve: #79a8f2; --q-weak: #e0a84a; --q-lag: #ec7f7a;
+    --q-lead-bg: #17291f; --q-improve-bg: #172238; --q-weak-bg: #2d2412; --q-lag-bg: #301a1a;
+    --shot-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121417; --surface: #1b1e22; --ink: #e9ebee; --muted: #9aa2ac; --line: #2c3036;
+  --accent: #6ea2f5; --q-lead: #5cc58b; --q-improve: #79a8f2; --q-weak: #e0a84a; --q-lag: #ec7f7a;
+  --q-lead-bg: #17291f; --q-improve-bg: #172238; --q-weak-bg: #2d2412; --q-lag-bg: #301a1a;
+  --shot-shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font: 400 1.0625rem/1.65 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 0 64px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.12; margin: 0; }
+h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); font-weight: 700; letter-spacing: -.02em; }
+h2 { font-size: clamp(1.6rem, 3.2vw, 2.25rem); font-weight: 700; letter-spacing: -.01em; }
+h3 { font-size: 1.25rem; font-weight: 500; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.eyebrow { font: 500 .75rem/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mono { font-family: var(--f-mono); font-size: .92em; }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* top bar */
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 22px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 1rem var(--f-body); }
+.brand svg { flex: none; }
+.bar .note { font: 400 .8rem var(--f-mono); color: var(--muted); }
+
+/* hero */
+.hero { display: grid; gap: 28px; padding-block: 56px 40px; }
+.hero .lede { font-size: 1.25rem; line-height: 1.55; max-width: 60ch; }
+.quads { display: flex; flex-wrap: wrap; gap: 8px; }
+.q { font: 500 .78rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 7px 10px; border-radius: 4px; }
+.q.lead { color: var(--q-lead); background: var(--q-lead-bg); }
+.q.improve { color: var(--q-improve); background: var(--q-improve-bg); }
+.q.weak { color: var(--q-weak); background: var(--q-weak-bg); }
+.q.lag { color: var(--q-lag); background: var(--q-lag-bg); }
+
+/* screenshots */
+figure { margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+figure a.shot { display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shot-shadow); background: var(--surface); }
+figure img { display: block; width: 100%; height: auto; }
+figcaption { font-size: .88rem; color: var(--muted); line-height: 1.5; max-width: 80ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+section { padding-block: 64px 0; display: flex; flex-direction: column; gap: 28px; }
+section > header { display: flex; flex-direction: column; gap: 12px; }
+
+/* vision */
+.vision { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 28px 40px; }
+.vision > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.vision p { color: var(--ink); }
+
+/* use cases */
+.case { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px 40px; align-items: start; padding-block: 36px; border-top: 1px solid var(--line); }
+.case:first-of-type { border-top: 0; }
+.case .txt { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.case .txt .who { font: 500 .8rem/1.4 var(--f-mono); color: var(--muted); }
+.case ol, .case ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+.case.wide { grid-template-columns: minmax(0, 1fr); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 24px; }
+@media (max-width: 820px) { .case { grid-template-columns: minmax(0, 1fr); } }
+
+/* features */
+.feat { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 0; border-top: 1px solid var(--line); }
+.feat > div { padding: 22px 24px 24px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.feat h3 { font-size: 1.08rem; font-weight: 700; }
+.feat p { font-size: .96rem; color: var(--muted); }
+.feat p b { color: var(--ink); font-weight: 600; }
+
+/* AI table */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 .75rem var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td:first-child { font-family: var(--f-mono); font-size: .9rem; white-space: nowrap; color: var(--accent); }
+
+/* balance */
+.balance { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; }
+.balance .box { padding: 24px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.balance .box h3 { font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.balance ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 8px; font-size: .97rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+/* start */
+.steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 20px; counter-reset: s; }
+.steps li { counter-increment: s; display: flex; flex-direction: column; gap: 6px; padding-top: 14px; border-top: 2px solid var(--ink); font-size: .96rem; min-width: 0; }
+.steps li::before { content: "Trin " counter(s); font: 500 .75rem var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.steps b { font-weight: 600; }
+
+.narrow { max-width: 420px; }
+.phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 260px)); gap: 24px; justify-content: start; }
+
+@media print {
+  figure, .box, .feat > div, .steps li, .tbl, .case .txt { break-inside: avoid; }
+  section > header, h2, h3 { break-after: avoid; }
+  :root { --bg: #ffffff; }
+  .wrap { padding-inline: 0; }
+  .hero { padding-block: 28px 16px; }
+  section { display: block; padding-block: 36px 0; }
+  section > * + * { margin-top: 24px; }
+  section > header { break-inside: avoid; }
+  .case { padding-block: 20px; }
+  .case:first-of-type { padding-top: 0; }
+  figure a.shot { box-shadow: none; }
+  #discover, #ticker, #views, #holdings, #returns, #research, #funktioner, #data > header, #start { break-before: page; }
+}
+
+footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; max-width: 90ch; }
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="11" cy="11" r="3.4" fill="var(--accent)"/></svg>
+      Market Radar
+    </div>
+    <span class="note">Til private investorer i Danmark · kører lokalt · analyse, ikke rådgivning</span>
+  </div>
+
+  <div class="hero">
+    <span class="eyebrow">Trends · rotation · momentum på 1–6 måneder</span>
+    <h1>Se hvor markedet roterer hen, og mål hver idé mod verdensindekset</h1>
+    <p class="lede">Market Radar er et personligt analyseværktøj til dig, der investerer selv i frie midler og på aktiesparekonto. Værktøjet samler markedsregime, sektor- og temarotation, momentum og din egen portefølje ét sted. Alt måles op mod MSCI ACWI, så hver idé skal kunne svare på spørgsmålet: <em>er det bedre end bare at eje verdensindekset?</em></p>
+    <div class="quads" aria-label="De fire faser i en rotationsgraf">
+      <span class="q improve">Forbedres</span><span class="q lead">Fører</span><span class="q weak">Svækkes</span><span class="q lag">Halter</span>
+    </div>
+    <figure>
+      <a class="shot" href="img/rotation.png" target="_blank" rel="noopener"><img src="img/rotation.png" alt="Rotationsgraf for amerikanske sektorer mod ACWI med 8 ugers haler"></a>
+      <figcaption><b>Sektorrotation.</b> Hver sektor-ETF placeres efter relativ trend (x) og acceleration (y) mod ACWI med en hale for de sidste 8 uger. Typisk drejer navnene med uret fra <em>Forbedres</em> mod <em>Fører</em>. Grafen og tabellen er koblet sammen, så hover og filtre virker i begge.</figcaption>
+    </figure>
+  </div>
+
+  <section id="formaal">
+    <header>
+      <span class="eyebrow">Formål og vision</span>
+      <h2>Disciplin frem for tips</h2>
+    </header>
+    <div class="vision">
+      <div>
+        <h3>Proaktiv, ikke reaktiv</h3>
+        <p>Værktøjet er bygget til at opdage skift tidligt: når en sektor går fra at halte til at forbedre sig, når en region overtager føringen, eller når nye navne rykker ind i momentum-top 20. Horisonten er bevidst 1–6 måneder, hvor momentum og rotation historisk har haft mest at sige.</p>
+      </div>
+      <div>
+        <h3>Ét benchmark, alle beslutninger</h3>
+        <p>Alt måles mod MSCI ACWI, inklusive din egen portefølje. Hver position får en <em>skyggeposition</em>: de samme kroner investeret i ACWI på de samme datoer. Så kan du se, om dine valg har tilført noget i forhold til den passive løsning, opgjort i DKK.</p>
+      </div>
+      <div>
+        <h3>Sandhed om data</h3>
+        <p>Manglende data vises som manglende, aldrig som 0. Hver kilde har en alder og en status, forældede input stopper med at tælle, og en egen side lister hvad radaren <em>ikke</em> kan se. Værktøjet siger hellere “ved ikke” end at gætte.</p>
+      </div>
+      <div>
+        <h3>Dansk virkelighed indbygget</h3>
+        <p>Tema-ETF’er får et UCITS-alternativ med ISIN, tjekket mod SKATs positivliste. Konti skelner mellem aktiesparekonto (17 % lagerbeskatning) og frie midler (realisation for aktier, lager for positivliste-fonde). Import fra Saxo, Nordnet og Danske Bank.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="brug">
+    <header>
+      <span class="eyebrow">Hovedanvendelser</span>
+      <h2>Otte måder værktøjet bruges på</h2>
+    </header>
+
+    <div>
+      <div class="case" id="regime">
+        <div class="txt">
+          <span class="who">Ugentligt · 10–15 minutter</span>
+          <h3>1. Det ugentlige overblik</h3>
+          <p>Start øverst og arbejd dig ned. Rækkefølgen er pointen: først vejret, så hvor pengene flytter hen, så de konkrete navne.</p>
+          <ol>
+            <li><b>Regime:</b> er markedet risk-on, risk-off eller blandet? 17 indikatorer stemmer: trend, bredde i fire regioner, nye højder mod nye lavpunkter, volatilitet og VIX-terminsstruktur, kreditspænd, rentekurve og 10-årig rente, dollar, kobber/guld, olie, OECD-cyklus og indtjeningsrevisioner.</li>
+            <li><b>Rotation:</b> hvilke sektorer, regioner og temaer bevæger sig mod <em>Fører</em>?</li>
+            <li><b>Momentum:</b> hvilke aktier er nye i top 20, og hvor klumper de sig sammen?</li>
+          </ol>
+        </div>
+        <figure>
+          <a class="shot" href="img/regime.png" target="_blank" rel="noopener"><img src="img/regime.png" alt="Regime-side med samlet vurdering og graderet indikatortabel" loading="lazy"></a>
+          <figcaption><b>Regime.</b> Samlet vurdering med hver indikators aflæsning, gradering og kontekst. Kun risk-on- og risk-off-stemmer tæller: netto = (on − off) / (on + off), og over +0,33 er risk-on, under −0,33 risk-off. Her giver 6 risk-on og 3 risk-off netto 0,333, lige over grænsen til <em>Risk-on</em>, med 8 neutrale. Linjen under vurderingen siger, hvor mange indikatorer der har friske data.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide" id="momentum">
+        <div class="pair">
+          <figure>
+            <a class="shot" href="img/momentum.png" target="_blank" rel="noopener"><img src="img/momentum.png" alt="Momentum-tabel for europæiske large caps med klynger, HELD-markering og kolonnen Views" loading="lazy"></a>
+            <figcaption><b>Momentum-ledere</b> pr. region (USA, Europa, Norden, Asien). Score 0–100 er gennemsnittet af percentilerne for 12-1-måneds-, 6-måneds- og 3-månedsafkast i regionen. Radaren markerer klynger (“Banks – Diversified: 4 navne mod ~2 forventet”), dine egne beholdninger og, i kolonnen <em>Views</em>, de navne, der passer med dine markedssyn.</figcaption>
+          </figure>
+          <figure id="themes">
+            <a class="shot" href="img/themes.png" target="_blank" rel="noopener"><img src="img/themes.png" alt="Tematabel med UCITS-alternativ, ISIN og positivliste-status" loading="lazy"></a>
+            <figcaption><b>Temaer og faktorer.</b> Temaerne måles med likvide amerikanske ETF’er. Hver linje viser et UCITS-alternativ, du rent faktisk kan købe, med ISIN og status på SKATs positivliste for 2026. En streg betyder, at radaren ikke har et alternativ registreret, ikke at der ikke findes et.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="case" id="discover">
+        <div class="txt">
+          <span class="who">Ugentligt · når du leder efter nye idéer</span>
+          <h3>2. Find navne, før de når radarens egne lister</h3>
+          <p><em>Discover</em> er et bredere net end momentum-siden: ca. 700 nordiske aktier, ca. 1.500 europæiske aktier og ca. 570 UCITS-ETF’er fra positivlisten, scoret med samme formel og rangeret inden for hvert marked. En nordisk small cap konkurrerer altså med nordiske navne, ikke med Nvidia.</p>
+          <ul>
+            <li><b>Heatmap</b> grupperet efter sektor, land eller størrelse og farvet efter afkast eller score. Feltstørrelsen følger √ markedsværdi, så små selskaber stadig kan ses</li>
+            <li><b>Genveje:</b> <em>Under the radar</em>, <em>Emerging</em>, <em>Breakouts</em>, <em>Turnarounds</em> og <em>Leaders</em> sætter tabellens filtre</li>
+            <li><b>Flag</b> for ny 52-ugers top på høj volumen, trendvending, “ny for radaren” og tynd handel</li>
+          </ul>
+          <p>Scanningen køres cirka ugentligt (knappen <em>Scan again</em>) og rører ikke radarens øvrige data.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/discover.png" target="_blank" rel="noopener"><img src="img/discover.png" alt="Discover-heatmap over europæiske aktier grupperet efter sektor og farvet efter 3-månedsafkast" loading="lazy"></a>
+          <figcaption><b>Discover, Europa.</b> Hvert felt er en aktie, grupperet efter sektor og farvet efter afkastet over 3 måneder. Hold musen over et felt for detaljer; et klik åbner tickersiden.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <div class="pair">
+          <figure>
+            <a class="shot" href="img/discover_table.png" target="_blank" rel="noopener"><img src="img/discover_table.png" alt="Discover-tabel over nordiske aktier med score, ændring i score og afkast" loading="lazy"></a>
+            <figcaption><b>Screeneren under kortet.</b> Nordiske navne med score, Δscore over en måned, størrelse og afkast. Alle kolonner kan filtreres, og filtrene står i adressen, så en screening kan gemmes som bogmærke. Small caps er mere støjende: et hit er en grund til at undersøge, ikke et købssignal.</figcaption>
+          </figure>
+          <figure>
+            <a class="shot" href="img/discover_etfs.png" target="_blank" rel="noopener"><img src="img/discover_etfs.png" alt="Heatmap over UCITS-ETF’er fra positivlisten" loading="lazy"></a>
+            <figcaption><b>UCITS-ETF’er fra positivlisten</b> som et marked for sig, grupperet efter kategori. Findes en fond i flere andelsklasser, vælges én, så den samme fond ikke tæller flere gange.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="case" id="ticker">
+        <div class="txt">
+          <span class="who">Før et køb eller salg</span>
+          <h3>3. Vurdering af én aktie eller ETF</h3>
+          <p>Søg på et hvilket som helst Yahoo-symbol (tast <span class="mono">/</span>). Tickersiden samler det, man ellers skal hente fra fem faner:</p>
+          <ul>
+            <li>Kursgraf med 50/200-dages snit, Bollinger, RSI og relativ styrke mod ACWI</li>
+            <li>Momentum og trend med rang i aktiegruppen</li>
+            <li>Risiko mod ACWI i DKK: beta, alpha, Sharpe/Sortino, max drawdown og faktortilt</li>
+            <li>Analytikerkonsensus, EPS-revisioner, værdiansættelse, peers og fondsgennemlysning</li>
+            <li>Regelbaseret stop og take-profit og positionsstørrelse ved 1 % risiko</li>
+            <li>Hvordan navnet passer med dine egne markedssyn</li>
+          </ul>
+        </div>
+        <figure>
+          <a class="shot" href="img/ticker_chart.png" target="_blank" rel="noopener"><img src="img/ticker_chart.png" alt="Tickerside for NVIDIA med kursgraf, stop, take-profit og analytikermål" loading="lazy"></a>
+          <figcaption><b>Tickerprofil.</b> Stop, take-profit og analytikernes middelkursmål tegnet direkte i grafen, med “watch-outs” øverst. Under kursen: RSI og relativ styrke mod ACWI.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <figure>
+          <a class="shot" href="img/ticker_cards.png" target="_blank" rel="noopener"><img src="img/ticker_cards.png" alt="Kort med kursudvikling, momentum, teknik, stop, risiko mod ACWI og analytikerestimater" loading="lazy"></a>
+          <figcaption><b>Graderede kort.</b> Hver måling får en farve på en nitrinsskala fra advarsel til gunstig, og ordet står altid ved siden af, så farven aldrig er det eneste signal. Stoppet forklarer sig selv linje for linje, og alle fagudtryk har en forklaring, når man holder musen over.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case" id="views">
+        <div class="txt">
+          <span class="who">Når du har en mening om markedet</span>
+          <h3>4. Dine egne markedssyn, holdt op mod data</h3>
+          <p>De fleste investorer har en række overbevisninger: at AI-investeringerne fortsætter, at forsvarsudgifterne stiger, at renterne falder. På siden <em>My market views</em> skriver du dem ned: hvad du tror, hvor sikker du er (1–5), horisonten, og hvad der ville få dig til at skifte mening. Du kan starte fra færdige skabeloner, hvor modsatte synspunkter står side om side.</p>
+          <ul>
+            <li><b>Evidens:</b> hvert syn har indikatorer (fx halvledere mod ACWI, 10-årig rente, OECD CLI), og radaren viser, om de seneste tre måneder <em>understøtter</em> eller <em>modsiger</em> det, eller om der mangler data</li>
+            <li><b>Eksponering:</b> hvert syn siger, hvad det hjælper eller skader (en ETF, sektor, branche, region eller ticker). Navne, der bevæger sig med en ETF, tæller med via korrelation</li>
+            <li>Resultatet står på tickersiderne, i momentum- og Discover-tabellerne og i Claude-kommandoerne</li>
+          </ul>
+          <p>Synene er dine subjektive holdninger, ikke prognoser. Evidensen viser, hvad data gjorde; den beviser ikke noget.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/views.png" target="_blank" rel="noopener"><img src="img/views.png" alt="Siden My market views med tre aktive markedssyn og deres evidens" loading="lazy"></a>
+          <figcaption><b>Tre markedssyn i demoen</b> med overbevisning, horisont, eksponering og radarens dom for hver indikator. Et syn kan sagtens stå som <em>contradicted</em>: pointen er at opdage det i tide.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <div class="pair">
+          <figure class="narrow">
+            <a class="shot" href="img/ticker_views.png" target="_blank" rel="noopener"><img src="img/ticker_views.png" alt="Kortet Your market views på en tickerside" loading="lazy"></a>
+            <figcaption><b>På tickersiden:</b> hvilke af dine syn der gælder for navnet, og hvorfor (her via sektoren Technology).</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="case" id="holdings">
+        <div class="txt">
+          <span class="who">Løbende</span>
+          <h3>5. Opfølgning på din egen portefølje</h3>
+          <p>Handlerne er kilden til sandheden: positioner, gennemsnitskurs inkl. kurtage og afkast regnes ud fra dem. Siden <em>My holdings &amp; watchlist</em> viser for hver position:</p>
+          <ul>
+            <li>Totalafkast i DKK siden køb (valuta og udbytter med) mod skyggepositionen i ACWI</li>
+            <li>Momentum-score, trend og afstand til 52-ugers top</li>
+            <li>Mekanisk trailing stop (højeste lukkekurs − k × ATR) og kursmål</li>
+            <li>Watchlist med de samme målinger, og solgte positioner: hvordan aktien har klaret sig, siden du solgte</li>
+          </ul>
+        </div>
+        <figure>
+          <a class="shot" href="img/holdings.png" target="_blank" rel="noopener"><img src="img/holdings.png" alt="Beholdningstabel med afkast i DKK mod ACWI, stop og mål" loading="lazy"></a>
+          <figcaption><b>Beholdninger mod ACWI.</b> Kolonnen <em>Since buy (DKK)</em> står ved siden af <em>ACWI (DKK)</em>: de samme kroner i ACWI på de samme datoer. En bred indeksfond får ingen stop eller mål. Demoportefølje.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide" id="portfolio">
+        <div class="pair">
+          <figure>
+            <a class="shot" href="img/portfolio.png" target="_blank" rel="noopener"><img src="img/portfolio.png" alt="Porteføljeside med positioner og kontantbeholdning" loading="lazy"></a>
+            <figcaption><b>Porteføljeeditor.</b> Indtast, ret eller slet handler og kontantbevægelser (indskud, udbytte, gebyrer). Hver række tjekkes mod dagens lukkekurs, før den gemmes. Positioner vises samlet eller pr. portefølje, og alt kan eksporteres som CSV.</figcaption>
+          </figure>
+          <figure>
+            <a class="shot" href="img/import.png" target="_blank" rel="noopener"><img src="img/import.png" alt="Importguide for handler fra Saxo, Nordnet, Danske Bank eller regneark" loading="lazy"></a>
+            <figcaption><b>Import i fire trin:</b> vælg fil, tjek kolonner, bekræft symboler, gennemse og importér. Alle rækker vises, før noget gemmes, og en import kan fortrydes som en helhed.</figcaption>
+          </figure>
+          <figure>
+            <a class="shot" href="img/sold.png" target="_blank" rel="noopener"><img src="img/sold.png" alt="Watchlist og solgte positioner med afkast siden salget" loading="lazy"></a>
+            <figcaption><b>Watchlist og solgte positioner.</b> Kolonnen <em>Since sell</em> viser, hvordan aktien har klaret sig efter salget, så du kan vurdere, om salget var rigtigt.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="case" id="returns">
+        <div class="txt">
+          <span class="who">Månedligt · og før du ændrer strategi</span>
+          <h3>6. Afkast over tid, og A/B-test med virtuelle porteføljer</h3>
+          <p>Hver konto er en <em>rigtig</em> portefølje med sin skattetype (ASK, frie midler, pension). Siden <em>Returns</em> viser udviklingen over tid i DKK mod ACWI:</p>
+          <ul>
+            <li><b>Tidsvægtet afkast (TWR):</b> investeringernes eget afkast, uafhængigt af hvornår du satte penge ind</li>
+            <li><b>Pengevægtet afkast (MWR):</b> den årlige rente, dine faktiske ind- og udbetalinger gav. Afkast pr. år vises først, når perioden er mindst et år</li>
+            <li>ACWI over samme periode og med de samme pengestrømme, forskellen til ACWI og max drawdown</li>
+          </ul>
+          <p><b>Virtuelle porteføljer</b> tæller ikke med som dine. Lav en kopi af en konto, som den så ud ved lukketid en given dag, og ændr den derfra. Så ser du, hvad en anden beslutning ville have givet fra samme udgangspunkt. Med tags kan flere porteføljer lægges sammen til én linje.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/returns.png" target="_blank" rel="noopener"><img src="img/returns.png" alt="Returns-siden: udviklingen i to konti over et år mod ACWI" loading="lazy"></a>
+          <figcaption><b>Afkast over tid.</b> Begge demokonti fra en fælles start, rebaseret til 100, mod ACWI i DKK. En manglende kurs eller valutakurs giver et hul i linjen, aldrig et nul.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <div class="pair">
+          <figure>
+            <a class="shot" href="img/returns_ab.png" target="_blank" rel="noopener"><img src="img/returns_ab.png" alt="A/B-sammenligning af en konto og en virtuel kopi uden NVIDIA" loading="lazy"></a>
+            <figcaption><b>A/B-test.</b> Kontoen <em>Frie midler</em> mod en virtuel kopi, hvor NVIDIA blev solgt den dag, kopien blev lavet. Begge linjer starter samme dag, så forskellen skyldes alene den ene beslutning.</figcaption>
+          </figure>
+          <figure>
+            <a class="shot" href="img/portfolios.png" target="_blank" rel="noopener"><img src="img/portfolios.png" alt="Liste over rigtige og virtuelle porteføljer med tags" loading="lazy"></a>
+            <figcaption><b>Porteføljer.</b> Rigtige og virtuelle porteføljer med tags, kopiering (<em>fork</em>), arkivering og en standardkonto for nye handler.</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="case" id="research">
+        <div class="txt">
+          <span class="who">Valgfrit · kræver Claude Code</span>
+          <h3>7. Skriftlig research og beslutningsdisciplin</h3>
+          <p>Med Claude Code kan radarens data bruges som udgangspunkt for skriftlige analyser. De gemmes som Markdown-filer på din egen computer.</p>
+          <p>Pointen er ikke at få et svar, men at tvinge tankegangen igennem en fast skabelon: tese, modargumenter, hvad der ville bevise den forkert, og hvordan positionen skal dimensioneres. Bagefter kan du måle beslutningen mod udfaldet.</p>
+        </div>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Kommando</th><th>Resultat</th></tr></thead>
+            <tbody>
+              <tr><td>/market-brief</td><td>Dateret brief på ca. 900 ord med kildehenvisninger: hvad har ændret sig i regime, rotation og momentum, hvorfor (webresearch), nye navne fra Discover, dine markedssyn mod data, og hvad det betyder for dine beholdninger og din watchlist.</td></tr>
+              <tr><td>/research NOVO-B.CO</td><td>Researchnotat: tese, momentum- og rotationskontekst, værdiansættelse, UCITS-alternativer, risici, kriterier for at tesen er forkert, og hvilken konto den hører hjemme på.</td></tr>
+              <tr><td>/compare NVDA AMD MU</td><td>Fast scoringsskema inklusive ACWI, bull- og bear-case pr. navn, red team, pre-mortem, størrelse og en beslutningsrapport.</td></tr>
+              <tr><td>/journal · /journal review</td><td>Beslutningsdagbog med tese, horisont og exit-regler, og en månedlig gennemgang af åbne teser mod radarens aktuelle signaler.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="case" id="positioning">
+        <div class="txt">
+          <span class="who">Når noget ser for godt ud</span>
+          <h3>8. Krydstjek med cyklus og positionering</h3>
+          <p>Prisbaserede signaler bekræftes eller udfordres af data, der ikke kommer fra kurser: S&amp;P 500-indtjeningsrevisioner (FactSet), OECD’s ledende indikatorer for G20, USA, Europa og Kina, og CFTC-futurespositionering med 3-års percentiler.</p>
+          <p>Positionering er ikke et timingsignal i sig selv, men den fortæller, hvilken vej en vending ville gøre mest ondt.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/positioning.png" target="_blank" rel="noopener"><img src="img/positioning.png" alt="Positionering og cyklus: FactSet-revisioner og OECD CLI" loading="lazy"></a>
+          <figcaption><b>Positionering og cyklus.</b> Indtjeningsvækst, forward P/E mod 5- og 10-års snit, og OECD-faser (ekspansion, afmatning, kontraktion, bedring).</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="funktioner">
+    <header>
+      <span class="eyebrow">Funktioner</span>
+      <h2>Hvad der er i værktøjet</h2>
+    </header>
+    <div class="feat">
+      <div><h3>Markedsregime</h3><p>17 indikatorer med <b>risk-on/risk-off-afstemning</b>, graderede aflæsninger og grafer for trend, bredde i fire regioner, VIX og VIX-terminsstruktur, high-yield-spænd, nye højder minus nye lavpunkter, kobber/guld og OECD CLI.</p></div>
+      <div id="rotation"><h3>Rotationsgrafer (RRG)</h3><p>Amerikanske og europæiske sektorer, regioner og lande, temaer og faktorer mod ACWI og, hvor det giver mening, også mod <b>hjemmemarkedet</b> (fx STOXX 600). Justérbar halelængde, labels og filtre.</p></div>
+      <div><h3>Momentum-ledere</h3><p>Ca. 700 aktier og ETF’er på tværs af S&amp;P 500, europæiske large caps, C25 og nordiske large caps samt asiatiske ledere. <b>Klyngedetektion</b>, markering af nye navne og ændring i rang.</p></div>
+      <div><h3>Discover</h3><p>Ca. 2.800 nordiske og europæiske aktier og UCITS-ETF’er fra positivlisten i et <b>heatmap og en screener</b> med færdige filtre, scoret inden for hvert marked.</p></div>
+      <div><h3>Temaer med UCITS-tjek</h3><p>Tema-ETF’er (cybersikkerhed, halvledere, uran, forsvar, vand …) med <b>UCITS-alternativ, ISIN og positivliste-status</b> fra SKATs liste.</p></div>
+      <div><h3>Mine markedssyn</h3><p>Dine overbevisninger med overbevisningsgrad og “hvad ville ændre min mening”, <b>holdt op mod radarens data</b> og koblet til de tickere, de taler for eller imod.</p></div>
+      <div><h3>Tickerprofil</h3><p>Graf, teknik, risiko mod ACWI i DKK, faktortilt, analytikere og EPS-revisioner, værdiansættelse, peers, <b>fondsgennemlysning</b> og de sidste 20 handelsdage. Hover-kort med sparkline på alle tickerlinks.</p></div>
+      <div><h3>Portefølje og konti</h3><p>Handler og kontantbevægelser indtastes eller <b>importeres</b> fra Saxo, Nordnet, Danske Bank, Yahoo Finance eller et regneark. Konti for ASK, frie midler og pension, automatiske backups og CSV-eksport.</p></div>
+      <div><h3>Afkast over tid</h3><p>TWR og MWR i DKK mod ACWI med de samme pengestrømme, drawdown og <b>virtuelle kopier til A/B-test</b>, grupperet med tags.</p></div>
+      <div><h3>Beholdninger og watchlist</h3><p>Afkast i DKK mod <b>skyggeposition i ACWI</b>, regelbaseret stop og mål, advarselsflag og opfølgning på solgte positioner. Tilføj til watchlist med ☆ overalt.</p></div>
+      <div><h3>Data og dækning</h3><p>Kildernes alder og status, en <b>opdateringsknap</b> med log, forklaring af beregningerne og en liste over blinde vinkler. Tabeller kan sorteres, filtreres og eksporteres som CSV.</p></div>
+      <div id="interface"><h3>Lokal og privat</h3><p>Kører på din egen computer på <span class="mono">127.0.0.1</span> uden login og uden konto. Dine handler og noter forlader aldrig maskinen. <b>Lyst og mørkt tema</b> og mobil-layout.</p></div>
+    </div>
+
+    <div class="pair">
+      <figure>
+        <a class="shot" href="img/hover.png" target="_blank" rel="noopener"><img src="img/hover.png" alt="Hover-kort for ASML med kurs, sparkline og score" loading="lazy"></a>
+        <figcaption><b>Hover-kort</b> på alle tickerlinks: kurs, sparkline, 1- og 3-månedsafkast, score og om du ejer aktien.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="img/dark_themes.png" target="_blank" rel="noopener"><img src="img/dark_themes.png" alt="Temaside med rotationsgraf i mørkt tema" loading="lazy"></a>
+        <figcaption><b>Mørkt tema.</b> Temarotation med positivliste-forklaring direkte på siden.</figcaption>
+      </figure>
+    </div>
+    <div class="pair">
+      <figure>
+        <a class="shot" href="img/rotation_table.png" target="_blank" rel="noopener"><img src="img/rotation_table.png" alt="Rotationstabel for amerikanske sektorer med kvadrant, relative afkast og rang" loading="lazy"></a>
+        <figcaption><b>Rotationstabellen</b> under grafen: kvadrant, relative afkast over 1, 3 og 6 måneder, rang og ændring i rang. Filtrene her bestemmer, hvilke haler grafen viser.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="img/regime_charts.png" target="_blank" rel="noopener"><img src="img/regime_charts.png" alt="Regimegrafer for trend og bredde" loading="lazy"></a>
+        <figcaption><b>Regimegrafer</b> bag indikatorerne: historikken bag hver aflæsning, med de samme intervalknapper som resten af appen.</figcaption>
+      </figure>
+    </div>
+    <div class="phones">
+      <figure>
+        <a class="shot" href="img/mobile_ticker.png" target="_blank" rel="noopener"><img src="img/mobile_ticker.png" alt="Tickerside for ASML på mobil" loading="lazy"></a>
+        <figcaption><b>Mobil:</b> tickerside.</figcaption>
+      </figure>
+      <figure>
+        <a class="shot" href="img/mobile_holdings.png" target="_blank" rel="noopener"><img src="img/mobile_holdings.png" alt="Beholdninger på mobil" loading="lazy"></a>
+        <figcaption><b>Mobil:</b> beholdninger.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="data">
+    <header>
+      <span class="eyebrow">Datagrundlag</span>
+      <h2>Hvor tallene kommer fra, og hvad de ikke dækker</h2>
+      <p class="col">Radaren bygger udelukkende på gratis, offentlige kilder: Yahoo Finance (kurser, navne, analytikere), FRED (amerikanske renter, kreditspænd, dollar), CFTC Commitments of Traders, OECD Composite Leading Indicators, FactSet Earnings Insight, SPDR’s S&amp;P 500-beholdninger og SKATs positivliste. Kurserne er dagslukkekurser, justeret for udbytter og splits.</p>
+    </header>
+    <figure>
+      <a class="shot" href="img/data.png" target="_blank" rel="noopener"><img src="img/data.png" alt="Data og dækning: kilder, alder og status" loading="lazy"></a>
+      <figcaption><b>Data og dækning.</b> Hver kilde med dækning, dato, alder mod grænse og status. Forældede input markeres <em>stale</em> og tæller ikke med i regimeafstemningen.</figcaption>
+    </figure>
+    <figure>
+      <a class="shot" href="img/blindspots.png" target="_blank" rel="noopener"><img src="img/blindspots.png" alt="Liste over hvad radaren ikke ser" loading="lazy"></a>
+      <figcaption><b>Blinde vinkler</b> står i selve værktøjet: ingen P/E-baseret værdiansættelse i signalerne, ingen fund flows eller sentiment, revisioner kun for S&amp;P 500, survivorship bias i bredde-historikken.</figcaption>
+    </figure>
+  </section>
+
+  <section id="balance">
+    <header>
+      <span class="eyebrow">En afbalanceret vurdering</span>
+      <h2>Styrker og begrænsninger</h2>
+    </header>
+    <div class="balance">
+      <div class="box">
+        <h3><span class="dot" style="background: var(--q-lead)"></span>Det gør værktøjet godt</h3>
+        <ul>
+          <li>Giver et struktureret, gentageligt overblik over markedet på få minutter i stedet for spredte nyheder og fora.</li>
+          <li>Holder dig ærlig over for benchmark: hver position og hver idé måles mod ACWI i DKK.</li>
+          <li>Tager højde for danske forhold: ASK, frie midler, positivliste og UCITS.</li>
+          <li>Er gennemsigtigt: hver beregning er forklaret, alle tærskler står i en konfigurationsfil, og manglende data vises som manglende.</li>
+          <li>Koster ikke abonnement, og dine data bliver på din egen computer.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3><span class="dot" style="background: var(--q-lag)"></span>Det skal du vide</h3>
+        <ul>
+          <li><b>Det er analyse, ikke rådgivning.</b> Stop og mål er mekaniske regler til eftertanke, ikke anbefalinger.</li>
+          <li>Momentum er en dokumenteret faktor, men den har perioder med skarpe vendinger. Et højt score er et sted at starte research, ikke en købsliste.</li>
+          <li>Yahoo-data er uofficielle og uden kvalitetsgaranti. Kun dagslukkekurser, intet realtid.</li>
+          <li>Makro- og revisionsdata er overvejende amerikanske. Europa ses primært gennem OECD og kurstrends.</li>
+          <li>Ingen skatteberegning og ingen fuld porteføljestyring. Din bank og Yahoo Finance er stadig der, du holder regnskab.</li>
+          <li>Brugerfladen er på engelsk, og der kræves en Windows- eller Mac-computer. AI-funktionerne kræver Claude Code.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <header>
+      <span class="eyebrow">Kom i gang</span>
+      <h2>Fra zip-fil til første overblik</h2>
+    </header>
+    <ol class="steps">
+      <li><b>Pak zip-filen ud</b> i en mappe, du beholder, fx <span class="mono">Dokumenter\Market Radar</span>.</li>
+      <li><b>Dobbeltklik på startfilen</b> (<span class="mono">Start Market Radar.cmd</span> eller <span class="mono">.command</span> på Mac). Første gang sætter den alt op selv på et par minutter.</li>
+      <li><b>Klik “Download market data”</b> på velkomstsiden. Den første hentning af ca. 700 aktier og ETF’er tager 1–5 minutter.</li>
+      <li><b>Tilføj din portefølje</b> (valgfrit): indtast handler eller importér fra din bank. Markér konto som ASK eller frie midler.</li>
+    </ol>
+    <p class="col muted">Data opdateres med ét klik på <em>Update data</em>; en gul bjælke minder dig om det, når data er en uge gamle. Ved en ny version pakker du den ud og kopierer dine datamapper med over.</p>
+  </section>
+
+  <footer>
+    <p>Skærmbillederne er taget den 14. oktober 2026 med rigtige markedsdata og en <b>fiktiv demoinvestor</b>: en aktiesparekonto (Xtrackers MSCI World og ASML), en frie midler-konto (DSV, Microsoft, Novo Nordisk, NVIDIA og en solgt SAP-position), en virtuel A/B-kopi uden NVIDIA, en watchlist (NKT, Saab, Vestas) og tre markedssyn fra skabelonerne. Det er ikke nogens faktiske beholdninger eller holdninger.</p>
+    <p>Market Radar er et analyseværktøj, ikke investeringsrådgivning. Data kommer fra gratis kilder uden garanti. Tjek alt vigtigt, før du handler.</p>
+  </footer>
+</div>
