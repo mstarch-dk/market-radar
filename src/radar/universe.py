@@ -506,6 +506,23 @@ def _every_portfolio_symbol() -> set[str]:
     return {t["symbol"] for t in userstore.transactions() if t["symbol"]}
 
 
+def history_start(today: date | None = None) -> date:
+    """Where the stored price history starts: `history_years` back, or earlier when your first trade needs it
+    (that day minus backtest.warmup_days, for the 200-day average and 12-month momentum on the day you bought),
+    but never more than backtest.max_years back."""
+    from datetime import timedelta
+
+    from . import userstore
+
+    today = today or date.today()
+    cfg, bt = settings(), settings().get("backtest") or {}
+    start = today - timedelta(days=int(365.25 * cfg["history_years"]))
+    dates = [str(t["date"])[:10] for t in userstore.transactions()]
+    if dates:
+        start = min(start, date.fromisoformat(min(dates)) - timedelta(days=int(bt.get("warmup_days", 0))))
+    return max(start, today - timedelta(days=int(365.25 * bt.get("max_years", 10))))
+
+
 def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]:
     """Every ticker the radar downloads prices for; `offline` uses the cached constituent list as is."""
     tickers = {benchmark()}

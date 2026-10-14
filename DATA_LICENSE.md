@@ -33,7 +33,7 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 
 | Source | Used for | Terms in brief | Personal use | Hosting or redistribution |
 |---|---|---|---|---|
-| **Yahoo Finance** (via the unofficial [`yfinance`](https://github.com/ranaroussi/yfinance) library) | All prices, ticker detail, analyst estimates, screener (Discover and valuation snapshots), fund data, symbol search | [Yahoo Terms of Service](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html): personal, non-commercial use only. Yahoo itself licenses the data from exchanges and data vendors. `yfinance` is not affiliated with Yahoo and is meant for personal use. | Yes | **No** |
+| **Yahoo Finance** (via the unofficial [`yfinance`](https://github.com/ranaroussi/yfinance) library) | All prices (history from before your first trade), ticker detail, analyst estimates, screener (Discover and valuation snapshots), fund data, symbol search | [Yahoo Terms of Service](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html): personal, non-commercial use only. Yahoo itself licenses the data from exchanges and data vendors. `yfinance` is not affiliated with Yahoo and is meant for personal use. | Yes | **No** |
 | **FactSet** Earnings Insight (public PDF) | Forward P/E, yield gap | Copyrighted research FactSet publishes for reading. | Yes | **No** |
 | **State Street (SSGA)** SPY holdings | S&P 500 constituents | Fund-site terms; constituents belong to S&P Dow Jones Indices. | Yes | **No** |
 | **iShares (BlackRock)** fund holdings | ETF look-through, Discover universe | Fund-site terms; index constituents belong to the index providers (MSCI, STOXX and others). | Yes | **No** |

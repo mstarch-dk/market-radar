@@ -1,4 +1,4 @@
-history_years: 3          # price history fetched for new tickers
+history_years: 3          # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
 constituents_max_age_days: 30
 
 rotation:
@@ -52,6 +52,15 @@ stops:                     # rule-based stop / take-profit for holdings (signals
   target_cut: 0.05         # mean target change over 30 days beyond +-5% is a signal
   info_anchor_days: 63     # `radar info` for a non-held ticker anchors on this window's high
   include: []              # theme funds outside etf_groups that should get levels too (broad index funds don't)
+
+backtest:                  # `radar sim exits` (backtest/): the stop/take-profit rule replayed on your own trades
+  warmup_days: 450         # price history kept before your first trade (200d average, 12-month momentum, ATR)
+  max_years: 10            # never fetch prices further back than this
+  fill: next               # next | same: sell at the next session's traded close after a close through a level
+  park: ACWI               # where the money from a rule exit waits until your next buy
+  fred_lag_days: 1         # a FRED value counts from the day after its date
+  oecd_lag_days: 70        # OECD CLI is published about two months after its month
+  valuation_lag_days: 30   # Shiller CAPE / Damodaran ERP monthly values
 
 risk:                      # signals/risk.py: weekly returns in DKK
   windows: {1y: 52, 3y: 156}

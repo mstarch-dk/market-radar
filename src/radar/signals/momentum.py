@@ -49,3 +49,23 @@ def leaders(closes, volumes, groups: dict[str, list[str]], min_history: int) -> 
         m["rank"] = m["score"].rank(ascending=False, method="first")
         frames.append(m)
     return pd.concat(frames, ignore_index=True).sort_values(["region", "rank"])
+
+
+def metrics_panel(closes: pd.DataFrame, tickers: list[str], min_history: int) -> dict[str, pd.DataFrame]:
+    """`metrics` for every day at once: date x ticker frames whose row D equals `metrics(closes.loc[:D])` (for
+    the columns that don't need volumes). For point-in-time backtests (backtest/pit.py)."""
+    c = closes[[t for t in tickers if t in closes.columns]]
+
+    def back(n: int) -> pd.DataFrame:
+        return c.shift(n)
+
+    history = c.notna().astype(float).rolling(260, min_periods=1).sum()
+    short = history < min_history
+    p = {"last": c, "r1m": c / back(21) - 1, "r3m": c / back(63) - 1, "r6m": c / back(126) - 1,
+         "r12_1": (back(21) / back(252) - 1).mask(short), "from_high": c / c.rolling(252, min_periods=1).max() - 1,
+         "sma50": c.rolling(50, min_periods=1).mean(), "sma200": c.rolling(200, min_periods=1).mean().mask(short),
+         "history": history}
+    p["above50"] = c > p["sma50"]
+    p["above200"] = (c > p["sma200"]).where(p["sma200"].notna())
+    p["trend_ok"] = ((c > p["sma200"]) & (p["sma50"] > p["sma200"])).where(p["sma200"].notna())
+    return p

@@ -26,7 +26,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 
 | Kilde | Bruges til | Personlig brug | Hosting eller videregivelse |
 |---|---|---|---|
-| **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser, tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
+| **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser (historik fra før din første handel), tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
 | **FactSet** Earnings Insight (offentlig PDF) | Forward P/E, yield gap | Ja | **Nej.** Ophavsretligt beskyttet analyse |
 | **State Street (SSGA)**, SPY-beholdninger | S&P 500-medlemmer | Ja | **Nej.** Indeksmedlemmer tilhører S&P Dow Jones Indices |
 | **iShares (BlackRock)**, fondsbeholdninger | ETF-gennemsyn, *Discover*-universet | Ja | **Nej.** Indeksmedlemmer tilhører indeksudbyderne (MSCI, STOXX m.fl.) |

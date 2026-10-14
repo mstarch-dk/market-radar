@@ -51,7 +51,7 @@ Begge giver et korrekt TWR. Kontantrækker gør især MWR og værdien mere retvi
 
 Radaren værdisætter hver portefølje ved hver lukkekurs i ACWI's kalender. Mangler et papir en kurs (radaren fylder højst fem handelsdage frem) eller en valutakurs til DKK, er dagens værdi ukendt. Den dag bliver et hul i grafen, og afkastet kædes hen over hullet. En manglende kurs tælles aldrig som 0.
 
-- Rækker fra før radarens kurshistorik ({{settings:history_years}} år) kan ikke værdisættes. Serien begynder den første dag, alt kan værdisættes, med det, du ejede da.
+- Kurshistorikken går mindst {{settings:history_years}} år tilbage og ellers til {{settings:backtest.warmup_days}} dage før din første handel (højst {{settings:backtest.max_years}} år). Rækker fra før den kan ikke værdisættes. Serien begynder den første dag, alt kan værdisættes, med det, du ejede da.
 - En handel, hvis værdi i DKK er ukendt, bryder kæden den dag. Radaren siger det i noterne, og de pengevægtede tal udelades.
 - Med udbyttepolitikken `reinvested` (standard) bruges udbyttejusterede kurser; med `cash` de handlede kurser plus dine udbytterækker.
 
