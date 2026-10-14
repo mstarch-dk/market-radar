@@ -6,8 +6,8 @@
   original earned before that day stay with the original, so its value can be a little higher.
 - **simulations**: a `Strategy` turns prices into rows (trades and cash) for a period; `write_run` checks the
   whole ledger and stores it as one run in a virtual portfolio made for it, replacing the previous run. The
-  same inputs give the same rows, so a rerun is idempotent. The strategies themselves (rule engines) live
-  elsewhere; this is the interface they write through.
+  same inputs give the same rows, so a rerun is idempotent. The strategies themselves (rule engines, e.g.
+  backtest/exits.py) live elsewhere; this is the interface they write through.
 
 Simulated trades never count as yours: they only go into virtual portfolios.
 """
@@ -19,7 +19,7 @@ import pandas as pd
 
 from . import performance, universe, userstore
 
-SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE")
+SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
 
 
 def _close(market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
@@ -87,10 +87,18 @@ class Strategy(Protocol):
     def rows(self, market, start: pd.Timestamp, end: pd.Timestamp, capital_dkk: float, params: dict) -> list[dict]: ...
 
 
-def new_sim_portfolio(name: str, strategy: str, params: dict | None = None, tags=(), kind: str = "other") -> int:
-    """An empty virtual portfolio for a strategy's runs."""
-    return userstore.save_portfolio({"name": name, "mode": "virtual", "origin": "sim", "kind": kind, "strategy": strategy,
-                                     "params": params or {}, "tags": list(tags)})
+def new_sim_portfolio(name: str, strategy: str, params: dict | None = None, tags=(), kind: str = "other",
+                      parent_id: int | None = None) -> int:
+    """An empty virtual portfolio for a strategy's runs; `parent_id` is the real portfolio it replays, if any."""
+    p = {"name": name, "mode": "virtual", "origin": "sim", "kind": kind, "strategy": strategy, "params": params or {},
+         "tags": list(tags)}
+    return userstore.save_portfolio(p | ({"parent_id": parent_id} if parent_id is not None else {}))
+
+
+def find_sim(parent_id: int, strategy: str) -> dict | None:
+    """The simulated portfolio that replays `parent_id` with `strategy` (found by those, so a rename keeps it)."""
+    return next((p for p in userstore.portfolios() if p["origin"] == "sim" and p.get("parent_id") == parent_id
+                 and p.get("strategy") == strategy), None)
 
 
 def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[str]:
@@ -120,7 +128,7 @@ def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[
     return problems
 
 
-def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market) -> dict:
+def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market, message: str | None = None) -> dict:
     """Check a run's rows and store them in simulated portfolio `pid`, replacing its previous run. Raises
     ValueError (nothing stored) when the portfolio isn't a simulation or the rows don't add up."""
     p = userstore.get_portfolio(pid)
@@ -133,7 +141,7 @@ def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict
         raise ValueError("; ".join(problems[:5]))
     asof = performance._calendar(market)[-1].date().isoformat()
     run_id = userstore.replace_sim_run(pid, {"strategy": strategy, "params": params, "start": start, "end": end,
-                                             "data_asof": asof}, rows)
+                                             "data_asof": asof, "message": message}, rows)
     perf = performance.portfolio_performance(pid, market)
     return {"run_id": run_id, "rows": len(rows), "stats": perf["stats"] if perf else None}
 

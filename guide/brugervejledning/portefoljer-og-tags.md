@@ -75,6 +75,10 @@ Mangler en beholdning kurs eller valutakurs den dag, afvises forken. Udbytte, so
 
 På kommandolinjen: `uv run radar portfolios fork ASK "ASK test" --date 2026-06-30 [--cash 10000] [--tag test]`. `--cash` lægger ekstra kontanter i kopien.
 
+## Simuleringer af dine handler
+
+`uv run radar sim exits` laver to virtuelle porteføljer pr. rigtig portefølje, fx *ASK · exits overlay* og *ASK · exits rules*. De afspiller dine handler med radarens stop og take-profit fulgt og har tagget `exits-overlay` eller `exits-rules`. En ny kørsel erstatter den forrige. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
+
 ## Porteføljevælgeren og ?pf=
 
 Siderne [Holdings & watchlist](/me), [Portfolio](/portfolio) og [Returns](/returns) viser som standard dine rigtige porteføljer. Vælgeren *Portfolio* har disse muligheder:

@@ -29,6 +29,7 @@ books:
           - {slug: portefolje, title: "Portefølje: handler, kontanter og import"}
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
+          - {slug: stop-simulering, title: Simulér stop og take-profit på dine handler}
           - {slug: markedssyn, title: Mine markedssyn}
           - {slug: notesbog, title: "Notesbogen: briefs, research og journal"}
       - title: Data og drift

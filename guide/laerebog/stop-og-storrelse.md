@@ -151,6 +151,10 @@ $$
 
 Er andelen over 100 %, ligger stoppet så tæt, at reglen ikke kan begrænse risikoen meningsfuldt, og appen skriver det. Radaren beregner ikke Kelly.
 
+### Backtest af reglen
+
+`radar sim exits` afspiller dine egne handler med reglen fulgt dag for dag (`backtest/`). Inputtene til $k$ er dem, der var kendt den dag: kurser til og med dagen, momentumscoren mod universet den dag, regimet fra ugens sidste lukkekurs med forsinkelse på makrodata og analytikerkonsensus hentet senest den dag. Take-profit låses ved købet, fordi kursmålet regnes fra den aktuelle kurs og ellers aldrig ville blive nået. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
+
 ## Regneeksempel
 
 Eksemplet bruger standardindstillingerne ($k$ starter på 3, trin 0,5, budget 1 %, reward/risk 2); dine indstillinger kan være andre.
@@ -184,6 +188,7 @@ Du købte en aktie for nogle måneder siden. Siden da er den højeste lukkekurs 
 - **Valuta.** Stop og ATR er i aktiens egen valuta. Et fald i dollaren ændrer dit tab i kroner, men ikke stoppet.
 - **Skat og omkostninger.** Hver handel koster kurtage og spread, og i frie midler udløser et salg beskatning af en gevinst (se [Dansk skat for investorer](laerebog/skat)). Et stop, der ofte rammes, kan være dyrt.
 - **Analytikermål er ikke sandhed.** De halter efter kursen og er ofte for optimistiske. Radaren bruger dem kun som en ekstern ankring og kun med mindst {{settings:stops.min_analysts}} analytikere.
+- **Backtests snyder let.** En test, der bruger data, som først blev kendt senere (look-ahead), eller kun aktier, der stadig findes (overlevelsesbias), ser bedre ud, end reglen var. Radarens backtest skærer hvert input ved dagen, men aktieuniverset er dagens liste, og makrodata er de reviderede tal.
 - **Det er en regel, ikke et råd.** Radaren foreslår ingen handel. Stoppet er et niveau, hvor din tese bør genovervejes, gerne skrevet ned på forhånd i din [beslutningsjournal](laerebog/adfaerd).
 
 ## Videre læsning

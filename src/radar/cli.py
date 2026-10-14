@@ -623,3 +623,85 @@ def portfolios_delete(name: str, yes: bool = typer.Option(False, "--yes", help="
 
 if __name__ == "__main__":
     app()
+
+
+sim_app = typer.Typer(help="Simulations on your own trades, into virtual portfolios (never yours).", no_args_is_help=True)
+app.add_typer(sim_app, name="sim")
+
+
+@sim_app.command("exits")
+def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to replay (default: each of yours with trades)"),
+              variant: str = typer.Option("both", help="overlay (your trades + the rule's exits), rules (your buys, "
+                                                       "the rule's exits only) or both"),
+              start: str = typer.Option(None, help="Start from what the portfolio held at this day's close"),
+              end: str = typer.Option(None, help="Stop at this day (default: the latest prices)"),
+              fill: str = typer.Option(None, help="next | same: when a triggered exit sells (default: settings)"),
+              as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
+              out: str = typer.Option(None, "--out", help="Also write the JSON report here")):
+    """Your real trades replayed with the radar's stop-loss / take-profit rule followed, using only what was known
+    each day. Writes one simulated portfolio per real portfolio and variant (tags exits-overlay / exits-rules, so
+    the Returns page can show them) and reports.json/sim-exits.json with every exit and what it saved or cost."""
+    import json
+    from pathlib import Path
+
+    from . import profile, userstore
+    from .backtest import exits
+
+    universe.ensure_migrated()
+    variants = exits.VARIANTS if variant == "both" else (variant,)
+    if any(v not in exits.VARIANTS for v in variants):
+        raise typer.Exit("--variant must be overlay, rules or both")
+    ids = _portfolio_ids(names, None) if names else [p["id"] for p in userstore.portfolios(include_archived=False)
+                                                     if p["mode"] == "real" and p["n_tx"]]
+    with _job("sim") as log:
+        market = profile.Market.load()
+        need = universe.history_start()
+        have = market.closes[universe.benchmark()].dropna().index[0].date()
+        if have > need:
+            log(f"Note: prices start {have}, your trades need them from {need}: run `radar update` to fetch the "
+                "deeper history (early decisions lack the 200-day average and momentum until then).")
+        try:
+            rep = exits.refresh(ids, market, variants, start, end, fill)
+        except ValueError as e:
+            raise typer.Exit(f"Not simulated: {e}")
+    if out:
+        Path(out).write_text(json.dumps(rep, indent=1, default=exits._json), encoding="utf-8")
+    if as_json:
+        typer.echo(json.dumps(rep, indent=1, default=exits._json))
+        return
+    pct = lambda v: f"{v:+.1%}" if v is not None else "–"  # noqa: E731
+    dkk = lambda v: f"{v:+,.0f}" if v is not None else "–"  # noqa: E731
+    for p in rep["portfolios"]:
+        typer.echo(f"\n{p['name']}: from {p['start']} to {rep['asof']} (DKK)")
+        typer.echo(f"  {'':<34}{'value':>12} {'TWR':>8} {'vs ACWI':>8} {'max DD':>8}")
+        for r in p["compare"]["rows"]:
+            st = r["stats"] or {}
+            v = f"{st['value_dkk']:,.0f}" if st.get("value_dkk") is not None else "–"
+            typer.echo(f"  {r['label'][:33]:<34}{v:>12} {pct(st.get('twr_total')):>8} {pct(st.get('excess_twr')):>8} "
+                       f"{pct(st.get('max_drawdown')):>8}")
+        for v, res in p["variants"].items():
+            s = res["summary"]
+            typer.echo(f"\n  {v}: {s['stops']} stop exits, {s['take_profits']} take-profit exits; saved vs holding on "
+                       f"(parked in {res['park']}): {dkk(s['at_end']['saved_dkk'])} DKK to the end, "
+                       f"{dkk(s['at_your_sale']['saved_dkk'])} DKK to your next sale ({s['at_end']['helped']} of "
+                       f"{s['at_end']['exits']} exits helped to the end)")
+            for e in res["exits"]:
+                a = e["after"]
+                typer.echo(f"    {e['trigger_date']} {e['symbol']:<10} {e['trigger'].replace('_', '-'):<11} k {e['k']:.2f}  "
+                           f"sold {e['fill_date']} at {e['fill_price']:.2f}  {e['proceeds_dkk']:>10,.0f} DKK  "
+                           f"saved {dkk(a['end']['saved_dkk'])} (end)"
+                           + (f", {dkk(a['your_sale']['saved_dkk'])} (your sale {a['your_sale']['date']})" if "your_sale" in a else ""))
+            if s["events"]:
+                typer.echo("    · " + ", ".join(f"{k}: {n}" for k, n in s["events"].items()))
+            if s["no_rule"]:
+                typer.echo(f"    · no rule (funds outside the sector/theme groups, held as in the real portfolio): {', '.join(s['no_rule'])}")
+            c = s["counts"] or {}
+            if c.get("rule_days"):
+                miss = ", ".join(f"{k} {n / c['rule_days']:.0%}" for k, n in c["missing"].items())
+                typer.echo(f"    · {c['rule_days']} position-days checked; inputs missing (no k adjustment): {miss or 'none'}")
+    sims = sorted({res['portfolio_id'] for p in rep["portfolios"] for res in p["variants"].values()})
+    if rep["portfolios"]:
+        ids_q = ",".join(str(i) for i in [*(p["id"] for p in rep["portfolios"]), *sims])
+        typer.echo(f"\nReturns page: /returns?pf={ids_q}&from={rep['portfolios'][0]['start']}  "
+                   f"(or radar performance --tag exits-overlay --tag exits-rules)")
+    typer.echo("Report: reports/sim-exits.json")

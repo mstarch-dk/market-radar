@@ -135,20 +135,27 @@ def _add_levels(me: pd.DataFrame, closes, highs, lows, etfs: set[str], quadrant:
     those to their rotation quadrant.
     """
     ah = external.load_analyst()
-    equity = set()
-    if not ah.empty and "sector" in ah:
-        latest = ah.sort_values("fetched").groupby("ticker").last()
-        equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
-    equity |= {t for g in universe.stock_groups(offline=True).values() for t in g}
+    eligible = level_universe(etfs, ah)
     out = []
     for _, r in me.iterrows():
         lv = None
-        if r["status"] == "holding" and (r["symbol"] in equity or r["symbol"] in etfs):
+        if r["status"] == "holding" and r["symbol"] in eligible:
             row = r.to_dict() | {"quadrant": quadrant.get(r["symbol"]),
                                  "score": None if pd.isna(r["score"]) else r["score"]}
             lv = levels.for_ticker(r["symbol"], closes, highs, lows, row, r.get("first_trade"), regime_label, ah, cfg)
         out.append(lv)
     me["levels"] = out
+
+
+def level_universe(etfs: set[str], analyst_hist: pd.DataFrame | None = None) -> set[str]:
+    """Tickers that get stop / take-profit levels: stocks (a sector from Yahoo, or in a stock group) and the
+    sector/theme funds in `etfs` (level_etfs)."""
+    ah = external.load_analyst() if analyst_hist is None else analyst_hist
+    equity = set()
+    if not ah.empty and "sector" in ah:
+        latest = ah.sort_values("fetched").groupby("ticker").last()
+        equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
+    return equity | {t for g in universe.stock_groups(offline=True).values() for t in g} | set(etfs)
 
 
 def level_etfs(cfg: dict) -> set[str]:

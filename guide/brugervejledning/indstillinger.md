@@ -21,11 +21,11 @@ Procenter skrives i filen som brøker: 0.05 betyder 5 %.
 
 | Nøgle | Værdi | Betyder |
 |---|---|---|
-| `history_years` | {{settings:history_years}} | År med kurshistorik, der hentes for nye tickere |
+| `history_years` | {{settings:history_years}} | År med kurshistorik, der mindst hentes (mere, hvis din første handel kræver det; se `backtest`) |
 | `constituents_max_age_days` | {{settings:constituents_max_age_days}} | Dage før listen over S&P 500-aktier hentes igen |
 | `snapshot_min_gap_days` | {{settings:snapshot_min_gap_days}} | Mindste alder på det snapshot, rangændringer ("Δ rank", "new") sammenlignes med |
 
-Kurser fra før `history_years` findes ikke i radaren, så porteføljerækker fra før kan ikke værdisættes på deres dato. Se [Afkast over tid](brugervejledning/afkast).
+Kurser fra før historikkens start findes ikke i radaren, så porteføljerækker fra før kan ikke værdisættes på deres dato. Se [Afkast over tid](brugervejledning/afkast).
 
 ## `rotation`: rotationsgrafen
 
@@ -108,6 +108,20 @@ Reglen bag stop og kursmål for beholdninger, tema-ETF'er og tickerprofiler.
 | `stops.include` | (liste) | Tema-fonde uden for radarens ETF-grupper, der også skal have niveauer |
 
 Brede indeksfonde får aldrig niveauer. Se [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse).
+
+## `backtest`: stop-simulering på dine handler
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `backtest.warmup_days` | {{settings:backtest.warmup_days}} | Dage med kurser før din første handel (200-dages gennemsnit, 12-måneders momentum, ATR) |
+| `backtest.max_years` | {{settings:backtest.max_years}} | Kurser hentes aldrig længere tilbage end dette |
+| `backtest.fill` | {{settings:backtest.fill}} | `next`: et udløst salg handles til næste dags lukkekurs; `same`: samme dags |
+| `backtest.park` | {{settings:backtest.park}} | Hvor pengene fra et salg står, indtil dit næste køb |
+| `backtest.fred_lag_days` | {{settings:backtest.fred_lag_days}} | Dage før en FRED-værdi regnes som kendt |
+| `backtest.oecd_lag_days` | {{settings:backtest.oecd_lag_days}} | Dage før en OECD-indikator regnes som kendt |
+| `backtest.valuation_lag_days` | {{settings:backtest.valuation_lag_days}} | Dage før CAPE og risikopræmie regnes som kendt |
+
+Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
 
 ## `risk`: risikostatistik
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 from datetime import date, timedelta
 
 import pandas as pd
@@ -15,6 +16,7 @@ COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]
 BATCH = 80
 OVERLAP_DAYS = 7  # re-fetch a few days to pick up late corrections
 RESCALE_TOL = 1e-5  # relative change in a stored adjusted close that means Yahoo re-based the history
+FROM_FILE = "prices_from.json"  # ticker -> the start its stored history was last downloaded in full from
 
 
 def load_prices() -> pd.DataFrame:
@@ -71,8 +73,28 @@ def rescaled(existing: pd.DataFrame, fresh: pd.DataFrame) -> list[str]:
     return sorted(first.index[changed])
 
 
-def update_prices(tickers: list[str], progress=None) -> dict:
-    """Incremental price update (full history for new tickers). `progress(done, total)` reports batches."""
+def _load_from() -> dict[str, str]:
+    f = DATA / FROM_FILE
+    try:
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except ValueError:
+        return {}
+
+
+def _save_from(d: dict[str, str]) -> None:
+    f = DATA / FROM_FILE
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(d, sort_keys=True), encoding="utf-8")
+    tmp.replace(f)
+
+
+def update_prices(tickers: list[str], progress=None, start: date | None = None) -> dict:
+    """Incremental price update (full history for new tickers). `progress(done, total)` reports batches.
+
+    The full history starts `history_years` back, or at `start` when that is earlier (universe.history_start:
+    deep enough for your first trade). A stored history that starts later than that is downloaded again in full
+    ("deepened"); prices_from.json remembers where each was fetched from, so a ticker listed later than the start
+    isn't fetched again every time."""
     existing = load_prices()
     if not existing.empty:
         existing["date"] = pd.to_datetime(existing["date"])
@@ -82,13 +104,20 @@ def update_prices(tickers: list[str], progress=None) -> dict:
     new = [t for t in tickers if t not in last.index]
     known = [t for t in tickers if t in last.index]
     full_start = date.today() - timedelta(days=int(365.25 * settings()["history_years"]))
+    if start is not None and start < full_start:
+        full_start = start
+    fetched_from = _load_from()
+    first = existing.groupby("ticker")["date"].min() if not existing.empty else pd.Series(dtype="datetime64[ns]")
+    limit = pd.Timestamp(full_start + timedelta(days=OVERLAP_DAYS))
+    deepen = [t for t in known if pd.Timestamp(fetched_from.get(t) or first[t]) > limit]
+    known = [t for t in known if t not in deepen]
 
-    full = _download(new, full_start, progress) if new else pd.DataFrame(columns=COLUMNS)
+    full = _download(new + deepen, full_start, progress) if new or deepen else pd.DataFrame(columns=COLUMNS)
     inc = pd.DataFrame(columns=COLUMNS)
     rebased: list[str] = []
     if known:
-        start = pd.Timestamp(last[known].min()).date() - timedelta(days=OVERLAP_DAYS)
-        inc = _norm_dates(_download(known, start, progress))
+        since = pd.Timestamp(last[known].min()).date() - timedelta(days=OVERLAP_DAYS)
+        inc = _norm_dates(_download(known, since, progress))
         rebased = rescaled(existing, inc)
         if rebased:
             inc = inc[~inc["ticker"].isin(rebased)]
@@ -102,7 +131,8 @@ def update_prices(tickers: list[str], progress=None) -> dict:
     write_parquet(df, PRICES_FILE, index=False)
 
     got = set(inc["ticker"]) | set(full["ticker"])
-    return {"requested": len(tickers), "new": len(new), "rebased": rebased,
+    _save_from(fetched_from | {t: full_start.isoformat() for t in set(full["ticker"])})
+    return {"requested": len(tickers), "new": len(new), "rebased": rebased, "deepened": len(deepen),
             "missing": sorted(set(tickers) - got - set(known)), "rows": len(df)}
 
 

@@ -223,5 +223,5 @@ def test_portfolio_api_crud_tags_default_and_move(client):
     assert r.status_code == 200 and r.json() == {"moved": 1}               # the buy; the deposit stays
     assert client.delete(f"/api/portfolios/{ask}").status_code == 409         # real, with a trade
     assert client.delete(f"/api/portfolios/{sim}").json()["name"] == "Sim"    # virtual, now empty
-    edit = client.put(f"/api/portfolios/{ask}", json={"name": "ASK-Broker", "kind": "ask"}).json()
-    assert edit["name"] == "ASK-Broker" and edit["n_tx"] == 1
+    edit = client.put(f"/api/portfolios/{ask}", json={"name": "ASK-renamed", "kind": "ask"}).json()
+    assert edit["name"] == "ASK-renamed" and edit["n_tx"] == 1

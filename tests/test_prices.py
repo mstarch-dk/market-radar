@@ -161,3 +161,39 @@ def test_wide_fills_holidays_but_not_dead_tickers():
     w = ingest.wide(p)
     assert w["LIVE"].notna().all()
     assert w["DEAD"].notna().sum() == 3 + 5                     # five sessions forward-filled, then gaps
+
+
+def test_a_deeper_start_downloads_a_shallow_history_again_once(price_store):
+    from datetime import date
+    install, calls = price_store
+    long = _hist("A", list(np.linspace(50, 120, 1800)), start="2020-01-02")
+    late = _hist("B", list(range(50, 70)))                              # listed long after the start
+    install({"A": long, "B": late})
+    ingest.update_prices(["A", "B"])                                   # history_years back only
+    assert ingest.load_prices().query("ticker == 'A'")["date"].min() > pd.Timestamp("2025-01-01")
+    deep = date(2021, 1, 4)
+    res = ingest.update_prices(["A", "B"], start=deep)
+    a = ingest.load_prices().query("ticker == 'A'")
+    assert res["deepened"] == 2 and a["date"].min() == pd.Timestamp(deep) and not a.duplicated("date").any()
+    assert json.loads((ingest.DATA / ingest.FROM_FILE).read_text())["B"] == deep.isoformat()
+    res = ingest.update_prices(["A", "B"], start=deep)                 # remembered: not again, B neither
+    assert res["deepened"] == 0 and calls[-1][1] > deep
+    # a dividend re-bases A: the full download goes back to the deep start, not history_years
+    install({"A": long.assign(close=long["close"] * 0.98), "B": late})
+    res = ingest.update_prices(["A", "B"], start=deep)
+    assert res["rebased"] == ["A"] and ingest.load_prices().query("ticker == 'A'")["date"].min() == pd.Timestamp(deep)
+
+
+def test_history_start_reaches_back_before_your_first_trade(tmp_data, monkeypatch):
+    from datetime import date
+
+    from radar import universe, userstore
+    monkeypatch.setattr(universe, "settings", lambda: {"history_years": 3,
+                                                       "backtest": {"warmup_days": 400, "max_years": 10}})
+    today = date(2026, 10, 14)
+    assert universe.history_start(today) == date(2023, 10, 15)       # no trades: history_years
+    pid = userstore.save_portfolio({"name": "Real"})
+    userstore.add_tx({"symbol": "A", "date": "2023-02-08", "type": "BUY", "quantity": 1, "price": 1, "portfolio_id": pid})
+    assert universe.history_start(today) == date(2022, 1, 4)          # 400 days before the first trade
+    userstore.add_tx({"symbol": "A", "date": "2010-01-04", "type": "BUY", "quantity": 1, "price": 1, "portfolio_id": pid})
+    assert universe.history_start(today) == date(2016, 10, 14)        # capped at max_years

@@ -174,6 +174,15 @@ uv run radar performance --start 2026-01-01
 uv run radar performance --json
 ```
 
+### Simulér stop og take-profit
+
+`radar sim exits` afspiller dine rigtige handler med radarens stop og take-profit fulgt, dag for dag, ind i virtuelle porteføljer. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
+
+```
+uv run radar sim exits
+uv run radar sim exits "ASK" --variant overlay --fill same
+```
+
 Viser værdi, tidsvægtet afkast (TWR, også pr. år), pengevægtet afkast (MWR pr. år), ACWI, forskellen til ACWI og største fald i DKK fra en fælles startdato, med noter om huller. Se [Afkast over tid](brugervejledning/afkast).
 
 ## Flyt dine data til en anden computer

@@ -35,8 +35,10 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
     log(f"Updating {len(tickers)} tickers…")
 
     def prices():
-        res = ingest.update_prices(tickers, progress)
+        res = ingest.update_prices(tickers, progress, start=universe.history_start())
         msg = f"{res['rows']:,} rows, {res['new']} new tickers"
+        if res.get("deepened"):
+            msg += f"; {res['deepened']} downloaded again further back (to your first trade)"
         if res["rebased"]:
             msg += f"; re-downloaded after a dividend/split re-based the history: {', '.join(res['rebased'])}"
         if res["missing"]:
