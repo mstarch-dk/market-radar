@@ -5,6 +5,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 ## Always
 - Run Python through uv (`uv run radar …`, `uv run pytest -q`); the frontend through pnpm (`pnpm -C web …`).
 - Truthfulness first: missing data shows as missing, never as 0. A source that parses to nothing fails loudly and keeps its cache.
+- Adding, removing or changing a data source: update `DATA_LICENSE.md` and the guide chapter `guide/brugervejledning/datalicenser.md` (its terms and what it's used for). Downloaded data is for personal, non-commercial use; never build features that redistribute it.
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.
 - `data/`, `reports/`, `imports/*`, `notes/`, `userdata/`, `exports/`, `briefs/`, `research/` and `journal/` are local and personal: never commit them.
 

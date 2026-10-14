@@ -6,6 +6,8 @@ Værktøjet er bygget til at være **proaktivt**: det skal hjælpe dig med at op
 
 > **Bemærk:** Market Radar er analyse, ikke rådgivning. Data kommer for det meste fra Yahoo Finance og andre gratis kilder uden garanti for kvaliteten. Tjek altid det vigtige selv, før du handler.
 
+> **Bemærk:** Data må kun bruges personligt og ikke-kommercielt. Du må ikke gøre radaren tilgængelig for andre som hjemmeside eller videregive de hentede data. Se [Datakilder og licenser](brugervejledning/datalicenser).
+
 ## Grundidéerne
 
 ### Ét benchmark: MSCI ACWI

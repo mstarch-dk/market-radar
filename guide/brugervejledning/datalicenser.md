@@ -1,0 +1,61 @@
+# Datakilder og licenser
+
+Market Radars **kode** er frit tilgængelig under MIT-licensen. De **markedsdata**, appen henter, er ikke omfattet af den licens. De tilhører kilderne, og hver kilde har sine egne vilkår. Langt det meste må kun bruges **personligt og ikke-kommercielt**.
+
+Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i filen `DATA_LICENSE.md` i Market Radar-mappen. Ingen af dem er juridisk rådgivning, og kilderne kan ændre deres vilkår når som helst. Kildens egne vilkår gælder altid.
+
+## Kort fortalt
+
+**Det må du:**
+
+- Køre Market Radar på din egen computer til din egen investering, analyse og læring.
+- Dele **koden**: kopiere, ændre og videregive den under MIT-licensen.
+- Vise et skærmbillede eller nævne enkelte tal privat, fx for en ven.
+- Skrive dine egne konklusioner (briefs, researchnotater, journal) på grundlag af det, radaren viser.
+
+**Det kræver en særskilt datalicens:**
+
+- **At gøre Market Radar tilgængelig for andre som hjemmeside eller tjeneste.** Så leverer du Yahoo Finance-data og andre licenserede data videre til andre, og det forbyder kildernes vilkår.
+- **Kommerciel brug:** betalte produkter, nyhedsbreve, kunderapporter, rådgivning eller andet, du får betaling for, og som bygger på de hentede data.
+- **At videregive data:** offentliggøre eller sælge mapperne `data/` og `reports/`, eksporterede tabeller eller dashboardets JSON, eller lægge hentede data med i en kopi af appen.
+- **At bruge kilderne i et andet produkt**, eller at hente fra en fælles server på vegne af mange brugere.
+
+> **Bemærk:** Den tilsigtede måde at dele Market Radar på er, at hver bruger kører sin egen kopi og selv henter sine data til personlig brug. Sådan fungerer de udgivne versioner.
+
+## Kilde for kilde
+
+| Kilde | Bruges til | Personlig brug | Hosting eller videregivelse |
+|---|---|---|---|
+| **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser, tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
+| **FactSet** Earnings Insight (offentlig PDF) | Forward P/E, yield gap | Ja | **Nej.** Ophavsretligt beskyttet analyse |
+| **State Street (SSGA)**, SPY-beholdninger | S&P 500-medlemmer | Ja | **Nej.** Indeksmedlemmer tilhører S&P Dow Jones Indices |
+| **iShares (BlackRock)**, fondsbeholdninger | ETF-gennemsyn, *Discover*-universet | Ja | **Nej.** Indeksmedlemmer tilhører indeksudbyderne (MSCI, STOXX m.fl.) |
+| **AAII** Sentiment Survey | Sentiment | Ja | **Nej.** Ophavsret hos AAII |
+| **Cboe**, put/call-forhold | Sentiment | Ja | **Nej.** Cboes markedsdata |
+| **FRED**, serier fra tredjeparter (fx `BAMLH0A0HYM2`, ICE BofA high yield-spænd) | Kreditspænd | Ja | **Nej.** Ophavsret hos seriens ejer; ICE begrænser videregivelse |
+| **FRED**, amerikanske offentlige serier (fx `DGS10`, `T10Y2Y`, `DGS3MO`) | Renter, rentekurve, dollar | Ja | Som regel ja, med kildeangivelse |
+| **multpl.com** | Shiller CAPE | Ja | Uklart: spørg, eller beregn CAPE selv |
+| **Aswath Damodaran** (NYU Stern) | Implicit risikopræmie | Ja | Ja, med kildeangivelse |
+| **ECB Data Portal** | Euroområdets renter | Ja | Ja, med kildeangivelse |
+| **OECD** | Ledende indikatorer (CLI) | Ja | Ja, med kildeangivelse (CC BY 4.0) |
+| **CFTC** | Futurespositionering (COT) | Ja | Ja (offentligt amerikansk data) |
+| **SKAT**, positivlisten | Positivliste-status | Ja | Ja (offentlige danske data) |
+
+Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på MSCI's egne indeksdata. "MSCI" og "ACWI" er MSCI's varemærker. Market Radar er hverken tilknyttet eller godkendt af MSCI eller af nogen anden kilde i tabellen.
+
+## Praktiske regler for din kopi
+
+- Hold `data/`, `reports/` og `exports/` for dig selv. De kommer aldrig med i git; læg dem heller ikke ud andre steder.
+- Gør ikke `radar serve` tilgængelig på internettet eller dit netværk, så andre kan bruge den. Den lytter med vilje kun på `127.0.0.1`, altså din egen computer.
+- Respekter kildernes grænser. Radaren doserer sine forespørgsler og holder pause med en kilde, der beder om det (se [Drift](brugervejledning/drift)). Fjern ikke den begrænsning.
+- Angiv kilden, når du nævner et tal i noget, du offentliggør.
+
+## Hvis du vil tilbyde radaren til andre
+
+En hostet udgave, som andre logger ind på, kræver som minimum:
+
+1. **En licenseret dataleverandør** i stedet for Yahoo, med et abonnement, der udtrykkeligt tillader visning for tredjepart eller videregivelse for de børser, du har brug for (USA, Norden, Europa, Asien). Dagslukkekurser er overkommelige. Analytikerestimater, revisioner, nøgletal til screeneren og fondsbeholdninger er de dyre dele og må måske udelades.
+2. **Tilladelse eller erstatning** for FactSet, SSGA, iShares og indeksmedlemmer, AAII, Cboe og FRED-serier fra tredjeparter. Ellers må de funktioner udelades.
+3. **Kildeangivelse** for de åbne kilder (ECB, OECD, FRED, Damodaran).
+
+Det rejser også spørgsmål, der ligger uden for datalicenser: **finansiel regulering** (scorer og vurderinger vist til andre kan tælle som investeringsanbefalinger efter EU's markedsmisbrugsforordning (MAR) eller som rådgivning, der kræver tilladelse fra Finanstilsynet) og **GDPR**, fordi du ville opbevare andres porteføljer.

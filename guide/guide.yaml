@@ -35,6 +35,7 @@ books:
         chapters:
           - {slug: data-og-daekning, title: Data og dækning}
           - {slug: drift, title: "Drift: forespørgsler, fejl og pauser"}
+          - {slug: datalicenser, title: Datakilder og licenser}
           - {slug: fejlfinding, title: Fejlfinding og spørgsmål}
       - title: Claude Code og kommandolinjen
         chapters:

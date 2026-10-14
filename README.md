@@ -13,6 +13,10 @@ helps you spot:
 
 > **Not investment advice.** Market Radar is an analysis tool. The data comes from free sources (mostly Yahoo
 > Finance) without any guarantee. Check anything important before you act on it.
+>
+> **Personal use only.** The code is MIT-licensed, but the market data it downloads is not: most of it may only
+> be used for your own, non-commercial purposes. Don't host Market Radar for others or share the downloaded data.
+> See [DATA_LICENSE.md](DATA_LICENSE.md) for what's allowed, source by source.
 
 ---
 
@@ -88,8 +92,9 @@ frie midler, your horizon and limits), so the skills fit you.
   how to fix it. You can also run it yourself (see below).
 - **Some tickers have no data:** Yahoo Finance sometimes misses a ticker for a day. The *Data & coverage* page
   lists them, and the next update usually fixes it.
-- **Firewall or antivirus questions:** Market Radar only talks to Yahoo Finance, FRED, the OECD, the CFTC,
-  FactSet and SSGA (all public data). The app itself is only reachable from your own computer.
+- **Firewall or antivirus questions:** Market Radar only talks to its data sources (Yahoo Finance, FRED, the
+  OECD, the CFTC, the ECB, FactSet, SSGA, iShares, Cboe, AAII, multpl.com and NYU Stern; the full list is in
+  [DATA_LICENSE.md](DATA_LICENSE.md)). The app itself is only reachable from your own computer.
 - **Mac: "cannot be opened because it is from an unidentified developer":** right-click the file → *Open* (see
   step 3).
 - **Start over:** delete the `data/` and `reports/` folders and download the market data again. Your portfolio
@@ -109,4 +114,8 @@ frie midler, your horizon and limits), so the skills fit you.
 
 ## License
 
-[MIT](LICENSE). Use, change and share freely; no warranty.
+The code: [MIT](LICENSE). Use, change and share freely; no warranty.
+
+The market data the app downloads is **not** MIT-licensed. It belongs to its sources, and most of it is for
+personal, non-commercial use only: no hosting for others, no commercial use, no redistribution. Read
+[DATA_LICENSE.md](DATA_LICENSE.md) before you share anything beyond the code.
