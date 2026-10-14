@@ -55,6 +55,16 @@ export const GLOSSARY = {
   factor_tilts: "A regression on ACWI plus factor ETFs (momentum, value, quality, min-vol) and the sector ETF, each as a tilt vs ACWI. A loading with |t| above about 2 says the stock behaves like that factor; the remaining alpha is what isn't explained. Descriptive only: short sample, correlated factors.",
   risk_budget: "Position size (share of the portfolio) at which a fall to the rule stop costs 1% of the portfolio. A tight stop allows a bigger position; above 100% means the stop is too close for this rule to bound the risk.",
   max_age: "Days since the source's latest data point / the limit after which it counts as stale.",
+  r1w: "Total return over the last 5 trading days, from dividend-adjusted closes, in the listing currency.",
+  disc_score: "Momentum score 0–100, the same formula as the Momentum page (average percentile of 12-1-month, 6-month and 3-month returns), ranked within this market of the discovery scan.",
+  d_score: "Change in the score over the last month (21 trading days): the score now minus the score computed on prices a month ago. A big rise means the name is climbing the ranks.",
+  disc_size: "Market cap bucket in DKK: large from 50 billion, mid from 5 billion, small below. Unknown when Yahoo has no market cap.",
+  disc_cap: "Market capitalisation converted to DKK at the latest exchange rate (Yahoo's figure).",
+  liquidity: "Median traded value per day over the last 20 sessions, in DKK (price × volume). Below 1 million DKK a day the name is marked thin: wide spreads and big moves on small orders.",
+  disc_flags: "new to radar: not in the radar's lists, holdings or watchlist. 52w high: at a new 52-week high on 1.5× normal volume. trend turn: crossed above the 200-day average in the last 20 sessions with the 50-day rising. thin: little trading. check data: a daily move above 60% in the history, often a data error. stale: no price for over a week.",
+  off_radar: "Not in the radar's own lists, your holdings or your watchlist. Star it to add it to the watchlist and the daily update.",
+  new_high: "At a new 52-week closing high, with 20-day volume at least 1.5× the 120-day average.",
+  trend_turn: "Crossed above the 200-day average within the last 20 sessions while the 50-day average is rising: a possible change from downtrend to uptrend.",
 } as const;
 
 export const glossary = (k: string | undefined): string | undefined =>

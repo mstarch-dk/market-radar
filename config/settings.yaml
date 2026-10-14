@@ -63,6 +63,8 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     factset: 14            # weekly
     oecd: 75               # monthly, published with a ~2-month lag
     analyst: 21            # Yahoo consensus used for take-profit levels
+    discovery_universe: 45 # the discovery scan's list of names (re-built monthly)
+    discovery_prices: 10   # the discovery scan's prices (run it weekly)
   blind_spots:             # what the radar does not see; shown on the page and in summary.json
     - "Valuation: no P/E, earnings yield or equity risk premium. Only analyst price targets, and only for holdings and watchlist."
     - "Flows and sentiment: no fund flows, sentiment surveys (AAII, fund manager survey), options positioning, short interest or insider activity."
@@ -70,6 +72,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     - "Macro and credit are mostly US (FRED). Europe is seen only through the OECD leading indicator and price trends."
     - "Company fundamentals (margins, balance sheets, guidance) are not modelled."
     - "The universe is a sample: US = today's S&P 500, so breadth history has survivorship bias; Europe, Nordic and Asia are curated lists."
+    - "Discover widens the search (Nordic and European listings from Yahoo's screener, the STOXX 600, positive-list ETFs), but it is still Yahoo data: small caps are noisier, thinly traded names can jump, and today's list has no delisted names."
     - "News, events, earnings dates and policy only enter through the web research in /market-brief."
     - "Yahoo data is unofficial and comes without a quality guarantee. All prices are end-of-day."
 

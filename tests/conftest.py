@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from radar import coverage, tickers, universe, userstore
+from radar.discovery import scan
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -22,4 +23,9 @@ def tmp_data(tmp_path, monkeypatch):
     monkeypatch.setattr(userstore, "USERDATA", tmp_path / "userdata")
     monkeypatch.setattr(tickers, "DATA", tmp_path)
     monkeypatch.setattr(tickers, "_cache", None)
+    d = tmp_path / "discovery"
+    for name, path in {"DIR": d, "UNIVERSE_FILE": d / "universe.csv", "ISIN_MAP_FILE": d / "isin_map.csv",
+                       "PRICES_FILE": d / "prices.parquet", "SNAPSHOTS": d / "snapshots",
+                       "REPORT_FILE": tmp_path / "reports" / "discovery.json"}.items():
+        monkeypatch.setattr(scan, name, path)
     return tmp_path

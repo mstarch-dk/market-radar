@@ -601,6 +601,63 @@ class MomentumView(Snapshot):
     regions: list[MomentumRegion]
 
 
+class DiscoveryRow(Strict):
+    ticker: str
+    name: str | None = None
+    kind: Literal["stock", "etf"]
+    exchange: str | None = None
+    country: str | None = None
+    currency: str | None = None
+    sector: str | None = None
+    industry: str | None = None
+    category: str | None = None
+    isin: str | None = None
+    positive_list: str | None = None
+    market_cap_dkk: Num = None
+    size: Literal["large", "mid", "small"] | None = None
+    liquidity_dkk: Num = None
+    thin: bool | None = None
+    score: Num = None
+    score_prev: Num = None
+    d_score: Num = None
+    r1w: Num = None
+    r1m: Num = None
+    r3m: Num = None
+    r6m: Num = None
+    r12_1: Num = None
+    from_high: Num = None
+    vol_surge: Num = None
+    trend_ok: bool | None = None
+    new_high: bool | None = None
+    trend_turn: bool | None = None
+    quadrant: str | None = None
+    off_radar: bool
+    check_data: bool | None = None
+    stale: bool | None = None
+    spark: list[float]
+
+
+class DiscoveryMarket(Strict):
+    key: str
+    label: str
+    kind: Literal["stock", "etf"]
+    names: int
+    scored: int
+    rows: list[DiscoveryRow]
+
+
+class DiscoveryThresholds(Strict):
+    size_large_dkk: float
+    size_mid_dkk: float
+    liquidity_floor_dkk: float
+
+
+class DiscoveryView(Snapshot):
+    universe_asof: str
+    markets: list[DiscoveryMarket]
+    thresholds: DiscoveryThresholds
+
+
 class FactSetPoint(Strict):
     report_date: str
     quarter: str | None = None

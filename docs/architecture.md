@@ -3,6 +3,7 @@
 ## Config
 - `config/universe.yaml`: everything tracked: ETF groups, stock lists, macro tickers, CFTC/OECD sources, the watchlist, and `sector_etfs` (the sector ETF a stock is compared with on its profile, by Yahoo sector, with industry overrides). Theme ETFs carry a UCITS `isin`, checked against `imports/positivliste.xlsx` (SKAT list; only the latest year's sheet counts).
 - `config/settings.yaml`: thresholds (regime, momentum, rotation, stops, coverage limits).
+- `config/discovery.yaml`: the discovery scan: markets (exchanges, size floors, minimum counts), size and liquidity thresholds, flag settings, ETF listing preference and the name → category table.
 
 ## `src/radar/`
 - `updater.py`: the update steps behind `radar update`/`run` (each source logged, failures keep the cache) and the background job the app's *Update data* button runs. `health.py`: `radar doctor`.
@@ -17,6 +18,7 @@
 - `portfolio.py`: checks a trade before it is saved (unknown symbol, future date, oversold, price vs that day's close) and its effect on the position; the Portfolio page's positions view.
 - `importers/`: broker exports → trades: reading CSV/XLSX in any encoding, presets in `presets.yaml`, generic column names, symbol matching, `preview` (never writes) and `commit`.
 - `snapshot.py`: rank history for "new" and "Δ rank".
+- `discovery/`: the separate wide scan. `sources.py` (Yahoo screener per exchange and per sector, cross-listing removal, iShares STOXX 600 holdings, positive-list ISIN → Yahoo ETF mapping, share-class choice, ETF categories; every source checks its counts and raises), `scan.py` (universe cache `data/discovery/universe.csv`, its own price store `data/discovery/prices.parquet` re-downloaded each scan with retries for Yahoo's rate limit, `reports/discovery.json`, snapshots in `data/discovery/snapshots/`). `signals/discovery.py` scores each market with the momentum formula and adds Δscore, size, liquidity and flags. Nothing here feeds the regime, breadth or the momentum page; `coverage.py` shows its age on the Data page without counting it in "oldest input" or stale sources.
 - `coverage.py`: per-source freshness and coverage, the update log `data/sources.json`, and blind spots. These feed the "Data & coverage" page and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
 - `profile.py`: one ticker's full profile (used by `radar info` and the API), including the risk section; `compare()` puts several side by side with ACWI (`radar info A B`, the `/compare` skill).
 - `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).

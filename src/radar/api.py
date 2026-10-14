@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import dashboard, mine, portfolio, profile, tickers, universe, updater, userstore
 from .api_models import (
-    AppContext, CoverageView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
+    AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
     Account, AccountIn, PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
@@ -135,6 +135,33 @@ def get_positioning() -> dict:
 @app.get("/api/coverage", response_model=CoverageView)
 def get_coverage() -> dict:
     return _view("coverage")
+
+
+# ---------------- discover: the separate wide scan ----------------
+
+@app.get("/api/discover", response_model=DiscoveryView)
+def get_discover() -> dict:
+    """The last discovery scan (reports/discovery.json); stale once older than its price limit in settings."""
+    from .discovery import scan
+
+    d = scan.load_report()
+    if d is None:
+        raise HTTPException(503, "No discovery scan yet: start one on this page or run `uv run radar discover`.")
+    age = (date.today() - date.fromisoformat(d["asof"])).days
+    return {"age_days": age, "stale": age > settings()["coverage"]["max_age"]["discovery_prices"], **d}
+
+
+@app.get("/api/discover/scan", response_model=UpdateStatus)
+def discover_status() -> dict:
+    return updater.DISCOVER_JOB.state
+
+
+@app.post("/api/discover/scan", response_model=UpdateStatus)
+def start_discover() -> dict:
+    """Start the discovery scan in the background (a few minutes; the first one longer)."""
+    if not updater.DISCOVER_JOB.start():
+        raise HTTPException(409, "A discovery scan is already running.")
+    return updater.DISCOVER_JOB.state
 
 
 # ---------------- your holdings and watchlist ----------------

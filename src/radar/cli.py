@@ -30,6 +30,19 @@ def run(refresh_constituents: bool = False):
 
 
 @app.command()
+def discover(refresh_universe: bool = typer.Option(False, "--refresh-universe",
+                                                   help="Re-build the list of names now (otherwise monthly)")):
+    """The discovery scan: Nordic and European stocks and positive-list ETFs beyond the radar's own lists
+    (reports/discovery.json, the Discover page). Separate from `radar run`; run it about weekly."""
+    from .discovery import scan
+
+    def progress(done: int, total: int) -> None:
+        typer.echo(f"  … {done} of {total}")
+
+    scan.run(typer.echo, progress, refresh_universe)
+
+
+@app.command()
 def doctor(offline: bool = typer.Option(False, "--offline", help="Skip the network checks")):
     """Check that everything Market Radar needs is in place, and say how to fix what isn't."""
     from . import health

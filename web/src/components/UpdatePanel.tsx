@@ -2,25 +2,34 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { api } from "../api/client";
 
-/** "Update data" from the app: starts the same refresh as `uv run radar run` and shows its progress, so nobody
- *  needs a terminal. When it finishes, every page reloads its data. */
-export function UpdatePanel({ compact, label = "Update data" }: { compact?: boolean; label?: string }) {
+const JOBS = {
+  daily: { key: "update", status: api.updateStatus, start: api.startUpdate, unit: "tickers" },
+  discover: { key: "discover-scan", status: api.discoverStatus, start: api.startDiscover, unit: "" },
+} as const;
+
+/** "Update data" from the app: starts the same refresh as `uv run radar run` (or, with `job="discover"`, the
+ *  discovery scan) and shows its progress, so nobody needs a terminal. When it finishes, every page reloads its
+ *  data. */
+export function UpdatePanel({ compact, label = "Update data", job = "daily" }: {
+  compact?: boolean; label?: string; job?: keyof typeof JOBS;
+}) {
+  const j = JOBS[job];
   const qc = useQueryClient();
   const status = useQuery({
-    queryKey: ["update"], queryFn: api.updateStatus,
+    queryKey: [j.key], queryFn: j.status,
     refetchInterval: (q) => (q.state.data?.status === "running" ? 1500 : false),
   });
   const start = useMutation({
-    mutationFn: api.startUpdate,
-    onSuccess: (s) => qc.setQueryData(["update"], s),
+    mutationFn: j.start,
+    onSuccess: (s) => qc.setQueryData([j.key], s),
   });
   const s = status.data;
   const running = s?.status === "running";
   const was = useRef(s?.status);
   useEffect(() => {                 // a finished update: reload everything the pages show
-    if (was.current === "running" && s && s.status !== "running") qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== "update" });
+    if (was.current === "running" && s && s.status !== "running") qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== j.key });
     was.current = s?.status;
-  }, [s, qc]);
+  }, [s, qc, j.key]);
 
   const pct = s?.progress ? Math.round((100 * s.progress.done) / Math.max(1, s.progress.total)) : null;
   return (
@@ -31,7 +40,7 @@ export function UpdatePanel({ compact, label = "Update data" }: { compact?: bool
         </button>
         {running && (
           <span className="small muted">
-            {s?.progress ? `${s.progress.label}: ${s.progress.done} of ${s.progress.total} tickers (${pct}%)` : "Working…"}
+            {s?.progress ? `${s.progress.label}: ${s.progress.done} of ${s.progress.total}${j.unit ? ` ${j.unit}` : ""} (${pct}%)` : "Working…"}
             {" "}You can keep using the app; pages refresh when it's done.
           </span>
         )}

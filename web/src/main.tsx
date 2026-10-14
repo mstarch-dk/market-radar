@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { Search } from "./components/Search";
 import { Data } from "./pages/Data";
+import { Discover } from "./pages/Discover";
 import { Home } from "./pages/Home";
 import { Me } from "./pages/Me";
 import { Momentum } from "./pages/Momentum";
@@ -20,6 +21,7 @@ const PAGES = [
   ["/rotation", "Sector rotation", <Rotation />],
   ["/themes", "Themes & factors", <Themes />],
   ["/momentum", "Momentum", <Momentum />],
+  ["/discover", "Discover", <Discover />],
   ["/positioning", "Positioning & cycle", <Positioning />],
   ["/me", "My holdings & watchlist", <Me />],
   ["/portfolio", "Portfolio", <Portfolio />],

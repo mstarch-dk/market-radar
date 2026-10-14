@@ -80,8 +80,10 @@ def build_report(log: Log = print) -> dict:
 class UpdateJob:
     """One data refresh at a time, run in a thread; its log and progress can be polled."""
 
-    def __init__(self, work: Callable[[Log, Callable[[int, int], None]], None] | None = None):
+    def __init__(self, work: Callable[[Log, Callable[[int, int], None]], None] | None = None,
+                 label: str = "Downloading prices"):
         self._lock = threading.Lock()
+        self._label = label
         self._work = work or (lambda log, progress: (update(log, progress=progress), build_report(log)))
         self.state = {"status": "idle", "started": None, "finished": None, "log": [], "progress": None, "error": None}
 
@@ -89,7 +91,7 @@ class UpdateJob:
         self.state["log"] = [*self.state["log"], f"{datetime.now():%H:%M:%S} {line}"][-200:]
 
     def _progress(self, done: int, total: int) -> None:
-        self.state["progress"] = {"done": done, "total": total, "label": "Downloading prices"}
+        self.state["progress"] = {"done": done, "total": total, "label": self._label}
 
     def start(self) -> bool:
         """Start a refresh; False if one is already running."""
@@ -114,4 +116,11 @@ class UpdateJob:
             self.state["progress"] = None
 
 
+def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
+    from .discovery import scan
+
+    scan.run(log, progress)
+
+
 JOB = UpdateJob()
+DISCOVER_JOB = UpdateJob(_discover, "Scanning")  # the separate discovery scan (Discover page)

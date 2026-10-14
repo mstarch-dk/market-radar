@@ -149,7 +149,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
 
 
 FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", "GBp": "GBPDKK=X",
-          "SEK": "SEKDKK=X", "NOK": "NOKDKK=X", "CHF": "CHFDKK=X",
+          "SEK": "SEKDKK=X", "NOK": "NOKDKK=X", "CHF": "CHFDKK=X", "PLN": "PLNDKK=X",
           "JPY": "JPYDKK=X", "HKD": "HKDDKK=X"}
 
 

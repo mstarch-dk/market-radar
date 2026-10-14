@@ -20,6 +20,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `GET /api/regime`, `/api/rotation`, `/api/momentum`, `/api/positioning`, `/api/coverage`: the sections of `reports/dashboard.json` from the last `radar run`, each with `asof`, `generated`, `age_days` and `stale` (older than `coverage.max_age.prices`; the pages then show a warning).
 - `GET /api/tickers`: every tracked symbol in brief (price, 1d/1m/3m, score or quadrant, 6-month weekly sparkline, your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime for the stop levels come from the dashboard).
+- `GET /api/discover`: the last discovery scan (`reports/discovery.json`), stale after `coverage.max_age.discovery_prices`; 503 until the first scan. `GET` / `POST /api/discover/scan`: run the scan from the app (`updater.DISCOVER_JOB`, same status shape as `/api/update`).
 - `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines, price-download progress; 409 while running).
 - `POST /api/import`: a Yahoo Finance portfolio CSV as the request body (the quick path on the holdings and welcome pages).
 - Portfolio editor (`/portfolio` page):
@@ -31,13 +32,14 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - An untracked ticker is downloaded on its first lookup (~10 s). It is kept in `prices.parquet` but not added to the daily update. A failing Yahoo section returns `status: missing`; an unknown symbol returns 404.
 
 ## Pages
-`/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/positioning`, `/me`, `/data`, `/ticker/:symbol`. "/" focuses the search from anywhere.
+`/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map + screener over the discovery scan; market, colour, size and grouping in the URL as `mkt`, `color`, `size`, `by`; presets set the `d.*` table filters), `/positioning`, `/me`, `/portfolio`, `/data`, `/ticker/:symbol`. "/" focuses the search from anywhere.
 
 ## Building blocks (`web/src/components`, `web/src/lib`)
 - `TickerLink`: every ticker links to its profile, shows a hover card (`/api/tickers`) and a small held/watch marker. `WatchStar` / `WatchButton` edit the watchlist.
 - `DataTable` + `TableToolbar`: pages only declare columns (`columns.ts`: `sort`, `search`, `filter` enum/bool/range, `help`, `heat`, `hidden`, `csv`). Sort, search and filters live in the URL as `?{tableId}.sort=…&{tableId}.q=…&{tableId}.f.{col}=…` (`lib/tableState.ts`, pure and unit-tested), so views survive reloads and Back undoes a filter. Tables sharing an id (the momentum regions) share one toolbar. A range filter leaves out rows without data and says how many; missing values always sort last. Hidden columns are remembered per browser (`localStorage`).
 - `Tip` / `Term` / `lib/glossary.ts`: hover-and-focus explanations for every metric label. Add new metrics to the glossary.
 - `LineChart` (ranges, crosshair readout), `RrgChart` (linked to its table: hover highlights, table filters decide which trails show), `PriceChart` (session readout).
+- `Treemap` (`lib/treemap.ts`: squarified layout, pure and unit-tested): grouped tiles sized by a measure and coloured on the graded palette; unknown sizes are drawn at the smallest known size and counted above the map. Hidden below 640 px.
 - Effects must use a block body when they call something that returns a value (`window.scrollTo` returns a Promise in current Chromium, which React would run as a cleanup and crash).
 
 ## Stack

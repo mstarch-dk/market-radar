@@ -35,6 +35,9 @@ SOURCES = {
                       "Themes (UCITS check)"),
     "holdings": ("Holdings & transactions", "Yahoo portfolio export (manual)", False, "manual",
                  "Holdings, Levels"),
+    "discovery_universe": ("Discovery universe", "Yahoo screener, iShares STOXX 600 holdings, positive list → Yahoo",
+                           False, "monthly re-build", "Discover"),
+    "discovery_prices": ("Discovery prices", "Yahoo Finance via yfinance", False, "each discovery scan", "Discover"),
 }
 
 
@@ -180,18 +183,38 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     else:
         rows.append(_row("holdings", None, ref, None, "no import", "", log, state=MISSING))
 
+    rows += _discovery_rows(today, max_age, log)
+
     reg = regime_counts(indicators)
     dated = [r for r in rows if r["age_days"] is not None and r["status"] in (OK, STALE) and r["key"] != "prices"
-             and r["max_age"] is not None]
+             and r["max_age"] is not None and not r["key"].startswith("discovery")]
     oldest = max(dated, key=lambda r: r["age_days"], default=None)
     return {
         "sources": rows, "regime": reg,
         "oldest": {"name": oldest["name"], "asof": oldest["asof"], "age_days": oldest["age_days"]} if oldest else None,
         "failing": [r["name"] for r in rows if r["error"]],
-        "stale_sources": [r["name"] for r in rows if r["status"] == STALE],
+        "stale_sources": [r["name"] for r in rows if r["status"] == STALE and not r["key"].startswith("discovery")],
         "missing_tickers": missing, "stale_tickers": stale,
         "blind_spots": cfg["coverage"].get("blind_spots") or [],
     }
+
+
+def _discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
+    """The separate discovery scan: how many names, and how old its universe and prices are (missing until the
+    first `radar discover`)."""
+    from .discovery import scan
+
+    uni = scan.load_universe()
+    by_market = ", ".join(f"{n} {m}" for m, n in uni["market"].value_counts().items()) if not uni.empty else ""
+    rows = [_row("discovery_universe", _mtime(scan.UNIVERSE_FILE), today, max_age.get("discovery_universe"),
+                 f"{len(uni)} names" if not uni.empty else "not built yet", by_market, log)]
+    last = None
+    if scan.PRICES_FILE.exists():
+        d = pd.read_parquet(scan.PRICES_FILE, columns=["date"])["date"]
+        last = pd.Timestamp(d.max()) if len(d) else None
+    rows.append(_row("discovery_prices", last, today, max_age.get("discovery_prices"),
+                     "separate from the daily update", "Run it from the Discover page or `radar discover`", log))
+    return rows
 
 
 def regime_counts(indicators: list[dict]) -> dict:

@@ -1,0 +1,310 @@
+"""The discovery scan (`radar discover`, or the button on the Discover page): build the wide universe, download
+about 14 months of prices for it, and write reports/discovery.json.
+
+It is kept apart from the daily radar: its own price store (data/discovery/), its own report, and nothing here
+reaches the regime vote, breadth or the momentum page. Each step is logged in data/sources.json; a failed step
+keeps its cached data."""
+from __future__ import annotations
+
+import json
+import time
+from datetime import date, datetime, timedelta
+from typing import Callable
+
+import pandas as pd
+
+from .. import coverage, ingest, universe
+from ..config import DATA, REPORTS, discovery_config, settings, write_parquet
+from ..signals import discovery as sig
+from . import sources
+
+DIR = DATA / "discovery"
+UNIVERSE_FILE = DIR / "universe.csv"
+ISIN_MAP_FILE = DIR / "isin_map.csv"
+PRICES_FILE = DIR / "prices.parquet"
+SNAPSHOTS = DIR / "snapshots"
+REPORT_FILE = REPORTS / "discovery.json"
+
+Log = Callable[[str], None]
+Progress = Callable[[int, int], None]
+STOXX_KEEP: set[str] = set()   # STOXX 600 members found while building: never dropped as duplicates
+UNIVERSE_COLS = ["ticker", "name", "market", "kind", "exchange", "country", "currency", "market_cap_dkk",
+                 "sector", "industry", "category", "isin"]
+
+
+# ---------------- FX ----------------
+
+def fx_rates() -> dict[str, float]:
+    """Latest DKK rate per currency (DKK = 1): from the radar's own price store when it is recent, else Yahoo.
+    Raises if neither has rates."""
+    import yfinance as yf
+
+    pairs = {c: t for c, t in universe.FX_DKK.items() if t and c != "GBp"}
+    stored = ingest.load_prices()
+    if not stored.empty:
+        fx = stored[stored["ticker"].isin(set(pairs.values()))].copy()
+        fx["date"] = pd.to_datetime(fx["date"])
+        last = fx.sort_values("date").groupby("ticker").last()
+        recent = last[last["date"] >= pd.Timestamp.today().normalize() - pd.Timedelta(days=7)]
+        out = {"DKK": 1.0} | {c: float(recent.loc[t, "close"]) for c, t in pairs.items() if t in recent.index}
+        if {"EUR", "USD", "GBP", "SEK", "NOK", "CHF"} <= set(out):   # a rate still missing (e.g. a new
+            return out                                                    # currency) leaves those caps unknown
+    raw = sources.retry(lambda: yf.download(sorted(set(pairs.values())), period="10d", auto_adjust=False,
+                                            progress=False, group_by="ticker"))
+    out = {"DKK": 1.0}
+    for ccy, t in pairs.items():
+        try:
+            s = raw[t]["Close"].dropna()
+        except KeyError:
+            continue
+        if len(s):
+            out[ccy] = float(s.iloc[-1])
+    if len(out) < 4:
+        raise RuntimeError("no FX rates from Yahoo")
+    return out
+
+
+# ---------------- universe ----------------
+
+def load_universe() -> pd.DataFrame:
+    if not UNIVERSE_FILE.exists():
+        return pd.DataFrame(columns=UNIVERSE_COLS)
+    return pd.read_csv(UNIVERSE_FILE, keep_default_na=False, na_values={"market_cap_dkk": [""]})
+
+
+def _stocks(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
+    quotes = {code: sources.screen_exchange(code) for code in mk["exchanges"]}
+    keep, stoxx = set(), None
+    if mk.get("stoxx600"):
+        stoxx = sources.fetch_stoxx600()
+        stoxx = stoxx[stoxx["exchange"].isin(mk["exchanges"])]   # Nordic members belong to the Nordic market
+        keep = set(stoxx["ticker"])
+        STOXX_KEEP.update(keep)
+    df = sources.home_listings(quotes, fx, mk["min_cap_dkk"], keep)
+    sources.check_counts(df, mk.get("min_count"), mk["label"])
+    if stoxx is not None:
+        extra = stoxx[~stoxx["ticker"].isin(set(df["ticker"]))]
+        log(f"  {len(stoxx)} STOXX 600 members, {len(extra)} of them not in Yahoo's screener (kept, size unknown)")
+        df = pd.concat([df, extra.drop(columns="sector_hint")], ignore_index=True)
+        hints = dict(zip(stoxx["ticker"], stoxx["sector_hint"]))
+    else:
+        hints = {}
+    df["kind"] = "stock"
+    secs = sources.screen_sectors(mk["exchanges"])
+    df["sector"] = df["ticker"].map(secs).fillna(df["ticker"].map(hints)).fillna("")
+    return df
+
+
+def _etfs(mk: dict, cfg: dict, log: Log, progress: Progress | None) -> pd.DataFrame:
+    pl = universe.positive_list()
+    if pl is None:
+        raise RuntimeError("no positive list: save SKAT's list as imports/positivliste.xlsx")
+    funds = sources.positive_list_funds(pl)
+    cached = pd.read_csv(ISIN_MAP_FILE, keep_default_na=False) if ISIN_MAP_FILE.exists() else pd.DataFrame(
+        columns=["isin", "symbol", "exchange", "yahoo_name", "quote_type"])
+    todo = len(set(funds["isin"]) - set(cached["isin"]))
+    if todo:
+        n = min(todo, cfg["isin_lookups_per_scan"])
+        log(f"  looking up {n} of {todo} new positive-list ISINs on Yahoo (cached; the rest on later scans)…")
+    isin_map = sources.map_isins(list(funds["isin"]), cached, cfg["etf_exchanges"], progress=progress,
+                                 budget=cfg["isin_lookups_per_scan"])
+    DIR.mkdir(parents=True, exist_ok=True)
+    isin_map.to_csv(ISIN_MAP_FILE, index=False)
+    picked = sources.pick_share_classes(funds, isin_map, cfg["etf_exchanges"])
+    if len(picked) < mk.get("min_count", 0):
+        raise ValueError(f"only {len(picked)} positive-list ETFs found on Yahoo (expected ≥ {mk['min_count']})")
+    names = [y or s for y, s in zip(picked["yahoo_name"], picked["sub_fund"])]
+    return pd.DataFrame({
+        "ticker": picked["symbol"], "name": names, "kind": "etf", "exchange": picked["exchange"],
+        "country": None, "currency": None, "market_cap_dkk": None, "isin": picked["isin"],
+        "category": [sources.etf_category(f"{n} {s}", cfg["etf_categories"]) for n, s in zip(names, picked["sub_fund"])],
+    })
+
+
+def build_universe(log: Log = print, progress: Progress | None = None) -> pd.DataFrame:
+    """Every market's names, from scratch. A market that fails keeps its cached rows (and is reported)."""
+    cfg = discovery_config()
+    fx = fx_rates()
+    cached = load_universe()
+    frames, failed = [], []
+    for key, mk in cfg["markets"].items():
+        try:
+            df = _etfs(mk, cfg, log, progress) if mk["kind"] == "etf" else _stocks(key, mk, fx, log)
+            df["market"] = key
+            log(f"  {mk['label']}: {len(df)} names")
+            frames.append(df)
+        except Exception as e:
+            old = cached[cached["market"] == key]
+            failed.append(f"{mk['label']} ({type(e).__name__}: {e})")
+            log(f"  {mk['label']}: FAILED ({type(e).__name__}: {e}); keeping {len(old)} cached names")
+            if not old.empty:
+                frames.append(old)
+    if not frames:
+        raise RuntimeError("no market could be built: " + "; ".join(failed))
+    # a company in two stock markets (e.g. a Nordic name's German listing) stays only in the first one
+    stocks, seen = [], []
+    for f in frames:
+        if not f.empty and (f["kind"] == "stock").all():
+            f = sources.drop_known_names(f, seen, keep=set(f["ticker"]) & STOXX_KEEP)
+            seen += list(f["name"])
+        stocks.append(f)
+    frames = stocks
+    df = pd.concat(frames, ignore_index=True).drop_duplicates("ticker")
+
+    # quote currencies for ETFs (a cached Yahoo lookup shared with the radar); industries only where the radar
+    # already knows them (one profile call per company would hit Yahoo's rate limit)
+    need_ccy = df.loc[df["currency"].isna() | (df["currency"] == ""), "ticker"].tolist()
+    if need_ccy:
+        log(f"  looking up quote currencies for {len(need_ccy)} ETFs (cached)…")
+        cur = universe.currencies(need_ccy)
+        df.loc[df["ticker"].isin(need_ccy), "currency"] = df["ticker"].map(cur)
+    known = universe.DATA / "sectors.csv"
+    ind = pd.read_csv(known, keep_default_na=False).set_index("ticker")["industry"] if known.exists() else pd.Series(dtype=str)
+    df["industry"] = df["ticker"].map(ind).fillna("")
+    for col in ("sector", "category"):
+        df[col] = df[col].fillna("") if col in df else ""
+    df = df.reindex(columns=UNIVERSE_COLS)
+    DIR.mkdir(parents=True, exist_ok=True)
+    df.to_csv(UNIVERSE_FILE, index=False)
+    if failed:
+        raise PartialFailure(f"{len(df)} names; failed: {'; '.join(failed)}")
+    return df
+
+
+class PartialFailure(RuntimeError):
+    """The universe was built, but some market failed and kept its cached names."""
+
+
+def universe_age_days() -> float | None:
+    return (time.time() - UNIVERSE_FILE.stat().st_mtime) / 86400 if UNIVERSE_FILE.exists() else None
+
+
+# ---------------- prices ----------------
+
+def load_prices() -> pd.DataFrame:
+    return pd.read_parquet(PRICES_FILE) if PRICES_FILE.exists() else pd.DataFrame(columns=ingest.COLUMNS)
+
+
+def update_prices(tickers: list[str], progress: Progress | None = None, log: Log = print, sleep=time.sleep,
+                  waits: tuple[int, ...] = (60, 180)) -> dict:
+    """Re-download the whole window (cheap at this length, and always consistently adjusted). Names Yahoo
+    refused (rate limit) are asked for again after a pause, twice."""
+    start = date.today() - timedelta(days=discovery_config()["history_days"])
+    frames = [ingest._download(tickers, start, progress)]
+    for wait in waits:
+        missing = sorted(set(tickers) - set(pd.concat(frames)["ticker"]))
+        if not missing or len(missing) < 0.02 * len(tickers):
+            break
+        log(f"  {len(missing)} names got no prices (Yahoo's rate limit?): trying again in {wait} s…")
+        sleep(wait)
+        frames.append(ingest._download(missing, start, progress))
+    df = ingest._norm_dates(pd.concat(frames, ignore_index=True)).drop_duplicates(["ticker", "date"], keep="last")
+    got = set(df["ticker"])
+    if len(got) < 0.5 * len(tickers):
+        raise RuntimeError(f"prices for only {len(got)} of {len(tickers)} names; keeping the previous download")
+    write_parquet(df.sort_values(["ticker", "date"]), PRICES_FILE, index=False)
+    return {"requested": len(tickers), "got": len(got), "missing": sorted(set(tickers) - got)}
+
+
+# ---------------- report ----------------
+
+def _wide(prices: pd.DataFrame, field: str) -> pd.DataFrame:
+    return prices.pivot(index="date", columns="ticker", values=field).sort_index()
+
+
+def build_report(fx: dict[str, float] | None = None) -> dict:
+    from ..dashboard import _clean
+
+    cfg = discovery_config()
+    meta = load_universe()
+    prices = load_prices()
+    if meta.empty or prices.empty:
+        raise RuntimeError("no discovery universe or prices yet: run `radar discover`")
+    prices["date"] = pd.to_datetime(prices["date"])
+    closes = _wide(prices, "close").ffill(limit=5)
+    raw = _wide(prices, "raw_close")
+    volumes = _wide(prices, "volume")
+    bench = universe.benchmark()
+    asof = closes[bench].dropna().index[-1] if bench in closes else closes.index[-1]
+    fx = fx or {c: float(closes[t].dropna().iloc[-1]) for c, t in universe.FX_DKK.items()
+                if t and t in closes and closes[t].notna().any()} | {"DKK": 1.0}
+    tracked = set(universe.all_price_tickers(offline=True))
+    s = settings()
+    df = sig.compute(closes, raw, volumes, meta, bench, fx, tracked, cfg, s["momentum"]["min_history_days"], asof,
+                     s["rotation"]["window"])
+    df = df.merge(meta.drop(columns=["market"]), on="ticker", how="left")
+    isins = universe.positive_list_isins()
+    df["positive_list"] = [universe.positive_list_flag(i, isins) if k == "etf" else None
+                           for i, k in zip(df["isin"], df["kind"])]
+    df["spark"] = [sig.sparkline(closes[t]) for t in df["ticker"]]
+    keys = ["ticker", "name", "kind", "exchange", "country", "currency", "sector", "industry", "category", "isin",
+            "positive_list", "market_cap_dkk", "size", "liquidity_dkk", "thin", "score", "score_prev", "d_score",
+            "r1w", "r1m", "r3m", "r6m", "r12_1", "from_high", "vol_surge", "trend_ok", "new_high", "trend_turn",
+            "quadrant", "off_radar", "check_data", "stale", "spark"]
+    markets = []
+    for key, mk in cfg["markets"].items():
+        part = df[df["market"] == key].sort_values("score", ascending=False, na_position="last")
+        rows = [{k: _clean(r.get(k)) for k in keys} for r in part.to_dict("records")]
+        for r in rows:   # text columns: empty means unknown
+            for k in ("exchange", "country", "currency", "sector", "industry", "category", "isin"):
+                r[k] = r[k] or None
+        markets.append({"key": key, "label": mk["label"], "kind": mk["kind"],
+                        "names": int((meta["market"] == key).sum()), "scored": int(part["score"].notna().sum()),
+                        "rows": rows})
+    data = {"generated": datetime.now().isoformat(timespec="seconds"), "asof": asof.date().isoformat(),
+            "universe_asof": datetime.fromtimestamp(UNIVERSE_FILE.stat().st_mtime).date().isoformat(),
+            "markets": markets,
+            "thresholds": {"size_large_dkk": cfg["size_dkk"]["large"], "size_mid_dkk": cfg["size_dkk"]["mid"],
+                           "liquidity_floor_dkk": cfg["liquidity_floor_dkk"]}}
+    REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = REPORT_FILE.with_name(REPORT_FILE.name + ".tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":"), allow_nan=False), encoding="utf-8")
+    tmp.replace(REPORT_FILE)
+    SNAPSHOTS.mkdir(parents=True, exist_ok=True)
+    df[["ticker", "market", "score"]].to_parquet(SNAPSHOTS / f"{date.today().isoformat()}.parquet", index=False)
+    return {"asof": data["asof"], "names": len(df), "scored": int(df["score"].notna().sum())}
+
+
+def load_report() -> dict | None:
+    try:
+        return json.loads(REPORT_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+
+
+# ---------------- the whole scan ----------------
+
+def run(log: Log = print, progress: Progress | None = None, refresh_universe: bool = False) -> dict:
+    """Universe (when older than `universe_max_age_days`, or asked), prices, report. Steps are logged in
+    data/sources.json; a failing step keeps its cached data."""
+    cfg = discovery_config()
+    t0 = time.time()
+    age = universe_age_days()
+    if refresh_universe or age is None or age > cfg["universe_max_age_days"]:
+        log("Building the discovery universe (Yahoo screener, STOXX 600, positive list)…")
+        try:
+            df = build_universe(log, progress)
+            coverage.record("discovery_universe", True, f"{len(df)} names")
+        except PartialFailure as e:
+            coverage.record("discovery_universe", False, error=str(e))
+        except Exception as e:
+            coverage.record("discovery_universe", False, error=f"{type(e).__name__}: {e}")
+            if load_universe().empty:
+                raise
+            log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
+    meta = load_universe()
+    fx_tickers = sorted({t for t in universe.FX_DKK.values() if t})
+    tickers = sorted(set(meta["ticker"]) | {universe.benchmark()} | set(fx_tickers))
+    log(f"Downloading prices for {len(tickers)} names…")
+    try:
+        res = update_prices(tickers, progress, log)
+        msg = f"{res['got']} of {res['requested']} names"
+        coverage.record("discovery_prices", True, msg + (f"; no data for {len(res['missing'])}" if res["missing"] else ""))
+        log(f"Prices: {msg}.")
+    except Exception as e:
+        coverage.record("discovery_prices", False, error=f"{type(e).__name__}: {e}")
+        log(f"Prices: FAILED ({type(e).__name__}: {e}); using the previous download.")
+    out = build_report()
+    log(f"Discovery: {out['scored']} of {out['names']} names scored (data as of {out['asof']}) in "
+        f"{round(time.time() - t0)} s.")
+    return out

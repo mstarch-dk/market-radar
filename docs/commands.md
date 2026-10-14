@@ -7,6 +7,7 @@ Always run Python through uv; the frontend uses pnpm.
 - `uv run radar doctor [--offline]`: plain-language setup check (Python, web build, data age, positive list, portfolio, investor profile, the data services), with how to fix each problem. The start scripts run it when something fails.
 - The web app can do the same without a terminal: *Update data* (Data & coverage page, stale banner, welcome page), and the *Portfolio* page for entering, importing and correcting trades.
 - `uv run radar update` / `uv run radar report`: the two halves of `run`. `update --refresh-constituents` re-fetches the S&P 500 list.
+- `uv run radar discover [--refresh-universe]`: the separate discovery scan (Nordic and European stocks from Yahoo's screener, the STOXX 600, positive-list ETFs) → `reports/discovery.json` for the *Discover* page. Run it about weekly; the list of names is re-built monthly (or with `--refresh-universe`). The page's *Scan again* button does the same. It never touches `radar run`'s data.
 
 ## Holdings
 - `uv run radar portfolio list [--symbol X] [--account A]` / `add BUY|SELL <ticker> <qty> <price> [--date] [--fee] [--account] [--yes]` / `export [--out file]`: the stored trades, checked like in the app (errors block; warnings need `--yes`).

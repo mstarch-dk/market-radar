@@ -1,0 +1,56 @@
+# The discovery scan (`radar discover`, the Discover page): a much wider universe than universe.yaml, scanned
+# separately so the daily `radar run` stays fast. Nothing here feeds the regime vote, breadth or the momentum page.
+
+history_days: 400            # price history per scan (enough for 12-1 momentum); re-downloaded in full each scan
+universe_max_age_days: 30    # re-build the list of names after this (prices are refreshed on every scan)
+isin_lookups_per_scan: 800   # new positive-list ISINs searched on Yahoo per scan (more trips its rate limit)
+
+markets:
+  nordic:
+    label: Nordic
+    kind: stock
+    exchanges: [CPH, STO, OSL, HEL]       # Yahoo screener, primary listings only
+    min_cap_dkk: 3.0e+8
+    min_count: {CPH: 60, STO: 250, OSL: 120, HEL: 50}   # fewer means Yahoo's screener changed: keep the cache
+  europe:
+    label: Europe
+    kind: stock
+    stoxx600: true                        # every STOXX Europe 600 member (iShares EXSA holdings), any size
+    exchanges: [GER, PAR, AMS, MIL, MCE, EBS, LSE, BRU, VIE, LIS, ISE, WSE]
+    min_cap_dkk: 1.5e+9                   # names outside the STOXX 600 need at least this market cap
+    min_count: {GER: 150, PAR: 120, LSE: 300}
+  etfs:
+    label: UCITS ETFs
+    kind: etf
+    source: positive_list                 # SKAT's positive list (imports/positivliste.xlsx), mapped ISIN -> Yahoo
+    min_count: 200
+
+size_dkk:                    # market-cap buckets (DKK)
+  large: 5.0e+10
+  mid: 5.0e+9                # below mid = small
+liquidity_floor_dkk: 1.0e+6  # median daily traded value over 20 sessions; below = "thin"
+check_data_move: 0.6         # a daily move beyond ±60% in the adjusted close = "check data"
+
+flags:
+  new_high_vol: 1.5          # new 52-week high on at least this volume surge (20d / 120d)
+  trend_turn_days: 20        # crossed above the 200-day average within this many sessions
+  d_score_days: 21           # Δscore: score now minus the score this many sessions ago
+
+# Yahoo listing preference when an ISIN has several (first = best); others are used only if nothing else exists
+etf_exchanges: [GER, AMS, LSE, MIL, CPH, EBS, PAR, STO, FRA]
+
+# ETF category from its name (first match wins; matched case-insensitively). "Other" when nothing matches.
+etf_categories:
+  - [Bonds, [BOND, TREASUR, GOVT, GOVERNMENT, CORP, AGGREGATE, CREDIT, "HIGH YIELD", "FIXED", "MONEY MARKET", "0-1", "1-3", "3-7", "7-10", "10+", "20+", LIQUIDITY, "€STR", OVERNIGHT, INFLATION, TIPS, BUND]]
+  - [Commodities, [GOLD, SILVER, COMMODIT, OIL, METAL, COPPER]]
+  - [Technology & AI, [SEMICONDUCTOR, CHIP, TECH, "ARTIFICIAL INTELLIGENCE", " AI ", ROBOT, AUTOMATION, CYBER, CLOUD, DIGITAL, INTERNET, SOFTWARE, BLOCKCHAIN, METAVERSE, GAMING, "INFORMATION"]]
+  - [Health, [HEALTH, BIOTECH, PHARMA, MEDICAL, GENOM]]
+  - [Clean energy & climate, [CLEAN, SOLAR, WIND, HYDROGEN, BATTER, "ENERGY TRANSITION", CLIMATE, PARIS, WATER, "LOW CARBON", URANIUM, NUCLEAR, ELECTRIF]]
+  - [Defence & industrials, [DEFENCE, DEFENSE, AEROSPACE, INDUSTRIAL, INFRASTRUCTURE]]
+  - [Financials & real estate, [BANK, FINANCIAL, INSURANCE, "REAL ESTATE", PROPERTY, REIT]]
+  - [Sectors (other), [ENERGY, UTILIT, MATERIAL, CONSUMER, STAPLES, DISCRETIONARY, TELECOM, COMMUNICATION]]
+  - [Factors & dividends, [DIVIDEND, MOMENTUM, QUALITY, VALUE, "MIN VOL", "MINIMUM VOL", "LOW VOL", "EQUAL WEIGHT", "SMALL CAP", SMALLCAP, "MID CAP", ESG, SRI, "PARIS-ALIGNED"]]
+  - [Emerging & Asia, [EMERGING, "EM ", CHINA, INDIA, JAPAN, ASIA, PACIFIC, KOREA, TAIWAN, BRAZIL, LATIN]]
+  - [Europe, [EUROPE, EURO, EMU, GERMANY, DAX, FRANCE, UK, "FTSE 100", NORDIC, SWEDEN, DENMARK, SWITZERLAND, ITALY, SPAIN, POLAND]]
+  - [US & North America, [" US", USA, "S&P 500", "S&P500", NASDAQ, "NORTH AMERICA", "RUSSELL", "DOW JONES"]]
+  - [Global, [WORLD, GLOBAL, ACWI, "ALL COUNTRY", DEVELOPED]]

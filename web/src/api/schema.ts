@@ -163,6 +163,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Discover
+         * @description The last discovery scan (reports/discovery.json); stale once older than its price limit in settings.
+         */
+        get: operations["get_discover_api_discover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/discover/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover Status */
+        get: operations["discover_status_api_discover_scan_get"];
+        put?: never;
+        /**
+         * Start Discover
+         * @description Start the discovery scan in the background (a few minutes; the first one longer).
+         */
+        post: operations["start_discover_api_discover_scan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -733,6 +774,121 @@ export interface components {
             stale_tickers: string[];
             /** Blind Spots */
             blind_spots: string[];
+        };
+        /** DiscoveryMarket */
+        DiscoveryMarket: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf";
+            /** Names */
+            names: number;
+            /** Scored */
+            scored: number;
+            /** Rows */
+            rows: components["schemas"]["DiscoveryRow"][];
+        };
+        /** DiscoveryRow */
+        DiscoveryRow: {
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf";
+            /** Exchange */
+            exchange?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Sector */
+            sector?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Isin */
+            isin?: string | null;
+            /** Positive List */
+            positive_list?: string | null;
+            /** Market Cap Dkk */
+            market_cap_dkk?: number | null;
+            /** Size */
+            size?: ("large" | "mid" | "small") | null;
+            /** Liquidity Dkk */
+            liquidity_dkk?: number | null;
+            /** Thin */
+            thin?: boolean | null;
+            /** Score */
+            score?: number | null;
+            /** Score Prev */
+            score_prev?: number | null;
+            /** D Score */
+            d_score?: number | null;
+            /** R1W */
+            r1w?: number | null;
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** R6M */
+            r6m?: number | null;
+            /** R12 1 */
+            r12_1?: number | null;
+            /** From High */
+            from_high?: number | null;
+            /** Vol Surge */
+            vol_surge?: number | null;
+            /** Trend Ok */
+            trend_ok?: boolean | null;
+            /** New High */
+            new_high?: boolean | null;
+            /** Trend Turn */
+            trend_turn?: boolean | null;
+            /** Quadrant */
+            quadrant?: string | null;
+            /** Off Radar */
+            off_radar: boolean;
+            /** Check Data */
+            check_data?: boolean | null;
+            /** Stale */
+            stale?: boolean | null;
+            /** Spark */
+            spark: number[];
+        };
+        /** DiscoveryThresholds */
+        DiscoveryThresholds: {
+            /** Size Large Dkk */
+            size_large_dkk: number;
+            /** Size Mid Dkk */
+            size_mid_dkk: number;
+            /** Liquidity Floor Dkk */
+            liquidity_floor_dkk: number;
+        };
+        /** DiscoveryView */
+        DiscoveryView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
+            /** Universe Asof */
+            universe_asof: string;
+            /** Markets */
+            markets: components["schemas"]["DiscoveryMarket"][];
+            thresholds: components["schemas"]["DiscoveryThresholds"];
         };
         /** Effect */
         Effect: {
@@ -2548,6 +2704,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoverageView"];
+                };
+            };
+        };
+    };
+    get_discover_api_discover_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryView"];
+                };
+            };
+        };
+    };
+    discover_status_api_discover_scan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+        };
+    };
+    start_discover_api_discover_scan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
                 };
             };
         };
