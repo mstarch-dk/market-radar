@@ -64,6 +64,9 @@ export type OpsJob = S["OpsJob"];
 export type OpsJobDetail = S["OpsJobDetail"];
 export type OpsRequest = S["OpsRequest"];
 export type DoctorCheck = S["DoctorCheck"];
+export type GuideTree = S["GuideTree"];
+export type GuideChapter = S["GuideChapter"];
+export type GuideHit = S["GuideHit"];
 export type ImportParams = { filename: string; preset?: string; portfolio?: number; mapping?: Record<string, string>;
   symbols?: Record<string, string>; confirm?: boolean };
 
@@ -129,6 +132,9 @@ export const api = {
   setRegimeVotes: (votes: Record<string, boolean>) =>
     get<VoteOption[]>("/api/settings/regime-votes", "PUT", JSON.stringify({ votes }), "application/json"),
   coverage: () => get<CoverageView>("/api/coverage"),
+  guideTree: () => get<GuideTree>("/api/guide"),
+  guideChapter: (book: string, slug: string) => get<GuideChapter>(`/api/guide/${enc(book)}/${enc(slug)}`),
+  guideSearch: (q: string) => get<GuideHit[]>(`/api/guide/search?q=${enc(q)}`),
   opsSummary: (days: number) => get<OpsSummary>(`/api/ops/summary?days=${days}`),
   opsEvents: () => get<OpsEvent[]>("/api/ops/events?limit=500"),
   opsRequests: () => get<OpsRequest[]>("/api/ops/requests?limit=300"),

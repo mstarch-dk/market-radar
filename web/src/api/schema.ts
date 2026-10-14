@@ -864,6 +864,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide Tree */
+        get: operations["guide_tree_api_guide_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/guide/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide Search */
+        get: operations["guide_search_api_guide_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/guide/{book}/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide Chapter */
+        get: operations["guide_chapter_api_guide__book___slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/import/presets": {
         parameters: {
             query?: never;
@@ -1761,6 +1812,98 @@ export interface components {
             lo: number;
             /** Hi */
             hi: number;
+        };
+        /** GuideBook */
+        GuideBook: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Intro */
+            intro: string;
+            /** Parts */
+            parts: components["schemas"]["GuidePart"][];
+        };
+        /** GuideChapter */
+        GuideChapter: {
+            /** Book */
+            book: string;
+            /** Book Title */
+            book_title: string;
+            /** Part */
+            part: string;
+            /** Slug */
+            slug: string;
+            /** Title */
+            title: string;
+            /** Markdown */
+            markdown: string;
+            /** Headings */
+            headings: components["schemas"]["GuideHeading"][];
+            prev?: components["schemas"]["GuideLink"] | null;
+            next?: components["schemas"]["GuideLink"] | null;
+            /** Updated */
+            updated: string;
+        };
+        /** GuideChapterRef */
+        GuideChapterRef: {
+            /** Slug */
+            slug: string;
+            /** Title */
+            title: string;
+        };
+        /** GuideHeading */
+        GuideHeading: {
+            /** Level */
+            level: number;
+            /** Text */
+            text: string;
+            /** Id */
+            id: string;
+        };
+        /** GuideHit */
+        GuideHit: {
+            /** Book */
+            book: string;
+            /** Slug */
+            slug: string;
+            /** Title */
+            title: string;
+            /** Section */
+            section?: string | null;
+            /** Anchor */
+            anchor?: string | null;
+            /** Snippet */
+            snippet: string;
+        };
+        /** GuideLink */
+        GuideLink: {
+            /** Book */
+            book: string;
+            /** Slug */
+            slug: string;
+            /** Title */
+            title: string;
+        };
+        /** GuidePart */
+        GuidePart: {
+            /** Title */
+            title: string;
+            /** Chapters */
+            chapters: components["schemas"]["GuideChapterRef"][];
+        };
+        /** GuideTree */
+        GuideTree: {
+            /** Books */
+            books: components["schemas"]["GuideBook"][];
+            /** Page Links */
+            page_links: {
+                [key: string]: string;
+            };
+            /** Glossary Links */
+            glossary_links: {
+                [key: string]: string;
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -5590,6 +5733,89 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MoveResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    guide_tree_api_guide_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuideTree"];
+                };
+            };
+        };
+    };
+    guide_search_api_guide_search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuideHit"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    guide_chapter_api_guide__book___slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuideChapter"];
                 };
             };
             /** @description Validation Error */

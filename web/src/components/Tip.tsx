@@ -6,12 +6,14 @@ import { useState, type ReactNode } from "react";
 
 /** Explanatory tooltip: opens on hover and on keyboard focus, closes on Esc, portalled so table overflow doesn't
  *  clip it. The trigger is wrapped in an inline span (focusable when `focusable`). */
-export function Tip({ content, children, placement = "top", focusable = true, className = "" }: {
+export function Tip({ content, children, placement = "top", focusable = true, className = "", interactive = false }: {
   content: ReactNode;
   children: ReactNode;
   placement?: Placement;
   focusable?: boolean;
   className?: string;
+  /** The pointer can move into the tooltip (to click a link in it). */
+  interactive?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
@@ -19,7 +21,7 @@ export function Tip({ content, children, placement = "top", focusable = true, cl
     middleware: [offset(6), flip(), shift({ padding: 8 })],
   });
   const { getReferenceProps, getFloatingProps } = useInteractions([
-    useHover(context, { delay: { open: 150, close: 0 }, move: false }),
+    useHover(context, { delay: { open: 150, close: 0 }, move: false, handleClose: interactive ? safePolygon() : null }),
     useFocus(context),
     useDismiss(context),
     useRole(context, { role: "tooltip" }),

@@ -23,6 +23,9 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `/journal …` and `/journal review` → `journal/`
 - `/marketing` → `marketing/` (Danish brochure, HTML + PDF, with screenshots of a demo copy holding a fictional investor; the PDF and its sources are committed, the screenshots aren't)
 
+## Documentation for the user (Danish)
+- `guide/` holds the user guide (`brugervejledning/`) and the textbook (`laerebog/`), served on the app's Guide page. When a change is visible to the user (a page, column, command, threshold or method), update the matching chapter in the same change; follow `guide/STIL.md`, quote thresholds with `{{settings:…}}`, and run `uv run pytest -q tests/test_guide.py`.
+
 ## Read before working on…
 - [docs/commands.md](docs/commands.md): every CLI command (imports, holdings bundle, ticker tools)
 - [docs/architecture.md](docs/architecture.md): config files, modules in `src/radar/`, what is committed, CI. Read it before changing code.

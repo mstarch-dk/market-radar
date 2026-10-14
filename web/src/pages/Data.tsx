@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api, type CoverageView } from "../api/client";
 import { Loaded, PageHead, Signal } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
@@ -44,6 +45,7 @@ export function Data() {
             <h2>Sources</h2>
             <div className="card"><DataTable id="src" csvName="sources" rows={d.sources} cols={cols} rowKey={(s) => s.key} /></div>
             <h2>How the readings are built</h2>
+            <p className="note">The full explanation, in Danish, is in the <Link to="/guide/laerebog/afstemningsmodellen">textbook</Link>.</p>
             <ul className="blind">
               <li><b>Regime</b>: a vote of {d.regime.total} indicators (trend, breadth, volatility, credit, rates, dollar, commodities,
                 OECD cycle, FactSet revisions). Only risk-on and risk-off rows count: net = (on − off) / (on + off), above +0.33 is

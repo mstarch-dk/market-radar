@@ -1,0 +1,128 @@
+# Data og opdatering
+
+Market Radar regner alt ud fra data, der ligger lokalt på din computer. De bliver ikke opdateret af sig selv: du beder om en opdatering, når du vil have friske tal. Dette kapitel forklarer, hvordan du gør det, hvad der sker undervejs, og hvad radaren gør, når en kilde fejler.
+
+## Opdater med knappen Update data
+
+Den nemmeste vej er knappen *Update data*. Den findes tre steder:
+
+- På siden [Data & coverage](/data), øverst under sideoverskriften.
+- I det gule banner, der dukker op på markedssiderne, når data er for gamle (se [Advarsler om gamle data](brugervejledning/data-og-opdatering#advarsler-om-gamle-data)).
+- På velkomstsiden ved første start, hvor den hedder *Download market data*.
+
+Når du klikker, starter den samme opdatering som `radar run` i terminalen. Undervejs viser panelet:
+
+- Knappen skifter til *Updating…*, og ved siden af står fremskridtet, fx "Downloading prices: 350 of 700 tickers (50%)".
+- En bjælke viser, hvor langt kursdownloaden er.
+- *What it did (N lines)* folder loggen ud: én linje pr. trin, med hvad der blev hentet, eller hvad der fejlede.
+
+Du kan bruge appen imens. Når opdateringen er færdig, står der *Updated* med tidspunktet, og alle sider henter deres data igen af sig selv. Der kan kun køre én opdatering ad gangen.
+
+Stopper opdateringen helt, står der *Update stopped:* efterfulgt af fejlen. Det sker sjældent, fordi de enkelte kilder fejler hver for sig uden at stoppe resten (se [Når en kilde fejler](brugervejledning/data-og-opdatering#når-en-kilde-fejler)).
+
+## Hvad en opdatering henter
+
+En opdatering har to halvdele: først hentes data, derefter bygges dashboardet (`reports/dashboard.json`), som siderne viser.
+
+### Hentning
+Trinene køres i denne rækkefølge, og hvert trin logges for sig:
+
+| Trin | Kilde | Hyppighed hos kilden |
+|---|---|---|
+| Kurser | Yahoo Finance (justeret for udbytter og splits) | Dagligt, dagslukkekurser |
+| Navne og sektorer | Yahoo Finance | Hentes én gang og gemmes |
+| Makro | FRED (renter, kreditspænd, dollar) | Dagligt til ugentligt |
+| CFTC-positionering | CFTC Commitments of Traders | Ugentligt |
+| Ledende indikatorer | OECD CLI | Månedligt, ca. 2 måneders forsinkelse |
+| Indtjeningsrevisioner | FactSet Earnings Insight | Ugentligt |
+| Analytikerkursmål | Yahoo (kun beholdninger og watchlist) | Hentes igen efter {{settings:analyst.max_age_days}} dage |
+| Euroområdets renter | ECB | Dagligt |
+| CAPE og risikopræmie | multpl.com og Damodaran | Månedligt |
+| Put/call og AAII | CBOE og AAII | Dagligt og ugentligt |
+| Værdiansættelse | Yahoo (screener og fonddata) | Et nyt øjebliksbillede, når det seneste er over {{settings:valuation.snapshot_days}} dage gammelt |
+
+Kurserne hentes inkrementelt: kun de nye dage. Første gang hentes {{settings:history_years}} års historik for hver ticker. Opdager radaren, at et udbytte eller en split har ændret den justerede historik, henter den hele historikken for den ticker igen.
+
+### Rapporten
+Derefter regner radaren regime, rotation, momentum, positionering og dækning ud og skriver resultatet til `reports/dashboard.json` (som siderne læser) og `reports/summary.json` (som Claude Code-kommandoerne læser). Samtidig gemmes et øjebliksbillede af rangeringerne i `data/snapshots/`. Det er dem, der gør det muligt at vise ændring i rang og nye navne siden sidst.
+
+## Fra terminalen
+
+Foretrækker du terminalen, gør disse kommandoer det samme som knappen:
+
+```
+uv run radar run       # hent data og byg dashboardet
+uv run radar update    # kun hentningen
+uv run radar report    # kun rapporten, ud fra de data, der allerede ligger lokalt
+```
+
+`radar report` er nyttig, hvis du har ændret en indstilling i `config/settings.yaml` og vil se virkningen uden at hente noget nyt. `radar update --refresh-constituents` henter desuden listen over S&P 500-selskaber igen (ellers sker det automatisk efter {{settings:constituents_max_age_days}} dage). Se [Kommandolinjen](brugervejledning/kommandolinjen).
+
+## Discover-scanningen er separat
+
+Siden [Discover](/discover) bygger på en meget bredere liste af navne (nordiske og europæiske aktier og UCITS-ETF'er fra positivlisten, i alt flere tusinde). Den scanning ville gøre den daglige opdatering langsom, så den kører for sig:
+
+- Første gang starter du den på Discover-siden med *Run the first discovery scan*. Den slår omkring 3.000 navne op og tager et stykke tid.
+- Senere starter du den med *Scan again* på samme side, eller med `uv run radar discover` i terminalen. Den tager nogle minutter.
+- Listen over navne bygges igen cirka månedligt; kurserne hentes ved hver scanning.
+- Scanningen rører ikke radarens øvrige data, og *Update data* kører ikke scanningen.
+
+Kør den cirka en gang om ugen. Scanningen regnes for forældet efter {{settings:coverage.max_age.discovery_prices}} dage. Se [Discover](brugervejledning/discover).
+
+## Hvor ofte skal du opdatere?
+
+Det afhænger af, hvordan du bruger radaren:
+
+- **Ugentligt overblik:** opdater, før du sætter dig, fx en gang om ugen. Det passer med, at rotationsgrafen bygger på ugedata, og at flere kilder kun opdateres ugentligt.
+- **Aktiv opfølgning på beholdninger:** opdater dagligt eller et par gange om ugen, så stop og kursmål regnes ud fra friske kurser.
+- **Discover:** cirka ugentligt.
+
+Det giver ikke mening at opdatere flere gange samme dag: kurserne er dagslukkekurser, og de fleste andre kilder ændrer sig langsommere. Opdaterer du om formiddagen dansk tid, har du gårsdagens amerikanske lukkekurser.
+
+## Advarsler om gamle data
+
+Hver side viser øverst, hvilken dato data er fra ("Data as of …"), og hvornår dashboardet blev bygget ("built …"). Er kursdata mere end {{settings:coverage.max_age.prices}} dage gamle, viser siderne et gult banner: *This data is N days old. Update it before acting on it.* med en *Update data*-knap ved siden af.
+
+Det samme princip gælder for hver enkelt kilde. Hver kilde har en maksimal alder i `config/settings.yaml` (afsnittet `coverage.max_age`), fx:
+
+| Kilde | Maksimal alder (dage) |
+|---|---|
+| Kurser | {{settings:coverage.max_age.prices}} |
+| FRED | {{settings:coverage.max_age.fred}} |
+| CFTC | {{settings:coverage.max_age.cftc}} |
+| FactSet | {{settings:coverage.max_age.factset}} |
+| OECD CLI | {{settings:coverage.max_age.oecd}} |
+| CAPE | {{settings:coverage.max_age.cape}} |
+
+Alderen tælles fra datadatoen for dashboardet. En kilde, der er ældre end sin grænse, får status *stale*. Dens aflæsning vises stadig, men en indikator med *stale* data tæller ikke med i regimeafstemningen. Siden *Data & coverage* viser alder og grænse for hver kilde i kolonnen *Age (days)*, fx "9 / 14". Se [Data og dækning](brugervejledning/data-og-daekning).
+
+## Når en kilde fejler
+
+Gratis kilder fejler af og til: en side ændrer layout, en server svarer ikke, eller Yahoo beder om en pause. Radaren håndterer det sådan:
+
+- **Kilden beholder sine seneste data.** En fejl overskriver aldrig det, der allerede ligger i cachen. Resten af opdateringen fortsætter.
+- **Fejlen bliver vist.** I loggen står fx "CFTC positioning: FAILED (…); using cached data." På *Data & coverage* viser kolonnen *Last update* "failed" med dato og fejl samt den seneste vellykkede opdatering. På *Regime* står "last update failed" i dækningslinjen under afstemningen.
+- **En kilde, der svarer med noget tomt, fejler højlydt.** Hvis en kilde svarer, men svaret ikke kan læses til noget brugbart, regnes det som en fejl, og cachen bevares. Radaren erstatter aldrig data med nuller.
+- **Bliver fejlen ved, ældes data.** Efter kildens maksimale alder bliver den *stale* og holder op med at tælle.
+
+Gentagne fejl og sider, der er sat på pause, kan du følge på siden [Operations](/ops); se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift).
+
+> **Tip:** Mangler en enkelt ticker kurser, er det oftest Yahoo, der har et hul den dag. Næste opdatering løser det som regel. *Data & coverage* lister tickers uden kurser (*Missing tickers*) og tickers uden nye kurser (*Stale tickers*).
+
+### Tickers uden for radarens lister
+Søger du på en ticker, som radaren ikke følger, hentes den første gang, du åbner den (det tager omkring 10 sekunder). Den gemmes, men kommer ikke med i den daglige opdatering. Sætter du den på din watchlist, eller køber du den, kommer den med.
+
+## Hvor dine data ligger
+
+Market Radar skelner skarpt mellem data, der kan hentes igen, og data, der kun findes hos dig:
+
+| Mappe | Indhold | Kan hentes igen? |
+|---|---|---|
+| `data/` | Kurser, makroserier, øjebliksbilleder og kildelog | Ja |
+| `reports/` | Dashboardet og Discover-scanningen | Ja, bygges ud fra `data/` |
+| `userdata/` | Dine handler, porteføljer, watchlist, markedssyn og valg i appen (`radar.db`) samt automatiske backups i `userdata/backups/` | **Nej** |
+| `imports/` | Positivlisten og gamle importfiler | Delvist |
+| `notes/` | Din investorprofil og egne noter | **Nej** |
+| `briefs/`, `research/`, `journal/` | Det, Claude Code-kommandoerne skriver | **Nej** |
+
+Vil du starte forfra med markedsdata, kan du slette `data/` og `reports/` og hente igen. Din portefølje og watchlist bliver liggende. Tag backup af `userdata/` og `notes/`; de kan ikke genskabes.

@@ -1,7 +1,8 @@
 """Relative strength vs the benchmark and a Relative Rotation Graph (RRG) approximation.
 
-RS-Ratio: how strong the relative trend is (z-scored RS line, centred on 100).
-RS-Momentum: whether that relative trend is accelerating (z-scored change of RS-Ratio).
+RS-Ratio: how strong the relative trend is: the (lightly smoothed) RS line as a ratio to its own moving average,
+centred on 100. RS-Momentum: whether that relative trend is accelerating: RS-Ratio as a ratio to its own
+exponential average, centred on 100. (The commercial JdK formula is unpublished; this is an approximation.)
 """
 from __future__ import annotations
 

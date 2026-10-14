@@ -1,0 +1,196 @@
+# The books served on the app's Guide page (src/radar/guide.py). This file decides order and titles: one Markdown
+# file per chapter at guide/<book>/<slug>.md, whose first line is "# <title>" exactly as here. To add, move or
+# rename a chapter, edit this file (and the file name for a new slug). tests/test_guide.py checks it all.
+# Writing conventions: guide/STIL.md.
+
+books:
+  - id: brugervejledning
+    title: Brugervejledning
+    intro: Sådan bruger du Market Radar, side for side, fra første start til drift og fejlfinding.
+    parts:
+      - title: Kom i gang
+        chapters:
+          - {slug: hvad-er-market-radar, title: "Hvad er Market Radar?"}
+          - {slug: installation, title: Installation og første start}
+          - {slug: data-og-opdatering, title: Data og opdatering}
+          - {slug: navigation, title: Sådan finder du rundt}
+      - title: Markedet
+        chapters:
+          - {slug: regime, title: Regime}
+          - {slug: sektorrotation, title: Sektorrotation}
+          - {slug: temaer-og-faktorer, title: Temaer og faktorer}
+          - {slug: momentum, title: Momentum}
+          - {slug: discover, title: Discover}
+          - {slug: positionering, title: Positionering og cyklus}
+      - title: Dig og dine penge
+        chapters:
+          - {slug: tickerprofil, title: Tickerprofilen}
+          - {slug: beholdninger, title: Mine beholdninger og watchlist}
+          - {slug: portefolje, title: "Portefølje: handler, kontanter og import"}
+          - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
+          - {slug: afkast, title: Afkast over tid}
+          - {slug: markedssyn, title: Mine markedssyn}
+      - title: Data og drift
+        chapters:
+          - {slug: data-og-daekning, title: Data og dækning}
+          - {slug: drift, title: "Drift: forespørgsler, fejl og pauser"}
+          - {slug: fejlfinding, title: Fejlfinding og spørgsmål}
+      - title: Claude Code og kommandolinjen
+        chapters:
+          - {slug: claude-code, title: Claude Code-skills}
+          - {slug: kommandolinjen, title: Kommandolinjen}
+          - {slug: maanedsbrief, title: Månedsbriefen i GitHub}
+      - title: Appendiks
+        chapters:
+          - {slug: indstillinger, title: Indstillinger}
+
+  - id: laerebog
+    title: Lærebog
+    intro: Teorien bag radaren, fra afkast og statistik til momentum, rotation, regime, værdiansættelse, risiko og skat.
+    parts:
+      - title: I. Grundlag
+        chapters:
+          - {slug: afkast, title: Afkast og renters rente}
+          - {slug: justerede-kurser, title: "Justerede kurser, udbytter og valuta"}
+          - {slug: benchmark, title: Benchmark og relativt afkast}
+          - {slug: statistik, title: Statistik for investorer}
+      - title: II. Trend og momentum
+        chapters:
+          - {slug: trend, title: Glidende gennemsnit og trend}
+          - {slug: momentumeffekten, title: Momentumeffekten}
+          - {slug: momentumscore, title: Radarens momentumscore}
+          - {slug: tekniske-indikatorer, title: Tekniske indikatorer}
+      - title: III. Rotation
+        chapters:
+          - {slug: relativ-styrke, title: Relativ styrke}
+          - {slug: rrg, title: Rotationsgrafen (RRG)}
+          - {slug: rotation-og-cyklus, title: "Sektorer, temaer, faktorer og konjunkturcyklussen"}
+      - title: IV. Regime og makro
+        chapters:
+          - {slug: risk-on-risk-off, title: Risk-on og risk-off}
+          - {slug: markedsbredde, title: Markedsbredde}
+          - {slug: vix, title: VIX og volatilitetens terminsstruktur}
+          - {slug: kredit-renter-dollar, title: "Kredit, renter og dollar"}
+          - {slug: raavarer, title: "Kobber, guld og olie"}
+          - {slug: ledende-indikatorer, title: Ledende indikatorer og indtjeningsrevisioner}
+          - {slug: afstemningsmodellen, title: Radarens afstemningsmodel}
+      - title: V. Værdiansættelse
+        chapters:
+          - {slug: pe-og-eps, title: P/E og indtjening pr. aktie}
+          - {slug: relativ-vaerdiansaettelse, title: Relativ værdiansættelse}
+          - {slug: cape-og-risikopraemie, title: "CAPE, risikopræmie og yield gap"}
+          - {slug: estimatrevisioner, title: Estimatrevisioner}
+      - title: VI. Positionering og sentiment
+        chapters:
+          - {slug: cot, title: Futurespositionering (CFTC COT)}
+          - {slug: sentiment, title: "Put/call og AAII: kontrær sentiment"}
+      - title: VII. Risiko og porteføljestyring
+        chapters:
+          - {slug: volatilitet-og-drawdown, title: "Volatilitet, drawdown, Sharpe og Sortino"}
+          - {slug: beta-og-alfa, title: "Beta, alfa og faktorer"}
+          - {slug: stop-og-storrelse, title: "Stop-loss, take-profit og positionsstørrelse"}
+          - {slug: diversifikation, title: Diversifikation og korrelation}
+      - title: VIII. Afkastmåling, adfærd og skat
+        chapters:
+          - {slug: twr-og-mwr, title: Tidsvægtet og pengevægtet afkast}
+          - {slug: adfaerd, title: "Beslutninger, bias og falsifikation"}
+          - {slug: skat, title: Dansk skat for investorer}
+      - title: Appendiks
+        chapters:
+          - {slug: formler, title: Formeloversigt}
+          - {slug: litteratur, title: Litteratur}
+
+# App route -> the user-guide chapter about that page ("Om denne side")
+page_links:
+  /: brugervejledning/navigation
+  /regime: brugervejledning/regime
+  /rotation: brugervejledning/sektorrotation
+  /themes: brugervejledning/temaer-og-faktorer
+  /momentum: brugervejledning/momentum
+  /discover: brugervejledning/discover
+  /positioning: brugervejledning/positionering
+  /me: brugervejledning/beholdninger
+  /views: brugervejledning/markedssyn
+  /portfolio: brugervejledning/portefolje
+  /returns: brugervejledning/afkast
+  /data: brugervejledning/data-og-daekning
+  /ops: brugervejledning/drift
+  /ticker: brugervejledning/tickerprofil
+
+# Glossary key (web/src/lib/glossary.ts) -> textbook section ("Læs mere i lærebogen")
+glossary_links:
+  r1m: laerebog/afkast#afkast-over-faste-vinduer
+  r3m: laerebog/afkast#afkast-over-faste-vinduer
+  r6m: laerebog/afkast#afkast-over-faste-vinduer
+  r1w: laerebog/afkast#afkast-over-faste-vinduer
+  abs_r3m: laerebog/relativ-styrke#relativ-og-absolut-momentum
+  r12_1: laerebog/momentumeffekten#hvorfor-springe-den-seneste-måned-over
+  rel_r1m: laerebog/relativ-styrke#relativt-afkast-ratio-eller-differens
+  rel_r3m: laerebog/relativ-styrke#relativt-afkast-ratio-eller-differens
+  rel_r6m: laerebog/relativ-styrke#relativt-afkast-ratio-eller-differens
+  since_buy: laerebog/benchmark#dine-beholdninger-mod-skygge-acwi
+  bench_since_buy: laerebog/benchmark#dine-beholdninger-mod-skygge-acwi
+  above200: laerebog/trend#trend-for-den-enkelte-aktie
+  trend_ok: laerebog/trend#trend-for-den-enkelte-aktie
+  score: laerebog/momentumscore#scoren
+  disc_score: laerebog/momentumscore#scoren
+  score_me: laerebog/momentumscore#dine-beholdninger-percentil-mod-hele-universet
+  new: laerebog/momentumscore#toplisten-new-og-frafaldne
+  from_high: laerebog/momentumscore#øvrige-kolonner
+  vol_surge: laerebog/momentumscore#øvrige-kolonner
+  rank: laerebog/relativ-styrke#sådan-gør-radaren
+  rsi: laerebog/tekniske-indikatorer#rsi-14
+  macd: laerebog/tekniske-indikatorer#macd-12269-og-macdatr
+  bb: laerebog/tekniske-indikatorer#bollinger-20-dage-2σ
+  signals: laerebog/tekniske-indikatorer#graderede-målere
+  quadrant: laerebog/rrg#kvadranterne
+  quadrant_local: laerebog/rrg#hjemmemarkedet-som-benchmark
+  rs_ratio: laerebog/rrg#rs-ratio
+  rs_mom: laerebog/rrg#rs-momentum
+  ucits: laerebog/rotation-og-cyklus#ucits-tvillinger-og-positivlisten
+  positive_list: laerebog/skat#positivlisten
+  signal: laerebog/afstemningsmodellen#status-for-en-række
+  not_voting: laerebog/afstemningsmodellen#grupper-der-kan-slås-fra
+  max_age: laerebog/afstemningsmodellen#friskhed
+  cli: laerebog/ledende-indikatorer#oecds-sammensatte-ledende-indikatorer
+  cli_phase: laerebog/ledende-indikatorer#oecds-sammensatte-ledende-indikatorer
+  cli_chg: laerebog/ledende-indikatorer#oecd-cli
+  pe_fy1: laerebog/pe-og-eps#de-tre-pe-tal
+  pe_cy: laerebog/pe-og-eps#de-tre-pe-tal
+  pe_ttm: laerebog/pe-og-eps#de-tre-pe-tal
+  div_yield: laerebog/pe-og-eps#udbytteafkast
+  pe_vs_sector: laerebog/relativ-vaerdiansaettelse#pe-mod-sektoren
+  fund_pe: laerebog/relativ-vaerdiansaettelse#fonde-pe-mod-acwi
+  pe_vs_acwi: laerebog/relativ-vaerdiansaettelse#fonde-pe-mod-acwi
+  pe_pct: laerebog/relativ-vaerdiansaettelse#fonde-mod-egen-historik
+  cape: laerebog/cape-og-risikopraemie#shiller-cape
+  erp: laerebog/cape-og-risikopraemie#implicit-risikopræmie-damodaran
+  yield_gap: laerebog/cape-og-risikopraemie#yield-gap-og-fed-modellen
+  eps_rev: laerebog/estimatrevisioner#eps-revisioner-pr-aktie
+  revision_breadth: laerebog/estimatrevisioner#revisionsbredde-pr-region
+  cot_net: laerebog/cot#nettoposition-i-procent-af-open-interest
+  cot_chg: laerebog/cot#beregningerne
+  cot_pct: laerebog/cot#hvornår-er-en-position-ekstrem
+  aaii: laerebog/sentiment#aaii-undersøgelsen
+  putcall: laerebog/sentiment#putcall-forholdet
+  sharpe: laerebog/volatilitet-og-drawdown#sharpe-og-sortino
+  max_drawdown: laerebog/volatilitet-og-drawdown#drawdown-og-tid-under-vand
+  beta: laerebog/beta-og-alfa#beta
+  risk_beta: laerebog/beta-og-alfa#standardfejl-hvorfor-beta-se-betyder-noget
+  risk_alpha: laerebog/beta-og-alfa#alfa
+  downside_beta: laerebog/beta-og-alfa#downside-beta
+  idio_vol: laerebog/beta-og-alfa#idiosynkratisk-volatilitet
+  factor_tilts: laerebog/beta-og-alfa#faktortilt-med-etfer
+  stop: laerebog/stop-og-storrelse#atr-stop-og-chandelier-stop
+  k: laerebog/stop-og-storrelse#stopbredden-k
+  atr: laerebog/stop-og-storrelse#average-true-range
+  take_profit: laerebog/stop-og-storrelse#take-profit
+  flags: laerebog/stop-og-storrelse#flag
+  risk_budget: laerebog/stop-og-storrelse#risikobudget
+  views_align: laerebog/diversifikation#markedssyn-hvem-bevæger-sig-med-hvem
+  twr: laerebog/twr-og-mwr#tidsvægtet-afkast
+  mwr: laerebog/twr-og-mwr#pengevægtet-afkast
+  excess_twr: laerebog/twr-og-mwr#hvorfor-begge
+  acwi_twr: laerebog/twr-og-mwr#acwi-med-samme-pengestrømme
+  same_flows: laerebog/twr-og-mwr#acwi-med-samme-pengestrømme
+  funding: laerebog/twr-og-mwr#finansiering-ledger-eller-implicit

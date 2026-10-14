@@ -9,6 +9,10 @@
 - `tests/conftest.py`'s `tmp_data` points every module-level data path (including `userdata/`) at a temp directory. An autouse fixture gives every test its own `ops.db` and resets the network limiter, so no test writes to `data/ops.db`.
 - `test_net.py` drives the limiter, retries and cooldowns with a fake clock (`net.clock` / `net.sleep`) and a stubbed `net.requests.get`; HTTP stubs patch `net.requests.get`, since every plain request goes through `net.get`. `test_ops.py` covers the log, its housekeeping, jobs and the Operations endpoints.
 
+## The guide (`guide/`)
+- `tests/test_guide.py`: every chapter in `guide/guide.yaml` exists (and no file is left out), each H1 equals its manifest title, every `{{settings:…}}` resolves, every link reaches a real chapter, heading or app page, and `page_links`/`glossary_links` point at real pages, glossary keys and headings.
+- Formulas: `uv run python -c "import json; from radar import guide; print(json.dumps({f'{b}/{s}': guide.chapter(b, s)['markdown'] for b, s, _, _ in guide.manifest()['_order']}))" | node web/scripts/check-math.mjs` compiles every `$…$` / `$$…$$` with KaTeX and lists the ones that fail.
+
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.
 - Pin method-sensitive numbers (e.g. RRG values) so a change to a method is deliberate.

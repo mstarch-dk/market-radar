@@ -541,3 +541,94 @@ details.card > summary { cursor: pointer; }
 
 /* Positioning: valuation and sentiment cards */
 .hero .big .unit { font-size: 0.6em; font-weight: 500; color: var(--muted); }
+
+/* ---------------- the guide (pages/Guide.tsx): Danish user guide and textbook ---------------- */
+.guide-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; padding: 4px 8px;
+  border-radius: 8px; white-space: nowrap; }
+.topbar > .guide-link { margin-left: auto; }
+.topbar .search + .guide-link { margin-left: 0; }
+.guide-link:hover, .guide-link.on { color: var(--accent); background: var(--accent-bg); text-decoration: none; }
+nav.tabs .about-page { margin-left: auto; color: var(--muted); font-size: 12px; }
+nav.tabs .about-page:hover { color: var(--accent); }
+.tip a.tip-more { color: inherit; text-decoration: underline; white-space: nowrap; }
+
+.guide { display: grid; grid-template-columns: 240px minmax(0, 1fr) 200px; gap: 32px; align-items: start; }
+.guide-side, .guide-toc { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; font-size: 13px; }
+.guide-side nav ol { list-style: none; margin: 4px 0 8px; padding: 0 0 0 4px; }
+.guide-side nav li a { display: block; padding: 3px 8px; border-radius: 6px; color: var(--ink-2); }
+.guide-side nav li a:hover { background: var(--surface-2); text-decoration: none; }
+.guide-side nav li a[aria-current="page"], .guide.narrow nav li a[aria-current="page"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.guide-part summary { cursor: pointer; font-weight: 600; color: var(--ink); padding: 6px 4px; font-size: 12.5px; }
+.guide-switch { display: flex; gap: 4px; margin: 10px 0; }
+.guide-switch a { flex: 1; text-align: center; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-2); font-size: 12.5px; }
+.guide-switch a.on { background: var(--accent-bg); color: var(--accent); border-color: transparent; font-weight: 600; }
+.guide-switch a:hover { text-decoration: none; border-color: var(--accent); }
+.guide-toc-title { font-weight: 600; margin: 0 0 6px; color: var(--ink); }
+.guide-toc ul, .guide-fold ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+.guide-toc li a, .guide-fold li a { display: block; padding: 3px 10px; color: var(--muted); margin-left: -1px; border-left: 2px solid transparent; }
+.guide-toc li.l3 a, .guide-fold li.l3 a { padding-left: 22px; font-size: 12px; }
+.guide-toc li.on a { color: var(--accent); border-left-color: var(--accent); }
+.guide-toc li a:hover { color: var(--ink); text-decoration: none; }
+.guide-search { position: relative; }
+.guide-search input { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+.guide-search input:focus { outline: none; border-color: var(--accent); }
+.guide-hits { position: absolute; z-index: 20; left: 0; right: 0; min-width: min(420px, 90vw); top: calc(100% + 4px); max-height: 60vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+.guide-hits p { margin: 6px; }
+.guide-hit { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 6px; color: var(--ink); }
+.guide-hit:hover, .guide-hit:focus { background: var(--surface-2); text-decoration: none; }
+.guide-landing .guide-search { max-width: 520px; margin: 4px 0 20px; }
+.guide-books { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.guide-book h2 { margin-top: 0; font-size: 18px; }
+.guide-book h3 { font-size: 13px; margin: 14px 0 4px; color: var(--ink-2); }
+.guide-book ol { margin: 0; padding-left: 20px; }
+.guide-book li { margin: 2px 0; }
+.guide.narrow { display: block; }
+.guide.narrow .guide-search { margin-bottom: 10px; }
+.guide-fold { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; background: var(--surface); }
+.guide-fold > summary { cursor: pointer; font-weight: 600; }
+.guide-fold nav ol { list-style: none; padding-left: 4px; margin: 4px 0; }
+.guide-fold nav li a { display: block; padding: 3px 6px; color: var(--ink-2); }
+
+.prose { max-width: 72ch; font-size: 15px; line-height: 1.65; color: var(--ink); overflow-wrap: anywhere; }
+.prose h1 { font-size: 26px; line-height: 1.25; margin: 4px 0 16px; letter-spacing: -0.01em; }
+.prose h2 { font-size: 20px; margin: 36px 0 10px; padding-top: 4px; border-top: 1px solid var(--line); }
+.prose h3 { font-size: 16.5px; margin: 26px 0 8px; }
+.prose h4 { font-size: 15px; margin: 20px 0 6px; color: var(--ink-2); }
+.prose h1, .prose h2, .prose h3, .prose h4 { scroll-margin-top: 16px; }
+.prose .anchor { margin-left: 8px; color: var(--muted); opacity: 0; font-weight: 400; text-decoration: none; }
+.prose :is(h2, h3, h4):hover .anchor, .prose .anchor:focus { opacity: 1; }
+.prose p, .prose ul, .prose ol { margin: 0 0 12px; }
+.prose ul, .prose ol { padding-left: 24px; }
+.prose li { margin: 3px 0; }
+.prose li > p { margin: 0 0 4px; }
+.prose a { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+.prose code { font-size: 0.88em; }
+.prose pre { background: var(--surface-2); padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+.prose pre code { background: none; padding: 0; }
+.prose kbd { font-family: var(--mono); font-size: 0.85em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+.prose blockquote { margin: 16px 0; padding: 10px 14px; border-left: 3px solid var(--line); color: var(--ink-2); background: var(--surface); border-radius: 0 8px 8px 0; }
+.prose blockquote > :last-child { margin-bottom: 0; }
+.prose blockquote.callout.note { background: var(--warn-bg); border-left-color: var(--warn); color: var(--ink); }
+.prose blockquote.callout.example { background: var(--surface-2); border-left-color: var(--muted); color: var(--ink); }
+.prose blockquote.callout.tip { background: var(--accent-bg); border-left-color: var(--accent); color: var(--ink); }
+.prose-table { overflow-x: auto; margin: 12px 0 16px; }
+.prose table { border-collapse: collapse; font-size: 13.5px; line-height: 1.45; min-width: 60%; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.prose th { background: var(--surface-2); font-weight: 600; }
+.prose hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+.prose img { max-width: 100%; }
+.prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; margin: 14px 0; }
+.prose .katex { font-size: 1.05em; }
+.guide-crumb { margin: 0 0 4px; }
+.guide-updated { margin-top: 28px; }
+.guide-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.guide-pager a { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  color: var(--ink); text-decoration: none; }
+.guide-pager a:hover { border-color: var(--accent); }
+.guide-pager .next { text-align: right; }
+@media (max-width: 640px) {
+  .guide-pager { grid-template-columns: 1fr; }
+  .guide-pager .next { text-align: left; }
+  .guide-link { padding: 4px 6px; }
+}

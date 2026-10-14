@@ -25,6 +25,7 @@ from .api_models import (
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
+    GuideChapter, GuideHit, GuideTree,
 )
 from .config import settings
 from .config import ROOT
@@ -734,6 +735,32 @@ def move_rows(pid: int, body: MoveIn) -> dict:
         raise HTTPException(422, {"message": "Not moved: " + problems[0],
                                   "issues": [{"level": "error", "field": "portfolio", "message": p} for p in problems]})
     return {"moved": userstore.move_transactions(pid, body.to, body.ids, symbols)}
+
+
+# ---------------- the guide: Danish user guide and textbook (guide/, guide.py) ----------------
+
+@app.get("/api/guide", response_model=GuideTree)
+def guide_tree() -> dict:
+    from . import guide
+
+    return guide.tree()
+
+
+@app.get("/api/guide/search", response_model=list[GuideHit])
+def guide_search(q: str = Query(..., min_length=2, max_length=80)) -> list[dict]:
+    from . import guide
+
+    return guide.search(q)
+
+
+@app.get("/api/guide/{book}/{slug}", response_model=GuideChapter)
+def guide_chapter(book: str, slug: str) -> dict:
+    from . import guide
+
+    try:
+        return guide.chapter(book, slug)
+    except guide.NotFound:
+        raise HTTPException(404, f"No chapter {book}/{slug}.") from None
 
 
 # ---------------- importing trades from broker exports ----------------

@@ -1556,3 +1556,62 @@ class DoctorCheck(Strict):
     status: Literal["ok", "warn", "fail", "info"]
     detail: str
     fix: str | None = None
+
+
+# ---------------- the guide (guide.py): Danish user guide and textbook ----------------
+
+class GuideChapterRef(Strict):
+    slug: str
+    title: str
+
+
+class GuidePart(Strict):
+    title: str
+    chapters: list[GuideChapterRef]
+
+
+class GuideBook(Strict):
+    id: str
+    title: str
+    intro: str
+    parts: list[GuidePart]
+
+
+class GuideTree(Strict):
+    books: list[GuideBook]
+    page_links: dict[str, str]
+    glossary_links: dict[str, str]
+
+
+class GuideHeading(Strict):
+    level: int
+    text: str
+    id: str
+
+
+class GuideLink(Strict):
+    book: str
+    slug: str
+    title: str
+
+
+class GuideChapter(Strict):
+    book: str
+    book_title: str
+    part: str
+    slug: str
+    title: str
+    markdown: str
+    headings: list[GuideHeading]
+    prev: GuideLink | None = None
+    next: GuideLink | None = None
+    updated: str
+
+
+class GuideHit(Strict):
+    book: str
+    slug: str
+    title: str
+    section: str | None = None
+    anchor: str | None = None
+    snippet: str
