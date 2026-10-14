@@ -63,7 +63,7 @@ def test_generic_file_preview_writes_nothing(client):
     trades = [r for r in pv["rows"] if not r["skip"]]
     assert [(r["type"], r["quantity"], r["date"]) for r in trades] == [("BUY", 10, D1.isoformat()), ("SELL", 4, D2.isoformat())]
     assert trades[0]["price"] == pytest.approx(round(P1, 2)) and trades[0]["fee"] == 29
-    assert "not a buy or sell (UDBYTTE)" in [r for r in pv["rows"] if r["skip"]][0]["skip"]
+    assert "a dividend without a cash amount" in [r for r in pv["rows"] if r["skip"]][0]["skip"]   # not silently dropped
     assert pv["counts"] == {"rows": 3, "new": 2, "duplicates": 0, "skipped": 1, "errors": 0, "warnings": 0}
     assert userstore.transactions(symbol="S4") == []                        # preview only
 
@@ -81,18 +81,20 @@ def test_commit_reimport_and_undo(client):
     assert userstore.transactions(symbol="S4") == []
 
 
-def test_nordnet_preset_isin_matching_and_new_account(client, monkeypatch):
+def test_nordnet_preset_isin_matching_and_a_new_portfolio(client, monkeypatch):
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [{"symbol": "S4", "name": "Some Corp", "exchange": "NYSE"}])
     pv = _preview(client, nordnet_tsv())
     assert pv["preset"] == "nordnet" and pv["verified"] is False
     m = pv["symbols"][0]
     assert m["isin"] == "US0000000004" and m["chosen"] == "S4" and m["certain"] is False   # a search hit: confirm it
     row = pv["rows"][0]
-    assert row["account"] == "Aktiesparekonto" and row["ext_ref"] == "901" and row["fee"] == 19
+    assert row["portfolio"] == "Aktiesparekonto" and row["ext_ref"] == "901" and row["fee"] == 19
+    assert pv["new_portfolios"] == ["Aktiesparekonto"]
     r = client.post("/api/portfolio/import/commit", content=nordnet_tsv(),
                     params={"filename": "nordnet.csv", "symbols": json.dumps({"US0000000004": "S4"})})
     assert r.status_code == 200 and r.json()["added"] == 1
-    assert "Aktiesparekonto" in {a["name"] for a in userstore.accounts()}
+    new = userstore.portfolio_by_name("Aktiesparekonto")
+    assert new["mode"] == "real" and new["n_tx"] == 1
     assert userstore.mapped_symbol("US0000000004") == "S4"                 # remembered for next time
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [])
     assert _preview(client, nordnet_tsv())["symbols"][0]["candidates"][0]["how"] == "remembered"

@@ -532,10 +532,12 @@ def _derived(p: dict) -> dict:
     return out
 
 
-def compare(symbols: list[str], personal: bool = False, market: Market | None = None) -> dict:
+def compare(symbols: list[str], personal: bool = False, market: Market | None = None,
+            portfolios: list[int] | None = None) -> dict:
     """Several tickers side by side, with ACWI as the always-present alternative: full profiles, the market
     regime, weekly-return correlations (DKK) and a table of key metrics with the best value per row. Without
-    `personal` the profiles are built anonymously (see build). An unknown ticker becomes an error entry."""
+    `personal` the profiles are built anonymously (see build); with it, "your holdings" are these portfolios
+    (ids; default: your real ones). An unknown ticker becomes an error entry."""
     market = market or Market.load()
     bench = universe.benchmark()
     rc = settings()["risk"]
@@ -563,7 +565,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
 
     # correlations of weekly DKK returns: the candidates, ACWI, and (personal) the current holdings
     series = {}
-    for sym in [*ok, bench] + (sorted(set(universe.holdings().query("status == 'holding'")["symbol"]) - set(ok))
+    for sym in [*ok, bench] + (sorted(set(universe.holdings(portfolios).query("status == 'holding'")["symbol"]) - set(ok))
                                if personal else []):
         if sym not in closes:
             continue
@@ -598,6 +600,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
     if personal:
         rot = [r for g in (d or {}).get("rotation", {}).get("groups", []) for r in g["rows"]]
         rows = mine.table(closes, market.highs, market.lows, market.volumes, market.raw_closes(), market.leaders(), rot,
-                          (regime or {}).get("overall", {}).get("label"), settings(), sessions=lambda s: market.bars(s)["close"])
+                          (regime or {}).get("overall", {}).get("label"), settings(), sessions=lambda s: market.bars(s)["close"],
+                          portfolios=portfolios)
         out["mine"] = {r["symbol"]: r for r in rows if r["symbol"] in ok}
     return clean(out)

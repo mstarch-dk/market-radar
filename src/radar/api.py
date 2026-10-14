@@ -19,7 +19,8 @@ from . import dashboard, mine, portfolio, profile, tickers, universe, updater, u
 from .api_models import (
     AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
-    Account, AccountIn, PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
+    PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
+    MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage,
 )
@@ -43,6 +44,23 @@ def market() -> profile.Market:
 
 def _symbol(s: str) -> str:
     return s.strip().upper()
+
+
+def _selection(portfolio: list[int] | None, tag: list[str] | None, scope: str | None) -> list[int] | None:
+    """Which portfolios a request is about: chosen ids and/or tags, else a scope (real | virtual | all); None
+    means the default, your real portfolios."""
+    if portfolio or tag:
+        return userstore.portfolio_ids(ids=portfolio, tags=tag)
+    if scope:
+        if scope not in userstore.SCOPES:
+            raise HTTPException(422, f"scope must be one of {', '.join(userstore.SCOPES)}")
+        return userstore.portfolio_ids(scope)
+    return None
+
+
+PortfolioQ = Query(None, description="Portfolio ids (repeatable); default: your real portfolios")
+TagQ = Query(None, description="Portfolios carrying any of these tags (repeatable)")
+ScopeQ = Query(None, description="real | virtual | all (when no portfolio or tag is given)")
 
 
 @app.get("/api/ticker/{symbol}", response_model=Profile)
@@ -241,16 +259,18 @@ def start_discover() -> dict:
 # ---------------- your holdings and watchlist ----------------
 
 @app.get("/api/me", response_model=MeView)
-def get_me() -> dict:
+def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = TagQ, scope: str | None = ScopeQ) -> dict:
     """Holdings, watchlist and sold positions, computed now from the current prices (so watchlist edits show
-    at once). Quadrants and the regime used for the stop levels come from the last `radar run`."""
+    at once), pooled over the chosen portfolios (default: your real ones). Quadrants and the regime used for
+    the stop levels come from the last `radar run`."""
+    sel = _selection(portfolio, tag, scope)
     d = _dashboard()
     rot_rows = [r for g in d["rotation"]["groups"] for r in g["rows"]]
     regime_label = d["regime"]["overall"]["label"]
     with _lock:
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
-                          settings(), sessions=lambda s: m.bars(s)["close"])
+                          settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}
@@ -288,11 +308,11 @@ def watch(symbol: str) -> dict:
 
 @app.delete("/api/watchlist/{symbol}", response_model=WatchState)
 def unwatch(symbol: str) -> dict:
-    """Take a symbol off the watchlist. A holding can't be removed (409): that comes from the Yahoo import."""
+    """Take a symbol off the watchlist. A holding can't be removed (409): it comes from your trades."""
     symbol = _symbol(symbol)
     st = _status(symbol)
     if st == "holding":
-        raise HTTPException(409, f"{symbol} is a holding, not a watchlist entry; holdings come from the Yahoo import.")
+        raise HTTPException(409, f"{symbol} is a holding, not a watchlist entry; holdings come from your trades.")
     if st == "watch":
         userstore.unwatch(symbol)
     return {"symbol": symbol, "my_status": _status(symbol)}
@@ -347,8 +367,12 @@ async def import_portfolio(request: Request) -> dict:
 # ---------------- portfolio editor: transactions in the local store ----------------
 
 def _tx_row(body: TxIn) -> dict:
-    return {"symbol": _symbol(body.symbol), "date": body.date[:10], "type": body.type, "quantity": body.quantity,
-            "price": body.price, "fee": body.fee or 0.0, "account": body.account or None, "note": body.note or None}
+    trade = body.type in userstore.TRADE_TYPES
+    return {"symbol": _symbol(body.symbol) or None, "date": body.date[:10], "type": body.type,
+            "quantity": body.quantity if trade else None, "price": body.price if trade else None,
+            "fee": (body.fee or 0.0) if trade else 0.0, "amount": None if trade else body.amount,
+            "currency": None if trade else (body.currency or "DKK").upper(), "fx_rate": body.fx_rate if trade else None,
+            "portfolio_id": body.portfolio_id, "note": body.note or None}
 
 
 def _validated(row: dict, exclude_id: int | None) -> list[dict]:
@@ -374,9 +398,11 @@ def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict
 
 
 @app.get("/api/portfolio/transactions", response_model=list[TxRow])
-def list_transactions(symbol: str | None = None, account: str | None = None) -> list[dict]:
+def list_transactions(symbol: str | None = None, portfolio: list[int] | None = PortfolioQ,
+                      tag: list[str] | None = TagQ, scope: str | None = ScopeQ) -> list[dict]:
     universe.ensure_migrated()
-    return userstore.transactions(_symbol(symbol) if symbol else None, account)
+    sel = _selection(portfolio, tag, scope)
+    return userstore.transactions(_symbol(symbol) if symbol else None, userstore.portfolio_ids() if sel is None else sel)
 
 
 @app.post("/api/portfolio/validate", response_model=TxCheck)
@@ -389,7 +415,9 @@ def check_transaction(body: TxIn, id: int | None = None) -> dict:
         pc = portfolio.price_check(market(), row["symbol"], row["date"], row["price"]) \
             if row["symbol"] in market().closes.columns else None
     blocking = {i["field"] for i in issues if i["level"] == "error"} & {"symbol", "type", "date"}
-    return {"issues": issues, "effect": None if blocking else portfolio.effect(row, exclude_id=id), "price": pc}
+    trade = row["type"] in userstore.TRADE_TYPES
+    return {"issues": issues, "effect": portfolio.effect(row, exclude_id=id) if trade and not blocking else None,
+            "price": pc}
 
 
 @app.post("/api/portfolio/transactions", response_model=TxResult)
@@ -425,9 +453,13 @@ def restore_transaction(row: TxRow) -> dict:
 
 
 @app.get("/api/portfolio/positions", response_model=PositionsView)
-def get_positions() -> dict:
+def get_positions(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = TagQ,
+                  scope: str | None = ScopeQ) -> dict:
+    from . import portfolio as pf
+
+    sel = _selection(portfolio, tag, scope)
     with _lock:
-        return portfolio.positions_view(market())
+        return pf.positions_view(market(), sel)
 
 
 @app.get("/api/portfolio/price-check", response_model=PriceCheck)
@@ -442,26 +474,157 @@ def get_price_check(symbol: str, date: str, price: float | None = None) -> dict:
         return portfolio.price_check(market(), sym, date, price)
 
 
-@app.get("/api/portfolio/accounts", response_model=list[Account])
-def get_accounts() -> list[dict]:
-    return userstore.accounts()
+@app.get("/api/portfolio/export.csv", response_class=Response)
+def export_transactions(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = TagQ,
+                        scope: str | None = ScopeQ) -> Response:
+    """The chosen portfolios' transactions as CSV (default: your real ones; a backup you can keep, or open in a
+    spreadsheet)."""
+    universe.ensure_migrated()
+    return Response(userstore.export_transactions_csv(_selection(portfolio, tag, scope)), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="transactions-{dt.date.today()}.csv"'})
 
 
-@app.post("/api/portfolio/accounts", response_model=list[Account])
-def save_account(body: AccountIn) -> list[dict]:
+# ---------------- portfolios: real ones (your accounts) and virtual ones, with tags ----------------
+
+def _portfolio_or_404(pid: int) -> dict:
+    p = userstore.get_portfolio(pid)
+    if not p:
+        raise HTTPException(404, f"No portfolio {pid}.")
+    return p
+
+
+def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
+    import sqlite3
+
     name = body.name.strip()
     if not name:
-        raise HTTPException(422, "The account needs a name.")
-    userstore.save_account(name, body.kind, body.note, body.old_name)
-    return userstore.accounts()
+        raise HTTPException(422, "The portfolio needs a name.")
+    other = userstore.portfolio_by_name(name)
+    if other and other["id"] != pid:
+        raise HTTPException(409, f"There is already a portfolio called {name}.")
+    if pid is not None:
+        old = _portfolio_or_404(pid)
+        if old["origin"] == "sim" and body.mode == "real":
+            raise HTTPException(422, "A simulated portfolio stays virtual: its trades never happened.")
+    try:
+        return userstore.get_portfolio(userstore.save_portfolio(body.model_dump() | {"name": name}, pid))
+    except (ValueError, sqlite3.IntegrityError) as e:
+        raise HTTPException(422, str(e)) from e
 
 
-@app.get("/api/portfolio/export.csv", response_class=Response)
-def export_transactions() -> Response:
-    """Every transaction as CSV (a backup you can keep, or open in a spreadsheet)."""
+@app.get("/api/portfolios", response_model=list[Portfolio])
+def list_portfolios(archived: bool = True) -> list[dict]:
+    """Every portfolio with its tags, number of rows and date range."""
     universe.ensure_migrated()
-    return Response(userstore.export_transactions_csv(), media_type="text/csv",
-                    headers={"Content-Disposition": f'attachment; filename="transactions-{dt.date.today()}.csv"'})
+    return userstore.portfolios(include_archived=archived)
+
+
+@app.post("/api/portfolios", response_model=Portfolio)
+def add_portfolio(body: PortfolioIn) -> dict:
+    return _save_portfolio(body)
+
+
+@app.put("/api/portfolios/{pid}", response_model=Portfolio)
+def edit_portfolio(pid: int, body: PortfolioIn) -> dict:
+    """Rename or change a portfolio (its rows stay with it)."""
+    return _save_portfolio(body, pid)
+
+
+@app.delete("/api/portfolios/{pid}", response_model=Portfolio)
+def delete_portfolio(pid: int) -> dict:
+    """Delete a virtual portfolio with its rows (a backup is taken first), or an empty real one. A real one
+    with trades is 409: move them, or archive it."""
+    _portfolio_or_404(pid)
+    try:
+        return userstore.delete_portfolio(pid)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@app.get("/api/portfolios/tags", response_model=list[TagCount])
+def list_tags() -> list[dict]:
+    return userstore.all_tags()
+
+
+@app.put("/api/portfolios/{pid}/tags", response_model=Portfolio)
+def set_tags(pid: int, body: TagsIn) -> dict:
+    _portfolio_or_404(pid)
+    try:
+        userstore.set_tags(pid, body.tags)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return userstore.get_portfolio(pid)
+
+
+@app.post("/api/portfolios/{pid}/default", response_model=list[Portfolio])
+def set_default(pid: int) -> list[dict]:
+    """Make this real portfolio the one new trades and imports go into unless another is chosen."""
+    _portfolio_or_404(pid)
+    try:
+        userstore.set_default_portfolio(pid)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return userstore.portfolios()
+
+
+@app.get("/api/portfolios/compare", response_model=Comparison)
+def compare_portfolios(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = TagQ,
+                       start: str | None = None) -> dict:
+    """Portfolios and tag groups (each pooled into one line) side by side from a common start, every
+    time-weighted index rebased to 100 there, with ACWI. Default: each of your real portfolios with rows."""
+    from . import performance
+
+    ids = portfolio if (portfolio or tag) else [p["id"] for p in userstore.portfolios(include_archived=False)
+                                                 if p["mode"] == "real" and p["n_tx"]]
+    with _lock:
+        return performance.compare(market(), ids, tag, start)
+
+
+@app.get("/api/portfolios/{pid}/performance", response_model=Performance)
+def portfolio_performance(pid: int, start: str | None = None, end: str | None = None) -> dict:
+    """One portfolio's value over time in DKK, its time- and money-weighted returns and ACWI's with the same
+    cash flows. Gaps (a price or DKK rate missing) are None, never 0."""
+    from . import performance
+
+    with _lock:
+        out = performance.portfolio_performance(pid, market(), start, end)
+    if out is None:
+        raise HTTPException(404, f"No portfolio {pid}.")
+    return out
+
+
+@app.post("/api/portfolios/{pid}/fork", response_model=Portfolio)
+def fork_portfolio(pid: int, body: ForkIn) -> dict:
+    """A virtual copy of this portfolio as it stood at a day's close (one deposit, one buy per holding), to
+    A/B-test changes against it from there on (compare with start = that day)."""
+    from . import simulate
+
+    _portfolio_or_404(pid)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(422, "The copy needs a name.")
+    try:
+        with _lock:
+            new = simulate.fork(pid, name, body.date, market(), body.extra_cash_dkk, body.tags)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return userstore.get_portfolio(new)
+
+
+@app.post("/api/portfolios/{pid}/move", response_model=MoveResult)
+def move_rows(pid: int, body: MoveIn) -> dict:
+    """Move rows (all, or only these ids / tickers) to another portfolio; refused (422) if a sale would be left
+    without its buy in either portfolio. A backup is taken first."""
+    _portfolio_or_404(pid)
+    _portfolio_or_404(body.to)
+    if body.to == pid:
+        raise HTTPException(422, "Choose another portfolio to move to.")
+    symbols = [_symbol(s) for s in body.symbols] if body.symbols else None
+    problems = portfolio.check_move(pid, body.to, body.ids, symbols)
+    if problems:
+        raise HTTPException(422, {"message": "Not moved: " + problems[0],
+                                  "issues": [{"level": "error", "field": "portfolio", "message": p} for p in problems]})
+    return {"moved": userstore.move_transactions(pid, body.to, body.ids, symbols)}
 
 
 # ---------------- importing trades from broker exports ----------------
@@ -477,7 +640,7 @@ def _has_prices(symbol: str) -> bool:
 
 
 def _preview(body: bytes, filename: str, preset: str | None, mapping: str | None, symbols: str | None,
-             account: str | None) -> dict:
+             portfolio: int | None) -> dict:
     import json
 
     from . import importers
@@ -489,7 +652,7 @@ def _preview(body: bytes, filename: str, preset: str | None, mapping: str | None
     try:
         with _lock:
             return importers.preview(body, filename, market, _has_prices, preset or None,
-                                     json.loads(mapping) if mapping else None, account or None,
+                                     json.loads(mapping) if mapping else None, portfolio,
                                      json.loads(symbols) if symbols else None)
     except (ValueError, KeyError, UnicodeDecodeError) as e:
         raise HTTPException(400, f"Couldn't read this file as a table of trades ({type(e).__name__}: {e}).") from e
@@ -504,21 +667,22 @@ def import_presets() -> list[dict]:
 
 @app.post("/api/portfolio/import/preview", response_model=ImportPreview)
 async def import_preview(request: Request, filename: str = "", preset: str | None = None, mapping: str | None = None,
-                         symbols: str | None = None, account: str | None = None) -> dict:
+                         symbols: str | None = None, portfolio: int | None = None) -> dict:
     """What importing this file would do, without saving: format, column mapping, symbol matches, each row with
-    its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols."""
+    its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols; rows go
+    into `portfolio` (default: the default portfolio) unless the file names one."""
     universe.ensure_migrated()
-    return _preview(await request.body(), filename, preset, mapping, symbols, account)
+    return _preview(await request.body(), filename, preset, mapping, symbols, portfolio)
 
 
 @app.post("/api/portfolio/import/commit", response_model=ImportCommitResult)
 async def import_commit(request: Request, filename: str = "", preset: str | None = None, mapping: str | None = None,
-                        symbols: str | None = None, account: str | None = None, confirm: bool = False) -> dict:
+                        symbols: str | None = None, portfolio: int | None = None, confirm: bool = False) -> dict:
     """Save the import exactly as the same preview shows it (re-run here, so nothing unchecked gets in)."""
     from . import importers
 
     universe.ensure_migrated()
-    pv = _preview(await request.body(), filename, preset, mapping, symbols, account)
+    pv = _preview(await request.body(), filename, preset, mapping, symbols, portfolio)
     try:
         return importers.commit(pv, filename, confirm)
     except ValueError as e:

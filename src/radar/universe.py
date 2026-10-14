@@ -153,6 +153,18 @@ FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", 
           "JPY": "JPYDKK=X", "HKD": "HKDDKK=X"}
 
 
+def fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
+    """DKK per unit of quoted price (pence-quoted GBp includes the /100)."""
+    if ccy not in FX_DKK:
+        return None
+    fx = FX_DKK[ccy]
+    if fx is None:
+        return pd.Series(1.0, index=closes.index)
+    if fx not in closes:
+        return None
+    return closes[fx].ffill() * (0.01 if ccy == "GBp" else 1.0)
+
+
 def currencies(tickers: list[str]) -> dict[str, str | None]:
     """Quote currency per ticker (cached Yahoo lookup). GBp = pence."""
     cache_file = DATA / "currencies.csv"
@@ -208,7 +220,8 @@ def _is_market_symbol(sym: str) -> bool:
     return sym.startswith(("^", "$$")) or "=" in sym
 
 
-TX_COLS = ["symbol", "date", "type", "quantity", "price", "fee", "account"]
+CASH_TYPES = ("DEPOSIT", "WITHDRAW", "DIVIDEND", "FEE", "INTEREST")
+TX_COLS = ["symbol", "date", "type", "quantity", "price", "fee", "fx_rate", "portfolio_id", "portfolio"]
 
 
 def replay(tx: pd.DataFrame) -> tuple[dict, list[str]]:
@@ -216,12 +229,15 @@ def replay(tx: pd.DataFrame) -> tuple[dict, list[str]]:
 
     `tx` has the columns date, type, quantity, price and fee. Fees are part of the acquisition cost; a sale
     removes cost in proportion and doesn't change the average. A sale larger than the position is capped and
-    reported, never silently accepted."""
+    reported, never silently accepted. Cash rows (deposits, dividends, …) don't change a position and are
+    passed over."""
     qty = cost = 0.0
     opened = last_sell_date = last_sell_price = None
     warnings = []
     for _, t in tx.sort_values("date", kind="stable").iterrows():
         q, px, kind = t["quantity"], t["price"], t["type"]
+        if kind in CASH_TYPES:
+            continue
         fee = t.get("fee", 0)
         fee = 0.0 if pd.isna(fee) else float(fee)
         if pd.isna(q) or pd.isna(px):
@@ -253,22 +269,31 @@ def replay(tx: pd.DataFrame) -> tuple[dict, list[str]]:
     }, warnings
 
 
-def positions(tx: pd.DataFrame, by_account: bool = False) -> tuple[pd.DataFrame, dict[str, list[str]]]:
-    """Positions (holding or sold) derived from transactions, per symbol or per (symbol, account)."""
-    cols = HOLDING_COLS + ["accounts"] + (["account"] if by_account else [])
+def positions(tx: pd.DataFrame, by_portfolio: bool = False) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    """Positions (holding or sold) derived from transactions, per symbol or per (symbol, portfolio).
+    `portfolios` lists the portfolios a symbol was traded in."""
+    cols = HOLDING_COLS + ["portfolios"] + (["portfolio_id", "portfolio"] if by_portfolio else [])
+    tx = tx[tx["type"].isin(["BUY", "SELL"])] if not tx.empty else tx
     if tx.empty:
         return pd.DataFrame(columns=cols), {}
-    keys = ["symbol", "account"] if by_account else ["symbol"]
+    keys = ["symbol", "portfolio"] if by_portfolio else ["symbol"]
+    tx = tx.assign(portfolio=tx["portfolio"].fillna("") if "portfolio" in tx else "",
+                   portfolio_id=tx["portfolio_id"] if "portfolio_id" in tx else None)
     rows, warnings = [], {}
-    for key, lots in tx.assign(account=tx["account"].fillna("")).groupby(keys, sort=True):
+    for key, lots in tx.groupby(keys, sort=True):
         sym = key[0] if isinstance(key, tuple) else key
         row, warn = replay(lots)
-        accts = sorted(a for a in lots["account"].unique() if a)
-        extra = {"account": key[1] or None} if by_account else {}
-        rows.append({"symbol": sym, **row, "accounts": ", ".join(accts) or None, **extra})
+        names = sorted(a for a in lots["portfolio"].unique() if a)
+        extra = {"portfolio_id": _int(lots["portfolio_id"].iloc[0]), "portfolio": key[1] or None} if by_portfolio else {}
+        rows.append({"symbol": sym, **row, "portfolios": ", ".join(names) or None, **extra})
         if warn:
-            warnings.setdefault(sym, []).extend(warn)
+            label = f"{sym} in {key[1]}" if by_portfolio and key[1] else sym
+            warnings.setdefault(sym, []).extend(warn if label == sym else [f"{label}: {w}" for w in warn])
     return pd.DataFrame(rows, columns=cols), warnings
+
+
+def _int(v) -> int | None:
+    return None if v is None or pd.isna(v) else int(v)
 
 
 def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]]]:
@@ -302,13 +327,14 @@ def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]]]
 def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     """Import a Yahoo Finance portfolio export into the transaction store.
 
-    The export is a full snapshot of that Yahoo portfolio, so it replaces the transactions of the previous
-    Yahoo import (manual entries and other brokers' imports are kept) and its watchlist. Returns the positions
+    The export is a full snapshot of that Yahoo portfolio, so it replaces the default portfolio's rows from the
+    previous Yahoo import (manual entries, other brokers' imports and trades moved to another portfolio are
+    kept) and its watchlist. Returns the positions
     of the exported symbols and the replay warnings."""
     from . import userstore
 
     ensure_migrated()
-    rows, watch, skipped = _yahoo_rows(path)         # read everything before writing anything
+    rows, watch, skipped = _yahoo_rows(path)          # into the default portfolio         # read everything before writing anything
     userstore.add_import(rows, "yahoo", pathlib.Path(path).name, replace_source=True)
     userstore.meta_set("yahoo_watch", watch)
     exported = {r["symbol"] for r in rows} | set(watch)
@@ -362,14 +388,16 @@ def ensure_migrated() -> None:
     userstore.meta_set("legacy_csv", {"status": "migrated", "at": date.today().isoformat(), "transactions": len(rows)})
 
 
-def _store_frame() -> pd.DataFrame:
+def _store_frame(portfolios: list[int] | None = None, types=("BUY", "SELL")) -> pd.DataFrame:
+    """Stored rows as a frame (`portfolios`: ids, None = every portfolio; `types`: None = every type)."""
     from . import userstore
 
-    tx = pd.DataFrame(userstore.transactions(), columns=TX_COLS + ["id", "source"])
+    cols = TX_COLS + (["amount", "currency"] if types is None else [])
+    tx = pd.DataFrame(userstore.transactions(portfolios=portfolios, types=types), columns=cols + ["id", "source"])
     if tx.empty:
-        return pd.DataFrame(columns=TX_COLS)
+        return pd.DataFrame(columns=cols)
     tx["date"] = pd.to_datetime(tx["date"])
-    return tx[TX_COLS]
+    return tx[cols]
 
 
 def _legacy_mode() -> bool:
@@ -379,17 +407,32 @@ def _legacy_mode() -> bool:
     return m.get("status") == "failed" and _legacy_files()
 
 
-def transactions() -> pd.DataFrame:
-    """Every BUY/SELL (symbol, date, type, quantity, price, fee, account), from the store."""
+def _selection(portfolios: list[int] | None) -> list[int]:
+    """None means yours: the real portfolios that aren't archived (virtual ones only when chosen)."""
+    from . import userstore
+
+    return userstore.portfolio_ids() if portfolios is None else list(portfolios)
+
+
+def transactions(portfolios: list[int] | None = None) -> pd.DataFrame:
+    """Every BUY/SELL (symbol, date, type, quantity, price, fee, fx_rate, portfolio_id, portfolio) in these
+    portfolios (ids; default: your real ones). Cash rows are left out: see ledger()."""
     ensure_migrated()
     if _legacy_mode():
         tx = pd.read_csv(TRANSACTIONS_FILE, parse_dates=["date"]) if TRANSACTIONS_FILE.exists() else pd.DataFrame(columns=TX_COLS)
-        return tx.assign(fee=0.0, account=None)
-    return _store_frame()
+        return tx.assign(fee=0.0, fx_rate=None, portfolio_id=None, portfolio=None)
+    return _store_frame(_selection(portfolios))
 
 
-def holdings() -> pd.DataFrame:
-    """Holdings and sold positions derived from the transactions, plus the watchlist: the last Yahoo import's,
+def ledger(portfolios: list[int] | None = None) -> pd.DataFrame:
+    """Every row of these portfolios (default: your real ones), cash rows included, with amount and currency."""
+    ensure_migrated()
+    return _store_frame(_selection(portfolios), types=None)
+
+
+def holdings(portfolios: list[int] | None = None) -> pd.DataFrame:
+    """Holdings and sold positions derived from the transactions of these portfolios (ids; default: your real
+    ones), plus the watchlist (shared by all portfolios): the last Yahoo import's,
     `watchlist:` in universe.yaml, and the edits made in the web app (userstore) on top. An add puts a symbol on
     the watchlist (a sold one too), a remove takes a watchlist symbol off. Holdings are never changed by the
     overlay."""
@@ -399,7 +442,7 @@ def holdings() -> pd.DataFrame:
     if _legacy_mode():
         df = pd.read_csv(HOLDINGS_FILE) if HOLDINGS_FILE.exists() else pd.DataFrame(columns=HOLDING_COLS)
     else:
-        pos, _ = positions(transactions())
+        pos, _ = positions(transactions(portfolios))
         watch = [w for w in userstore.meta_get("yahoo_watch", []) if w not in set(pos["symbol"])]
         df = pd.concat([pos, pd.DataFrame({"symbol": watch, "status": "watch"})], ignore_index=True)
     extra = [t for t in universe_config().get("watchlist") or [] if t not in set(df["symbol"])]
@@ -455,6 +498,14 @@ def positive_list_flag(isin: str | None, isins: set[str] | None) -> str:
     return "yes" if isin.upper() in isins else "no"
 
 
+def _every_portfolio_symbol() -> set[str]:
+    from . import userstore
+
+    if _legacy_mode():
+        return set()
+    return {t["symbol"] for t in userstore.transactions() if t["symbol"]}
+
+
 def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]:
     """Every ticker the radar downloads prices for; `offline` uses the cached constituent list as is."""
     tickers = {benchmark()}
@@ -464,5 +515,6 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
         tickers |= set(g)
     tickers |= set(macro_yahoo().values())
     tickers |= set(holdings()["symbol"].dropna())
+    tickers |= _every_portfolio_symbol()                  # virtual portfolios need prices too
     tickers |= {fx for fx in FX_DKK.values() if fx}
     return sorted(tickers)

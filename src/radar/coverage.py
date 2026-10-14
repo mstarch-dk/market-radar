@@ -33,7 +33,7 @@ SOURCES = {
                   "Momentum clusters, Holdings (DKK)"),
     "positive_list": ("Positive list (aktiebaserede inv.selskaber)", "SKAT (manual download)", True, "yearly",
                       "Themes (UCITS check)"),
-    "holdings": ("Holdings & transactions", "Yahoo portfolio export (manual)", False, "manual",
+    "holdings": ("Holdings & transactions", "your portfolios (entered or imported in the app)", False, "manual",
                  "Holdings, Levels"),
     "discovery_universe": ("Discovery universe", "Yahoo screener, iShares STOXX 600 holdings, positive list → Yahoo",
                            False, "monthly re-build", "Discover"),

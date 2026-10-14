@@ -1,5 +1,5 @@
 """The transaction store as the portfolio's source of truth: the one-time move of the old CSV files, positions
-derived with fees and per account, import semantics (snapshot vs additive, duplicates, undo) and backups."""
+derived with fees and per portfolio, import semantics (snapshot vs additive, duplicates, undo) and backups."""
 import pandas as pd
 import pytest
 
@@ -13,9 +13,9 @@ def _legacy(tmp_data, holdings: str, tx: str) -> None:
     (tmp_data / "transactions.csv").write_text("symbol,date,type,quantity,price\n" + tx, encoding="utf-8")
 
 
-def _tx(symbol, date, type_, qty, price, fee=0.0, account=None, ext_ref=None):
+def _tx(symbol, date, type_, qty, price, fee=0.0, portfolio=None, ext_ref=None):
     return {"symbol": symbol, "date": date, "type": type_, "quantity": qty, "price": price, "fee": fee,
-            "account": account, "ext_ref": ext_ref}
+            "portfolio": portfolio, "ext_ref": ext_ref}
 
 
 def test_old_csv_files_move_into_the_store_unchanged(tmp_data):
@@ -40,15 +40,15 @@ def test_a_migration_that_would_change_a_position_is_undone(tmp_data):
     assert m["status"] == "failed" and "A: 3" in m["problems"][0]
 
 
-def test_fees_are_part_of_the_cost_and_accounts_are_kept_apart(tmp_data):
-    userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 100, fee=29, account="ASK"))
-    userstore.add_tx(_tx("A", "2026-02-05", "BUY", 10, 200, fee=0, account="frie midler"))
+def test_fees_are_part_of_the_cost_and_portfolios_are_kept_apart(tmp_data):
+    userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 100, fee=29, portfolio="ASK"))
+    userstore.add_tx(_tx("A", "2026-02-05", "BUY", 10, 200, fee=0, portfolio="frie midler"))
     total = universe.holdings().set_index("symbol").loc["A"]
     assert total["quantity"] == 20 and total["avg_price"] == pytest.approx((1000 + 29 + 2000) / 20)
-    per, _ = universe.positions(universe.transactions(), by_account=True)
-    per = per.set_index("account")
+    per, _ = universe.positions(universe.transactions(), by_portfolio=True)
+    per = per.set_index("portfolio")
     assert per.loc["ASK", "avg_price"] == pytest.approx(102.9) and per.loc["frie midler", "quantity"] == 10
-    assert total["accounts"] == "ASK, frie midler"
+    assert total["portfolios"] == "ASK, frie midler"
 
 
 def test_an_oversold_position_is_reported_not_hidden(tmp_data):
@@ -80,17 +80,18 @@ def test_a_yahoo_import_replaces_the_previous_yahoo_rows_only(tmp_data):
 
 
 def test_delete_and_restore_a_transaction(tmp_data):
-    tx_id = userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 100, account="ASK"))
+    tx_id = userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 100, portfolio="ASK"))
     row = userstore.delete_tx(tx_id)
-    assert userstore.transactions() == [] and row["account"] == "ASK"
+    assert userstore.transactions() == [] and row["portfolio"] == "ASK"
     assert userstore.restore_tx(row) == tx_id and userstore.get_tx(tx_id)["price"] == 100
 
 
-def test_accounts_are_seeded_and_renames_carry_the_transactions(tmp_data):
-    assert {a["name"] for a in userstore.accounts()} >= {"ASK", "frie midler"}
-    tx_id = userstore.add_tx(_tx("A", "2026-01-05", "BUY", 1, 1, account="ASK"))
-    userstore.save_account("ASK Danske", "ask", old_name="ASK")
-    assert userstore.get_tx(tx_id)["account"] == "ASK Danske"
+def test_accounts_are_seeded_as_portfolios_and_renames_carry_the_transactions(tmp_data):
+    tx_id = userstore.add_tx(_tx("A", "2026-01-05", "BUY", 1, 1, portfolio="ASK"))
+    assert {(p["name"], p["kind"], p["mode"]) for p in userstore.portfolios()} == {
+        ("ASK", "ask", "real"), ("frie midler", "frie_midler", "real")}
+    userstore.save_portfolio({"name": "ASK Danske"}, userstore.portfolio_by_name("ASK")["id"])
+    assert userstore.get_tx(tx_id)["portfolio"] == "ASK Danske"
 
 
 def test_without_any_data_nothing_is_created(tmp_data):

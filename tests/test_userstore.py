@@ -91,7 +91,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     for f in (tmp_data / "userdata").iterdir():                         # a fresh CI checkout
         f.unlink() if f.is_file() else None
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": bundle})
-    assert res.exit_code == 0 and "1 transactions, 2 watchlist edits and 1 market views" in res.output
+    assert res.exit_code == 0 and "1 transactions in 3 portfolios, 2 watchlist edits and 1 market views" in res.output
     h = universe.holdings().set_index("symbol")
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
     [v] = userstore.views()
@@ -115,3 +115,47 @@ def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": base64.b64encode(buf.getvalue()).decode()})
     assert res.exit_code == 0
     assert universe.holdings().set_index("symbol").loc["H", "quantity"] == 2
+
+
+def test_a_failing_migration_step_changes_nothing(tmp_data, monkeypatch):
+    userstore.watch("AAA")
+    db = tmp_data / "userdata" / userstore.DB_NAME
+    n = len(userstore.MIGRATIONS)
+    monkeypatch.setattr(userstore, "MIGRATIONS", [*userstore.MIGRATIONS, (
+        "CREATE TABLE half (x INTEGER)",
+        "DELETE FROM watchlist",
+        "INSERT INTO nowhere VALUES (1)")])            # fails half-way through the step
+    try:
+        userstore.watchlist_overlay()
+        raise AssertionError("the migration should have failed")
+    except sqlite3.OperationalError:
+        pass
+    with closing(sqlite3.connect(db)) as con:
+        assert con.execute("PRAGMA user_version").fetchone()[0] == n
+        assert not con.execute("SELECT 1 FROM sqlite_master WHERE name = 'half'").fetchone()
+        assert con.execute("SELECT symbol FROM watchlist").fetchall() == [("AAA",)]
+
+
+def test_a_rebuild_that_breaks_references_is_rolled_back(tmp_data, monkeypatch):
+    userstore.add_tx({"symbol": "A", "date": "2026-01-02", "type": "BUY", "quantity": 1, "price": 10,
+                      "portfolio": "ASK"})
+    n = len(userstore.MIGRATIONS)
+    monkeypatch.setattr(userstore, "MIGRATIONS", [*userstore.MIGRATIONS, ("DELETE FROM portfolios",)])
+    try:
+        userstore.transactions()
+        raise AssertionError("the migration should have failed")
+    except sqlite3.IntegrityError:
+        pass
+    monkeypatch.setattr(userstore, "MIGRATIONS", userstore.MIGRATIONS[:n])
+    assert [p["name"] for p in userstore.portfolios()] == ["ASK", "frie midler"]
+
+
+def test_an_upgrade_is_backed_up_first_a_new_database_is_not(tmp_data, monkeypatch):
+    userstore.watch("AAA")
+    backups = tmp_data / "userdata" / "backups"
+    assert not backups.exists()                          # created from scratch: nothing to keep
+    monkeypatch.setattr(userstore, "MIGRATIONS", [*userstore.MIGRATIONS, "CREATE TABLE later (x INTEGER)"])
+    userstore.watchlist_overlay()
+    (copy,) = backups.glob("radar-*.db")
+    with closing(sqlite3.connect(copy)) as con:          # the copy is the database as it was
+        assert con.execute("PRAGMA user_version").fetchone()[0] == len(userstore.MIGRATIONS) - 1

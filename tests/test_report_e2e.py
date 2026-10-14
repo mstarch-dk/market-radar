@@ -36,8 +36,16 @@ def test_summary_schema(summary):
     assert set(summary) - {"_res", "_dash"} == {
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
-        "earnings_factset", "stale_tickers", "coverage"}
+        "earnings_factset", "stale_tickers", "coverage", "portfolios"}
     assert summary["asof"] == IDX[-1].date().isoformat()
+
+
+def test_summary_portfolios_are_your_real_ones_with_returns_vs_acwi(summary):
+    [main] = summary["portfolios"]                    # the world's S1 trade, in Main (no cash rows)
+    s1 = next(r for r in summary["me"] if r["symbol"] == "S1")
+    assert main["name"] == "Main" and main["funding"] == "implicit"
+    assert main["twr_total"] == pytest.approx(s1["since_buy"]) and main["acwi_twr_total"] == pytest.approx(s1["bench_since_buy"])
+    assert main["twr_3m"] == pytest.approx(1.0012 ** 63 - 1) and main["acwi_3m"] == pytest.approx(1.0004 ** 63 - 1)
 
 
 def test_regime_votes(summary):

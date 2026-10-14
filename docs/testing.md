@@ -1,6 +1,6 @@
 # Testing
 
-- `uv run pytest -q`: parsers, signals, holdings import, config integrity, ticker profiles, the API, the user store, and an end-to-end `report.build()` (summary.json keys, dashboard.json against the API models). Also run in CI.
+- `uv run pytest -q`: parsers, signals, holdings import, config integrity, ticker profiles, the API, the user store, portfolios and their upgrade from accounts (`test_portfolios.py`), the cash ledger (`test_cash.py`), returns over time with hand-checkable numbers (`test_performance.py`), forks and simulated runs (`test_simulate.py`), and an end-to-end `report.build()` (summary.json keys, dashboard.json against the API models). Also run in CI.
 - `pnpm -C web test`: frontend formatters and the table state (URL round trip, filters, sorting, CSV). `pnpm -C web build` type-checks the UI against the generated API schema.
 
 ## Fixtures

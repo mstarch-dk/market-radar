@@ -19,7 +19,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref"]
+FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref",
+          "cash_amount"]
 REQUIRED = ["date", "quantity", "price"]          # plus one of symbol / isin / name
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 
@@ -36,9 +37,17 @@ GENERIC = {
     "currency": ["currency", "valuta"],
     "account": ["account", "konto", "depot", "portfolio"],
     "ext_ref": ["id", "trade id", "reference", "nota"],
+    "cash_amount": ["beløb", "net amount", "nettobeløb", "cash amount", "belopp", "beløp", "booked amount"],
 }
 DEFAULT_BUY = ["BUY", "B", "BOUGHT", "KØB", "KØBT", "K"]
 DEFAULT_SELL = ["SELL", "S", "SOLD", "SALG", "SOLGT"]
+# cash rows (kept only with a cash amount in DKK; a preset may list its own words under the same keys)
+DEFAULT_CASH = {
+    "DEPOSIT": ["DEPOSIT", "INDBETALING", "INDSÆTNING", "INSÄTTNING", "INNSKUDD", "CASH DEPOSIT"],
+    "WITHDRAW": ["WITHDRAWAL", "WITHDRAW", "UDBETALING", "HÆVNING", "UTTAG", "UTTAK", "CASH WITHDRAWAL"],
+    "DIVIDEND": ["DIVIDEND", "UDBYTTE", "UTDELNING", "UTBYTTE", "CASH DIVIDEND"],
+    "INTEREST": ["INTEREST", "RENTE", "RENTER", "RÄNTA", "CREDIT INTEREST"],
+}
 
 
 @cache
@@ -178,14 +187,15 @@ def saxo_to_yahoo(sym: str) -> str | None:
     return f"{base}{'-' + share_class.upper() if share_class else ''}{SAXO_EXCHANGES[ex]}"
 
 
-def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = None,
-              default_account: str | None = None) -> tuple[list[dict], list[str]]:
+def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = None) -> tuple[list[dict], list[str]]:
     """Rows as transactions (unresolved: `ident` is what identifies the instrument), plus the watch-only symbols
-    (Yahoo exports). Rows that aren't buys or sells are kept with `skip` saying why."""
+    (Yahoo exports). Rows that aren't buys or sells are kept with `skip` saying why. A file's account column
+    names the row's portfolio (`portfolio`); without one the row goes into the portfolio chosen for the import."""
     p = presets().get(preset or "", {})
     decimal = p.get("decimal", "auto")
     buy = {w.upper() for w in p.get("buy", DEFAULT_BUY)}
     sell = {w.upper() for w in p.get("sell", DEFAULT_SELL)}
+    cash_words = {w.upper(): kind for kind, words in DEFAULT_CASH.items() for w in p.get(kind.lower(), words)}
     get = lambda r, f: r[mapping[f]] if f in mapping else ""  # noqa: E731
     rows, watch = [], []
     for i, r in df.iterrows():
@@ -194,15 +204,17 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
             sym = saxo_to_yahoo(sym) or sym
         ident = sym or isin or name
         qty = parse_number(get(r, "quantity"), decimal)
+        word = get(r, "type").strip().upper()
+        if sym.startswith(("^", "$$")) or "=" in sym:            # Yahoo index, FX and cash rows
+            continue
+        if word in cash_words:
+            rows.append(_cash_row(r, i, get, cash_words[word], ident, sym, isin, name, decimal, p))
+            continue
         if not ident:
             continue
         if qty is None and p.get("watch_without_quantity"):
-            if not sym.startswith(("^", "$$")) and "=" not in sym:
-                watch.append(sym)
+            watch.append(sym)
             continue
-        if sym.startswith(("^", "$$")) or "=" in sym:            # Yahoo index, FX and cash rows
-            continue
-        word = get(r, "type").strip().upper()
         if not word and p.get("default_type"):
             kind = p["default_type"]
         elif word in buy:
@@ -218,8 +230,8 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
                "type": kind, "quantity": abs(qty) if qty is not None else None,
                "price": abs(v) if (v := parse_number(get(r, "price"), decimal)) is not None else None,
                "fee": abs(parse_number(get(r, "fee"), decimal) or 0.0),
-               "currency": get(r, "currency") or None, "account": get(r, "account") or default_account or None,
-               "ext_ref": get(r, "ext_ref") or None, "skip": None}
+               "currency": get(r, "currency") or None, "portfolio": get(r, "account").strip() or None,
+               "ext_ref": get(r, "ext_ref") or None, "amount": None, "skip": None}
         if kind is None:
             row["skip"] = f"not a buy or sell ({word or 'no type'})"
         elif row["date"] is None:
@@ -228,6 +240,27 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
             row["skip"] = "no quantity or price"
         rows.append(row)
     return rows, sorted(set(watch))
+
+
+def _cash_row(r, i, get, kind, ident, sym, isin, name, decimal, p) -> dict:
+    """A deposit, withdrawal, dividend or interest row: an amount in DKK (other currencies are skipped: convert
+    them first). A dividend keeps its instrument so it can be matched to a symbol."""
+    amount = parse_number(get(r, "cash_amount"), decimal)
+    ccy = (get(r, "currency") or "DKK").strip().upper()
+    row = {"row": int(i) + 2, "ident": ident if kind == "DIVIDEND" else "", "symbol_in": sym or None,
+           "isin": isin if ISIN_RE.match(isin) else None, "name": name or None,
+           "date": parse_date(get(r, "date"), p.get("date_formats"), p.get("dayfirst", True)), "type": kind,
+           "quantity": None, "price": None, "fee": 0.0, "currency": "DKK", "amount": abs(amount) if amount else None,
+           "portfolio": get(r, "account").strip() or None, "ext_ref": get(r, "ext_ref") or None, "skip": None}
+    if row["date"] is None:
+        row["skip"] = f"unreadable date ({get(r, 'date')!r})"
+    elif not row["amount"]:
+        row["skip"] = f"a {kind.lower()} without a cash amount (map the cash amount column)"
+    elif ccy != "DKK":
+        row["skip"] = f"a {kind.lower()} in {ccy}: only DKK cash rows are imported"
+    elif kind == "DIVIDEND" and not ident:
+        row["skip"] = "a dividend without its instrument"
+    return row
 
 
 # ---------------- matching instruments to Yahoo symbols ----------------
@@ -282,22 +315,26 @@ def yahoo_search(q: str) -> list[dict]:
 # ---------------- preview and commit ----------------
 
 def preview(data: bytes, filename: str, get_market, market_has, preset: str | None = None,
-            mapping: dict[str, str] | None = None, account: str | None = None,
+            mapping: dict[str, str] | None = None, portfolio: int | None = None,
             symbols: dict[str, str] | None = None) -> dict:
     """What an import would do, without saving anything: the detected format and column mapping, every row
     with its Yahoo symbol (suggested or chosen in `symbols`), skipped rows with the reason, duplicates of stored
     trades, and validation issues. Rows are checked in order, together with the stored trades, so a sale later
     in the file is fine after its buy. `market_has(symbol)` makes sure prices exist (downloading them if needed);
-    `get_market()` returns the current price store."""
-    from .. import portfolio, userstore
+    `get_market()` returns the current price store. Rows go into `portfolio` (an id; default: the default
+    portfolio) unless the file names one."""
+    from .. import portfolio as checks, userstore
 
     df = read_table(data, filename)
     detected, guessed = detect(list(df.columns))
     preset = preset if preset in presets() else detected
     if mapping is None:
         mapping = preset_mapping(list(df.columns), preset) if preset else guessed
-    rows, watch = normalize(df, mapping, preset, account)
-    idents = {r["ident"]: (r["ident"], r["symbol_in"], r["isin"], r["name"]) for r in rows if not r["skip"]}
+    rows, watch = normalize(df, mapping, preset)
+    target = portfolio if portfolio is not None else userstore.default_portfolio()
+    if target is not None and not userstore.get_portfolio(target):
+        raise ValueError(f"no portfolio {target}")
+    idents = {r["ident"]: (r["ident"], r["symbol_in"], r["isin"], r["name"]) for r in rows if not r["skip"] and r["ident"]}
     matches = suggest_symbols(list(idents.values()), market_has)
     for ident, sym in (symbols or {}).items():
         if ident in matches and sym:
@@ -306,28 +343,35 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
 
     p = presets().get(preset or "", {})
     stored = userstore.transactions()
-    if p.get("snapshot"):                                  # a snapshot replaces its own earlier rows
-        stored = [t for t in stored if t["source"] != preset]
-    keys = {userstore._key(t) for t in stored}
-    refs = {t["ext_ref"] for t in stored if t.get("ext_ref")}
-    accounts = {a["name"] for a in userstore.accounts()}
+    if p.get("snapshot"):                                  # a snapshot replaces its own earlier rows (in the target)
+        stored = [t for t in stored if not (t["source"] == preset and t["portfolio_id"] == target)]
+    real = set(userstore.portfolio_ids("real", include_archived=True))
+    scope = real if target is None or target in real else set()       # as add_import checks duplicates
+    seen = [t for t in stored if t["portfolio_id"] in scope or t["portfolio_id"] == target]
+    keys = {userstore._key(t) for t in seen}
+    refs = {t["ext_ref"] for t in seen if t.get("ext_ref")}
+    known = {x["name"]: x["id"] for x in userstore.portfolios()}
+    new_ids: dict[str, int] = {}                           # portfolios named in the file, created on commit
     so_far: list[dict] = []
     for r in rows:
-        r["symbol"] = matches.get(r["ident"], {}).get("chosen")
+        r["symbol"] = matches.get(r["ident"], {}).get("chosen") if r["ident"] else None
         r["issues"], r["duplicate"] = [], False
         if r["skip"]:
             continue
-        if not r["symbol"]:
+        if not r["symbol"] and r["ident"]:
             r["issues"] = [{"level": "error", "field": "symbol", "message": f"No Yahoo symbol for {r['ident']}: choose one."}]
             continue
-        tx = {k: r[k] for k in ("symbol", "date", "type", "quantity", "price", "fee", "account")}
-        if tx["account"] and tx["account"] not in accounts:
-            tx = tx | {"account": None}                    # a new account from the file: created on commit
+        name = r["portfolio"]
+        pid = known.get(name) if name in known else (new_ids.setdefault(name, -len(new_ids) - 1) if name else target)
+        tx = {k: r[k] for k in ("symbol", "date", "type", "quantity", "price", "fee", "amount")} | {"portfolio_id": pid}
+        if r["amount"] is not None:
+            tx["currency"] = "DKK"
         r["duplicate"] = (r["ext_ref"] in refs) if r["ext_ref"] else userstore._key(tx) in keys
         if r["duplicate"]:
             continue
-        market_has(tx["symbol"])
-        r["issues"] = [i for i in portfolio.validate(tx, get_market(), others=stored + so_far) if i["field"] != "account"]
+        if tx["symbol"]:
+            market_has(tx["symbol"])
+        r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
         so_far.append(tx | {"id": -len(so_far) - 1})
     counts = {"rows": len(rows), "new": sum(1 for r in rows if not r["skip"] and not r["duplicate"]),
               "duplicates": sum(r["duplicate"] for r in rows), "skipped": sum(bool(r["skip"]) for r in rows),
@@ -335,7 +379,8 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
               "warnings": sum(any(i["level"] == "warning" for i in r["issues"]) for r in rows)}
     return {"preset": preset, "preset_label": p.get("label"), "verified": p.get("verified", True) if preset else None,
             "snapshot": bool(p.get("snapshot")), "columns": list(df.columns), "mapping": mapping, "rows": rows,
-            "symbols": list(matches.values()), "watch": watch, "counts": counts}
+            "symbols": list(matches.values()), "watch": watch, "counts": counts, "portfolio_id": target,
+            "new_portfolios": sorted(new_ids)}
 
 
 def commit(pv: dict, filename: str, confirm_warnings: bool) -> dict:
@@ -347,10 +392,11 @@ def commit(pv: dict, filename: str, confirm_warnings: bool) -> dict:
     warn = [r for r in pv["rows"] if any(i["level"] == "warning" for i in r["issues"])]
     if bad or (warn and not confirm_warnings):
         raise ValueError(f"{len(bad)} row(s) with errors" if bad else f"{len(warn)} row(s) with warnings to confirm")
-    rows = [{k: r[k] for k in ("symbol", "date", "type", "quantity", "price", "fee", "account", "ext_ref")}
-            | {"note": None} for r in pv["rows"] if not r["skip"] and not r["duplicate"]]
+    rows = [{k: r[k] for k in ("symbol", "date", "type", "quantity", "price", "fee", "amount", "portfolio", "ext_ref")}
+            | {"note": None, "currency": "DKK" if r["amount"] is not None else None}
+            for r in pv["rows"] if not r["skip"] and not r["duplicate"]]
     source = pv["preset"] or "csv"
-    res = userstore.add_import(rows, source, filename, replace_source=pv["snapshot"])
+    res = userstore.add_import(rows, source, filename, replace_source=pv["snapshot"], portfolio_id=pv["portfolio_id"])
     if pv["snapshot"]:
         userstore.meta_set(f"{source}_watch", pv["watch"])
     for m in pv["symbols"]:

@@ -8,7 +8,7 @@ import { Badge } from "./ui";
 
 const FIELDS: [string, string][] = [["date", "Date"], ["type", "Buy/sell"], ["symbol", "Symbol"], ["isin", "ISIN"],
   ["name", "Name"], ["quantity", "Quantity"], ["price", "Price"], ["fee", "Fee"], ["currency", "Currency"],
-  ["account", "Account"], ["ext_ref", "Trade ID"]];
+  ["account", "Account (→ portfolio)"], ["ext_ref", "Trade ID"], ["cash_amount", "Cash amount (DKK)"]];
 
 function status(r: ImportRow) {
   if (r.skip) return <span className="muted small">skipped: {r.skip}</span>;
@@ -28,9 +28,10 @@ const rowCols: Col<ImportRow>[] = [
     render: (r) => <span className="small">{r.ident}</span> },
   { key: "symbol", label: "Symbol", align: "l", sort: (r) => r.symbol, render: (r) => r.symbol ?? "–" },
   { key: "qty", label: "Shares", sort: (r) => r.quantity, render: (r) => num(r.quantity, r.quantity && r.quantity % 1 ? 4 : 0) },
-  { key: "price", label: "Price", sort: (r) => r.price, render: (r) => num(r.price, 2) },
+  { key: "price", label: "Price / amount", sort: (r) => r.price ?? r.amount,
+    render: (r) => (r.price != null ? num(r.price, 2) : r.amount != null ? `${num(r.amount, 2)} DKK` : "–") },
   { key: "fee", label: "Fee", sort: (r) => r.fee, render: (r) => (r.fee ? num(r.fee, 2) : "–") },
-  { key: "account", label: "Account", align: "l", sort: (r) => r.account, render: (r) => r.account ?? "–" },
+  { key: "portfolio", label: "Portfolio", align: "l", sort: (r) => r.portfolio, render: (r) => r.portfolio ?? <span className="muted">the chosen one</span> },
   { key: "status", label: "Will be", align: "l", render: status,
     sort: (r) => (r.skip ? 4 : r.duplicate ? 3 : r.issues.some((i) => i.level === "error") ? 0 : r.issues.length ? 1 : 2),
     filter: { kind: "enum", value: (r) => (r.skip ? "skipped" : r.duplicate ? "already stored"
@@ -44,18 +45,17 @@ export function ImportWizard({ onDone }: { onDone?: () => void }) {
   const [file, setFile] = useState<{ name: string; data: ArrayBuffer } | null>(null);
   const [paste, setPaste] = useState("");
   const [preset, setPreset] = useState("");
-  const [account, setAccount] = useState("");
+  const [portfolio, setPortfolio] = useState<number | undefined>();
   const [mapping, setMapping] = useState<Record<string, string> | undefined>();
   const [symbols, setSymbols] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState(false);
   const [checkedSymbols, setCheckedSymbols] = useState(false);
   const { data: presets = [] } = useQuery({ queryKey: ["import-presets"], queryFn: api.importPresets });
-  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: api.accounts });
+  const { data: portfolios = [] } = useQuery({ queryKey: ["portfolios"], queryFn: api.portfolios });
 
-  const params: ImportParams = { filename: file?.name ?? "pasted.csv", preset: preset || undefined, account: account || undefined,
-    mapping, symbols };
+  const params: ImportParams = { filename: file?.name ?? "pasted.csv", preset: preset || undefined, portfolio, mapping, symbols };
   const pv = useQuery({
-    queryKey: ["import-preview", file?.name, file?.data.byteLength, preset, account, mapping, symbols],
+    queryKey: ["import-preview", file?.name, file?.data.byteLength, preset, portfolio, mapping, symbols],
     queryFn: () => api.importPreview(file!.data, params), enabled: !!file, retry: false,
   });
   const commit = useMutation({
@@ -114,10 +114,12 @@ export function ImportWizard({ onDone }: { onDone?: () => void }) {
               {presets.map((x) => <option key={x.key} value={x.key}>{x.label}{x.verified ? "" : " (unverified)"}</option>)}
             </select>
           </label>
-          <label className="small">Account for rows without one
-            <select value={account} onChange={(e) => setAccount(e.target.value)}>
-              <option value="">(none)</option>
-              {accounts.map((a) => <option key={a.name} value={a.name}>{a.name}</option>)}
+          <label className="small">Into portfolio
+            <select value={portfolio ?? ""} onChange={(e) => setPortfolio(e.target.value ? Number(e.target.value) : undefined)}>
+              <option value="">the default{(() => { const d = portfolios.find((x) => x.is_default); return d ? ` (${d.name})` : ""; })()}</option>
+              {portfolios.filter((x) => !x.archived).map((x) => (
+                <option key={x.id} value={x.id}>{x.name}{x.mode === "virtual" ? " (virtual)" : ""}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -179,7 +181,12 @@ export function ImportWizard({ onDone }: { onDone?: () => void }) {
           <p className="small">{c!.new} new · {c!.duplicates} already stored · {c!.skipped} skipped
             {c!.errors > 0 && <span className="neg"> · {c!.errors} with errors</span>}
             {c!.warnings > 0 && <span className="warn-text"> · {c!.warnings} with warnings</span>}
-            {p.snapshot && <span className="muted"> · this export replaces your previous {p.preset_label} import</span>}</p>
+            {p.snapshot && <span className="muted"> · this export replaces your previous {p.preset_label} import into this portfolio</span>}</p>
+          {p.new_portfolios.length > 0 && (
+            <p className="small warn-text">The file names {p.new_portfolios.length === 1 ? "a portfolio" : "portfolios"} you don&apos;t have yet:{" "}
+              <b>{p.new_portfolios.join(", ")}</b>. {p.new_portfolios.length === 1 ? "It is" : "They are"} created as real portfolios on import
+              (rename one to match your account, or map the account column to nothing to import into the chosen portfolio).</p>
+          )}
           <div className="card inner"><DataTable id="imp" rows={p.rows} cols={rowCols} rowKey={(r) => String(r.row)} /></div>
 
           {uncertain.length > 0 && (

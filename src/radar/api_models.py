@@ -2,7 +2,7 @@
 the TypeScript types in web/src/api/schema.ts are generated from them, so the two can't drift apart."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -471,7 +471,7 @@ class Indicator(Strict):
 class ChartSeries(Strict):
     name: str
     dates: list[str]
-    values: list[float]
+    values: list[float | None]             # None: a gap (unknown), never 0
 
 
 class LineChart(Strict):
@@ -827,32 +827,187 @@ class ImportResult(Strict):
     warnings: dict[str, list[str]]
 
 
+# ---------------- portfolios ----------------
+
+PortfolioKind = Literal["ask", "frie_midler", "pension", "other"]
+PortfolioMode = Literal["real", "virtual"]
+
+
+class Portfolio(Strict):
+    """A real portfolio (one of your accounts) or a virtual one (a simulation or an A/B test). Only real ones
+    count as yours unless others are chosen; tags are free-form labels for grouping."""
+    id: int
+    name: str
+    mode: PortfolioMode
+    kind: PortfolioKind
+    dividends: Literal["reinvested", "cash"]
+    origin: Literal["manual", "fork", "sim"]
+    parent_id: int | None = None
+    forked_at: str | None = None
+    strategy: str | None = None
+    params: dict[str, Any] | None = None
+    note: str | None = None
+    archived: bool
+    tags: list[str]
+    is_default: bool
+    n_tx: int
+    first_date: str | None = None
+    last_date: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class PortfolioIn(Strict):
+    name: str
+    mode: PortfolioMode = "real"
+    kind: PortfolioKind = "other"
+    dividends: Literal["reinvested", "cash"] = "reinvested"
+    note: str | None = None
+    archived: bool = False
+    tags: list[str] = []
+
+
+class TagsIn(Strict):
+    tags: list[str]
+
+
+class TagCount(Strict):
+    tag: str
+    n: int
+
+
+class MoveIn(Strict):
+    to: int
+    ids: list[int] | None = None           # only these rows (default: all of them)
+    symbols: list[str] | None = None       # only these tickers
+
+
+class MoveResult(Strict):
+    moved: int
+
+
+class ForkIn(Strict):
+    name: str
+    date: str                              # the copy is of the portfolio at that day's close
+    extra_cash_dkk: float = 0.0
+    tags: list[str] = []
+
+
+class PortfolioRef(Strict):
+    id: int
+    name: str
+    mode: PortfolioMode
+    kind: PortfolioKind
+    tags: list[str]
+    archived: bool
+
+
+class PeriodReturn(Strict):
+    portfolio: Num = None
+    acwi: Num = None
+
+
+class PerfStats(Strict):
+    """Returns in DKK. TWR: the investments' own return (cash-flow timing left out); MWR: the annual rate your
+    actual flows earned (XIRR). ACWI: the same, given the same flows. Annualised figures need a year of history."""
+    start: str | None = None
+    days: int
+    value_dkk: Num = None
+    invested_dkk: Num = None
+    twr_total: Num = None
+    twr_ann: Num = None
+    mwr_ann: Num = None
+    acwi_twr_total: Num = None
+    acwi_twr_ann: Num = None
+    acwi_mwr_ann: Num = None
+    excess_twr: Num = None
+    max_drawdown: Num = None
+    vol_ann: Num = None
+    periods: dict[str, PeriodReturn]
+
+
+class PerfSeries(Strict):
+    dates: list[str]
+    value_dkk: list[float | None]
+    cash_dkk: list[float | None]
+    invested_dkk: list[float | None]
+    index: list[float | None]              # time-weighted, 100 at the start
+    acwi_index: list[float | None]
+    acwi_same_flows_dkk: list[float | None]
+
+
+Funding = Literal["ledger", "implicit", "mixed"]
+
+
+class Performance(Strict):
+    portfolio: PortfolioRef
+    asof: str
+    funding: Funding
+    dividends: str
+    missing: list[str]
+    notes: list[str]
+    stats: PerfStats | None = None
+    series: PerfSeries
+
+
+class CompareRow(Strict):
+    kind: Literal["portfolio", "tag"]
+    label: str
+    portfolio: PortfolioRef | None = None
+    tag: str | None = None
+    members: list[str] = []
+    funding: Funding
+    stats: PerfStats | None = None
+    notes: list[str]
+    missing: list[str]
+
+
+class Comparison(Strict):
+    asof: str
+    start: str | None = None
+    rows: list[CompareRow]
+    chart: LineChart
+
+
 # ---------------- portfolio editor ----------------
 
+TxType = Literal["BUY", "SELL", "DEPOSIT", "WITHDRAW", "DIVIDEND", "FEE", "INTEREST"]
+
+
 class TxIn(Strict):
-    symbol: str
+    """A trade (symbol, quantity, price in the quote currency, fee) or a cash row (amount in DKK; a dividend
+    also names its symbol)."""
+    symbol: str = ""
     date: str
-    type: Literal["BUY", "SELL"]
-    quantity: float
-    price: float
+    type: TxType
+    quantity: float | None = None
+    price: float | None = None
     fee: float = 0.0
-    account: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    fx_rate: float | None = None           # trades: DKK per unit of price as booked (default: Yahoo's rate)
+    portfolio_id: int | None = None        # default: the default portfolio
     note: str | None = None
     confirm: bool = False                  # save despite warnings (errors always block)
 
 
 class TxRow(Strict):
     id: int
-    symbol: str
+    portfolio_id: int
+    portfolio: str
+    symbol: str | None = None
     date: str
-    type: Literal["BUY", "SELL"]
-    quantity: float
-    price: float
+    type: TxType
+    quantity: Num = None
+    price: Num = None
     fee: float
-    account: str | None = None
+    amount: Num = None                     # cash rows, in `currency`
+    currency: str | None = None
+    fx_rate: Num = None                    # DKK per unit of price, as booked (optional)
     note: str | None = None
     source: str
     import_id: int | None = None
+    run_id: int | None = None
     ext_ref: str | None = None
     created_at: str
     updated_at: str
@@ -882,6 +1037,7 @@ class PriceCheck(Strict):
     close_date: str | None = None
     verdict: Literal["ok", "x100", "div100", "far", "no_data"]
     message: str | None = None
+    fx: Num = None                         # DKK per unit of price that day (Yahoo), to prefill a trade's rate
 
 
 class TxCheck(Strict):
@@ -899,8 +1055,9 @@ class PositionRow(Strict):
     symbol: str
     name: str | None = None
     currency: str | None = None
-    account: str | None = None
-    accounts: str | None = None
+    portfolio_id: int | None = None
+    portfolio: str | None = None
+    portfolios: str | None = None
     quantity: float
     avg_price: float
     first_trade: str | None = None
@@ -909,21 +1066,20 @@ class PositionRow(Strict):
     unrealized: Num = None
 
 
+class CashRow(Strict):
+    portfolio_id: int
+    portfolio: str
+    funding: Literal["ledger", "implicit"]
+    cash_dkk: Num = None                   # None without a cash ledger, or when a DKK rate is missing
+    problems: list[str] = []
+
+
 class PositionsView(Strict):
     total: list[PositionRow]
-    by_account: list[PositionRow]
+    by_portfolio: list[PositionRow]
+    cash: list[CashRow] = []
     warnings: dict[str, list[str]]
     transactions: int
-
-
-class Account(Strict):
-    name: str
-    kind: Literal["ask", "frie_midler", "pension", "other"]
-    note: str | None = None
-
-
-class AccountIn(Account):
-    old_name: str | None = None
 
 
 class ImportRow(Strict):
@@ -933,12 +1089,13 @@ class ImportRow(Strict):
     isin: str | None = None
     name: str | None = None
     date: str | None = None
-    type: Literal["BUY", "SELL"] | None = None
+    type: TxType | None = None
     quantity: Num = None
     price: Num = None
     fee: float = 0.0
+    amount: Num = None                     # cash rows, in DKK
     currency: str | None = None
-    account: str | None = None
+    portfolio: str | None = None           # named in the file (its account column)
     ext_ref: str | None = None
     skip: str | None = None
     symbol: str | None = None
@@ -982,6 +1139,8 @@ class ImportPreview(Strict):
     symbols: list[SymbolMatch]
     watch: list[str]
     counts: ImportCounts
+    portfolio_id: int | None = None        # where rows without their own portfolio go (None: "Main", created)
+    new_portfolios: list[str] = []         # named in the file, created as real portfolios on import
 
 
 class ImportCommitResult(Strict):
@@ -999,6 +1158,8 @@ class ImportRecord(Strict):
     rows_added: int
     rows_skipped: int
     at: str
+    portfolio_id: int | None = None
+    portfolio: str | None = None
     rows_now: int
 
 

@@ -48,7 +48,7 @@ def test_the_migration_keeps_an_existing_database(tmp_data):
     con.close()
     assert userstore.views() == [] and userstore.meta_get("yahoo_watch") == ["X"]
     userstore.save_view(AI_BUBBLE)
-    assert len(userstore.views()) == 1 and [a["name"] for a in userstore.accounts()] == ["ASK", "frie midler"]
+    assert len(userstore.views()) == 1 and [p["name"] for p in userstore.portfolios()] == ["ASK", "frie midler"]
 
 
 def test_templates_only_use_known_indicators_and_tracked_etfs():

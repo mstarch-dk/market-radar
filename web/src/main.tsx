@@ -8,6 +8,7 @@ import { Discover } from "./pages/Discover";
 import { Home } from "./pages/Home";
 import { Me } from "./pages/Me";
 import { Momentum } from "./pages/Momentum";
+import { Performance } from "./pages/Performance";
 import { Portfolio } from "./pages/Portfolio";
 import { Positioning } from "./pages/Positioning";
 import { Regime } from "./pages/Regime";
@@ -27,6 +28,7 @@ const PAGES = [
   ["/me", "My holdings & watchlist", <Me />],
   ["/views", "My market views", <Views />],
   ["/portfolio", "Portfolio", <Portfolio />],
+  ["/returns", "Returns", <Performance />],
   ["/data", "Data & coverage", <Data />],
 ] as const;
 

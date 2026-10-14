@@ -18,6 +18,8 @@
   --s2: #eb6834;
   --s3: #1baf7a;
   --s4: #eda100;
+  --s5: #8e5bd6;
+  --s6: #6b7280;
   --radius: 10px;
   --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
@@ -45,6 +47,8 @@
     --s2: #f08a5d;
     --s3: #3fc493;
     --s4: #f2b938;
+    --s5: #ac85ec;
+    --s6: #9aa1ad;
     color-scheme: dark;
   }
 }
@@ -427,6 +431,18 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .accounts li { padding: 4px 0; border-bottom: 1px solid var(--line); }
 .accounts li .linkish { margin-left: 8px; }
 .acct-add { display: flex; gap: 6px; flex-wrap: wrap; }
+.acct-add label { display: inline-flex; align-items: center; gap: 4px; }
+.portfolios li .row-actions { margin-left: 6px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; padding: 0 6px; border-radius: 10px;
+  background: var(--chip, rgba(127, 127, 127, .14)); }
+.tag-chip .linkish { margin-left: 0; }
+.pf-picker { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pf-picker select { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: inherit; color: inherit; max-width: 100%; }
+.pf-banner { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.perf-lines { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.chip-check { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--line);
+  border-radius: 12px; cursor: pointer; }
+.perf-notes { padding-left: 18px; }
 @media (max-width: 640px) { .tx-grid label.wide { grid-column: auto; } }
 
 /* import wizard */

@@ -21,7 +21,7 @@ def _plain(row: dict) -> dict:
     return {k: v for k, v in row.items() if k not in ("gauge", "gauges")}
 
 
-def summary(d: dict, me: list[dict]) -> dict:
+def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> dict:
     """The compact digest the skills read. Its keys are a contract: change them only together with the skills."""
     cov = d["coverage"]
     mom = d["momentum"]["regions"]
@@ -33,6 +33,7 @@ def summary(d: dict, me: list[dict]) -> dict:
         "momentum_new_entrants": {r["key"]: r["entrants"] for r in mom},
         "momentum_dropped_out": {r["key"]: r["dropped"] for r in mom},
         "me": [{k: x.get(k) for k in SUMMARY_ME} for x in me],
+        "portfolios": portfolios or [],     # your real portfolios' returns over time vs ACWI (performance.summary)
         "momentum_clusters": {r["key"]: r["clusters"] for r in mom},
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
@@ -54,13 +55,20 @@ def _write(path, data: dict) -> None:
     tmp.replace(path)
 
 
+def _portfolios() -> list[dict]:
+    from . import performance, profile, universe
+
+    universe.ensure_migrated()
+    return performance.summary(profile.Market.load())
+
+
 def build() -> dict:
     c = dashboard.compute()
     d = c.data
     REPORTS.mkdir(exist_ok=True)
     out = REPORTS / dashboard.FILE_NAME
     _write(out, d)
-    _write(REPORTS / "summary.json", summary(d, c.me))
+    _write(REPORTS / "summary.json", summary(d, c.me, _portfolios()))
     # snapshots after comparing with the previous ones
     today = date.today()
     snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), today)

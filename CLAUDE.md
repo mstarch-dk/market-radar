@@ -1,6 +1,6 @@
 # Market Radar
 
-A personal investing toolkit for a Danish investor (frie midler + aktiesparekonto). The user's own accounts, horizon and preferences are in `notes/investor.md` (local, gitignored; template: `investor.example.md`): read it before advising on placement or writing a journal entry. It focuses on proactively spotting trends, sector and theme rotation, and 1–6-month momentum. Portfolio tracking itself stays in Yahoo Finance. Benchmark: MSCI ACWI. Everything produced here is analysis, not advice.
+A personal investing toolkit for a Danish investor (frie midler + aktiesparekonto). The user's own accounts, horizon and preferences are in `notes/investor.md` (local, gitignored; template: `investor.example.md`): read it before advising on placement or writing a journal entry. It focuses on proactively spotting trends, sector and theme rotation, and 1–6-month momentum, and keeps the user's portfolios: real ones (the accounts) and virtual ones for simulations and A/B tests, with returns over time vs ACWI. Benchmark: MSCI ACWI. Everything produced here is analysis, not advice.
 
 ## Always
 - Run Python through uv (`uv run radar …`, `uv run pytest -q`); the frontend through pnpm (`pnpm -C web …`).
@@ -12,6 +12,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar run`: update all data, then build `reports/dashboard.json` (the web app's data) and `summary.json`
 - `uv run radar info <TICKER>` / `uv run radar serve`: one ticker's profile as JSON / the local web app (the dashboard UI)
 - `uv run radar info <T1> <T2> … [--personal] [--out PATH]`: several tickers side by side with ACWI (personal data left out unless `--personal`)
+- `uv run radar portfolios list [--json]` / `uv run radar performance [NAME…] [--tag T]`: the portfolios (real ones are "yours"; virtual ones only when named) and their returns over time vs ACWI
 - `uv run pytest -q`: the tests
 
 ## Skills

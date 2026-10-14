@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { LineChartData } from "../api/client";
 import { date, num } from "../lib/format";
 
-const COLORS = ["--s1", "--s2", "--s3", "--s4"];
+const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
 const color = (i: number) => COLORS[i % COLORS.length] ?? "--s1";
 const RANGES = [["6M", 183], ["1Y", 365], ["3Y", 1096], ["All", 0]] as const;
 
@@ -17,8 +17,8 @@ function shiftDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** One dashboard line chart: up to four series on a shared time axis, dotted reference lines, range buttons and
- *  a crosshair readout of every series' value on the hovered date. */
+/** One dashboard line chart: up to six series on a shared time axis, dotted reference lines, range buttons and
+ *  a crosshair readout of every series' value on the hovered date. A missing value (null) is a gap in the line. */
 export function LineChart({ chart, height = 260 }: { chart: LineChartData; height?: number }) {
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -45,7 +45,10 @@ export function LineChart({ chart, height = 260 }: { chart: LineChartData; heigh
     const lines = chart.series.map((s, i) => {
       const ls = ch.addSeries(LineSeries, { color: css(color(i)), lineWidth: i === 0 ? 2 : 1,
         priceLineVisible: false, lastValueVisible: i === 0, priceFormat: fmt });
-      ls.setData(s.dates.map((d, j) => ({ time: d as Time, value: s.values[j] ?? Number.NaN })));
+      ls.setData(s.dates.map((d, j) => {
+        const v = s.values[j];
+        return v == null ? { time: d as Time } : { time: d as Time, value: v };   // whitespace: a gap, not 0
+      }));
       return ls;
     });
     for (const y of chart.hlines) {

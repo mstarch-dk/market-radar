@@ -24,16 +24,7 @@ def _pct_vs(dist: pd.DataFrame, row: pd.Series) -> float | None:
     return round(100 * sum(vals) / len(vals), 1)
 
 
-def _fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
-    """DKK per unit of quoted price (pence-quoted GBp includes the /100)."""
-    if ccy not in universe.FX_DKK:
-        return None
-    fx = universe.FX_DKK[ccy]
-    if fx is None:
-        return pd.Series(1.0, index=closes.index)
-    if fx not in closes:
-        return None
-    return closes[fx].ffill() * (0.01 if ccy == "GBp" else 1.0)
+_fx_to_dkk = universe.fx_to_dkk
 
 
 def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
@@ -74,8 +65,8 @@ def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Ser
 
 
 def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history: int,
-              raw_closes: pd.DataFrame | None = None) -> pd.DataFrame:
-    h = universe.holdings()
+              raw_closes: pd.DataFrame | None = None, portfolios: list[int] | None = None) -> pd.DataFrame:
+    h = universe.holdings(portfolios)
     if h.empty:
         return pd.DataFrame()
     m = momentum.metrics(closes, volumes, list(h["symbol"]), min_history)
@@ -87,7 +78,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
 
     ccy = universe.currencies([*df["symbol"], bench])
     bench_dkk = (b * _fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
-    tx = universe.transactions()
+    tx = universe.transactions(portfolios)
     since, bench_since, since_sell, flags = [], [], [], []
     for _, r in df.iterrows():
         s_ret = b_ret = x_ret = None
@@ -188,12 +179,13 @@ def _v(v):
 
 
 def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotation_rows, regime_label: str | None,
-          cfg: dict, sessions=None) -> list[dict]:
-    """One row per holding / watchlist / sold symbol, holdings first. `leaders` is the momentum table of the
-    whole stock universe (the score is a percentile against it); `cfg` is settings(). `sessions(symbol)` gives
-    the symbol's own closes (no gap-filled holidays), so its RSI matches the ticker page."""
+          cfg: dict, sessions=None, portfolios: list[int] | None = None) -> list[dict]:
+    """One row per holding / watchlist / sold symbol, holdings first, pooled over these portfolios (ids;
+    default: your real ones). `leaders` is the momentum table of the whole stock universe (the score is a
+    percentile against it); `cfg` is settings(). `sessions(symbol)` gives the symbol's own closes (no
+    gap-filled holidays), so its RSI matches the ticker page."""
     bench = universe.benchmark()
-    me = _me_table(closes, volumes, leaders, bench, cfg["momentum"]["min_history_days"], raw_closes)
+    me = _me_table(closes, volumes, leaders, bench, cfg["momentum"]["min_history_days"], raw_closes, portfolios)
     if me.empty:
         return []
     names = universe.names(list(me["symbol"]))

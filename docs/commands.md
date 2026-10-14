@@ -10,10 +10,12 @@ Always run Python through uv; the frontend uses pnpm.
 - `uv run radar discover [--refresh-universe]`: the separate discovery scan (Nordic and European stocks from Yahoo's screener, the STOXX 600, positive-list ETFs) → `reports/discovery.json` for the *Discover* page. Run it about weekly; the list of names is re-built monthly (or with `--refresh-universe`). The page's *Scan again* button does the same. It never touches `radar run`'s data.
 
 ## Holdings
-- `uv run radar portfolio list [--symbol X] [--account A]` / `add BUY|SELL <ticker> <qty> <price> [--date] [--fee] [--account] [--yes]` / `export [--out file]`: the stored trades, checked like in the app (errors block; warnings need `--yes`).
+- `uv run radar portfolios list [--json] [--archived]` / `add NAME [--virtual] [--kind ask|frie_midler|pension|other] [--tag T]` / `edit NAME [--rename] [--kind] [--dividends reinvested|cash]` / `tag NAME TAG…` / `untag` / `default NAME` / `move NAME --to OTHER [--symbol X]` / `fork NAME NEW --date D [--cash X] [--tag T]` / `archive NAME [--undo]` / `delete NAME`: the portfolios. Real ones are your accounts and count as yours; virtual ones (simulations, A/B tests, forks) only when named.
+- `uv run radar portfolio list [--symbol X] [--portfolio P] [--tag T]` / `add BUY|SELL <ticker> <qty> <price> [--date] [--fee] [--portfolio P] [--yes]` / `export [--out file] [--portfolio P] [--all]`: the stored trades, checked like in the app (errors block; warnings need `--yes`). Default: your real portfolios; `add` goes into the default portfolio.
+- `uv run radar performance [NAME…] [--tag T] [--start D] [--json]`: returns over time in DKK vs ACWI (TWR, MWR, drawdown) from a common start; tags pool their portfolios into one line.
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: a Yahoo Finance export into the store (it replaces the previous Yahoo import; manual and broker trades are kept). Unknown transaction types are skipped with a warning.
 - Watchlist: add or remove from any ticker page in the web app (stored in `userdata/radar.db`, survives re-imports). `watchlist:` in `config/universe.yaml` still works for fixed extras.
-- `uv run radar bundle-holdings --set-secret`: refresh the HOLDINGS_BUNDLE secret used by the monthly GitHub Actions brief (holdings, transactions and the watchlist edits). Run it after each Yahoo import or watchlist change you want the brief to see.
+- `uv run radar bundle-holdings --set-secret [--include-virtual]`: refresh the HOLDINGS_BUNDLE secret used by the monthly GitHub Actions brief (the real portfolios with their transactions, kinds and tags, the watchlist edits and market views). Run it after each Yahoo import or watchlist change you want the brief to see.
 
 - `uv run radar views [--json] [--archived]`: your market views (the *My market views* page) with the radar's evidence for each. Personal; the skills read it.
 

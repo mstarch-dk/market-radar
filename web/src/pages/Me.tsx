@@ -8,6 +8,8 @@ import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { WatchButton } from "../components/WatchButton";
 import { ImportPortfolio } from "../components/ImportPortfolio";
+import { PortfolioPicker, usePortfolioSel } from "../components/PortfolioPicker";
+import { formatSel, isDefaultSel } from "../lib/portfolioSel";
 import { date, num, pct } from "../lib/format";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
@@ -88,7 +90,8 @@ const soldCols: Col<MyRow>[] = [
 const TABLE_ID: Record<string, string> = { Holdings: "held", Watchlist: "watch", "Sold positions": "sold" };
 
 export function Me() {
-  const q = useQuery({ queryKey: ["me"], queryFn: api.me, retry: false, staleTime: 60_000 });
+  const [sel, setSel] = usePortfolioSel();
+  const q = useQuery({ queryKey: ["me", formatSel(sel)], queryFn: () => api.me(sel), retry: false, staleTime: 60_000 });
   return (
     <Loaded q={q} title="My holdings & watchlist">
       {(d) => {
@@ -107,6 +110,8 @@ export function Me() {
               position</b>: the same DKK amounts invested in ACWI on the same dates, with sells removing the same fraction.
               &ldquo;Since sell&rdquo; shows how the stock has moved after your last sale. Add names to the watchlist from any ticker page.
             </PageHead>
+            <p><PortfolioPicker sel={sel} onChange={setSel} />
+              {!isDefaultSel(sel) && <span className="small warn-text"> Showing the chosen portfolios, not only yours.</span>}</p>
             {d.rows.length === 0 && <p className="note">No holdings yet. Import them below, or star tickers to build a watchlist.</p>}
             {sections.map(([title, rows, cols]) => rows.length > 0 && (
               <section key={title} className="group">

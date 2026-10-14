@@ -38,7 +38,7 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
   a peak signal as much as a value signal; treat it as both, not as an argument for one side.
 - **Analyst targets** are rescaled to the radar's dividend-adjusted prices (so they aren't round numbers);
   `rec_mean` and the monthly `recommendations` breakdown can disagree (both from Yahoo). Quote the breakdown.
-- **`correlation`:** weekly DKK returns over 1y. With `--personal` it also includes the user's holdings.
+- **`correlation`:** weekly DKK returns over 1y. With `--personal` it also includes the user's holdings (their real portfolios; never virtual ones unless `--portfolio`/`--tag` names them).
 - **`levels`:** the radar's mechanical stop rule. `risk.budget` is the position size (share of the portfolio) at
   which hitting that stop costs 1%. Above 1 means the stop is too close for the rule to bound risk.
 

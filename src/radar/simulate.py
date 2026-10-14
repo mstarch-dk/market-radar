@@ -1,0 +1,145 @@
+"""Virtual portfolios for A/B tests and simulations.
+
+- **fork**: copy a portfolio as it stood at the close of a day into a new virtual one (one deposit, one buy per
+  holding at that day's traded close and DKK rate), so the two can be compared from there on equal terms
+  (/api/portfolios/compare with start = that day). The copy holds the same shares and cash; dividends the
+  original earned before that day stay with the original, so its value can be a little higher.
+- **simulations**: a `Strategy` turns prices into rows (trades and cash) for a period; `write_run` checks the
+  whole ledger and stores it as one run in a virtual portfolio made for it, replacing the previous run. The
+  same inputs give the same rows, so a rerun is idempotent. The strategies themselves (rule engines) live
+  elsewhere; this is the interface they write through.
+
+Simulated trades never count as yours: they only go into virtual portfolios.
+"""
+from __future__ import annotations
+
+from typing import Protocol
+
+import pandas as pd
+
+from . import performance, universe, userstore
+
+SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE")
+
+
+def _close(market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
+    """The traded close on `day`, or the last one before it."""
+    from .portfolio import _session
+
+    return _session(market, sym, day)
+
+
+def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=()) -> int:
+    """A virtual copy of portfolio `src_id` as it stood at the close of `at`: one deposit of its value then (plus
+    `extra_cash_dkk`), and a buy of each holding at that day's traded close and DKK rate. Refused (ValueError)
+    when a holding has no price or rate that day."""
+    src = userstore.get_portfolio(src_id)
+    if not src:
+        raise ValueError(f"no portfolio {src_id}")
+    if userstore.portfolio_by_name(name):
+        raise ValueError(f"there is already a portfolio called {name}")
+    cal = performance._calendar(market)
+    day = cal[cal <= pd.Timestamp(at)]
+    if day.empty:
+        raise ValueError(f"no prices on or before {at}")
+    day = day[-1]
+    rows = [r for r in userstore.transactions(portfolios=[src_id]) if str(r["date"])[:10] <= day.date().isoformat()]
+    pos, _ = universe.positions(pd.DataFrame(rows, columns=universe.TX_COLS + ["id"]).assign(
+        date=lambda d: pd.to_datetime(d["date"])) if rows else pd.DataFrame(columns=universe.TX_COLS))
+    buys, problems, total = [], [], 0.0
+    for _, p in pos[pos["status"] == "holding"].iterrows():
+        sym, qty = p["symbol"], float(p["quantity"])
+        found = _close(market, sym, day)
+        fx = performance.fx_series(market, sym)
+        rate = fx.dropna().asof(day) if fx is not None else None
+        if found is None or rate is None or pd.isna(rate):
+            problems.append(f"{sym}: no {'price' if found is None else 'DKK rate'} on {day:%Y-%m-%d}")
+            continue
+        buys.append({"symbol": sym, "date": day.date().isoformat(), "type": "BUY", "quantity": qty, "price": found[1],
+                     "fee": 0.0, "fx_rate": float(rate), "ext_ref": f"fork:{src_id}:{sym}"})
+        total += qty * found[1] * float(rate)
+    if problems:
+        raise ValueError("can't value the portfolio that day: " + "; ".join(problems))
+    if performance.has_ledger(rows):
+        bal, cash_problems = performance.cash_balance(rows, market, src["dividends"])
+        if cash_problems:
+            raise ValueError("its cash that day is unknown: " + "; ".join(cash_problems))
+        total += float(bal.iloc[-1]) if len(bal) else 0.0
+    total += float(extra_cash_dkk or 0)
+    if total <= 0:
+        raise ValueError(f"{src['name']} held nothing on {day:%Y-%m-%d}")
+    deposit = {"date": day.date().isoformat(), "type": "DEPOSIT", "amount": total, "currency": "DKK",
+               "note": f"forked from {src['name']} at the close of {day:%Y-%m-%d}"}
+    return userstore.create_with_rows(
+        {"name": name, "mode": "virtual", "kind": src["kind"], "dividends": src["dividends"], "origin": "fork",
+         "parent_id": src_id, "forked_at": day.date().isoformat(), "tags": list(tags),
+         "note": f"A copy of {src['name']} at the close of {day:%Y-%m-%d}"}, [deposit, *buys], "fork")
+
+
+# ---------------- simulations ----------------
+
+class Strategy(Protocol):
+    """A rule set that turns prices into rows for a period: trades (BUY/SELL with symbol, quantity, price, fee
+    and optionally fx_rate) and cash (DEPOSIT/WITHDRAW/FEE with an amount in DKK), each with a date. It must
+    start with a deposit of `capital_dkk` and only use prices known on each row's date."""
+    key: str
+
+    def rows(self, market, start: pd.Timestamp, end: pd.Timestamp, capital_dkk: float, params: dict) -> list[dict]: ...
+
+
+def new_sim_portfolio(name: str, strategy: str, params: dict | None = None, tags=(), kind: str = "other") -> int:
+    """An empty virtual portfolio for a strategy's runs."""
+    return userstore.save_portfolio({"name": name, "mode": "virtual", "origin": "sim", "kind": kind, "strategy": strategy,
+                                     "params": params or {}, "tags": list(tags)})
+
+
+def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[str]:
+    """Everything wrong with a run's rows taken together: unknown types or fields, sales beyond what was held,
+    cash going negative, trades without a DKK rate."""
+    problems = []
+    for i, r in enumerate(rows):
+        if r.get("type") not in SIM_TYPES:
+            problems.append(f"row {i}: type {r.get('type')!r} (allowed: {', '.join(SIM_TYPES)})")
+        elif r["type"] in ("BUY", "SELL") and not (r.get("symbol") and (r.get("quantity") or 0) > 0 and (r.get("price") or 0) > 0):
+            problems.append(f"row {i}: a trade needs symbol, quantity and price")
+        elif r["type"] not in ("BUY", "SELL") and not (r.get("amount") or 0) > 0:
+            problems.append(f"row {i}: a cash row needs an amount")
+        if r.get("id") is not None:
+            problems.append(f"row {i}: has an id (rows are stored new)")
+    if problems:
+        return problems
+    trades = pd.DataFrame([r for r in rows if r["type"] in ("BUY", "SELL")], columns=universe.TX_COLS)
+    if not trades.empty:
+        trades["date"] = pd.to_datetime(trades["date"])
+        _, warn = universe.positions(trades.assign(fee=trades["fee"].fillna(0)))
+        problems += [f"{s}: {w}" for s, ws in warn.items() for w in ws]
+    bal, fx_problems = performance.cash_balance(rows, market, dividends)
+    problems += fx_problems
+    if len(bal) and bal.min() < -0.5:
+        problems.append(f"cash goes negative: {bal.min():,.0f} DKK on {bal.idxmin():%Y-%m-%d}")
+    return problems
+
+
+def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market) -> dict:
+    """Check a run's rows and store them in simulated portfolio `pid`, replacing its previous run. Raises
+    ValueError (nothing stored) when the portfolio isn't a simulation or the rows don't add up."""
+    p = userstore.get_portfolio(pid)
+    if not p or p["mode"] != "virtual" or p["origin"] != "sim":
+        raise ValueError("simulated runs go only into a virtual portfolio made for simulations (new_sim_portfolio)")
+    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None)
+            for r in sorted(rows, key=lambda r: str(r["date"])[:10])]
+    problems = check_rows(rows, market, p["dividends"])
+    if problems:
+        raise ValueError("; ".join(problems[:5]))
+    asof = performance._calendar(market)[-1].date().isoformat()
+    run_id = userstore.replace_sim_run(pid, {"strategy": strategy, "params": params, "start": start, "end": end,
+                                             "data_asof": asof}, rows)
+    perf = performance.portfolio_performance(pid, market)
+    return {"run_id": run_id, "rows": len(rows), "stats": perf["stats"] if perf else None}
+
+
+def run(strategy: Strategy, pid: int, start, end, capital_dkk: float, market, params: dict | None = None) -> dict:
+    """Let `strategy` produce its rows for the period and store them as a run of portfolio `pid`."""
+    params = params or {}
+    rows = strategy.rows(market, pd.Timestamp(start), pd.Timestamp(end), capital_dkk, params)
+    return write_run(pid, strategy.key, params, start, end, rows, market)

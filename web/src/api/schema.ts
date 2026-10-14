@@ -293,7 +293,8 @@ export interface paths {
         /**
          * Get Me
          * @description Holdings, watchlist and sold positions, computed now from the current prices (so watchlist edits show
-         *     at once). Quadrants and the regime used for the stop levels come from the last `radar run`.
+         *     at once), pooled over the chosen portfolios (default: your real ones). Quadrants and the regime used for
+         *     the stop levels come from the last `radar run`.
          */
         get: operations["get_me_api_me_get"];
         put?: never;
@@ -341,7 +342,7 @@ export interface paths {
         post?: never;
         /**
          * Unwatch
-         * @description Take a symbol off the watchlist. A holding can't be removed (409): that comes from the Yahoo import.
+         * @description Take a symbol off the watchlist. A holding can't be removed (409): it comes from your trades.
          */
         delete: operations["unwatch_api_watchlist__symbol__delete"];
         options?: never;
@@ -504,24 +505,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/portfolio/accounts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Accounts */
-        get: operations["get_accounts_api_portfolio_accounts_get"];
-        put?: never;
-        /** Save Account */
-        post: operations["save_account_api_portfolio_accounts_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/portfolio/export.csv": {
         parameters: {
             query?: never;
@@ -531,11 +514,196 @@ export interface paths {
         };
         /**
          * Export Transactions
-         * @description Every transaction as CSV (a backup you can keep, or open in a spreadsheet).
+         * @description The chosen portfolios' transactions as CSV (default: your real ones; a backup you can keep, or open in a
+         *     spreadsheet).
          */
         get: operations["export_transactions_api_portfolio_export_csv_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Portfolios
+         * @description Every portfolio with its tags, number of rows and date range.
+         */
+        get: operations["list_portfolios_api_portfolios_get"];
+        put?: never;
+        /** Add Portfolio */
+        post: operations["add_portfolio_api_portfolios_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Portfolio
+         * @description Rename or change a portfolio (its rows stay with it).
+         */
+        put: operations["edit_portfolio_api_portfolios__pid__put"];
+        post?: never;
+        /**
+         * Delete Portfolio
+         * @description Delete a virtual portfolio with its rows (a backup is taken first), or an empty real one. A real one
+         *     with trades is 409: move them, or archive it.
+         */
+        delete: operations["delete_portfolio_api_portfolios__pid__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tags */
+        get: operations["list_tags_api_portfolios_tags_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Tags */
+        put: operations["set_tags_api_portfolios__pid__tags_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Default
+         * @description Make this real portfolio the one new trades and imports go into unless another is chosen.
+         */
+        post: operations["set_default_api_portfolios__pid__default_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare Portfolios
+         * @description Portfolios and tag groups (each pooled into one line) side by side from a common start, every
+         *     time-weighted index rebased to 100 there, with ACWI. Default: each of your real portfolios with rows.
+         */
+        get: operations["compare_portfolios_api_portfolios_compare_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Portfolio Performance
+         * @description One portfolio's value over time in DKK, its time- and money-weighted returns and ACWI's with the same
+         *     cash flows. Gaps (a price or DKK rate missing) are None, never 0.
+         */
+        get: operations["portfolio_performance_api_portfolios__pid__performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/fork": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fork Portfolio
+         * @description A virtual copy of this portfolio as it stood at a day's close (one deposit, one buy per holding), to
+         *     A/B-test changes against it from there on (compare with start = that day).
+         */
+        post: operations["fork_portfolio_api_portfolios__pid__fork_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move Rows
+         * @description Move rows (all, or only these ids / tickers) to another portfolio; refused (422) if a sale would be left
+         *     without its buy in either portfolio. A backup is taken first.
+         */
+        post: operations["move_rows_api_portfolios__pid__move_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -571,7 +739,8 @@ export interface paths {
         /**
          * Import Preview
          * @description What importing this file would do, without saving: format, column mapping, symbol matches, each row with
-         *     its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols.
+         *     its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols; rows go
+         *     into `portfolio` (default: the default portfolio) unless the file names one.
          */
         post: operations["import_preview_api_portfolio_import_preview_post"];
         delete?: never;
@@ -641,32 +810,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Account */
-        Account: {
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "ask" | "frie_midler" | "pension" | "other";
-            /** Note */
-            note?: string | null;
-        };
-        /** AccountIn */
-        AccountIn: {
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "ask" | "frie_midler" | "pension" | "other";
-            /** Note */
-            note?: string | null;
-            /** Old Name */
-            old_name?: string | null;
-        };
         /** AlignCompact */
         AlignCompact: {
             /**
@@ -801,6 +944,25 @@ export interface components {
             /** Dividend Date */
             dividend_date?: string | null;
         };
+        /** CashRow */
+        CashRow: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio */
+            portfolio: string;
+            /**
+             * Funding
+             * @enum {string}
+             */
+            funding: "ledger" | "implicit";
+            /** Cash Dkk */
+            cash_dkk?: number | null;
+            /**
+             * Problems
+             * @default []
+             */
+            problems: string[];
+        };
         /** CatalogueEtf */
         CatalogueEtf: {
             /** Ticker */
@@ -826,7 +988,7 @@ export interface components {
             /** Dates */
             dates: string[];
             /** Values */
-            values: number[];
+            values: (number | null)[];
         };
         /** CliRow */
         CliRow: {
@@ -858,6 +1020,44 @@ export interface components {
             new: number;
             /** Tickers */
             tickers: string[];
+        };
+        /** CompareRow */
+        CompareRow: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "portfolio" | "tag";
+            /** Label */
+            label: string;
+            portfolio?: components["schemas"]["PortfolioRef"] | null;
+            /** Tag */
+            tag?: string | null;
+            /**
+             * Members
+             * @default []
+             */
+            members: string[];
+            /**
+             * Funding
+             * @enum {string}
+             */
+            funding: "ledger" | "implicit" | "mixed";
+            stats?: components["schemas"]["PerfStats"] | null;
+            /** Notes */
+            notes: string[];
+            /** Missing */
+            missing: string[];
+        };
+        /** Comparison */
+        Comparison: {
+            /** Asof */
+            asof: string;
+            /** Start */
+            start?: string | null;
+            /** Rows */
+            rows: components["schemas"]["CompareRow"][];
+            chart: components["schemas"]["LineChart"];
         };
         /** Context */
         Context: {
@@ -1189,6 +1389,23 @@ export interface components {
             /** Loadings */
             loadings: components["schemas"]["Loading"][];
         };
+        /** ForkIn */
+        ForkIn: {
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+            /**
+             * Extra Cash Dkk
+             * @default 0
+             */
+            extra_cash_dkk: number;
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+        };
         /** Fundamentals */
         Fundamentals: {
             /**
@@ -1402,6 +1619,13 @@ export interface components {
             /** Watch */
             watch: string[];
             counts: components["schemas"]["ImportCounts"];
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /**
+             * New Portfolios
+             * @default []
+             */
+            new_portfolios: string[];
         };
         /** ImportRecord */
         ImportRecord: {
@@ -1417,6 +1641,10 @@ export interface components {
             rows_skipped: number;
             /** At */
             at: string;
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /** Portfolio */
+            portfolio?: string | null;
             /** Rows Now */
             rows_now: number;
         };
@@ -1448,7 +1676,7 @@ export interface components {
             /** Date */
             date?: string | null;
             /** Type */
-            type?: ("BUY" | "SELL") | null;
+            type?: ("BUY" | "SELL" | "DEPOSIT" | "WITHDRAW" | "DIVIDEND" | "FEE" | "INTEREST") | null;
             /** Quantity */
             quantity?: number | null;
             /** Price */
@@ -1458,10 +1686,12 @@ export interface components {
              * @default 0
              */
             fee: number;
+            /** Amount */
+            amount?: number | null;
             /** Currency */
             currency?: string | null;
-            /** Account */
-            account?: string | null;
+            /** Portfolio */
+            portfolio?: string | null;
             /** Ext Ref */
             ext_ref?: string | null;
             /** Skip */
@@ -1729,6 +1959,20 @@ export interface components {
             /** Regions */
             regions: components["schemas"]["MomentumRegion"][];
         };
+        /** MoveIn */
+        MoveIn: {
+            /** To */
+            to: number;
+            /** Ids */
+            ids?: number[] | null;
+            /** Symbols */
+            symbols?: string[] | null;
+        };
+        /** MoveResult */
+        MoveResult: {
+            /** Moved */
+            moved: number;
+        };
         /** MyAnalyst */
         MyAnalyst: {
             /** Fetched */
@@ -1913,6 +2157,201 @@ export interface components {
             peers: components["schemas"]["Peer"][];
             rotation?: components["schemas"]["Rotation"] | null;
         };
+        /** PerfSeries */
+        PerfSeries: {
+            /** Dates */
+            dates: string[];
+            /** Value Dkk */
+            value_dkk: (number | null)[];
+            /** Cash Dkk */
+            cash_dkk: (number | null)[];
+            /** Invested Dkk */
+            invested_dkk: (number | null)[];
+            /** Index */
+            index: (number | null)[];
+            /** Acwi Index */
+            acwi_index: (number | null)[];
+            /** Acwi Same Flows Dkk */
+            acwi_same_flows_dkk: (number | null)[];
+        };
+        /**
+         * PerfStats
+         * @description Returns in DKK. TWR: the investments' own return (cash-flow timing left out); MWR: the annual rate your
+         *     actual flows earned (XIRR). ACWI: the same, given the same flows. Annualised figures need a year of history.
+         */
+        PerfStats: {
+            /** Start */
+            start?: string | null;
+            /** Days */
+            days: number;
+            /** Value Dkk */
+            value_dkk?: number | null;
+            /** Invested Dkk */
+            invested_dkk?: number | null;
+            /** Twr Total */
+            twr_total?: number | null;
+            /** Twr Ann */
+            twr_ann?: number | null;
+            /** Mwr Ann */
+            mwr_ann?: number | null;
+            /** Acwi Twr Total */
+            acwi_twr_total?: number | null;
+            /** Acwi Twr Ann */
+            acwi_twr_ann?: number | null;
+            /** Acwi Mwr Ann */
+            acwi_mwr_ann?: number | null;
+            /** Excess Twr */
+            excess_twr?: number | null;
+            /** Max Drawdown */
+            max_drawdown?: number | null;
+            /** Vol Ann */
+            vol_ann?: number | null;
+            /** Periods */
+            periods: {
+                [key: string]: components["schemas"]["PeriodReturn"];
+            };
+        };
+        /** Performance */
+        Performance: {
+            portfolio: components["schemas"]["PortfolioRef"];
+            /** Asof */
+            asof: string;
+            /**
+             * Funding
+             * @enum {string}
+             */
+            funding: "ledger" | "implicit" | "mixed";
+            /** Dividends */
+            dividends: string;
+            /** Missing */
+            missing: string[];
+            /** Notes */
+            notes: string[];
+            stats?: components["schemas"]["PerfStats"] | null;
+            series: components["schemas"]["PerfSeries"];
+        };
+        /** PeriodReturn */
+        PeriodReturn: {
+            /** Portfolio */
+            portfolio?: number | null;
+            /** Acwi */
+            acwi?: number | null;
+        };
+        /**
+         * Portfolio
+         * @description A real portfolio (one of your accounts) or a virtual one (a simulation or an A/B test). Only real ones
+         *     count as yours unless others are chosen; tags are free-form labels for grouping.
+         */
+        Portfolio: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "real" | "virtual";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /**
+             * Dividends
+             * @enum {string}
+             */
+            dividends: "reinvested" | "cash";
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "manual" | "fork" | "sim";
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Forked At */
+            forked_at?: string | null;
+            /** Strategy */
+            strategy?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note?: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Tags */
+            tags: string[];
+            /** Is Default */
+            is_default: boolean;
+            /** N Tx */
+            n_tx: number;
+            /** First Date */
+            first_date?: string | null;
+            /** Last Date */
+            last_date?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** PortfolioIn */
+        PortfolioIn: {
+            /** Name */
+            name: string;
+            /**
+             * Mode
+             * @default real
+             * @enum {string}
+             */
+            mode: "real" | "virtual";
+            /**
+             * Kind
+             * @default other
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /**
+             * Dividends
+             * @default reinvested
+             * @enum {string}
+             */
+            dividends: "reinvested" | "cash";
+            /** Note */
+            note?: string | null;
+            /**
+             * Archived
+             * @default false
+             */
+            archived: boolean;
+            /**
+             * Tags
+             * @default []
+             */
+            tags: string[];
+        };
+        /** PortfolioRef */
+        PortfolioRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "real" | "virtual";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /** Tags */
+            tags: string[];
+            /** Archived */
+            archived: boolean;
+        };
         /** Position */
         Position: {
             /** Quantity */
@@ -1930,10 +2369,12 @@ export interface components {
             name?: string | null;
             /** Currency */
             currency?: string | null;
-            /** Account */
-            account?: string | null;
-            /** Accounts */
-            accounts?: string | null;
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /** Portfolio */
+            portfolio?: string | null;
+            /** Portfolios */
+            portfolios?: string | null;
             /** Quantity */
             quantity: number;
             /** Avg Price */
@@ -1974,8 +2415,13 @@ export interface components {
         PositionsView: {
             /** Total */
             total: components["schemas"]["PositionRow"][];
-            /** By Account */
-            by_account: components["schemas"]["PositionRow"][];
+            /** By Portfolio */
+            by_portfolio: components["schemas"]["PositionRow"][];
+            /**
+             * Cash
+             * @default []
+             */
+            cash: components["schemas"]["CashRow"][];
             /** Warnings */
             warnings: {
                 [key: string]: string[];
@@ -2045,6 +2491,8 @@ export interface components {
             verdict: "ok" | "x100" | "div100" | "far" | "no_data";
             /** Message */
             message?: string | null;
+            /** Fx */
+            fx?: number | null;
         };
         /** Profile */
         Profile: {
@@ -2433,6 +2881,18 @@ export interface components {
             /** Certain */
             certain: boolean;
         };
+        /** TagCount */
+        TagCount: {
+            /** Tag */
+            tag: string;
+            /** N */
+            n: number;
+        };
+        /** TagsIn */
+        TagsIn: {
+            /** Tags */
+            tags: string[];
+        };
         /** Technicals */
         Technicals: {
             /**
@@ -2520,9 +2980,16 @@ export interface components {
             effect?: components["schemas"]["Effect"] | null;
             price?: components["schemas"]["PriceCheck"] | null;
         };
-        /** TxIn */
+        /**
+         * TxIn
+         * @description A trade (symbol, quantity, price in the quote currency, fee) or a cash row (amount in DKK; a dividend
+         *     also names its symbol).
+         */
         TxIn: {
-            /** Symbol */
+            /**
+             * Symbol
+             * @default
+             */
             symbol: string;
             /** Date */
             date: string;
@@ -2530,18 +2997,24 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "BUY" | "SELL";
+            type: "BUY" | "SELL" | "DEPOSIT" | "WITHDRAW" | "DIVIDEND" | "FEE" | "INTEREST";
             /** Quantity */
-            quantity: number;
+            quantity?: number | null;
             /** Price */
-            price: number;
+            price?: number | null;
             /**
              * Fee
              * @default 0
              */
             fee: number;
-            /** Account */
-            account?: string | null;
+            /** Amount */
+            amount?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Fx Rate */
+            fx_rate?: number | null;
+            /** Portfolio Id */
+            portfolio_id?: number | null;
             /** Note */
             note?: string | null;
             /**
@@ -2560,29 +3033,39 @@ export interface components {
         TxRow: {
             /** Id */
             id: number;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio */
+            portfolio: string;
             /** Symbol */
-            symbol: string;
+            symbol?: string | null;
             /** Date */
             date: string;
             /**
              * Type
              * @enum {string}
              */
-            type: "BUY" | "SELL";
+            type: "BUY" | "SELL" | "DEPOSIT" | "WITHDRAW" | "DIVIDEND" | "FEE" | "INTEREST";
             /** Quantity */
-            quantity: number;
+            quantity?: number | null;
             /** Price */
-            price: number;
+            price?: number | null;
             /** Fee */
             fee: number;
-            /** Account */
-            account?: string | null;
+            /** Amount */
+            amount?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Fx Rate */
+            fx_rate?: number | null;
             /** Note */
             note?: string | null;
             /** Source */
             source: string;
             /** Import Id */
             import_id?: number | null;
+            /** Run Id */
+            run_id?: number | null;
             /** Ext Ref */
             ext_ref?: string | null;
             /** Created At */
@@ -3320,7 +3803,14 @@ export interface operations {
     };
     get_me_api_me_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3334,6 +3824,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3484,7 +3983,12 @@ export interface operations {
         parameters: {
             query?: {
                 symbol?: string | null;
-                account?: string | null;
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
             };
             header?: never;
             path?: never;
@@ -3681,7 +4185,14 @@ export interface operations {
     };
     get_positions_api_portfolio_positions_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3695,6 +4206,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PositionsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3732,9 +4252,45 @@ export interface operations {
             };
         };
     };
-    get_accounts_api_portfolio_accounts_get: {
+    export_transactions_api_portfolio_export_csv_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_portfolios_api_portfolios_get: {
+        parameters: {
+            query?: {
+                archived?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3747,31 +4303,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Account"][];
-                };
-            };
-        };
-    };
-    save_account_api_portfolio_accounts_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Account"][];
+                    "application/json": components["schemas"]["Portfolio"][];
                 };
             };
             /** @description Validation Error */
@@ -3785,7 +4317,106 @@ export interface operations {
             };
         };
     };
-    export_transactions_api_portfolio_export_csv_get: {
+    add_portfolio_api_portfolios_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortfolioIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_portfolio_api_portfolios__pid__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortfolioIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_portfolio_api_portfolios__pid__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tags_api_portfolios_tags_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -3799,7 +4430,214 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TagCount"][];
+                };
+            };
+        };
+    };
+    set_tags_api_portfolios__pid__tags_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_default_api_portfolios__pid__default_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_portfolios_api_portfolios_compare_get: {
+        parameters: {
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                start?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comparison"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    portfolio_performance_api_portfolios__pid__performance_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Performance"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fork_portfolio_api_portfolios__pid__fork_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    move_rows_api_portfolios__pid__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoveResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -3830,7 +4668,7 @@ export interface operations {
                 preset?: string | null;
                 mapping?: string | null;
                 symbols?: string | null;
-                account?: string | null;
+                portfolio?: number | null;
             };
             header?: never;
             path?: never;
@@ -3865,7 +4703,7 @@ export interface operations {
                 preset?: string | null;
                 mapping?: string | null;
                 symbols?: string | null;
-                account?: string | null;
+                portfolio?: number | null;
                 confirm?: boolean;
             };
             header?: never;

@@ -46,7 +46,7 @@ Only when the user has views. Which views this name expresses or works against (
 Concrete and observable: e.g. close below the 200d average, a guidance cut, the sector rotating into Lagging.
 ## Implementation
 - Instrument: the stock itself, or a UCITS ETF alternative (ticker, TER, positive list yes/no)
-- Account: aktiesparekonto (17% lager, good for momentum trades) vs frie midler (realisation for stocks; lager for positive-list ETFs)
+- Account: aktiesparekonto (17% lager, good for momentum trades) vs frie midler (realisation for stocks; lager for positive-list ETFs), named as the user's real portfolios (`uv run radar portfolios list --json`: name and tax `kind`)
 - Position sizing note relative to the current portfolio (concentration, overlap)
 ## Sources
 ```

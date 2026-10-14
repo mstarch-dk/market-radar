@@ -17,7 +17,8 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `positioning_cot`: CFTC net positioning, with `3y high` / `3y low` flags.
    - `leading_indicators`: OECD CLI cycle phase per area.
    - `earnings_factset`: S&P 500 growth estimate vs the start of the quarter, guidance, forward P/E, and the sectors with upward or downward revisions.
-   - The `me` list: holdings, watchlist and sold positions with flags.
+   - The `me` list: holdings, watchlist and sold positions with flags (the user's real portfolios pooled; virtual ones are never in it).
+   - `portfolios`: each real portfolio's returns over time in DKK (time-weighted, 1m / 3m / YTD / 1y and since its start) next to ACWI's, with its tax kind and notes (gaps, funding). Report these as they are; a `null` is missing data, not zero.
    - `coverage`: how many regime indicators have current data (`regime.na` = no data, `regime.stale` = too old, both left out of the vote), failing or stale sources, and the radar's blind spots. If any indicator is n/a or stale, or a source failed, say which near the regime reading and how much that weakens it. Fill a blind spot with web research only when it matters for this month's story (for example valuation when leadership looks stretched).
 
    - If `reports/discovery.json` exists and its `asof` is under 10 days old, read it too: per market, rows with `off_radar` true and a high `score`, a big `d_score`, `new_high` or `trend_turn`, leaving out `thin`, `check_data` and `stale` rows. These are names outside the radar's own lists. If it is older, say the discovery scan is stale and skip it.
@@ -69,6 +70,7 @@ Only when the discovery scan is fresh: 3–5 names from outside the radar's list
 Only when the user has active views. One line per view (highest conviction first): the statement, the radar's verdict (supported / contradicted / mixed / unclear / no data) and the readings behind it, plus anything from this month's research that bears on it. Where the data contradicts a high-conviction view, say so plainly and quote the user's own "what would change my mind". Frame it as their beliefs against the data, never as a forecast.
 
 ## Your portfolio in this context
+- Returns: each real portfolio vs ACWI over 3m and YTD (from `portfolios`), one line each; say plainly when a portfolio trails ACWI
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)

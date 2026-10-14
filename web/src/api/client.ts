@@ -1,4 +1,5 @@
 import type { components } from "./schema";
+import { selQuery, type PortfolioSel } from "../lib/portfolioSel";
 
 type S = components["schemas"];
 export type Profile = S["Profile"];
@@ -41,14 +42,21 @@ export type Issue = S["Issue"];
 export type PositionsView = S["PositionsView"];
 export type PositionRow = S["PositionRow"];
 export type PriceCheck = S["PriceCheck"];
-export type Account = S["Account"];
-export type AccountIn = S["AccountIn"];
+export type Portfolio = S["Portfolio"];
+export type PortfolioIn = S["PortfolioIn"];
+export type PortfolioKind = Portfolio["kind"];
+export type TagCount = S["TagCount"];
+export type MoveIn = S["MoveIn"];
+export type ForkIn = S["ForkIn"];
+export type Comparison = S["Comparison"];
+export type CompareRow = S["CompareRow"];
+export type PerformanceView = S["Performance"];
 export type ImportPreview = S["ImportPreview"];
 export type ImportRow = S["ImportRow"];
 export type ImportRecord = S["ImportRecord"];
 export type ImportCommitResult = S["ImportCommitResult"];
 export type Preset = S["Preset"];
-export type ImportParams = { filename: string; preset?: string; account?: string; mapping?: Record<string, string>;
+export type ImportParams = { filename: string; preset?: string; portfolio?: number; mapping?: Record<string, string>;
   symbols?: Record<string, string>; confirm?: boolean };
 
 export class ApiError extends Error {
@@ -84,11 +92,16 @@ async function get<T>(url: string, method = "GET", body?: BodyInit, contentType?
 }
 
 const enc = encodeURIComponent;
+const withSel = (url: string, sel?: PortfolioSel) => {
+  const q = sel ? selQuery(sel) : "";
+  return q ? `${url}${url.includes("?") ? "&" : "?"}${q}` : url;
+};
+const json = (v: unknown) => JSON.stringify(v);
 
 function importQuery(p: ImportParams): string {
   const q = new URLSearchParams({ filename: p.filename });
   if (p.preset) q.set("preset", p.preset);
-  if (p.account) q.set("account", p.account);
+  if (p.portfolio != null) q.set("portfolio", String(p.portfolio));
   if (p.mapping) q.set("mapping", JSON.stringify(p.mapping));
   if (p.symbols && Object.keys(p.symbols).length) q.set("symbols", JSON.stringify(p.symbols));
   if (p.confirm) q.set("confirm", "true");
@@ -116,22 +129,35 @@ export const api = {
   restoreView: (v: ViewRow) => get<ViewsPage>("/api/views/restore", "POST", JSON.stringify(v), "application/json"),
   alignViews: (tickers: string[], store: "main" | "discovery") =>
     get<Record<string, AlignCompact>>("/api/views/align", "POST", JSON.stringify({ tickers, store }), "application/json"),
-  me: () => get<MeView>("/api/me"),
+  me: (sel?: PortfolioSel) => get<MeView>(withSel("/api/me", sel)),
   tickers: () => get<TickerSummary[]>("/api/tickers"),
   updateStatus: () => get<UpdateStatus>("/api/update"),
   startUpdate: () => get<UpdateStatus>("/api/update", "POST"),
   importPortfolio: (csv: string) => get<ImportResult>("/api/import", "POST", csv, "text/csv"),
-  transactions: () => get<TxRow[]>("/api/portfolio/transactions"),
+  transactions: (sel?: PortfolioSel) => get<TxRow[]>(withSel("/api/portfolio/transactions", sel)),
   validateTx: (tx: TxIn, id?: number) =>
     get<TxCheck>(`/api/portfolio/validate${id ? `?id=${id}` : ""}`, "POST", JSON.stringify(tx), "application/json"),
   addTx: (tx: TxIn) => get<TxResult>("/api/portfolio/transactions", "POST", JSON.stringify(tx), "application/json"),
   editTx: (id: number, tx: TxIn) => get<TxResult>(`/api/portfolio/transactions/${id}`, "PUT", JSON.stringify(tx), "application/json"),
   deleteTx: (id: number) => get<TxRow>(`/api/portfolio/transactions/${id}`, "DELETE"),
   restoreTx: (row: TxRow) => get<TxRow>("/api/portfolio/transactions/restore", "POST", JSON.stringify(row), "application/json"),
-  positions: () => get<PositionsView>("/api/portfolio/positions"),
+  positions: (sel?: PortfolioSel) => get<PositionsView>(withSel("/api/portfolio/positions", sel)),
+  exportUrl: (sel?: PortfolioSel) => withSel("/api/portfolio/export.csv", sel),
   priceCheck: (symbol: string, date: string) =>
     get<PriceCheck>(`/api/portfolio/price-check?symbol=${enc(symbol)}&date=${enc(date)}`),
-  accounts: () => get<Account[]>("/api/portfolio/accounts"),
+  portfolios: () => get<Portfolio[]>("/api/portfolios"),
+  addPortfolio: (p: PortfolioIn) => get<Portfolio>("/api/portfolios", "POST", json(p), "application/json"),
+  editPortfolio: (id: number, p: PortfolioIn) => get<Portfolio>(`/api/portfolios/${id}`, "PUT", json(p), "application/json"),
+  deletePortfolio: (id: number) => get<Portfolio>(`/api/portfolios/${id}`, "DELETE"),
+  setTags: (id: number, tags: string[]) => get<Portfolio>(`/api/portfolios/${id}/tags`, "PUT", json({ tags }), "application/json"),
+  setDefaultPortfolio: (id: number) => get<Portfolio[]>(`/api/portfolios/${id}/default`, "POST"),
+  moveRows: (from: number, m: MoveIn) => get<{ moved: number }>(`/api/portfolios/${from}/move`, "POST", json(m), "application/json"),
+  tags: () => get<TagCount[]>("/api/portfolios/tags"),
+  forkPortfolio: (id: number, f: ForkIn) => get<Portfolio>(`/api/portfolios/${id}/fork`, "POST", json(f), "application/json"),
+  compare: (sel?: PortfolioSel, start?: string) =>
+    get<Comparison>(withSel(`/api/portfolios/compare${start ? `?start=${enc(start)}` : ""}`, sel)),
+  performance: (id: number, start?: string) =>
+    get<PerformanceView>(`/api/portfolios/${id}/performance${start ? `?start=${enc(start)}` : ""}`),
   importPresets: () => get<Preset[]>("/api/portfolio/import/presets"),
   importPreview: (file: ArrayBuffer, p: ImportParams) =>
     get<ImportPreview>(`/api/portfolio/import/preview?${importQuery(p)}`, "POST", file, "application/octet-stream"),
@@ -139,7 +165,6 @@ export const api = {
     get<ImportCommitResult>(`/api/portfolio/import/commit?${importQuery(p)}`, "POST", file, "application/octet-stream"),
   imports: () => get<ImportRecord[]>("/api/portfolio/imports"),
   undoImport: (id: number) => get<number>(`/api/portfolio/imports/${id}`, "DELETE"),
-  saveAccount: (a: AccountIn) => get<Account[]>("/api/portfolio/accounts", "POST", JSON.stringify(a), "application/json"),
   watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
   unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };

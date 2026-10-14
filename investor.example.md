@@ -5,9 +5,12 @@ published). Claude Code reads it before writing briefs, research memos, comparis
 advice on accounts and horizon fits you.
 
 ## Accounts
-<!-- the names you use in /journal entries, and what each is for -->
+<!-- what each account is for. Use the same names as your real portfolios in the app (Portfolio page, or
+     `uv run radar portfolios list`): /journal records trades there by name. Rename either side so they match. -->
 - **ASK**: aktiesparekonto (17% lager on everything). Good home for momentum trades in stocks and positive-list ETFs.
-- **frie-midler**: free funds at my broker. Stocks taxed on realisation; positive-list ETFs taxed lager.
+- **frie midler**: free funds at my broker. Stocks taxed on realisation; positive-list ETFs taxed lager.
+
+Virtual portfolios (simulations, A/B tests) live only in the app; they never count as your holdings.
 
 ## Horizon and style
 - Typical holding period: 1–6 months, momentum-driven, with a few long-term core positions.
