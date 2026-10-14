@@ -8,7 +8,7 @@ release, built from the current HEAD:
 
 Steps:
 1. `git archive HEAD` into a temporary folder (only committed files, nothing local).
-2. Remove the paths in publish/exclude.txt (briefs, journal, research, the private CI workflow, ...).
+2. Remove the paths in publish/exclude.txt (briefs, journal, research, ...).
 3. Add publish/overlay/ (the public repo's own workflows: release zip, smoke tests).
 4. Leak check: refuse to continue if any file contains a pattern from notes/leak-patterns.txt (local) or the
    git author's name and email.

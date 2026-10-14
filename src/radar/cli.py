@@ -258,13 +258,14 @@ LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the 
 
 
 @app.command(name="bundle-holdings")
-def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help="Store it directly as the HOLDINGS_BUNDLE GitHub secret"),
+def bundle_holdings(out: str = typer.Option(None, "--out", help="Write the bundle to this file instead of printing it"),
                     include_virtual: bool = typer.Option(False, "--include-virtual",
                                                          help="Pack virtual portfolios too (left out by default)")):
     """Pack your portfolios (real ones: stored transactions, kinds and tags), watchlists, market views and regime
-    vote choices as base64 for the HOLDINGS_BUNDLE secret.
+    vote choices into one base64 text, to carry them to another machine (`unbundle-holdings` there). It holds
+    your holdings: keep it private.
 
-    Usage: uv run radar bundle-holdings --set-secret   (needs the GitHub CLI, signed in)
+    Usage: uv run radar bundle-holdings --out my-radar.bundle
     """
     import base64
     import io
@@ -284,33 +285,38 @@ def bundle_holdings(set_secret: bool = typer.Option(False, "--set-secret", help=
         z.writestr(BUNDLE_VIEWS, userstore.export_views_json())
         z.writestr(BUNDLE_VOTES, json.dumps(userstore.meta_get("regime_votes", {})))
     data = base64.b64encode(buf.getvalue()).decode("ascii")
-    if not set_secret:
+    if not out:
         typer.echo(data)
         return
-    import subprocess
+    from pathlib import Path
 
-    # passed on stdin, not through a shell pipe, so console encodings (e.g. PowerShell's BOM) can't corrupt it
-    subprocess.run(["gh", "secret", "set", "HOLDINGS_BUNDLE"], input=data.encode("ascii"), check=True)
+    Path(out).write_text(data, encoding="ascii")     # written by Python, so no shell can add a BOM or re-encode it
+    typer.echo(f"Wrote {out}. It holds your holdings: keep it private.")
 
 
 @app.command(name="unbundle-holdings")
-def unbundle_holdings():
-    """Restore your portfolio from the HOLDINGS_BUNDLE environment variable (used in CI)."""
+def unbundle_holdings(file: str = typer.Option(None, "--file", help="Read the bundle from this file "
+                                               "(default: the HOLDINGS_BUNDLE environment variable)")):
+    """Restore what `bundle-holdings` packed: portfolios and their transactions, watchlists, market views and vote
+    choices. Each portfolio in the bundle gets exactly its rows; a backup of the database is taken first."""
     import base64
     import io
     import json
     import os
     import re
     import zipfile
+    from pathlib import Path
 
     from . import userstore
     from .config import IMPORTS
 
-    # keep only base64 characters: tolerates BOMs/CRLF/whitespace added by shells when the secret was set
-    data = re.sub(r"[^A-Za-z0-9+/=]", "", os.environ.get("HOLDINGS_BUNDLE", ""))
+    raw = Path(file).read_text(encoding="utf-8-sig") if file else os.environ.get("HOLDINGS_BUNDLE", "")
+    # keep only base64 characters: tolerates BOMs/CRLF/whitespace added by shells or editors
+    data = re.sub(r"[^A-Za-z0-9+/=]", "", raw)
     if not data:
-        typer.echo("HOLDINGS_BUNDLE not set – running without holdings.")
+        typer.echo("No bundle: pass --file, or set HOLDINGS_BUNDLE.")
         return
+    userstore.backup("before-unbundle")
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(data))) as z:
         names = set(z.namelist())
         n_pf = userstore.import_portfolios_json(z.read(BUNDLE_PORTFOLIOS).decode("utf-8")) \

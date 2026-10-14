@@ -176,16 +176,19 @@ uv run radar performance --json
 
 Viser værdi, tidsvægtet afkast (TWR, også pr. år), pengevægtet afkast (MWR pr. år), ACWI, forskellen til ACWI og største fald i DKK fra en fælles startdato, med noter om huller. Se [Afkast over tid](brugervejledning/afkast).
 
-## Månedsbriefen på GitHub
+## Flyt dine data til en anden computer
 
 ```
-uv run radar bundle-holdings --set-secret
-uv run radar bundle-holdings --set-secret --include-virtual
-uv run radar bundle-holdings                 # skriv bundtet i terminalen i stedet
-uv run radar unbundle-holdings               # bruges af GitHub Actions
+uv run radar bundle-holdings --out min-radar.bundle
+uv run radar bundle-holdings --out min-radar.bundle --include-virtual
+uv run radar unbundle-holdings --file min-radar.bundle     # på den nye computer
 ```
 
-`bundle-holdings` pakker dine porteføljer, watchlist, markedssyn og valg af regimeafstemning til GitHub-hemmeligheden `HOLDINGS_BUNDLE`; `--set-secret` kræver GitHub CLI (`gh`), logget ind. `unbundle-holdings` gendanner dem i GitHub Actions. Se [Månedsbriefen i GitHub](brugervejledning/maanedsbrief).
+`bundle-holdings` pakker dine rigtige porteføljer (med `--include-virtual` også de virtuelle) med handler, kontotype og tags, dine ændringer til watchlist, dine markedssyn og dit valg af regimeafstemning i én tekstfil. Uden `--out` skrives bundtet i terminalen.
+
+`unbundle-holdings` på den anden computer tager først en sikkerhedskopi af databasen og giver derefter hver portefølje i bundtet præcis dens handler. Markedsdata følger ikke med; dem henter radaren selv ved næste opdatering.
+
+> **Bemærk:** Bundtet indeholder dine beholdninger. Behandl filen som personlig, og slet den, når flytningen er gjort.
 
 ## Til udviklere
 

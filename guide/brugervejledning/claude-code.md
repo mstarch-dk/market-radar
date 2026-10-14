@@ -39,7 +39,7 @@ Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne p
 
 Har du egne læsenoter i `notes/` (fx `notes/bloomberg.md`), bruges de som spor, der skal efterprøves, ikke som kilder.
 
-Briefen kan også køre automatisk den første i hver måned på GitHub. Se [Månedsbriefen i GitHub](brugervejledning/maanedsbrief).
+Briefen kører også af sig selv den første i hver måned som en planlagt opgave i Claude-appen. Se [Månedsbriefen](brugervejledning/maanedsbrief).
 
 ## /research
 

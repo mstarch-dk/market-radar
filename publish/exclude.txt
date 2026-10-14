@@ -5,7 +5,6 @@ research/
 exports/
 notes/
 userdata/
-.github/workflows/monthly-brief.yml   # needs the owner's secrets; the public repo has its own workflows (publish/overlay)
 publish/             # the export's own configuration
 scripts/publish_public.py
 # the marketing tooling needs scripts/publish_public.py (leak check); the public repo gets the PDF only

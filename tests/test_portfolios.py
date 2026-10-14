@@ -1,6 +1,6 @@
 """Portfolios: real ones (your accounts) and virtual ones (simulations, A/B tests), with tags. The upgrade from the
 account-label schema, the selection rules (only real portfolios are yours unless others are chosen), moves,
-scoped imports and the CI bundle."""
+scoped imports and the holdings bundle."""
 import json
 import sqlite3
 from contextlib import closing

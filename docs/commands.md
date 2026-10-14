@@ -17,7 +17,7 @@ Always run Python through uv; the frontend uses pnpm.
 - `uv run radar performance [NAME…] [--tag T] [--start D] [--json]`: returns over time in DKK vs ACWI (TWR, MWR, drawdown) from a common start; tags pool their portfolios into one line.
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: a Yahoo Finance export into the store (it replaces the previous Yahoo import; manual and broker trades are kept). Unknown transaction types are skipped with a warning.
 - Watchlist: add or remove from any ticker page in the web app (stored in `userdata/radar.db`, survives re-imports). `watchlist:` in `config/universe.yaml` still works for fixed extras.
-- `uv run radar bundle-holdings --set-secret [--include-virtual]`: refresh the HOLDINGS_BUNDLE secret used by the monthly GitHub Actions brief (the real portfolios with their transactions, kinds and tags, the watchlist edits and market views). Run it after each Yahoo import or watchlist change you want the brief to see.
+- `uv run radar bundle-holdings [--out FILE] [--include-virtual]` / `unbundle-holdings [--file FILE]`: carry your data to another machine: the real portfolios (all with `--include-virtual`) with their transactions, kinds and tags, the watchlist edits, market views and regime vote choices, as one base64 text. Restoring takes a database backup first and gives each portfolio in the bundle exactly its rows. The file holds your holdings: keep it private.
 
 - `uv run radar views [--json] [--archived]`: your market views (the *My market views* page) with the radar's evidence for each. Personal; the skills read it.
 
@@ -30,4 +30,4 @@ Always run Python through uv; the frontend uses pnpm.
 - `uv run --group marketing python scripts/marketing.py workspace | seed | explore /path… | shots [ID…] | pdf | check | edition | all`: the Danish brochure in `marketing/` from a demo copy of the app (`.demo/`, port 8790, launch config `radar-demo`) with a fictional investor. The `/marketing` skill runs it; see [marketing/README.md](../marketing/README.md).
 
 ## Tests
-- `uv run pytest -q` (also run in CI) and `pnpm -C web test`. See [testing.md](testing.md).
+- `uv run pytest -q` and `pnpm -C web test`. See [testing.md](testing.md).

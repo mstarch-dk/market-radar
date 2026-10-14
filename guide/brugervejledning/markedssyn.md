@@ -109,7 +109,8 @@ Dine syn er personlige og gemmes i `userdata/radar.db`. De kommer med i:
 - tickerprofilen i appen og `uv run radar info <TICKER>`,
 - `uv run radar info A B` (sammenligning) kun med `--personal`,
 - `uv run radar views [--json] [--archived]`, som skills læser,
-- bundtet til [månedsbriefen](brugervejledning/maanedsbrief) som `views.json`.
+- [månedsbriefen](brugervejledning/maanedsbrief), som sammenholder dem med data,
+- bundtet, når du flytter dine data til en anden computer, som `views.json` (se [Kommandolinjen](brugervejledning/kommandolinjen#flyt-dine-data-til-en-anden-computer)).
 
 `uv run radar views` viser hvert syn med overbevisning, horisont, hvad det hjælper og skader, evidensen pr. indikator og din falsifikation.
 

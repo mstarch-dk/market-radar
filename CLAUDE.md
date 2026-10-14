@@ -6,7 +6,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - Run Python through uv (`uv run radar …`, `uv run pytest -q`); the frontend through pnpm (`pnpm -C web …`).
 - Truthfulness first: missing data shows as missing, never as 0. A source that parses to nothing fails loudly and keeps its cache.
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.
-- `data/`, `reports/`, `imports/*`, `notes/`, `userdata/`, `exports/`, `briefs/`, `research/` and `journal/` are local and personal: never commit them (except `data/snapshots/`; CI's brief PR force-adds its brief).
+- `data/`, `reports/`, `imports/*`, `notes/`, `userdata/`, `exports/`, `briefs/`, `research/` and `journal/` are local and personal: never commit them.
 
 ## Main commands
 - `uv run radar run`: update all data, then build `reports/dashboard.json` (the web app's data) and `summary.json`
@@ -17,7 +17,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run pytest -q`: the tests
 
 ## Skills
-- `/market-brief` → `briefs/YYYY-MM-DD.md`
+- `/market-brief` → `briefs/YYYY-MM-DD.md` (also run monthly by a Claude desktop scheduled task on this machine)
 - `/research <ticker>` → `research/<TICKER>.md`
 - `/compare <t1> <t2> … [--personal]` → `research/compare/YYYY-MM-DD_<tickers>.md` (rubric incl. ACWI, bull/bear, red team, sizing, decision record)
 - `/journal …` and `/journal review` → `journal/`
@@ -28,7 +28,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 
 ## Read before working on…
 - [docs/commands.md](docs/commands.md): every CLI command (imports, holdings bundle, ticker tools)
-- [docs/architecture.md](docs/architecture.md): config files, modules in `src/radar/`, what is committed, CI. Read it before changing code.
+- [docs/architecture.md](docs/architecture.md): config files, modules in `src/radar/`, what is committed, the monthly brief. Read it before changing code.
 - [docs/data-conventions.md](docs/data-conventions.md): adjusted prices, re-basing, DKK returns, Yahoo units and gaps. Read it before touching any calculation or data source.
 - [docs/testing.md](docs/testing.md): fixtures, the synthetic world, test practice
 - [docs/web-app.md](docs/web-app.md): `radar serve`, the API contract, regenerating TypeScript types

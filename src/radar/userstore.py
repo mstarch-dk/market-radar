@@ -251,7 +251,7 @@ def watchlist_overlay() -> dict[str, str]:
 
 
 def export_watchlist_csv() -> str:
-    """The overlay as CSV text (for the CI holdings bundle)."""
+    """The overlay as CSV text (for the holdings bundle)."""
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
     w.writerow(["symbol", "action"])
@@ -518,7 +518,7 @@ BUNDLE_PORTFOLIO_KEYS = (*PORTFOLIO_FIELDS, "origin", "forked_at", "strategy", "
 
 
 def export_portfolios_json(scope: str = "real") -> str:
-    """Portfolios with their kind, mode, tags and notes (the CI bundle; real ones by default)."""
+    """Portfolios with their kind, mode, tags and notes (the holdings bundle; real ones by default)."""
     keep = set(portfolio_ids(scope, include_archived=True))
     rows = [{k: p[k] for k in BUNDLE_PORTFOLIO_KEYS} for p in portfolios() if p["id"] in keep]
     return json.dumps(rows, indent=1, ensure_ascii=False)
@@ -778,7 +778,7 @@ def meta_set(key: str, value) -> None:
                     (key, json.dumps(value)))
 
 
-# ---------------- CSV round trip (backup download, CI holdings bundle) ----------------
+# ---------------- CSV round trip (backup download, holdings bundle) ----------------
 
 EXPORT_COLS = ["symbol", "date", "type", "quantity", "price", "fee", "amount", "currency", "fx_rate", "portfolio",
                "note", "source", "ext_ref"]
@@ -799,7 +799,7 @@ def _num(v) -> float | None:
 
 
 def import_transactions_csv(text: str) -> int:
-    """Load an exported set (restoring the CI bundle): each portfolio it names (the older `account` column too;
+    """Load an exported set (restoring a holdings bundle): each portfolio it names (the older `account` column too;
     empty means the default portfolio) gets exactly these rows. Returns the number of rows."""
     rows = [{**r, "quantity": _num(r.get("quantity")), "price": _num(r.get("price")), "fee": _num(r.get("fee")) or 0.0,
              "amount": _num(r.get("amount")), "fx_rate": _num(r.get("fx_rate")), "currency": r.get("currency") or None,
@@ -909,7 +909,7 @@ def export_views_json() -> str:
 
 
 def import_views_json(text: str) -> int:
-    """Replace all views with an exported set (restoring the CI bundle). Returns the number of views."""
+    """Replace all views with an exported set (restoring a holdings bundle). Returns the number of views."""
     rows = json.loads(text)
     with closing(_connect()) as con, con:
         con.execute("DELETE FROM views")

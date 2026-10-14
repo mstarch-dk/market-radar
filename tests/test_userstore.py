@@ -69,7 +69,7 @@ def test_edits_survive_a_reimport_and_can_be_undone(tmp_data):
     assert (_status("W"), _status("S")) == ("watch", "sold")
 
 
-def test_export_and_import_for_the_ci_bundle(tmp_data):
+def test_export_and_import_for_the_holdings_bundle(tmp_data):
     userstore.watch("A")
     userstore.unwatch("B")
     text = userstore.export_watchlist_csv()
@@ -102,7 +102,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     userstore.meta_set("regime_votes", {"valuation": True})
     bundle = CliRunner().invoke(cli.app, ["bundle-holdings"]).output.strip()
 
-    for f in (tmp_data / "userdata").iterdir():                         # a fresh CI checkout
+    for f in (tmp_data / "userdata").iterdir():                         # another machine, nothing stored yet
         f.unlink() if f.is_file() else None
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": bundle})
     assert res.exit_code == 0 and "1 transactions in 3 portfolios, 2 watchlist edits and 1 market views" in res.output
@@ -110,7 +110,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
     [v] = userstore.views()
     assert v["statement"] == "AI is in a bubble" and v["exposures"] == [{"kind": "etf", "key": "SMH", "effect": -1}]
-    assert userstore.meta_get("regime_votes") == {"valuation": True}   # the CI brief votes like the app
+    assert userstore.meta_get("regime_votes") == {"valuation": True}   # the other machine votes like this one
 
 
 def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):
@@ -174,3 +174,30 @@ def test_an_upgrade_is_backed_up_first_a_new_database_is_not(tmp_data, monkeypat
     (copy,) = backups.glob("radar-*.db")
     with closing(sqlite3.connect(copy)) as con:          # the copy is the database as it was
         assert con.execute("PRAGMA user_version").fetchone()[0] == len(userstore.MIGRATIONS) - 1
+
+
+def test_bundle_to_a_file_and_back_takes_a_backup_first(tmp_data):
+    from typer.testing import CliRunner
+
+    from radar import cli
+
+    userstore.watch("A")
+    userstore.save_view({"statement": "Rates stay high", "conviction": 3, "exposures": [], "indicators": []})
+    path = tmp_data / "my-radar.bundle"
+    res = CliRunner().invoke(cli.app, ["bundle-holdings", "--out", str(path)])
+    assert res.exit_code == 0 and path.exists() and "keep it private" in res.output
+    path.write_text("﻿" + path.read_text(encoding="ascii") + "\r\n", encoding="utf-8")   # an editor's BOM + CRLF
+    userstore.unwatch("A")
+    res = CliRunner().invoke(cli.app, ["unbundle-holdings", "--file", str(path)])
+    assert res.exit_code == 0 and "1 market views" in res.output
+    assert "A" in set(universe.holdings()["symbol"])
+    assert list((tmp_data / "userdata" / "backups").glob("*before-unbundle*.db"))
+
+
+def test_unbundle_without_a_bundle_says_so(tmp_data):
+    from typer.testing import CliRunner
+
+    from radar import cli
+
+    res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": ""})
+    assert res.exit_code == 0 and "No bundle" in res.output

@@ -13,7 +13,7 @@ Alle dine handler ligger i en portefølje. Radaren skelner mellem to slags: **ri
 
 Handler fra før porteføljerne fandtes, ligger i den rigtige portefølje *Main*, indtil du flytter dem.
 
-Virtuelle porteføljer kommer aldrig med af sig selv. De vises kun, når du vælger dem i porteføljevælgeren, nævner dem ved navn på kommandolinjen eller beder om dem med `--include-virtual` i månedsbriefens bundt.
+Virtuelle porteføljer kommer aldrig med af sig selv. De vises kun, når du vælger dem i porteføljevælgeren, nævner dem ved navn på kommandolinjen eller beder om dem med `--include-virtual`, når du pakker dine data til en anden computer.
 
 ## Opret en portefølje
 

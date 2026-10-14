@@ -39,7 +39,7 @@ books:
         chapters:
           - {slug: claude-code, title: Claude Code-skills}
           - {slug: kommandolinjen, title: Kommandolinjen}
-          - {slug: maanedsbrief, title: Månedsbriefen i GitHub}
+          - {slug: maanedsbrief, title: Månedsbriefen}
       - title: Appendiks
         chapters:
           - {slug: indstillinger, title: Indstillinger}
