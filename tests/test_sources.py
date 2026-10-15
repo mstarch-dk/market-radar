@@ -10,7 +10,7 @@ import openpyxl
 import pandas as pd
 import pytest
 
-from radar import external, ingest, net, universe
+from radar import external, ingest, net, paths, universe
 from conftest import FIXTURES
 
 
@@ -37,8 +37,7 @@ def test_fred_csv_without_the_series_fails():
 
 def test_update_fred_keeps_cached_series_when_one_fails(tmp_path, monkeypatch):
     fred_file = tmp_path / "fred.parquet"
-    monkeypatch.setattr(ingest, "FRED_FILE", fred_file)
-    monkeypatch.setattr(ingest, "DATA", tmp_path)
+    paths.configure(paths.Locations.flat(tmp_path))
     cached = pd.DataFrame({"T10Y2Y": [0.5]}, index=pd.to_datetime(["2026-01-02"]))
     cached.to_parquet(fred_file)
 
@@ -126,9 +125,7 @@ def test_factset_real_report_text():
 
 
 def _factset_env(tmp_path, monkeypatch, text):
-    monkeypatch.setattr(external, "DATA", tmp_path)
-    monkeypatch.setattr(external, "FACTSET_FILE", tmp_path / "factset.parquet")
-    monkeypatch.setattr(external, "FACTSET_TEXT", tmp_path / "factset_latest.txt")
+    paths.configure(paths.Locations.flat(tmp_path))
 
     class Resp:
         status_code, content = 200, b"%PDF-1.7 ..."

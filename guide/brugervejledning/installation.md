@@ -23,9 +23,18 @@ Scriptet gør tre ting, i denne rækkefølge:
 Går noget galt undervejs, kører scriptet selv `radar doctor` (se nedenfor) og skriver, hvad der mangler, og hvordan du løser det.
 
 ### Opdatering til en ny version
-Pak den nye version ud i en ny mappe, og kopier dine personlige mapper over: `userdata/`, `notes/`, `imports/` og, hvis du bruger Claude Code, `briefs/`, `research/` og `journal/`. Markedsdata i `data/` og `reports/` kan du også kopiere, eller du kan hente dem igen. Se [Data og opdatering](brugervejledning/data-og-opdatering#hvor-dine-data-ligger).
+Hent den nye zip, pak den ud, hvor du vil (fx ved siden af den gamle), og start den. Den finder selv din datamappe, tager en backup og åbner; du skal ikke kopiere nogen mapper. Når alt ser rigtigt ud, kan du slette den gamle programmappe. På en Mac skal du højreklikke → *Open* igen første gang. Se [Dine data, backup og opdatering](brugervejledning/dine-data#opdatering-til-en-ny-version).
 
-## Første start: velkomstsiden
+## Første start: vælg hvor dine data skal ligge
+
+Dine egne data (porteføljer, handler, noter, research, journal og radarens historik) ligger i en datamappe for sig, uden for programmappen. Standarden er `Market Radar` i din brugermappe, fx `C:\Users\<navn>\Market Radar`. Første gang du starter, viser appen en opsætningsskærm, *Welcome to Market Radar …*, hvor du vælger mappen:
+
+- **Har du brugt en ældre version**, finder appen den gamle mappe (hvis den ligger ved siden af den nye) og tilbyder *Copy my data*. Kopien tjekkes, og den gamle mappe ændres ikke.
+- **Er du ny**, klikker du *Start with an empty folder*.
+
+Læg ikke datamappen i OneDrive, iCloud Drive eller Dropbox. Alt om datamappen, backup og flytning står i [Dine data, backup og opdatering](brugervejledning/dine-data).
+
+## Derefter: velkomstsiden
 
 Indtil der er hentet markedsdata, viser alle markedssiderne en velkomstside, *Welcome to Market Radar*, i stedet for en fejl. Den har to trin:
 
@@ -38,7 +47,7 @@ Du kan også springe porteføljen over og bare søge på en ticker i søgefeltet
 
 ## Tjek opsætningen med radar doctor
 
-`radar doctor` er et tjek i almindeligt sprog af hele opsætningen. Det fortæller for hvert punkt, om det er i orden, og hvordan du løser det, hvis ikke. Du kører det i en terminal i Market Radar-mappen:
+`radar doctor` er et tjek i almindeligt sprog af hele opsætningen. Det fortæller for hvert punkt, om det er i orden, og hvordan du løser det, hvis ikke. Du kører det i en terminal i programmappen (den mappe, hvor startscriptet ligger):
 
 ```
 uv run radar doctor
@@ -50,10 +59,11 @@ Tjekket dækker:
 |---|---|
 | *Python* | Python-versionen (3.11 eller nyere) |
 | *Web app* | At webappen er bygget |
+| *Data folder* | Om der er valgt en datamappe, om den findes, om den er skrivebeskyttet (data fra en nyere version), og om den ligger i en synkroniseret mappe |
 | *Market data* og *Dashboard* | Om der er hentet data, og hvor gamle de er |
-| *SKAT positive list* | Om `imports/positivliste.xlsx` findes, kan læses og er fra i år |
+| *SKAT positive list* | Om `imports/positivliste.xlsx` i programmappen findes, kan læses og er fra i år |
 | *Your portfolio* | Om dine handler kan læses |
-| *Investor profile for Claude* | Om `notes/investor.md` findes (kun relevant for Claude Code) |
+| *Investor profile for Claude* | Om `notes/investor.md` i datamappen findes (kun relevant for Claude Code) |
 | *Internet: …* | Om hver datakilde kan nås |
 
 Med `--offline` springes netværkstjekkene over. Det samme tjek findes i appen på siden [Operations](/ops); se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift).
@@ -63,7 +73,7 @@ Med `--offline` springes netværkstjekkene over. Det samme tjek findes i appen p
 Radaren markerer for hver ETF, om den står på SKATs positivliste over aktiebaserede investeringsselskaber. Det har betydning for beskatningen i frie midler og for, om fonden kan ligge på en aktiesparekonto. For at det virker, skal listen ligge lokalt:
 
 1. Hent den aktuelle positivliste (Excel-filen) fra skat.dk.
-2. Gem den som `imports/positivliste.xlsx` i Market Radar-mappen.
+2. Gem den som `imports/positivliste.xlsx` i programmappen (mappen med startscriptet, ikke datamappen).
 3. Opdater data, så tabellerne bliver bygget igen.
 
 Radaren bruger kun det nyeste års ark i filen; ældre ark er historik. SKAT udgiver en ny liste hvert år, og `radar doctor` advarer, når filens nyeste ark er fra et tidligere år. Uden filen viser kolonnen *Positive list* et "?" for alle fonde, og Discover kan ikke bygge sit marked for UCITS-ETF'er.
@@ -74,10 +84,10 @@ Radaren bruger kun det nyeste års ark i filen; ældre ark er historik. SKAT udg
 
 Bruger du Claude Code-kommandoerne (`/market-brief`, `/research`, `/compare`, `/journal`), skal de vide lidt om dig: dine konti, din horisont og dine grænser. Det står i en lille fil, du selv udfylder:
 
-1. Kopier `investor.example.md` til `notes/investor.md`.
+1. Kopier `investor.example.md` fra programmappen til `notes/investor.md` i din datamappe (`uv run radar paths` viser, hvor den ligger).
 2. Udfyld dine konti (fx aktiesparekonto og frie midler, med de samme navne som dine porteføljer i appen), din typiske holdeperiode, maksimal positionsstørrelse og hvad du undgår.
 
-Mappen `notes/` bliver på din computer og deles aldrig. Dine markedssyn skal ikke stå i filen; de hører hjemme på siden *Market views*. Se [Claude Code-skills](brugervejledning/claude-code).
+Mappen `notes/` bliver på din computer og deles aldrig; den kommer med i dine backupper. Dine markedssyn skal ikke stå i filen; de hører hjemme på siden *Market views*. Se [Claude Code-skills](brugervejledning/claude-code).
 
 ## Udvikleropsætning
 

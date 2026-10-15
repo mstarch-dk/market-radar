@@ -7,7 +7,7 @@ experienced Danish hobby investors; the text describes what each feature does, h
 where it stops.
 
 **All screenshots use a fictional investor** ([demo/seed.yaml](demo/seed.yaml)) on real market data, in a
-demo copy of the app (`.demo/`, gitignored) that never sees the real `userdata/`, `notes/` or `imports/`.
+demo copy of the app (`.demo/`, gitignored, in portable mode with its own data folder) that never sees the user's data folder.
 
 ## Updating
 Run `/marketing` in Claude Code. It finds the features added since the last edition

@@ -1,6 +1,6 @@
 # Portefølje: handler, kontanter og import
 
-Siden [Portfolio](/portfolio) er stedet, hvor du fører dine handler. Handlerne er sandheden: positioner, gennemsnitlig anskaffelseskurs og afkast regnes altid ud fra dem, pr. portefølje. Alt gemmes i `userdata/radar.db` på din egen computer, og intet sendes nogen steder hen.
+Siden [Portfolio](/portfolio) er stedet, hvor du fører dine handler. Handlerne er sandheden: positioner, gennemsnitlig anskaffelseskurs og afkast regnes altid ud fra dem, pr. portefølje. Alt gemmes i `radar.db` i din datamappe på din egen computer, og intet sendes nogen steder hen. Der tages automatisk backup af det; se [Dine data, backup og opdatering](brugervejledning/dine-data).
 
 ## Siden i overblik
 
@@ -106,7 +106,7 @@ En Yahoo-eksport er et øjebliksbillede af hele porteføljen og erstatter derfor
 
 ### Fortryd en import
 
-Under *Past imports* står hver import med tidspunkt, kilde, fil og antal rækker. *Undo* fjerner alle rækker, importen tilføjede. Radaren tager en sikkerhedskopi af databasen i `userdata/backups/` før hver import og hver fortrydelse.
+Under *Past imports* står hver import med tidspunkt, kilde, fil og antal rækker. *Undo* fjerner alle rækker, importen tilføjede. Radaren tager en sikkerhedskopi af databasen i `backups/` i datamappen før hver import og hver fortrydelse.
 
 ## Den hurtige Yahoo-import
 

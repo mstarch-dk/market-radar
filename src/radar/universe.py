@@ -11,7 +11,8 @@ from datetime import date
 import pandas as pd
 
 from . import net
-from .config import DATA, HOLDINGS_FILE, POSITIVE_LIST_FILE, TRANSACTIONS_FILE, settings, universe_config
+from .config import POSITIVE_LIST_FILE, settings, universe_config
+from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
 SPY_HOLDINGS = ("https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/"
@@ -75,11 +76,11 @@ def parse_spy_holdings(content: bytes, min_holdings: int = SPY_MIN_HOLDINGS) -> 
 def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
     """S&P 500 constituents (from SPY holdings), cached for `constituents_max_age_days`.
 
-    A failed download falls back to the cached list (logged in data/sources.json); `offline` never fetches.
+    A failed download falls back to the cached list (logged in sources.json); `offline` never fetches.
     """
     from . import coverage
 
-    cache_file = DATA / "constituents_us.csv"
+    cache_file = CACHE / "constituents_us.csv"
     cached = pd.read_csv(cache_file)["ticker"].tolist() if cache_file.exists() else []
     max_age = settings()["constituents_max_age_days"] * 86400
     if offline or (not refresh and cached and time.time() - cache_file.stat().st_mtime < max_age):
@@ -94,7 +95,7 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
             raise
         coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list", exc=e)
         return cached
-    DATA.mkdir(exist_ok=True)
+    CACHE.mkdir(parents=True, exist_ok=True)
     df.to_csv(cache_file, index=False)
     coverage.record("constituents", True, f"{len(df)} stocks")
     return df["ticker"].tolist()
@@ -103,12 +104,12 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
 def names(tickers: list[str]) -> dict[str, str]:
     """Display names: config ETFs, SPY holdings file, then a cached Yahoo lookup for the rest."""
     out = {e.ticker: e.name for e in etfs()}
-    us_file = DATA / "constituents_us.csv"
+    us_file = CACHE / "constituents_us.csv"
     if us_file.exists():
         us = pd.read_csv(us_file)
         if "name" in us:
             out |= {t: str(n).title() for t, n in zip(us["ticker"], us["name"])}
-    cache_file = DATA / "names.csv"
+    cache_file = CACHE / "names.csv"
     cached = dict(pd.read_csv(cache_file).values) if cache_file.exists() else {}
     missing = [t for t in tickers if t not in out and t not in cached]
     if missing:
@@ -128,7 +129,7 @@ def names(tickers: list[str]) -> dict[str, str]:
 
 def sectors(tickers: list[str]) -> pd.DataFrame:
     """Yahoo sector and industry per stock (cached in data/sectors.csv; ETFs and unknowns stay blank)."""
-    cache_file = DATA / "sectors.csv"
+    cache_file = CACHE / "sectors.csv"
     cached = pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()         else pd.DataFrame(columns=["ticker", "sector", "industry"])
     missing = sorted(set(tickers) - set(cached["ticker"]))
     if missing:
@@ -143,7 +144,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
         with net.pool(8) as ex:
             found = [r for r in ex.map(lookup, missing) if r]
         cached = pd.concat([cached, pd.DataFrame(found)], ignore_index=True)
-        DATA.mkdir(exist_ok=True)
+        CACHE.mkdir(parents=True, exist_ok=True)
         cached.to_csv(cache_file, index=False)
     return cached.set_index("ticker").reindex(tickers).fillna("")
 
@@ -168,7 +169,7 @@ def fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
 
 def currencies(tickers: list[str]) -> dict[str, str | None]:
     """Quote currency per ticker (cached Yahoo lookup). GBp = pence."""
-    cache_file = DATA / "currencies.csv"
+    cache_file = CACHE / "currencies.csv"
     cached = dict(pd.read_csv(cache_file).values) if cache_file.exists() else {}
     missing = [t for t in tickers if t not in cached]
     if missing:
@@ -181,7 +182,7 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
                 return t, None
         with net.pool(8) as ex:
             cached |= {t: c for t, c in ex.map(lookup, missing) if c}
-        DATA.mkdir(exist_ok=True)
+        CACHE.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(list(cached.items()), columns=["ticker", "currency"]).to_csv(cache_file, index=False)
     return {t: cached.get(t) for t in tickers}
 

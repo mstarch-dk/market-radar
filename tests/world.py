@@ -8,7 +8,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from radar import dashboard, external, ingest, profile, report, snapshot, universe
+from radar import dashboard, external, ingest, profile, universe
 
 N = 300
 END = pd.Timestamp(date.today())
@@ -66,10 +66,6 @@ def install(tmp_data, monkeypatch) -> dict[str, pd.DataFrame]:
     """Patch config, caches and Yahoo lookups to the synthetic world. Returns the dict of extra price
     frames that a faked download adds to (key = ticker)."""
     extra: dict[str, pd.DataFrame] = {}
-    monkeypatch.setattr(report, "REPORTS", tmp_data / "reports")
-    monkeypatch.setattr(dashboard, "REPORTS", tmp_data / "reports")
-    monkeypatch.setattr(snapshot, "SNAPSHOTS", tmp_data / "snapshots")
-    monkeypatch.setattr(profile, "PRICES_FILE", tmp_data / "prices.parquet")
     for mod in (dashboard, universe, profile):
         monkeypatch.setattr(mod, "universe_config", lambda: UNIVERSE)
     monkeypatch.setattr(dashboard, "load_prices", prices)

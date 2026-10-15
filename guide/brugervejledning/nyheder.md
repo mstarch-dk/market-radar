@@ -1,0 +1,16 @@
+# Nyheder
+
+Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der kræves noget af dig, når du opdaterer. Hvordan du opdaterer, står i [Dine data, backup og opdatering](brugervejledning/dine-data#opdatering-til-en-ny-version).
+
+## 0.2.0
+
+**Dine data har fået deres egen mappe.** Porteføljer, handler, markedssyn, watchlist, noter, briefs, research, journal og den historik, radaren har samlet op, ligger nu i en datamappe uden for programmappen, som standard `Market Radar` i din brugermappe. Markedsdata ligger i en cache-mappe for sig og kan altid hentes igen. Fremover pakker du bare en ny version ud og starter den; den finder selv dine data, og du skal ikke kopiere mapper.
+
+- **Opsætningsskærm ved første start.** Appen finder dine data fra den gamle version (i programmappen eller i en mappe ved siden af den), kopierer dem til datamappen og tjekker kopien fil for fil. Den gamle mappe ændres ikke; den får kun en `MOVED.txt`, der siger, hvor dataene er flyttet hen. Fra kommandolinjen: `uv run radar setup`.
+- **Automatisk backup.** Én gang om dagen og før en ny version første gang bruger dine data tages en backup af database, dokumenter og historik. Du kan vælge en anden mappe, fx i OneDrive eller på en USB-disk, som hver backup også kopieres til, og gendanne en backup med ét klik. En gendannelse kan fortrydes.
+- **Eksport til åbne formater.** *Export my data (CSV, JSON, Markdown)* giver dig alle dine handler, porteføljer, markedssyn, watchlist og dokumenter i en zip-fil, som kan læses uden Market Radar og indlæses igen med `radar import-export`.
+- **Tjek for nye versioner.** Kan slås til på siden *Data & coverage*. Appen spørger så GitHub højst én gang om dagen og viser et banner, når der er en ny version. Der sendes intet om dig.
+- **Beskyttelse mod ældre versioner.** Starter du en ældre version på data, som en nyere version har skrevet, åbner den dem skrivebeskyttet, så de ikke kan blive ødelagt.
+- **Siden *Data & coverage*** har fået afsnittet *Your data* med mapperne, backupperne og versionen. Nye kommandoer: `radar paths`, `radar backup`, `radar backups`, `radar restore`, `radar export`, `radar import-export`, `radar updates` og `radar --version`.
+
+**Det skal du gøre:** første gang du starter 0.2.0, vælger du, hvor dine data skal ligge. Har du brugt en ældre version, så pak 0.2.0 ud ved siden af den gamle mappe, start den, og klik *Copy my data*. Ligger den gamle mappe et andet sted, så skriv stien og klik *Look there*. Når den nye version viser dine porteføljer, noter og research, kan du slette den gamle mappe. Læg ikke datamappen i OneDrive, iCloud Drive eller Dropbox; vælg i stedet sådan en mappe som anden backupmappe. Har du selv lagt en nyere positivliste i `imports/` i den gamle version, så læg den også i den nye programmappe. Har du ændret noget i `config/`, så gør det igen i den nye. Bruger du Claude Code, ligger `notes/investor.md` nu i datamappen; den bliver kopieret med.

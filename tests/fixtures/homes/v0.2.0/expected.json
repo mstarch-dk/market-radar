@@ -1,0 +1,25 @@
+{
+ "layout": "home",
+ "made_by": "0.2.0",
+ "home_format": 1,
+ "tables": {
+  "watchlist": 1,
+  "imports": 0,
+  "symbol_map": 0,
+  "meta": 1,
+  "views": 0,
+  "view_exposures": 0,
+  "view_indicators": 0,
+  "portfolios": 3,
+  "portfolio_tags": 1,
+  "sim_runs": 0,
+  "transactions": 4
+ },
+ "files": [
+  "README.txt",
+  "history/snapshots/2025-09-01_momentum.parquet",
+  "journal/2025-04-01-MSFT-buy.md",
+  "notes/investor.md",
+  "research/MSFT.md"
+ ]
+}

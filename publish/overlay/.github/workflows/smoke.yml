@@ -28,3 +28,30 @@ jobs:
       - run: pnpm -C web build
       - name: radar doctor (offline)
         run: uv run radar doctor --offline
+      # the data folder, as a user's computer meets it: a path with a space and an ø, a pointer file of its own
+      - name: Data folder (setup, paths, backup, restore, export)
+        shell: bash
+        env:
+          MARKET_RADAR_CONFIG: ${{ runner.temp }}/radar-config
+          MARKET_RADAR_CACHE: ${{ runner.temp }}/radar-cache
+        run: |
+          set -e
+          uv run radar setup --fresh --to "$RUNNER_TEMP/Min Radar ø"
+          uv run radar paths
+          uv run radar portfolios list
+          uv run radar backup --reason smoke
+          f=$(ls "$RUNNER_TEMP/Min Radar ø/backups/"market-radar-*.zip | head -1)
+          uv run radar restore "$f" --yes
+          uv run radar export --out "$RUNNER_TEMP/export.zip"
+          uv run radar doctor --offline
+      - name: Moving an old version's data (the layout before the data folder)
+        shell: bash
+        env:
+          MARKET_RADAR_CONFIG: ${{ runner.temp }}/radar-config-2
+          MARKET_RADAR_CACHE: ${{ runner.temp }}/radar-cache-2
+        run: |
+          set -e
+          cp -R tests/fixtures/homes/legacy-v0.1.0 "$RUNNER_TEMP/market-radar-old"
+          uv run radar setup --from "$RUNNER_TEMP/market-radar-old" --to "$RUNNER_TEMP/Moved Radar" --yes
+          test -f "$RUNNER_TEMP/market-radar-old/MOVED.txt"
+          uv run radar portfolios list | grep Testdepot

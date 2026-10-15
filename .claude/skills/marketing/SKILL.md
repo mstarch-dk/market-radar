@@ -23,14 +23,15 @@ Bash prefix commands that take app paths with `MSYS_NO_PATHCONV=1`). It drives t
 installed on the machine through Playwright, so no browser download is needed.
 
 ## Ground rules
-- **Never show real data.** The demo runs from `.demo/`, a copy of the working tree without `userdata/`,
-  `notes/`, `imports/*` or anything else personal (publish/exclude.txt), with its own database. Never point a
-  shot at port 8780 (the user's own app), never copy `userdata/` into `.demo/`, and never put a real holding,
-  account or broker relationship into `seed.yaml`. `check` runs the leak check from `scripts/publish_public.py`
+- **Never show real data.** The demo runs from `.demo/`, a copy of the working tree in portable mode
+  (`.demo/portable.json`: its own data folder `.demo/home` and cache `.demo/cache`), never the user's data
+  folder, with its own database. Never point a shot at port 8780 (the user's own app), never copy the user's
+  `radar.db` or notes into `.demo/`, and never put a real holding, account or broker relationship into
+  `seed.yaml`. `check` runs the leak check from `scripts/publish_public.py`
   over `marketing/` and confirms the demo database holds only the seed's portfolios.
 - Facts come from the app, its config and docs. Every number in the text (indicator count, number of names,
   markets, positive-list year, thresholds, a reading quoted in a caption) is re-read for this edition from the
-  demo (`.demo/reports/*.json`, the API on port 8790), `config/*.yaml` or the code. Never carry a number over
+  demo (`.demo/cache/reports/*.json`, the API on port 8790), `config/*.yaml` or the code. Never carry a number over
   from the last edition unchecked.
 - Material is analysis-tool marketing, not investment advice. Keep "analyse, ikke rådgivning".
 

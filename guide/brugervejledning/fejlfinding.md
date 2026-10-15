@@ -23,18 +23,19 @@ Ved *warn* og *fail* står der en linje med `→` og hvad du kan gøre. Tjekket 
 
 - **Python**: version 3.11 eller nyere.
 - **Web app**: om den byggede app (`web/dist`) findes.
+- **Data folder**: om der er valgt en datamappe (advarsel før første opsætning), om den findes (fejl, hvis den mangler), om den er skrivebeskyttet, fordi en nyere version har skrevet i den (fejl), og om den ligger i en synkroniseret mappe eller på et netværksdrev (advarsel).
 - **Market data**: hvornår kurserne sidst blev hentet (advarsel efter 7 dage).
 - **Dashboard**: hvornår rapporten sidst blev bygget (advarsel efter 7 dage).
 - **SKAT positive list**: om positivlisten findes og har årets ark.
 - **Your portfolio**: antal handler, og om flytningen af gamle CSV-filer gik godt.
-- **Investor profile for Claude**: om `notes/investor.md` findes (valgfri).
+- **Investor profile for Claude**: om `notes/investor.md` i datamappen findes (valgfri).
 - **Internet: …**: én linje pr. datakilde (kun uden `--offline`). Ethvert svar under HTTP 500 regnes for "oppe". Et websted på pause vises som advarsel.
 
 ## "Welcome to Market Radar" i stedet for data
 
-Siderne viser velkomstsiden, så længe der ikke er bygget en rapport (`reports/dashboard.json`). Det er normalt første gang. Klik *Download market data*. Første hentning dækker omkring 700 aktier og ETF'er og tager nogle minutter; senere opdateringer henter kun det nye. Du kan også importere en portefølje fra Yahoo Finance på samme side.
+Siderne viser velkomstsiden, så længe der ikke er bygget en rapport (`dashboard.json` i cache-mappen). Det er normalt første gang. Klik *Download market data*. Første hentning dækker omkring 700 aktier og ETF'er og tager nogle minutter; senere opdateringer henter kun det nye. Du kan også importere en portefølje fra Yahoo Finance på samme side.
 
-Ser du velkomstsiden efter at have haft data, er `reports/` blevet slettet eller rapporten er ikke blevet bygget. Kør *Update data* (eller `uv run radar run`) igen.
+Ser du velkomstsiden efter at have haft data, er cache-mappen blevet slettet eller rapporten er ikke blevet bygget. Kør *Update data* (eller `uv run radar run`) igen.
 
 ## En kilde fejler
 
@@ -71,7 +72,7 @@ Pausen ophører af sig selv. Du kan ophæve den med *Resume now*, men gentager p
 Positivlisten (SKATs liste over aktiebaserede investeringsselskaber) bruges til at vise, om en ETF er på listen. Radaren henter den ikke selv:
 
 1. Hent den aktuelle liste som Excel-fil fra skat.dk.
-2. Gem den som `imports/positivliste.xlsx` (erstat den gamle).
+2. Gem den som `imports/positivliste.xlsx` i programmappen (erstat den gamle).
 3. Kør en opdatering.
 
 Kun det seneste års ark tæller. Mangler filen, viser kolonnen "?" i stedet for yes/no. Sundhedstjekket og [Data & coverage](/data) advarer, når et nyt år er begyndt uden årets ark.
@@ -111,23 +112,25 @@ Gå selv til http://127.0.0.1:8780, mens det sorte vindue er åbent. Lukker du v
 
 ## Hvor ligger mine data?
 
-Alt ligger i mappen, du pakkede Market Radar ud i, og intet sendes til andre end datakilderne:
+Dine egne data ligger i datamappen (standard `Market Radar` i din brugermappe), markedsdata i en cache-mappe, og intet sendes til andre end datakilderne. Siden [Data & coverage](/data) viser under *Your data*, hvor mapperne ligger, og `uv run radar paths` gør det samme i terminalen. Se [Dine data, backup og opdatering](brugervejledning/dine-data).
 
-| Mappe | Indhold | Kan genskabes? |
-|---|---|---|
-| `userdata/` | Dine handler, porteføljer, watchlist-ændringer og markedssyn (`radar.db`) | Nej. Tag backup |
-| `userdata/backups/` | Automatiske sikkerhedskopier før hver import, fortrydelse, flytning og opgradering af databasen | – |
-| `data/` | Hentede markedsdata, opdateringsloggen (`sources.json`) og driftsloggen (`ops.db`) | Ja, hentes igen |
-| `reports/` | Rapporten til appen (`dashboard.json`) og `summary.json` til Claude-skills | Ja, bygges igen |
-| `imports/` | Positivlisten og gamle Yahoo-importfiler | Positivlisten kan hentes igen |
-| `notes/` | Din investorprofil og egne noter | Nej |
-| `briefs/`, `research/`, `journal/` | Det, Claude-skills skriver | Nej |
+> **Bemærk:** Vil du starte forfra med markedsdata, så luk appen, slet cache-mappen og hent data igen. Dine data og historikken i datamappen bliver liggende. Opdaterer du til en ny version, skal du ikke kopiere noget; den nye version finder selv datamappen.
 
-> **Bemærk:** Vil du starte forfra med markedsdata, så slet `data/` og `reports/` og hent data igen. Dine handler og din watchlist i `userdata/` bliver liggende. Opdaterer du til en ny udgave af Market Radar, så kopiér de personlige mapper over i den nye.
+### Appen viser opsætningsskærmen igen
+
+Står der *Your data folder can't be found*, kan appen ikke finde den datamappe, computeren husker. Tilslut drevet, den ligger på, og genindlæs siden. Har du flyttet mappen, så skriv, hvor den ligger nu, og klik *Use this folder* (eller kør `uv run radar setup --use "STI"`). Appen starter aldrig bare med en tom mappe i stedet.
+
+Står der *Welcome to Market Radar …* med et valg af mappe, er det første start af en version med datamappe, eller filen `location.json`, der husker mappen, er væk. Se [Første start af en version med datamappe](brugervejledning/dine-data#første-start-af-en-version-med-datamappe).
+
+### "Read-only" øverst på siden
+
+Dine data er skrevet af en nyere version af Market Radar end den, du har startet. Den ældre version kan vise dem, men ikke ændre dem. Start den nyeste version, du har. Se [Skrivebeskyttet: data fra en nyere version](brugervejledning/dine-data#skrivebeskyttet-data-fra-en-nyere-version).
 
 ### Gendan fra en sikkerhedskopi
 
-Sikkerhedskopierne i `userdata/backups/` er kopier af databasen. Vil du gendanne én, så luk appen, kopiér den ønskede fil over `userdata/radar.db`, og start appen igen. Tag en kopi af den nuværende fil først.
+Hele backupper (database, dine mapper og historik) gendanner du på [Data & coverage](/data) under *Backups* med *Restore…*, eller med `uv run radar restore FIL`. Det, der er der nu, tages der backup af først. Se [Gendan en backup](brugervejledning/dine-data#gendan-en-backup).
+
+I `backups/` i datamappen ligger desuden de hurtige kopier af databasen (`radar-….db`), som radaren tager før hver import og fortrydelse. Vil du gendanne én af dem, så luk appen, kopiér filen over `radar.db` i datamappen, og start appen igen. Tag en kopi af den nuværende fil først.
 
 ## Ofte stillede spørgsmål
 

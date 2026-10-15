@@ -1,0 +1,13 @@
+{
+ "home_format": 1,
+ "created": "2026-10-15T16:34:46",
+ "created_by": "0.2.0",
+ "last_app_version": "0.2.0",
+ "log": [
+  {
+   "at": "2026-10-15T16:34:46",
+   "app_version": "0.2.0",
+   "event": "created"
+  }
+ ]
+}

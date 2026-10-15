@@ -1,8 +1,9 @@
 """Danish marketing material (marketing/) from a demo copy of the app with a fictional portfolio.
 
-Every path in the app hangs off the repo root, so the demo runs from its own copy in .demo/: the working
-tree's tracked and new files minus publish/exclude.txt (no notes, userdata, briefs, …), the market data,
-and a database filled from marketing/demo/seed.yaml. Nothing in the real userdata/ or reports/ is read or written.
+The demo runs from its own copy in .demo/: the working tree's tracked and new files minus publish/exclude.txt,
+in portable mode (.demo/portable.json: its data folder is .demo/home, its market data .demo/cache), with a copy
+of the market data and history and a database filled from marketing/demo/seed.yaml. Your own data folder is
+never read or written, and this computer's remembered data folder is never changed.
 
     uv run --group marketing python scripts/marketing.py workspace   # build .demo/ (stop the demo server first)
     uv run --directory .demo radar serve --port 8790                 # the demo app (launch.json: radar-demo)
@@ -99,16 +100,7 @@ def workspace() -> None:
     DEMO.mkdir()
     export_worktree(DEMO)
     pub.apply_excludes(DEMO)
-    # market data only: public, re-downloadable. Never userdata/, imports/ (personal) or notes/.
-    shutil.copytree(ROOT / "data", DEMO / "data", ignore=shutil.ignore_patterns("*.tmp"), dirs_exist_ok=True)
-    (DEMO / "reports").mkdir()
-    disc = ROOT / "reports" / "discovery.json"
-    if disc.exists():
-        shutil.copy2(disc, DEMO / "reports" / "discovery.json")
-    else:
-        print("Note: no reports/discovery.json; the Discover page will show its empty state.")
-    for d in ("userdata", "notes"):
-        assert not (DEMO / d).exists(), f".demo/{d} must not exist"
+    demo_home()
     run(["uv", "sync", "--directory", str(DEMO)])
     run(["pnpm", "-C", str(DEMO / "web"), "install", "--frozen-lockfile", "--prefer-offline"])
     run(["pnpm", "-C", str(DEMO / "web"), "build"])
@@ -116,6 +108,40 @@ def workspace() -> None:
 
 
 # ---------------- seed: the fictional investor ----------------
+
+def demo_home() -> None:
+    """.demo in portable mode, with an empty data folder and a copy of the market data and the history (public,
+    market-derived: rank and valuation snapshots, analyst targets). Never radar.db, notes or any personal folder."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from radar import home, paths
+
+    real, src = paths.resolve()
+    if real is None and (ROOT / "data").is_dir():
+        real = paths.Locations.legacy(ROOT)                     # this checkout hasn't moved to a data folder yet
+    (DEMO / paths.PORTABLE).write_text(json.dumps({"home": "home", "cache": "cache"}), encoding="utf-8")
+    demo = home.create(DEMO / "home", DEMO / "cache", pointer=False)
+    paths.configure(None)
+    if real is None:
+        print("Note: no market data found; run `radar run` in the demo after seeding.")
+        return
+    for tier, dst in (("history", demo.history), ("cache", demo.cache)):
+        for e in paths.REGISTRY[tier]:
+            s = getattr(real, tier) / e.rstrip("/")
+            if e.endswith("/") and s.is_dir():
+                shutil.copytree(s, dst / e.rstrip("/"), ignore=shutil.ignore_patterns("*.tmp"), dirs_exist_ok=True)
+            elif s.is_file() and e != "ops.db":
+                (dst / e).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(s, dst / e)
+    disc = real.reports / "discovery.json"
+    if disc.exists():
+        demo.reports.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(disc, demo.reports / "discovery.json")
+    else:
+        print("Note: no discovery.json; the Discover page will show its empty state.")
+    for d in ("notes", "briefs", "research", "journal", "exports"):
+        assert not any((demo.home / d).iterdir()), f".demo/home/{d} must be empty"
+    assert not (demo.home / home.DB_NAME).exists(), "the demo database starts empty"
+
 
 def months_back(today: date, spec: str) -> date:
     """'-12mo', '-3w' or '-10d' → a calendar date before `today` (the trade snaps to the close before it)."""
@@ -232,9 +258,9 @@ def _held(pos: dict, symbol: str) -> float:
 
 def check_demo_db() -> None:
     """The demo database holds the seed's portfolios and nothing else."""
-    db = DEMO / "userdata" / "radar.db"
+    db = DEMO / "home" / "radar.db"
     if not db.exists():
-        sys.exit("No .demo/userdata/radar.db: run `seed`.")
+        sys.exit("No .demo/home/radar.db: run `seed`.")
     spec = load(SEED)
     want = {p["name"] for p in spec["portfolios"]} | {f["name"] for f in spec.get("forks", [])}
     with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:

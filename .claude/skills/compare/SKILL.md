@@ -8,6 +8,8 @@ argument-hint: <ticker> <ticker> [...] [--personal] [--horizon 3m]
 
 Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
 
+**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+
 Output goes to `research/compare/YYYY-MM-DD_<T1>-<T2>[-...].md`. Reply with the summary table and a link.
 Everything here is analysis of a setup, not a recommendation to buy or sell.
 

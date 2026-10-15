@@ -69,7 +69,7 @@ Beslutningsjournalen er værktøjet til at kunne udfylde tabellen ærligt bageft
 
 ### Beslutningsjournalen
 
-Skillen `/journal` i Claude Code (se [Claude Code-skills](brugervejledning/claude-code)) skriver en beslutning ned som en fil i `journal/`, når du køber, sælger, øger, reducerer eller bevidst lader være (*pass*). Hver post har:
+Skillen `/journal` i Claude Code (se [Claude Code-skills](brugervejledning/claude-code)) skriver en beslutning ned som en fil i `journal/` i din datamappe, når du køber, sælger, øger, reducerer eller bevidst lader være (*pass*). Hver post har:
 
 - **Handling, konto og horisont**, og en dato for opfølgning (`review_by`).
 - **Tesen med dine egne ord.** Skillen omformulerer den ikke.

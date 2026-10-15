@@ -13,9 +13,10 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from .config import DATA, HOLDINGS_FILE, POSITIVE_LIST_FILE, TRANSACTIONS_FILE
+from .config import POSITIVE_LIST_FILE
+from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
 
-LOG_FILE = DATA / "sources.json"
+LOG_FILE = CACHE / "sources.json"
 _log_lock = threading.Lock()  # the update and the discovery scan can record at the same time
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
@@ -77,7 +78,7 @@ def record(source: str, ok: bool, detail: str | None = None, error: str | None =
         if ok:
             entry["last_success"] = now
         log[source] = entry
-        DATA.mkdir(exist_ok=True)
+        CACHE.mkdir(parents=True, exist_ok=True)
         tmp = LOG_FILE.with_name(LOG_FILE.name + ".tmp")
         tmp.write_text(json.dumps(log, indent=1), encoding="utf-8")
         tmp.replace(LOG_FILE)
@@ -190,13 +191,13 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
                          f"0 of {len(analyst_tickers)} holdings/watchlist names", "", log))
 
     # constituents list (file date)
-    cons = DATA / "constituents_us.csv"
+    cons = CACHE / "constituents_us.csv"
     n_cons = len(pd.read_csv(cons)) if cons.exists() else 0
     rows.append(_row("constituents", _mtime(cons), today, cfg["constituents_max_age_days"] + 14,
                      f"{n_cons} US stocks", "Today's members only: no history of index changes", log))
 
     # reference caches: how many stocks have a sector (used by the momentum clusters)
-    sec_file = DATA / "sectors.csv"
+    sec_file = CACHE / "sectors.csv"
     sectors = pd.read_csv(sec_file, keep_default_na=False).set_index("ticker") if sec_file.exists() else None
     known = int((sectors.reindex(stock_tickers)["sector"].fillna("") != "").sum()) if sectors is not None else 0
     rows.append(_row("reference", None, ref, None, f"sector known for {known} of {len(stock_tickers)} stocks",

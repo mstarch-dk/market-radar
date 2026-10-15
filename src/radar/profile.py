@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 
 from . import dashboard, external, ingest, mine, universe
-from .config import PRICES_FILE, settings, universe_config
+from .config import settings, universe_config
+from .paths import PRICES_FILE
 from .mine import _fx_to_dkk, _pct_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals

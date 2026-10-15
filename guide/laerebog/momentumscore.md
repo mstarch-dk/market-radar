@@ -77,7 +77,7 @@ Scoren vises i kolonnen *Score* med en farvet måler (`gauges.score` i `settings
 
 ### Toplisten, NEW og frafaldne
 
-For hver region vises de {{settings:momentum.top_n}} bedste (`momentum.top_n`). Hver `radar run` gemmer et øjebliksbillede (*snapshot*) af alle rangeringer i `data/snapshots/` med dato, ticker, rang og score.
+For hver region vises de {{settings:momentum.top_n}} bedste (`momentum.top_n`). Hver `radar run` gemmer et øjebliksbillede (*snapshot*) af alle rangeringer i `history/snapshots/` i datamappen med dato, ticker, rang og score.
 
 - **NEW** markerer en aktie, der er i dagens top {{settings:momentum.top_n}}, men ikke var det i det seneste snapshot, der er mindst {{settings:snapshot_min_gap_days}} dage gammelt (`snapshot_min_gap_days`). Mindsteafstanden sikrer, at du sammenligner med for omkring en uge siden, ikke med i går.
 - **Dropped out of top {{settings:momentum.top_n}}** viser de aktier, der var i toppen i det snapshot, men ikke er det nu.

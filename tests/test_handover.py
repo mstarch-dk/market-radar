@@ -91,8 +91,6 @@ def test_import_rejects_other_files_and_keeps_the_previous_import(client, tmp_da
 def test_doctor_explains_what_is_missing(tmp_data, monkeypatch):
     from radar import health
 
-    monkeypatch.setattr(health, "PRICES_FILE", tmp_data / "prices.parquet")
-    monkeypatch.setattr(health, "REPORTS", tmp_data / "reports")
     res = CliRunner().invoke(cli.app, ["doctor", "--offline"])
     assert "[WARN] Market data: not downloaded yet" in res.output
     assert "Download market data" in res.output                              # the fix, in plain words

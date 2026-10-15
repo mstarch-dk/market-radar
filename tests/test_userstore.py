@@ -88,9 +88,8 @@ def test_holdings_without_any_file(tmp_data):
 def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data, monkeypatch):
     from typer.testing import CliRunner
 
-    from radar import cli, config
+    from radar import cli
 
-    monkeypatch.setattr(config, "IMPORTS", tmp_data)
     _holdings(tmp_data, "W,watch,,,,,\nH,holding,2,10,2026-01-02,,\n")
     (tmp_data / "transactions.csv").write_text("symbol,date,type,quantity,price\nH,2026-01-02,BUY,2,10\n",
                                                encoding="utf-8")
@@ -120,9 +119,8 @@ def test_an_old_csv_bundle_still_restores(tmp_data, monkeypatch):
 
     from typer.testing import CliRunner
 
-    from radar import cli, config
+    from radar import cli
 
-    monkeypatch.setattr(config, "IMPORTS", tmp_data)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("holdings.csv", HEADER + "H,holding,2,10,2026-01-02,,\n")

@@ -17,6 +17,8 @@ Appen læser indstillingerne, når den starter. En ændring slår derfor først 
 
 Procenter skrives i filen som brøker: 0.05 betyder 5 %.
 
+> **Bemærk:** `config/` ligger i programmappen, ikke i din datamappe, og kommer ikke med i backuppen. En ny version har sine egne filer med sine standardværdier, så har du ændret noget, skal du gøre det igen efter en opdatering.
+
 ## settings.yaml: generelt
 
 | Nøgle | Værdi | Betyder |
@@ -73,7 +75,7 @@ Hver indikator i regimet stemmer risk-on, risk-off eller neutralt efter disse t�
 | `regime.votes.credit_eu` | {{settings:regime.votes.credit_eu}} | Kreditspændet på europæisk high yield (HY) ved siden af det amerikanske |
 | `regime.votes.valuation` | {{settings:regime.votes.valuation}} | CAPE og risikopræmien: langsomme mål, ikke et timingsignal på 1–6 måneder |
 
-Dette er kun standarden. På siden [Regime](/regime) kan du slå grupperne til og fra; dit valg gemmes i `userdata/` og går forud for filen. En slået-fra indikator vises stadig med sin aflæsning, men stemmer ikke. Se [Regime](brugervejledning/regime) og [Radarens afstemningsmodel](laerebog/afstemningsmodellen).
+Dette er kun standarden. På siden [Regime](/regime) kan du slå grupperne til og fra; dit valg gemmes i `radar.db` i datamappen og går forud for filen. En slået-fra indikator vises stadig med sin aflæsning, men stemmer ikke. Se [Regime](brugervejledning/regime) og [Radarens afstemningsmodel](laerebog/afstemningsmodellen).
 
 ## `positioning`: futurespositionering
 
@@ -176,7 +178,7 @@ Gælder ethvert websted, der ikke står under `hosts`:
 
 ### hosts
 
-`network.hosts` giver bestemte websteder deres egne grænser. Nøglerne er mønstre, fx `"*.yahoo.com"`, og det første mønster, der passer, gælder. Websteder under samme mønster deler grænserne, så alle Yahoos websteder har ét fælles tempo og ét fælles dagsbudget. Langsomme kilder som multpl.com, Damodarans side og AAII har et meget lavt tempo og kun én forespørgsel ad gangen. Værdierne står direkte i filen.
+`network.hosts` giver bestemte websteder deres egne grænser. Nøglerne er mønstre, fx `"*.yahoo.com"`, og det første mønster, der passer, gælder. Websteder under samme mønster deler grænserne, så alle Yahoos websteder har ét fælles tempo og ét fælles dagsbudget. Langsomme kilder som multpl.com, Damodarans side og AAII har et meget lavt tempo og kun én forespørgsel ad gangen. `api.github.com` (tjekket for nye versioner, se `updates` nedenfor) har også sin egen, lave grænse og kun én forespørgsel ad gangen. Værdierne står direkte i filen.
 
 ### cooldown
 
@@ -187,11 +189,19 @@ Gælder ethvert websted, der ikke står under `hosts`:
 | `network.cooldown.cooldown_min` | {{settings:network.cooldown.cooldown_min}} | Første pause i minutter; fordobles ved gentagelse samme dag |
 | `network.cooldown.max_cooldown_min` | {{settings:network.cooldown.max_cooldown_min}} | Længste pause i minutter |
 
+## `updates`: tjek for nye versioner
+
+| Nøgle | Standard | Betydning |
+|---|---|---|
+| `updates.repo` | tom (`null`) | Det offentlige GitHub-repo (`ejer/navn`), som tjekket for nye versioner spørger. Uden det er der intet at tjekke, og kortet *New versions* siger det |
+
+Tjekket er slået fra, til du sætter flueben i *Check for a new version once a day* på siden [Data & coverage](/data) eller kører `uv run radar updates --on`. Dit valg gemmes i datamappen, ikke i denne fil. Når det er slået til, spørges GitHub højst én gang om dagen. Se [Dine data, backup og opdatering](brugervejledning/dine-data#tjek-for-nye-versioner).
+
 ## `ops`: driftsloggen
 
 | Nøgle | Værdi | Betyder |
 |---|---|---|
-| `ops.keep_requests_days` | {{settings:ops.keep_requests_days}} | Dage, enkelte forespørgsler gemmes i `data/ops.db` |
+| `ops.keep_requests_days` | {{settings:ops.keep_requests_days}} | Dage, enkelte forespørgsler gemmes i `ops.db` i cache-mappen |
 | `ops.keep_events_days` | {{settings:ops.keep_events_days}} | Dage, hændelser og job gemmes |
 
 ## `valuation`: værdiansættelse

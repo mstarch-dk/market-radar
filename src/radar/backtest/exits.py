@@ -45,7 +45,8 @@ from dataclasses import dataclass, field, replace
 import pandas as pd
 
 from .. import performance, simulate, universe, userstore
-from ..config import REPORTS, settings
+from ..config import settings
+from ..paths import REPORTS
 from .pit import Context
 
 VARIANTS = ("overlay", "rules")
@@ -643,7 +644,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
         entry["compare"] = performance.compare(market, [p["id"], *sims], start=entry["start"])
         out["portfolios"].append(entry)
     if write:
-        REPORTS.mkdir(exist_ok=True)
+        REPORTS.mkdir(parents=True, exist_ok=True)
         f = REPORTS / (REPORT_FILE if spec is None or spec.key == "rule" else f"sim-exits-{spec.key}.json")
         tmp = f.with_suffix(".tmp")
         tmp.write_text(json.dumps(out, indent=1, default=_json), encoding="utf-8")

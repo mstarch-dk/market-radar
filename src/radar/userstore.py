@@ -1,4 +1,4 @@
-"""Your own stateful data, kept locally in userdata/radar.db (SQLite; gitignored, never committed).
+"""Your own stateful data, kept in radar.db in the data folder (SQLite; paths.py says where; never committed).
 
 - **transactions**: every buy and sell (and cash row), the source of truth for the portfolios. Positions and average costs are
   derived from them (universe.holdings). Each row records where it came from (manual entry or an import).
@@ -15,7 +15,7 @@
 
 Schema changes are new entries in MIGRATIONS, never edits to old ones (a tuple of statements runs as one unit,
 for rebuilding a table). A copy of the database is kept in
-userdata/backups/ before every import and every undo.
+backups/ before every import and every undo (backup.py makes the full backups).
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ import sqlite3
 from contextlib import closing
 from datetime import datetime
 
-from .config import USERDATA
+from .paths import USERDATA
 
 DB_NAME = "radar.db"
 
@@ -276,7 +276,7 @@ BACKUPS_KEPT = 20
 
 
 def backup(reason: str) -> str | None:
-    """Copy the database to userdata/backups/ (before imports and undos); keeps the newest BACKUPS_KEPT."""
+    """Copy the database to backups/ (before imports and undos); keeps the newest BACKUPS_KEPT."""
     if not _exists():
         return None
     with closing(_connect()) as con:

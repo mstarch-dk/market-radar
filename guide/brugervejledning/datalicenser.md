@@ -2,7 +2,7 @@
 
 Market Radars **kode** er frit tilgængelig under MIT-licensen. De **markedsdata**, appen henter, er ikke omfattet af den licens. De tilhører kilderne, og hver kilde har sine egne vilkår. Langt det meste må kun bruges **personligt og ikke-kommercielt**.
 
-Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i filen `DATA_LICENSE.md` i Market Radar-mappen. Ingen af dem er juridisk rådgivning, og kilderne kan ændre deres vilkår når som helst. Kildens egne vilkår gælder altid.
+Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i filen `DATA_LICENSE.md` i programmappen. Ingen af dem er juridisk rådgivning, og kilderne kan ændre deres vilkår når som helst. Kildens egne vilkår gælder altid.
 
 ## Kort fortalt
 
@@ -17,7 +17,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 
 - **At gøre Market Radar tilgængelig for andre som hjemmeside eller tjeneste.** Så leverer du Yahoo Finance-data og andre licenserede data videre til andre, og det forbyder kildernes vilkår.
 - **Kommerciel brug:** betalte produkter, nyhedsbreve, kunderapporter, rådgivning eller andet, du får betaling for, og som bygger på de hentede data.
-- **At videregive data:** offentliggøre eller sælge mapperne `data/` og `reports/`, eksporterede tabeller eller dashboardets JSON, eller lægge hentede data med i en kopi af appen.
+- **At videregive data:** offentliggøre eller sælge cache-mappen (de hentede markedsdata og rapporterne), historikken i datamappen, eksporterede tabeller eller dashboardets JSON, eller lægge hentede data med i en kopi af appen.
 - **At bruge kilderne i et andet produkt**, eller at hente fra en fælles server på vegne af mange brugere.
 
 > **Bemærk:** Den tilsigtede måde at dele Market Radar på er, at hver bruger kører sin egen kopi og selv henter sine data til personlig brug. Sådan fungerer de udgivne versioner.
@@ -45,7 +45,9 @@ Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på
 
 ## Praktiske regler for din kopi
 
-- Hold `data/`, `reports/` og `exports/` for dig selv. De kommer aldrig med i git; læg dem heller ikke ud andre steder.
+- Hold cache-mappen, `history/` og `exports/` i datamappen og dine backupper for dig selv. De kommer aldrig med i git; læg dem heller ikke ud andre steder. En backup indeholder historikken, som er bygget af hentede data.
+- En eksport fra *Export my data* eller `radar export` indeholder kun dine egne data (porteføljer, handler, markedssyn, watchlist og dokumenter), ingen markedsdata. Den indeholder til gengæld dine beholdninger, så del den kun med nogen, du stoler på.
+- Tjekket for nye versioner (slået fra, til du slår det til; se [Dine data, backup og opdatering](brugervejledning/dine-data#tjek-for-nye-versioner)) spørger GitHub (`api.github.com`) om den nyeste udgivelse. Det er ikke en datakilde: svaret er kun et versionsnummer og et link, og der sendes intet om dig.
 - Gør ikke `radar serve` tilgængelig på internettet eller dit netværk, så andre kan bruge den. Den lytter med vilje kun på `127.0.0.1`, altså din egen computer.
 - Respekter kildernes grænser. Radaren doserer sine forespørgsler og holder pause med en kilde, der beder om det (se [Drift](brugervejledning/drift)). Fjern ikke den begrænsning.
 - Angiv kilden, når du nævner et tal i noget, du offentliggør.

@@ -35,6 +35,7 @@ books:
           - {slug: notesbog, title: "Notesbogen: briefs, research og journal"}
       - title: Data og drift
         chapters:
+          - {slug: dine-data, title: "Dine data, backup og opdatering"}
           - {slug: data-og-daekning, title: Data og dækning}
           - {slug: drift, title: "Drift: forespørgsler, fejl og pauser"}
           - {slug: datalicenser, title: Datakilder og licenser}
@@ -47,6 +48,7 @@ books:
       - title: Appendiks
         chapters:
           - {slug: indstillinger, title: Indstillinger}
+          - {slug: nyheder, title: Nyheder}
 
   - id: laerebog
     title: Lærebog

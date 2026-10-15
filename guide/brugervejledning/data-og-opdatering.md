@@ -22,7 +22,7 @@ Stopper opdateringen helt, står der *Update stopped:* efterfulgt af fejlen. Det
 
 ## Hvad en opdatering henter
 
-En opdatering har to halvdele: først hentes data, derefter bygges dashboardet (`reports/dashboard.json`), som siderne viser.
+En opdatering har to halvdele: først hentes data, derefter bygges dashboardet (`dashboard.json` i cache-mappen), som siderne viser.
 
 ### Hentning
 Trinene køres i denne rækkefølge, og hvert trin logges for sig:
@@ -44,7 +44,7 @@ Trinene køres i denne rækkefølge, og hvert trin logges for sig:
 Kurserne hentes inkrementelt: kun de nye dage. Første gang hentes {{settings:history_years}} års historik for hver ticker. Opdager radaren, at et udbytte eller en split har ændret den justerede historik, henter den hele historikken for den ticker igen.
 
 ### Rapporten
-Derefter regner radaren regime, rotation, momentum, positionering og dækning ud og skriver resultatet til `reports/dashboard.json` (som siderne læser) og `reports/summary.json` (som Claude Code-kommandoerne læser). Samtidig gemmes et øjebliksbillede af rangeringerne i `data/snapshots/`. Det er dem, der gør det muligt at vise ændring i rang og nye navne siden sidst.
+Derefter regner radaren regime, rotation, momentum, positionering og dækning ud og skriver resultatet til `dashboard.json` (som siderne læser) og `summary.json` (som Claude Code-kommandoerne læser) i cache-mappens `reports/`. Samtidig gemmes et øjebliksbillede af rangeringerne i `history/snapshots/` i datamappen. Det er dem, der gør det muligt at vise ændring i rang og nye navne siden sidst.
 
 ## Fra terminalen
 
@@ -114,15 +114,11 @@ Søger du på en ticker, som radaren ikke følger, hentes den første gang, du �
 
 ## Hvor dine data ligger
 
-Market Radar skelner skarpt mellem data, der kan hentes igen, og data, der kun findes hos dig:
+Market Radar skelner skarpt mellem data, der kan hentes igen, og data, der kun findes hos dig. De ligger i hver sin mappe, uden for programmappen:
 
-| Mappe | Indhold | Kan hentes igen? |
-|---|---|---|
-| `data/` | Kurser, makroserier, øjebliksbilleder og kildelog | Ja |
-| `reports/` | Dashboardet og Discover-scanningen | Ja, bygges ud fra `data/` |
-| `userdata/` | Dine handler, porteføljer, watchlist, markedssyn og valg i appen (`radar.db`) samt automatiske backups i `userdata/backups/` | **Nej** |
-| `imports/` | Positivlisten og gamle importfiler | Delvist |
-| `notes/` | Din investorprofil og egne noter | **Nej** |
-| `briefs/`, `research/`, `journal/` | Det, Claude Code-kommandoerne skriver | **Nej** |
+- **Datamappen** (standard `Market Radar` i din brugermappe) holder dine data: porteføljer, handler, markedssyn og watchlist (`radar.db`), noter, briefs, research, journal, eksporter og filer fra din bank. Undermappen `history/` holder det, radaren har samlet op over tid og ikke kan hente igen, fx rangsnapshots og ugentlige P/E-snapshots. Datamappen tages der automatisk backup af.
+- **Cache-mappen** holder de hentede markedsdata og de byggede rapporter. Den kan altid hentes igen.
 
-Vil du starte forfra med markedsdata, kan du slette `data/` og `reports/` og hente igen. Din portefølje og watchlist bliver liggende. Tag backup af `userdata/` og `notes/`; de kan ikke genskabes.
+Hvor mapperne ligger på Windows, Mac og Linux, og hvordan backup, eksport og opdatering virker, står i [Dine data, backup og opdatering](brugervejledning/dine-data). Siden [Data & coverage](/data) viser det under *Your data*, og `uv run radar paths` i terminalen.
+
+Vil du starte forfra med markedsdata, så luk appen, slet cache-mappen og hent igen. Dine data og historikken bliver liggende.

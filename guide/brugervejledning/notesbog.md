@@ -2,7 +2,7 @@
 
 Siden [Notebook](/notebook) i gruppen *Mine* samler det, som Claude-skills har skrevet til dig: markedsbriefs, research-notater, sammenligninger og din beslutningsjournal. Du læser dem her; du skriver dem med skills i Claude Code (se [Claude Code-skills](brugervejledning/claude-code)).
 
-Filerne ligger i mapperne `briefs/`, `research/` og `journal/` på din computer. De er personlige, kommer aldrig med i git og deles ikke.
+Filerne ligger i mapperne `briefs/`, `research/` og `journal/` i din datamappe (se [Dine data, backup og opdatering](brugervejledning/dine-data)). De er personlige, kommer med i dine backupper og eksporter, men aldrig i git, og deles ikke.
 
 ## Briefs
 
