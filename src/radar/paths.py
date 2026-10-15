@@ -240,6 +240,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "aaii.parquet", "valuation/market.parquet", "factset_latest.txt", "profiles/", "constituents_us.csv",
         "names.csv", "sectors.csv", "currencies.csv", "sources.json", "ops.db", "updates.json",
         "discovery/universe.csv", "discovery/isin_map.csv", "discovery/prices.parquet",
+        "*.lock",                       # locks.file_lock: one writer at a time, next to the file it guards
     ),
     "reports": ("dashboard.json", "summary.json", "discovery.json", "score-study.json", "exit-study.json",
                 "redeploy-study.json", "sim-exits.json", "sim-exits-*.json", "sim-picks/"),

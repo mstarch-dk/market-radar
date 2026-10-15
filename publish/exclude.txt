@@ -7,6 +7,7 @@ notes/
 userdata/
 publish/             # the export's own configuration
 scripts/publish_public.py
+.github/workflows/ci.yml   # this repo's CI; the public repo runs publish/overlay's smoke test
 .git-blame-ignore-revs   # names commits of this repo's history, which the public repo doesn't have
 # the marketing tooling needs scripts/publish_public.py (leak check); the public repo gets the PDF only
 marketing/site/

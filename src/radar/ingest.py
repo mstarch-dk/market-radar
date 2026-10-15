@@ -89,7 +89,8 @@ def _save_from(d: dict[str, str]) -> None:
     tmp.replace(f)
 
 
-def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None) -> dict:
+def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None,
+                  today: date | None = None) -> dict:
     """Incremental price update (full history for new tickers). `progress(done, total)` reports batches.
 
     The full history starts `history_years` back, or at `start` when that is earlier (universe.history_start:
@@ -107,7 +108,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     last = existing.groupby("ticker")["date"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     new = [t for t in tickers if t not in last.index]
     known = [t for t in tickers if t in last.index]
-    full_start = date.today() - timedelta(days=int(365.25 * settings()["history_years"]))
+    full_start = (today or date.today()) - timedelta(days=int(365.25 * settings()["history_years"]))
     if start is not None and start < full_start:
         full_start = start
     fetched_from = _load_from()

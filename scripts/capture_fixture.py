@@ -1,0 +1,108 @@
+"""Record a trimmed copy of a source's real answer into tests/fixtures/, for contract tests.
+
+    uv run python scripts/capture_fixture.py --list
+    uv run python scripts/capture_fixture.py fred_DGS10 [--dry-run]
+
+Run by hand when a source changed (a failing `pytest -m network`) or a parser gets a new contract test; never in
+CI. Requests go through net.get / net.yf(), so they are paced and recorded like any other. Copies are trimmed to
+a few rows or tickers: enough to pin the format, not a copy of the data (see DATA_LICENSE.md). Commit the file
+with the printed source line in the message.
+"""
+from __future__ import annotations
+
+import argparse
+import io
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+import pandas as pd
+
+from radar import external, net, sentiment
+
+FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
+TODAY = date.today()
+
+
+def _text(url: str) -> str:
+    r = net.get(url, timeout=60)
+    r.raise_for_status()
+    return r.text
+
+
+def _csv_tail(text: str, rows: int) -> str:
+    lines = text.splitlines()
+    return "\n".join(lines[:1] + lines[1:][-rows:]) + "\n"
+
+
+def fred(sid: str):
+    return lambda: (f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}",
+                    _csv_tail(_text(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"), 25))
+
+
+def ecb_monthly():
+    url = external.ECB_URL.format(key="FM/M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA",
+                                  start=(TODAY - timedelta(days=400)).isoformat())
+    return url, _csv_tail(_text(url), 12)
+
+
+def oecd_cli():
+    areas = list(external._cfg().get("oecd_cli", {}))
+    url = external.OECD_CLI_URL.format(areas="+".join(areas), start=(TODAY - timedelta(days=120)).strftime("%Y-%m"))
+    return url, _text(url)
+
+
+def yahoo_download():
+    """A multi-ticker yf.download frame as the radar asks for it (unadjusted, grouped by ticker, tz-naive dates),
+    including a symbol Yahoo doesn't know. Saved as parquet: the MultiIndex columns survive."""
+    yf = net.yf()
+    tickers = ["SPY", "RHM.DE", "7203.T", "NOT-A-TICKER.XX"]
+    raw = yf.download(tickers, start=(TODAY - timedelta(days=10)).isoformat(), auto_adjust=False,
+                      group_by="ticker", threads=False, progress=False)
+    buf = io.BytesIO()
+    raw.to_parquet(buf)
+    return f"yfinance.download({tickers})", buf.getvalue()
+
+
+def cboe():
+    for back in range(8):
+        d = TODAY - timedelta(days=back)
+        r = net.get(sentiment.CBOE_URL.format(d=d), timeout=30, expected=(403, 404))
+        if r.status_code == 200:
+            return sentiment.CBOE_URL.format(d=d), r.text
+    raise SystemExit("no CBOE day in the last week")
+
+
+SOURCES = {   # name → (file name, capture)
+    "fred_DGS10": ("fred_DGS10.csv", fred("DGS10")),
+    "ecb_monthly": ("ecb_euribor_monthly.csv", ecb_monthly),
+    "oecd_cli": ("oecd_cli.csv", oecd_cli),
+    "yahoo_download": ("yahoo_download_batch.parquet", yahoo_download),
+    "cboe": ("cboe_daily_options.json", cboe),
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("source", nargs="?")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--dry-run", action="store_true", help="fetch and report, write nothing")
+    a = ap.parse_args(argv)
+    if a.list or not a.source:
+        print("\n".join(f"{k:16} → tests/fixtures/{f}" for k, (f, _) in SOURCES.items()))
+        return 0
+    if a.source not in SOURCES:
+        print(f"unknown source {a.source!r}; --list shows them", file=sys.stderr)
+        return 2
+    name, capture = SOURCES[a.source]
+    where, body = capture()
+    data = body.encode() if isinstance(body, str) else body
+    print(f"{a.source}: {len(data):,} bytes from {where}, captured {TODAY}")
+    if not a.dry_run:
+        (FIXTURES / name).write_bytes(data)
+        print(f"wrote tests/fixtures/{name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
