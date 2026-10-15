@@ -152,7 +152,7 @@ def test_update_prices_appends_new_bars_without_duplicates(price_store):
     assert calls[-1][0] == ["A"] and calls[-1][1] < stored["date"].iloc[19].date()   # overlap re-fetched
 
 
-def test_update_prices_replaces_a_rebased_history_wholesale(price_store):
+def test_a_rebased_history_is_downloaded_again_and_kept_on_one_basis(price_store):
     install, calls = price_store
     install({"A": _hist("A", list(range(100, 120))), "B": _hist("B", list(range(50, 70)))})
     ingest.update_prices(["A", "B"])
@@ -163,8 +163,8 @@ def test_update_prices_replaces_a_rebased_history_wholesale(price_store):
     res = ingest.update_prices(["A", "B"])
     assert res["rebased"] == ["A"]
     a = ingest.load_prices().query("ticker == 'A'")
-    assert len(a) == 21 and (a["close"] / a["raw_close"]).round(6).eq(0.98).all()   # one adjustment basis only
-    assert a["date"].min() > pd.Timestamp("2020-01-02")          # the old-basis bar is gone, not kept
+    assert len(a) == 22 and (a["close"] / a["raw_close"]).round(6).eq(0.98).all()   # one adjustment basis only
+    assert a["date"].min() == pd.Timestamp("2020-01-02")         # the older bar is kept, moved to the new basis
     assert len(ingest.load_prices().query("ticker == 'B'")) == 21
 
 
@@ -226,7 +226,7 @@ def test_a_full_download_that_ends_early_keeps_the_newer_stored_bars(price_store
     pa, pb = p.query("ticker == 'A'"), p.query("ticker == 'B'")
     assert pa["date"].max() == pd.Timestamp("2026-09-28") and pa["close"].iloc[-1] == 120   # kept, same basis
     assert pa["date"].min() == pd.Timestamp("2025-01-02") and not pa.duplicated("date").any()
-    assert pb["date"].max() == pd.Timestamp("2026-09-24") and pb["close"].eq(59.0).all()   # not mixed in
+    assert pb["date"].max() == pd.Timestamp("2026-09-28") and pb["close"].eq(59.0).all()   # kept, on the new basis
 
 
 def test_tickers_without_the_benchmarks_last_session_are_asked_again(price_store, monkeypatch):
@@ -265,3 +265,72 @@ def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch)
     assert calls == []                                           # tracked: the daily update brings it
     profile.ensure_prices("RHM.DE", market, refresh=True)
     assert calls == [(["RHM.DE"], {})]
+
+
+# ---------------- a full download never shrinks the stored history (hardening 1.1, 2.1) ----------------
+
+TODAY = __import__("datetime").date(2026, 10, 15)
+
+
+def test_a_full_download_that_starts_late_keeps_the_older_bars_and_tries_again(price_store):
+    from datetime import date
+    install, calls = price_store
+    install({"A": _hist("A", list(np.linspace(50, 80, 260)), start="2025-10-16")})
+    ingest.update_prices(["A"], today=TODAY)                           # a year, as history_years says
+    stored_first = ingest.load_prices()["date"].min()
+    # asked to go deeper, Yahoo answers with a history that starts later than the one stored
+    install({"A": _hist("A", list(np.linspace(70, 80, 100)), start="2026-05-25")})
+    res = ingest.update_prices(["A"], start=date(2024, 10, 1), today=TODAY)
+    a = ingest.load_prices()
+    assert a["date"].min() == stored_first and not a.duplicated("date").any()
+    assert res["short"] == {"A": "2026-05-25"}
+    assert json.loads((ingest.CACHE / ingest.FROM_FILE).read_text())["A"] != "2024-10-01"   # not marked done
+    calls.clear()
+    ingest.update_prices(["A"], start=date(2024, 10, 1), today=TODAY)
+    assert calls[0] == (["A"], date(2024, 10, 1))                      # so the next run asks again
+
+
+def test_older_bars_on_another_basis_are_rescaled_at_the_seam(price_store):
+    from datetime import date
+    install, calls = price_store
+    install({"A": _hist("A", list(np.linspace(50, 80, 260)), start="2025-10-16")})
+    ingest.update_prices(["A"], today=TODAY)
+    # a dividend re-based Yahoo's history by 0.98, and the deeper answer starts late
+    install({"A": _hist("A", list(np.linspace(70, 80, 100)), start="2026-05-25", factor=0.98)})
+    ingest.update_prices(["A"], start=date(2024, 10, 1), today=TODAY)
+    a = ingest.load_prices()
+    assert a["date"].min() == pd.Timestamp("2025-10-16")
+    assert (a["close"] / a["raw_close"]).round(6).eq(0.98).all()      # one adjustment basis throughout
+
+
+def test_a_legacy_store_keeps_the_tickers_yahoo_did_not_return(price_store):
+    install, calls = price_store
+    legacy = pd.concat([_hist("A", [10.0] * 20), _hist("B", [20.0] * 20)]).drop(columns="raw_close")
+    legacy.to_parquet(ingest.PRICES_FILE, index=False)                 # stored before raw closes were kept
+    install({"A": _hist("A", [10.0] * 21)})
+    ingest.update_prices(["A", "B"], today=TODAY)
+    p = ingest.load_prices()
+    assert len(p.query("ticker == 'A'")) == 21 and p.query("ticker == 'A'")["raw_close"].notna().all()
+    b = p.query("ticker == 'B'")
+    assert len(b) == 20 and b["raw_close"].isna().all()                # kept; its traded close is unknown, not 0
+
+
+def test_two_writers_at_once_keep_each_others_tickers(price_store, monkeypatch):
+    import threading
+    install, calls = price_store
+    world = {"A": _hist("A", [10.0] * 20), "B": _hist("B", [20.0] * 20)}
+    started, release = threading.Event(), threading.Event()
+
+    def download(tickers, start, progress=None):
+        if tickers == ["A"]:            # the long update: downloads while the app adds B
+            started.set()
+            release.wait(5)
+        return pd.concat([world[t][world[t]["date"] >= pd.Timestamp(start)] for t in tickers], ignore_index=True)
+    monkeypatch.setattr(ingest, "_download", download)
+    slow = threading.Thread(target=ingest.update_prices, args=(["A"],), kwargs={"today": TODAY})
+    slow.start()
+    started.wait(5)
+    ingest.update_prices(["B"], today=TODAY)                           # a ticker lookup in the app meanwhile
+    release.set()
+    slow.join(10)
+    assert set(ingest.load_prices()["ticker"]) == {"A", "B"}
