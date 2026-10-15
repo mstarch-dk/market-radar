@@ -5,6 +5,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 ## Prices
 - Prices are adjusted closes (dividends + splits) in each listing's currency; the traded close is kept as `raw_close`.
 - When a new dividend or split re-bases Yahoo's history, `radar update` re-downloads that ticker in full rather than merging two adjustment bases.
+- A full download never moves a ticker's last bar back: stored bars after the new history's end are kept when both agree on that end's adjusted close (`ingest.kept_after`), else dropped. Afterwards, tickers without a bar on the benchmark's last session are fetched once more; the rest are reported as `behind` (log, Operations, *Data & coverage*), not hidden: Yahoo's history for a whole exchange can lag a session.
 - The history starts `history_years` back, or `backtest.warmup_days` before your first trade when that is earlier (capped at `backtest.max_years`), so your trades can be valued and the rule replayed from the day you bought. A shallower stored history is downloaded again in full, once (`data/prices_from.json`).
 - `ingest.wide()` forward-fills up to 5 sessions, which is right for return windows. Anything shown as a session uses the ticker's own bars (`profile.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last price, day change, recent bars and the chart.
 - Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.

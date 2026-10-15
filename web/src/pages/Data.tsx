@@ -83,6 +83,12 @@ export function Data() {
                 ? <><TickerList symbols={d.stale_tickers} /><br /><span className="muted">No new price for more than {priceLimit ?? "?"} days.
                   The ticker may be delisted or suspended.</span></>
                 : "None."}</p>
+              {d.behind_tickers.length > 0 && <>
+                <h2>Without the last session ({d.behind_tickers.length})</h2>
+                <p className="note"><TickerList symbols={d.behind_tickers} /><br /><span className="muted">No bar
+                  for {d.asof}, the benchmark&apos;s last session: an exchange holiday, or Yahoo didn&apos;t have it at
+                  the last update. The next update asks again.</span></p>
+              </>}
             </>
           );
         }}

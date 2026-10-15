@@ -17,7 +17,7 @@ Siden samler det, du ellers skulle hente fra mange faner: kursgraf, momentum, te
 | *positive list: yes/no* | Status på positivlisten (SKATs liste over aktiebaserede investeringsselskaber) |
 | *regime …* | Radarens aktuelle regime (risk-on, risk-off eller blandet) |
 
-Til højre står seneste kurs, dagens ændring og datoen for den seneste lukkekurs. Knappen *Add to watchlist* (☆) sætter navnet på din watchlist, og *Remove from watchlist* (★) tager det af igen. En beholdning har ingen knap: den kommer fra dine handler. Knappen *Refresh Yahoo data* henter nøgletal og estimater fra Yahoo med det samme i stedet for at bruge den gemte kopi.
+Til højre står seneste kurs, dagens ændring og datoen for den seneste lukkekurs. Knappen *Add to watchlist* (☆) sætter navnet på din watchlist, og *Remove from watchlist* (★) tager det af igen. En beholdning har ingen knap: den kommer fra dine handler. Knappen *Refresh Yahoo data* henter nøgletal og estimater fra Yahoo med det samme i stedet for at bruge den gemte kopi. Mangler tickeren kurser for de seneste handelsdage, henter knappen også dem.
 
 ## Overblikket
 

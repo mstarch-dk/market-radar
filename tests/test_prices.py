@@ -209,3 +209,59 @@ def test_history_start_reaches_back_before_your_first_trade(tmp_data, monkeypatc
     assert universe.history_start(today) == date(2022, 1, 4)          # 400 days before the first trade
     userstore.add_tx({"symbol": "A", "date": "2010-01-04", "type": "BUY", "quantity": 1, "price": 1, "portfolio_id": pid})
     assert universe.history_start(today) == date(2016, 10, 14)        # capped at max_years
+
+
+def test_a_full_download_that_ends_early_keeps_the_newer_stored_bars(price_store):
+    from datetime import date
+    install, calls = price_store
+    n = len(pd.bdate_range("2025-01-02", "2026-09-28"))
+    a, b = _hist("A", list(np.linspace(50, 120, n)), start="2025-01-02"), _hist("B", [60.0] * n, start="2025-01-02")
+    install({"A": a, "B": b})
+    ingest.update_prices(["A", "B"])                                    # history_years back
+    # the deeper download of both ends two sessions early (Yahoo's long history lagging); B was also re-based
+    install({"A": a.iloc[:-2], "B": b.iloc[:-2].assign(close=59.0)})
+    res = ingest.update_prices(["A", "B"], start=date(2025, 1, 2))
+    assert res["deepened"] == 2
+    p = ingest.load_prices()
+    pa, pb = p.query("ticker == 'A'"), p.query("ticker == 'B'")
+    assert pa["date"].max() == pd.Timestamp("2026-09-28") and pa["close"].iloc[-1] == 120   # kept, same basis
+    assert pa["date"].min() == pd.Timestamp("2025-01-02") and not pa.duplicated("date").any()
+    assert pb["date"].max() == pd.Timestamp("2026-09-24") and pb["close"].eq(59.0).all()   # not mixed in
+
+
+def test_tickers_without_the_benchmarks_last_session_are_asked_again(price_store, monkeypatch):
+    install, calls = price_store
+    world = {"BENCH": _hist("BENCH", list(range(10, 30))), "EU": _hist("EU", list(range(100, 120))),
+             "HOL": _hist("HOL", list(range(50, 69)))}           # HOL: a holiday on the last session
+    lagging = {"EU": world["EU"].iloc[:-1]}                      # Yahoo's first answer lacks EU's last bar
+    install(world)
+
+    def fake(tickers, start, progress=None):
+        calls.append((sorted(tickers), start))
+        src = lagging if len(calls) == 1 else world
+        frames = [src.get(t, world[t]) for t in tickers]
+        return pd.concat([f[f["date"] >= pd.Timestamp(start)] for f in frames], ignore_index=True)
+    monkeypatch.setattr(ingest, "_download", fake)
+    res = ingest.update_prices(["BENCH", "EU", "HOL"], bench="BENCH")
+    assert calls[1][0] == ["EU", "HOL"]                          # one catch-up for the two behind
+    assert ingest.load_prices().query("ticker == 'EU'")["date"].max() == pd.Timestamp("2026-09-28")
+    assert res["behind"] == {"HOL": "2026-09-25"} and res["asof"] == "2026-09-28"
+    assert ingest.update_prices(["EU"])["behind"] == {}          # no benchmark given: nothing to compare with
+
+
+def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch):
+    from types import SimpleNamespace
+
+    from radar import profile, universe
+    idx = pd.bdate_range("2026-10-01", periods=5)
+    closes = pd.DataFrame({"ACWI": range(5), "RHM.DE": [1.0, 2, 3, 4, np.nan]}, index=idx, dtype=float)
+    market = SimpleNamespace(closes=closes)
+    calls = []
+    monkeypatch.setattr(universe, "benchmark", lambda: "ACWI")
+    monkeypatch.setattr(universe, "all_price_tickers", lambda **kw: ["ACWI", "RHM.DE"])
+    monkeypatch.setattr(ingest, "update_prices", lambda t, **kw: calls.append((t, kw)))
+    monkeypatch.setattr(profile.Market, "load", classmethod(lambda cls: market))
+    profile.ensure_prices("RHM.DE", market)
+    assert calls == []                                           # tracked: the daily update brings it
+    profile.ensure_prices("RHM.DE", market, refresh=True)
+    assert calls == [(["RHM.DE"], {})]

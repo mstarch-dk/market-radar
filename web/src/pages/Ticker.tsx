@@ -63,7 +63,7 @@ function Header({ p, onRefresh, refreshing }: { p: Profile; onRefresh: () => voi
         <div className={`num ${tone(p.price.change_1d)}`}>{pct(p.price.change_1d, 2)} on {date(p.price.asof)}</div>
         <div className="actions">
           <WatchButton symbol={id.symbol} status={id.my_status} />
-          <button className="btn" onClick={onRefresh} disabled={refreshing} title="Re-fetch fundamentals and estimates from Yahoo now">
+          <button className="btn" onClick={onRefresh} disabled={refreshing} title="Re-fetch fundamentals and estimates from Yahoo now, and any sessions missing from the prices">
             {refreshing ? "Refreshing…" : "Refresh Yahoo data"}
           </button>
         </div>
@@ -112,6 +112,7 @@ export function Ticker() {
     setRefreshing(true);
     try {
       qc.setQueryData(["profile", sym], await api.profile(sym, true));
+      qc.invalidateQueries({ queryKey: ["series", sym] });   // the refresh may have fetched new sessions
     } finally {
       setRefreshing(false);
     }

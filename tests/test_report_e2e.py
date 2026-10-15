@@ -36,7 +36,7 @@ def test_summary_schema(summary):
     assert set(summary) - {"_res", "_dash"} == {
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
-        "earnings_factset", "stale_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment"}
+        "earnings_factset", "stale_tickers", "behind_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment"}
     assert summary["asof"] == IDX[-1].date().isoformat()
 
 

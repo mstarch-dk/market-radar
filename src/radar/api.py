@@ -295,7 +295,7 @@ def get_profile(symbol: str, refresh: bool = False) -> dict:
     symbol = _symbol(symbol)
     with _lock:
         try:
-            _market = profile.ensure_prices(symbol, market())
+            _market = profile.ensure_prices(symbol, market(), refresh=refresh)
             return profile.build(symbol, _market, refresh=refresh)
         except profile.TickerNotFound as e:
             raise HTTPException(404, str(e)) from e

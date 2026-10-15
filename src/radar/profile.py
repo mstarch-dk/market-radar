@@ -100,15 +100,16 @@ class Market:
         return self._isins[0]
 
 
-def ensure_prices(ticker: str, market: Market | None = None) -> Market:
+def ensure_prices(ticker: str, market: Market | None = None, refresh: bool = False) -> Market:
     """Make sure `ticker` has a current history. Untracked tickers are downloaded (and kept in the price
-    store, so the next lookup is fast) but are not added to the daily update."""
+    store, so the next lookup is fast) but are not added to the daily update. A tracked ticker waits for the
+    update, unless `refresh` (the profile's refresh button) asks for its missing sessions now."""
     market = market or Market.load()
     bench = universe.benchmark()
     tracked = ticker in set(universe.all_price_tickers(offline=True))
     have = ticker in market.closes.columns
     behind = have and market.closes[ticker].dropna().index[-1] < market.closes[bench].dropna().index[-1]
-    if not have or (behind and not tracked):
+    if not have or (behind and (refresh or not tracked)):
         ingest.update_prices([ticker])
         market = Market.load()
     if ticker not in market.closes.columns or market.closes[ticker].dropna().empty:
