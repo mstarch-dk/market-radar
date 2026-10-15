@@ -91,6 +91,7 @@ uv run radar serve --open
 ```
 
 - `pnpm -C web build` bygger webappen til `web/dist`. Det skal gøres igen, når frontend-koden ændrer sig.
+- Efter en `git pull` genstarter `.\scripts\restart.ps1` (Windows) det hele i ét trin: den bygger webappen, stopper den kørende server, synkroniserer Python-pakkerne og starter `radar serve` igen i samme vindue. Med `-Pull` henter den selv opdateringen først, og med `-Report` bygger den også dashboardet igen ud fra de data, du allerede har.
 - `uv run radar run` henter data og bygger dashboardet fra terminalen (samme som knappen *Update data*).
 - Til frontend-arbejde kører du `pnpm -C web dev` (port 5173) ved siden af `radar serve`; den sender API-kald videre til port 8780.
 - Testene køres med `uv run pytest -q` og `pnpm -C web test`.
