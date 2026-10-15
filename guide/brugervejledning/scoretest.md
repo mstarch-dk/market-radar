@@ -89,7 +89,7 @@ uv run radar sim picks --rerun test-6m                            # samme kurv i
 
 Hver kurv bliver til virtuelle porteføljer med tagget `picks`: *‹navn› · hold* (beholdt), *‹navn› · exits* (stopreglen fulgt) og *‹navn› · control* (scorens egne N bedste med de samme lofter, når din kurv er en anden). Kommandoen viser afkastet i DKK med alle omkostninger mod ACWI og mod gennemsnitsaktien, kurvens placering blandt {{settings:backtest.random_baskets}} tilfældige kurve af samme størrelse og med samme lofter, og scorens test på netop den dag. Linket går til [Returns](/returns) med porteføljerne valgt. Rapporten ligger i `sim-picks/` i cache-mappens `reports/`.
 
-> **Bemærk:** Aktier i en valuta uden en kurs til DKK i radaren (lige nu koreanske won og taiwanske dollar) kan ikke købes i en simulering. De står i listen med `dkk: false` og springes over.
+> **Bemærk:** Aktier i en valuta uden en kurs til DKK i radaren kan ikke købes i en simulering. De står i listen med `dkk: false` og springes over.
 
 ### Hindsight-kurve med Claude
 

@@ -90,6 +90,19 @@ def test_fx_to_dkk_handles_pence_and_unknown_currencies():
     assert mine._fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
 
 
+def test_won_and_taiwan_dollar_cross_via_usd():
+    from radar import universe
+    closes = pd.DataFrame({"USDDKK=X": [7.0, 6.8, np.nan], "USDKRW=X": [1400.0, np.nan, 1360.0],
+                           "USDTWD=X": [32.0, 34.0, 34.0]}, index=pd.date_range("2025-01-01", periods=3))
+    assert mine._fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
+    assert mine._fx_to_dkk(closes, "TWD").tolist() == pytest.approx([7 / 32, 0.2, 0.2])
+    assert mine._fx_to_dkk(closes.drop(columns="USDKRW=X"), "KRW") is None   # either leg missing: no rate
+    assert mine._fx_to_dkk(closes.drop(columns="USDDKK=X"), "TWD") is None
+    rates = universe.dkk_rates({"USDDKK=X": 6.8, "USDKRW=X": 1360.0, "GBPDKK=X": 8.6})
+    assert rates == pytest.approx({"DKK": 1.0, "USD": 6.8, "GBP": 8.6, "KRW": 0.005})   # no TWD, no GBp
+    assert "KRW" not in universe.dkk_rates({"USDKRW=X": 1360.0})
+
+
 def test_pct_vs_is_the_mean_percentile_against_the_region():
     dist = pd.DataFrame({"r12_1": [0.1, 0.2, 0.3, 0.4], "r6m": [0.1, 0.2, 0.3, 0.4], "r3m": [0.1, 0.2, 0.3, 0.4]})
     row = pd.Series({"r12_1": 0.35, "r6m": 0.05, "r3m": 0.25})

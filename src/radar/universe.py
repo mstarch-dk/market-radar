@@ -153,10 +153,27 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
 FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", "GBp": "GBPDKK=X",
           "SEK": "SEKDKK=X", "NOK": "NOKDKK=X", "CHF": "CHFDKK=X", "PLN": "PLNDKK=X",
           "JPY": "JPYDKK=X", "HKD": "HKDDKK=X", "CAD": "CADDKK=X"}
+# Yahoo has no KRW/DKK or TWD/DKK quote either: those go through USD (DKK per unit = USDDKK=X / USDxxx=X)
+FX_VIA_USD = {"KRW": "USDKRW=X", "TWD": "USDTWD=X"}
+FX_TICKERS = sorted({t for t in FX_DKK.values() if t} | set(FX_VIA_USD.values()))
+
+
+def dkk_rates(last: dict[str, float]) -> dict[str, float]:
+    """Latest DKK per unit of each currency from the latest close per FX ticker; a currency whose
+    pair(s) are missing is left out. GBp is left out too (callers use GBP and divide by 100)."""
+    out = {"DKK": 1.0} | {c: last[t] for c, t in FX_DKK.items() if t and c != "GBp" and t in last}
+    usd = last.get(FX_DKK["USD"])
+    out |= {c: usd / last[t] for c, t in FX_VIA_USD.items() if usd and last.get(t)}
+    return out
 
 
 def fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
     """DKK per unit of quoted price (pence-quoted GBp includes the /100)."""
+    if ccy in FX_VIA_USD:
+        usd, per_usd = FX_DKK["USD"], FX_VIA_USD[ccy]
+        if usd not in closes or per_usd not in closes:
+            return None
+        return closes[usd].ffill() / closes[per_usd].ffill()
     if ccy not in FX_DKK:
         return None
     fx = FX_DKK[ccy]
@@ -534,5 +551,5 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     tickers |= set(macro_yahoo().values())
     tickers |= set(holdings()["symbol"].dropna())
     tickers |= _every_portfolio_symbol()                  # virtual portfolios need prices too
-    tickers |= {fx for fx in FX_DKK.values() if fx}
+    tickers |= set(FX_TICKERS)
     return sorted(tickers)
