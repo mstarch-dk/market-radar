@@ -41,6 +41,7 @@ check_data_move: 0.6         # a daily move beyond ±60% in the adjusted close =
 flags:
   new_high_vol: 1.5          # new 52-week high on at least this volume surge (20d / 120d)
   trend_turn_days: 20        # crossed above the 200-day average within this many sessions
+  rs_high_days: 5            # the RS line against ACWI made a new 52-week high within this many sessions
   d_score_days: 21           # Δscore: score now minus the score this many sessions ago
 
 # Yahoo listing preference when an ISIN has several (first = best); others are used only if nothing else exists

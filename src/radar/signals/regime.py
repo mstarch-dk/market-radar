@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from ..config import settings
 from . import gauges as gz
+from . import momentum
 
 ON, OFF, NEUTRAL = "risk-on", "risk-off", "neutral"
 NA, STALE = "n/a", "stale"  # no data / too old: shown, but not counted in the vote
@@ -25,6 +27,36 @@ def net_highs_lows(closes: pd.DataFrame, tickers: list[str], window: int = 252, 
     valid = c.rolling(window, min_periods=window).max().notna().sum(axis=1)
     net = 100 * (hi.sum(axis=1) - lo.sum(axis=1)) / valid
     return net.where(valid > 0).dropna().rolling(smooth).mean().dropna()
+
+
+def momentum_payoff(closes: pd.DataFrame, tickers: list[str], n: int, min_names: int = 30) -> float:
+    """What the momentum score paid over the last `n` sessions: the mean return of the top score quintile minus
+    the bottom quintile, with the score computed from prices up to `n` sessions ago (equal weights, listing
+    currency). NaN with fewer than `min_names` scored names or too little history."""
+    c = closes[[t for t in tickers if t in closes.columns]]
+    if len(c) <= n + 252:
+        return float("nan")
+    m = momentum.metrics(c.iloc[:len(c) - n], pd.DataFrame(), list(c.columns), settings()["momentum"]["min_history_days"])
+    s = momentum.score(m).set_axis(m["ticker"])
+    fwd = c.iloc[-1] / c.iloc[-1 - n] - 1
+    d = pd.concat({"s": s, "y": fwd}, axis=1).dropna()
+    if len(d) < min_names:
+        return float("nan")
+    q = pd.qcut(d["s"].rank(method="first"), 5, labels=False)
+    return float(d["y"][q == 4].mean() - d["y"][q == 0].mean())
+
+
+def dispersion_history(closes: pd.DataFrame, tickers: list[str], n: int = 63, min_names: int = 30) -> pd.Series:
+    """The spread of `n`-session returns across stocks (75th minus 25th percentile), over time."""
+    c = closes[[t for t in tickers if t in closes.columns]]
+    r = c / c.shift(n) - 1
+    iqr = r.quantile(0.75, axis=1) - r.quantile(0.25, axis=1)
+    return iqr.where(r.notna().sum(axis=1) >= min_names).dropna()
+
+
+def _ordinal(x: float) -> str:
+    n = int(round(x))
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
 
 
 def _chg(s: pd.Series, n: int) -> float:
@@ -114,6 +146,45 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
                    if pd.notna(chg) else _na("Equal vs cap weight (RSP/SPY)", "prices", SHORT))
     else:
         out.append(_na("Equal vs cap weight (RSP/SPY)", "prices"))
+
+    # the momentum factor itself: shown for context, never in the vote (no group switch: neutral by design)
+    pay3, pay1 = momentum_payoff(closes, everyone, 63), momentum_payoff(closes, everyone, 21)
+    if pd.notna(pay3):
+        band = cfg["momentum_payoff_band"]
+        mt = ""
+        if "MTUM" in closes.columns and bench in closes.columns:
+            rel = _ret(closes["MTUM"].dropna(), 63) - _ret(b, 63)
+            mt = f"; MTUM vs ACWI {rel:+.1%}" if pd.notna(rel) else ""
+        out.append(_ind("Momentum payoff (top − bottom quintile)", f"{pay3:+.1%} over 3m", NEUTRAL,
+                        f"The score's top fifth minus its bottom fifth, scored 3 months ago"
+                        + (f"; {pay1:+.1%} over 1m" if pd.notna(pay1) else "") + mt + ". Context, not a vote",
+                        asof=_last(b), gauge=gz.make(gz.band(-band, band, ("losing", "flat", "paying")), pay3)))
+    else:
+        out.append(_na("Momentum payoff (top − bottom quintile)", "prices", "less than 15 months of history"))
+    disp = dispersion_history(closes, everyone)
+    if len(disp) >= 126:
+        v = disp.iloc[-1]
+        pct = 100 * float((disp < v).mean())
+        lo, hi = cfg["dispersion_low_pct"], cfg["dispersion_high_pct"]
+        out.append(_ind("Return dispersion (3m, all stocks)", f"{v:.1%}", NEUTRAL,
+                        f"Spread between the 75th and 25th percentile 3-month return; {_ordinal(pct)} percentile since "
+                        f"{disp.index[0]:%Y}. Wide spreads give momentum more to sort on. Context, not a vote",
+                        asof=_last(disp), gauge=gz.make(gz.band(lo, hi, ("narrow", "normal", "wide")), pct)))
+    else:
+        out.append(_na("Return dispersion (3m, all stocks)", "prices", "less than 9 months of history"))
+    r24, r1 = _ret(b, 504), _ret(b, 21)
+    if pd.notna(r24):
+        bear = r24 < 0
+        setup = bear and r1 >= cfg["crash_rebound"]
+        note = (f"ACWI {r24:+.1%} over 2 years and {r1:+.1%} over 1 month: "
+                + ("a sharp rebound after a bear market, when momentum has crashed hardest historically" if setup
+                   else "a bear market: a sharp rebound would hit momentum's winners" if bear
+                   else "no bear market behind it") + ". Context, not a vote")
+        out.append(_ind("Momentum-crash setup (ACWI)", "yes" if setup else "watch" if bear else "no", NEUTRAL, note,
+                        asof=_last(b), gauge=gz.make(gz.rising_risk(0.5, 1.5, ("no", "watch", "watch", "setup")),
+                                                     2.0 if setup else 1.0 if bear else 0.0)))
+    else:
+        out.append(_na("Momentum-crash setup (ACWI)", "prices", "less than 2 years of ACWI history"))
 
     if vix_ticker in closes:
         s = closes[vix_ticker].dropna()

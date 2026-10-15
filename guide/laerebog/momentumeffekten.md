@@ -85,7 +85,7 @@ Radaren bruger momentumeffekten på tre niveauer:
 2. **Brancher og sektorer.** Momentumsiden markerer *clusters*: brancher eller sektorer, der er overrepræsenteret blandt de stærkeste aktier i en region. Det er et direkte nik til Moskowitz og Grinblatt: når mange vindere kommer fra samme branche, er det ofte branchen, der driver dem. Sektor- og tema-ETF'erne på [Sektorrotation](/rotation) rangeres efter relativ styrke mod ACWI over 1, 3 og 6 måneder; se [Relativ styrke](laerebog/relativ-styrke).
 3. **Tidsserie.** ACWI-trenden på [Regime](/regime) og `trend_ok` for den enkelte aktie er tidsseriemomentum i form af glidende gennemsnit.
 
-Radaren laver ingen short-ben og ingen automatisk volatilitetsskalering. Den viser en liste til videre research, ikke en portefølje. Advarslen fra Daniel og Moskowitz er derfor værd at have i baghovedet: når regimet har været risk-off længe, og markedet vender kraftigt op, er de gamle momentumledere ofte ikke dem, der fører an.
+Radaren laver ingen short-ben og ingen automatisk volatilitetsskalering. Den viser en liste til videre research, ikke en portefølje. Advarslen fra Daniel og Moskowitz er derfor værd at have i baghovedet: når regimet har været risk-off længe, og markedet vender kraftigt op, er de gamle momentumledere ofte ikke dem, der fører an. Regime-siden har en række til netop det, *Momentum-crash setup (ACWI)*. Den står ved siden af *Momentum payoff* og *Return dispersion*, og ingen af de tre stemmer; se [Regime](brugervejledning/regime).
 
 ## Regneeksempel
 

@@ -88,7 +88,7 @@ For alle aktier, ETF'er og beholdninger beregner `signals/momentum.py`:
 - `above200`: kurs over SMA200,
 - `trend_ok`: kurs over SMA200 **og** SMA50 over SMA200.
 
-Har en ticker færre end {{settings:momentum.min_history_days}} dages historik (`momentum.min_history_days`), sættes SMA200 til manglende, og så er `above200` og `trend_ok` også manglende, ikke "nej". Radaren beregner ikke krydsene (golden/death cross) som begivenheder, kun tilstanden i dag.
+Har en ticker færre end {{settings:momentum.min_history_days}} dages historik (`momentum.min_history_days`), sættes SMA200 til manglende, og så er `above200` og `trend_ok` også manglende, ikke "nej". Krydsene (golden/death cross) vises som mærker under *Flags* på [Mine beholdninger](brugervejledning/beholdninger), når 50-dages gennemsnittet er krydset 200-dages inden for de seneste 20 handelsdage (grænsen ligger i koden). De bruges ikke i scoren eller i afstemningen.
 
 `trend_ok` vises som kolonnen *Trend* (✓) på [Momentum](/momentum) og i [Mine beholdninger](/me). Der er ingen tilsvarende "nedtrend"-markering: et manglende flueben betyder bare, at mindst én af de to betingelser ikke er opfyldt.
 

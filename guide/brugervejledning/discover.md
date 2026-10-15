@@ -107,11 +107,12 @@ Har Yahoo ingen markedsværdi, er størrelsen ukendt (–). Grænserne står und
 | *new to radar* | Navnet er ikke i radarens egne lister, dine beholdninger eller din watchlist |
 | *52w high* | Ny 52-ugers lukketop, og volumen de seneste 20 dage er mindst 1,5 gange 120-dages gennemsnittet |
 | *trend turn* | Krydset over 200-dages snit inden for de seneste 20 handelsdage, mens 50-dages snit stiger |
+| *RS high* | Kursen divideret med ACWI (hver i sin egen valuta) har sat en ny 52-ugers top inden for de seneste 5 handelsdage |
 | *thin* | Median daglig omsætning under 1 mio. DKK: brede spreads og store udsving på små ordrer |
 | *check data* | En daglig kursbevægelse på over 60 % i det seneste års historik, ofte en datafejl (fx en split, der ikke er justeret) |
 | *stale* | Ingen ny kurs i over en uge |
 
-Tærsklerne ligger i `config/discovery.yaml`. *New to radar*, *52w high*, *Trend turn* og *Thin* findes også som skjulte ja/nej-kolonner, så du kan filtrere på dem.
+Tærsklerne ligger i `config/discovery.yaml`. *New to radar*, *52w high*, *Trend turn*, *RS high* og *Thin* findes også som skjulte ja/nej-kolonner, så du kan filtrere på dem.
 
 > **Bemærk:** Et navn med *check data* bør du ikke stole på, før du har set kursgrafen. Et urealistisk spring i historikken forvrænger både afkast og score.
 

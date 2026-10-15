@@ -62,3 +62,27 @@ def beta_corr(close: pd.Series, bench: pd.Series, weeks: int = 52) -> tuple[floa
         return float("nan"), float("nan")
     beta = w["x"].cov(w["b"]) / w["b"].var()
     return float(beta), float(w["x"].corr(w["b"]))
+
+
+def rs_new_high(close: pd.Series, bench: pd.Series, days: int = 5, window: int = TRADING_DAYS) -> bool | None:
+    """The relative-strength line (close / benchmark, each in its own currency as the rotation graph) made a new
+    `window`-session closing high within the last `days` sessions. A rising RS line often makes its high before
+    the price does. None with less than a full window."""
+    r = (close / bench.reindex(close.index).ffill()).dropna()
+    if len(r) < window + days:
+        return None
+    hi = r.rolling(window).max()
+    return bool((r.iloc[-days:] >= hi.iloc[-days:] - 1e-12).any())
+
+
+def sma_cross(close: pd.Series, days: int = 20, fast: int = 50, slow: int = 200) -> str | None:
+    """'golden' when the `fast` average crossed above the `slow` within the last `days` sessions, 'death' when it
+    crossed below, None otherwise (or with too little history). The latest cross counts."""
+    c = close.dropna()
+    if len(c) < slow + days:
+        return None
+    above = (c.rolling(fast).mean() > c.rolling(slow).mean()).iloc[-days - 1:]
+    flips = above.ne(above.shift()).iloc[1:]
+    if not flips.any():
+        return None
+    return "golden" if above[flips[flips].index[-1]] else "death"

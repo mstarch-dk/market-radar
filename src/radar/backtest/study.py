@@ -65,6 +65,7 @@ class Panels:
     sector: pd.Series                            # ticker -> today's Yahoo sector ("" unknown)
     sessions: pd.DatetimeIndex                   # benchmark calendar
     bench_dkk: pd.Series
+    volumes: pd.DataFrame | None = None          # traded volume (gaps forward-filled, as ingest.wide)
 
 
 def panels(market, tickers: list[str] | None = None) -> Panels:
@@ -90,7 +91,8 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
 
     sec = universe.sectors(stocks)["sector"].astype(str)
     return Panels(c, pd.DataFrame(dkk, index=c.index), m, vol, pd.Series(group).reindex(stocks), sec,
-                  market.closes[universe.benchmark()].dropna().index, performance.bench_dkk(market))
+                  market.closes[universe.benchmark()].dropna().index, performance.bench_dkk(market),
+                  market.volumes.reindex(columns=stocks) if getattr(market, "volumes", None) is not None else None)
 
 
 # ---------------- the variants: higher = stronger, from data up to D ----------------
@@ -133,6 +135,73 @@ def _score_vol(p, day):
     return pct(_comp(p, day).div(v, axis=0))
 
 
+def _at(df: pd.DataFrame, day, back: int) -> pd.Series:
+    """Row `back` sessions before D on the frame's own calendar (NaN when the history is shorter)."""
+    i = int(df.index.searchsorted(day, side="right")) - 1
+    return df.iloc[i - back] if i >= back else pd.Series(np.nan, index=df.columns)
+
+
+def _score_skip(p, day):
+    """The score with the latest month skipped in all three components: 12-1, 6-1 and 3-1 months."""
+    c = p.closes
+    m1 = _at(c, day, 21)
+    return pct(pd.DataFrame({"r12_1": _row(p, "r12_1", day), "r6_1": m1 / _at(c, day, 126) - 1,
+                             "r3_1": m1 / _at(c, day, 63) - 1}))
+
+
+BETA_WEEKS, BETA_MIN_WEEKS = 104, 52
+
+
+def _resid(p, day):
+    """Residual momentum (after Blitz, Huij & Martens 2011), on one market factor: each stock's beta to ACWI from
+    weekly DKK returns over up to two years to D; its eleven monthly returns of the 12-1 window less beta × ACWI's,
+    summed and divided by their standard deviation. Beta-adjusted rather than alpha-removed: with only a year or
+    two of history an intercept would absorb most of the window being measured."""
+    c = p.dkk.loc[:day]
+    b = p.bench_dkk.reindex(c.index).ffill()
+    wc = c.resample("W-FRI").last().pct_change(fill_method=None).iloc[-BETA_WEEKS:]
+    wb = b.resample("W-FRI").last().pct_change(fill_method=None).iloc[-BETA_WEEKS:]
+    ok = wc.notna() & wb.notna().to_numpy()[:, None]
+    n = ok.sum()
+    B = pd.DataFrame(np.repeat(wb.to_numpy()[:, None], wc.shape[1], 1), index=wc.index, columns=wc.columns).where(ok)
+    C = wc.where(ok)
+    cov = ((B - B.mean()) * (C - C.mean())).sum() / (n - 1)
+    beta = (cov / B.var()).where(n >= BETA_MIN_WEEKS)
+    pts = [(_at(c, day, k), b.iloc[len(b) - 1 - k] if len(b) > k else np.nan) for k in range(252, 20, -21)]
+    e = pd.DataFrame({i: (s1 / s0 - 1) - beta * (b1 / b0 - 1)
+                      for i, ((s0, b0), (s1, b1)) in enumerate(zip(pts, pts[1:]))})
+    sd = e.std(axis=1).where(lambda x: x > 0)
+    return (e.sum(axis=1, skipna=False) / sd).where(_row(p, "r12_1", day).notna())
+
+
+def _fip(p, day):
+    """Frog in the pan (Da, Gurun & Warachka 2014): −sign(12-1 return) × (share of down days − share of up days)
+    over the 12-1 window, so a return made of many small moves ranks above the same return made in a few jumps.
+    Sessions without a move (holidays, forward-filled gaps) count as neither."""
+    i = int(p.closes.index.searchsorted(day, side="right"))       # one past D
+    if i < 253:
+        return pd.Series(np.nan, index=p.closes.columns)
+    d = p.closes.iloc[i - 253:i - 21].pct_change(fill_method=None).iloc[1:]     # closes D-252 .. D-21
+    n = d.notna().sum().where(lambda x: x > 0)
+    info = np.sign(_row(p, "r12_1", day)) * ((d < 0).sum() / n - (d > 0).sum() / n)
+    return -info
+
+
+def _score_fip(p, day):
+    """Score blended 2:1 with frog in the pan (both as percentiles)."""
+    return (2 * _score(p, day) + pct(_fip(p, day).to_frame("fip"))) / 3
+
+
+def _vol_surge(p, day):
+    """20-session mean volume over the 120-session mean (the Momentum page's column), as of D."""
+    if p.volumes is None:
+        return pd.Series(np.nan, index=p.closes.columns)
+    v = p.volumes.reindex(columns=p.closes.columns).loc[:day]
+    if len(v) < 120:
+        return pd.Series(np.nan, index=p.closes.columns)
+    return v.iloc[-20:].mean() / v.iloc[-120:].mean().where(lambda x: x > 0)
+
+
 @dataclass(frozen=True)
 class Variant:
     key: str
@@ -159,6 +228,15 @@ VARIANTS = [
     Variant("from_high", "Nearness to the 52-week high", lambda p, d: _row(p, "from_high", d)),
     Variant("score_sector", "Score ranked within each sector", lambda p, d: _within(p.sector.replace("", np.nan), _comp(p, d), SECTOR_MIN),
             pit=False, note="uses today's sectors (not known as of D)"),
+    Variant("score_skip", "Score with the latest month skipped in every component", _score_skip,
+            note="12-1, 6-1 and 3-1 months: keeps last month's short-term reversal out of the 6- and 3-month parts"),
+    Variant("resid", "Residual momentum (beta to ACWI removed)", _resid,
+            note="12-1-month return less beta × ACWI's, month by month in DKK, divided by its own volatility"),
+    Variant("fip", "Frog in the pan (smooth path)", _fip,
+            note="the share of up days minus down days in the 12-1 window, signed by its return"),
+    Variant("score_fip", "Score blended 2:1 with frog in the pan", _score_fip),
+    Variant("vol_surge", "Volume surge (20 vs 120 sessions) alone", _vol_surge,
+            note="the Momentum page's column; a negative IC means high recent volume precedes weaker returns"),
 ]
 BY_KEY = {v.key: v for v in VARIANTS}
 

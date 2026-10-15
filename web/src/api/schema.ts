@@ -1511,6 +1511,8 @@ export interface components {
             new_high?: boolean | null;
             /** Trend Turn */
             trend_turn?: boolean | null;
+            /** Rs High */
+            rs_high?: boolean | null;
             /** Quadrant */
             quadrant?: string | null;
             /** Off Radar */

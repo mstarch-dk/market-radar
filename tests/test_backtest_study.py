@@ -212,3 +212,53 @@ def test_redeploy_verdicts_follow_the_thresholds():
         == "not better"
     assert study.redeploy_verdict({"in_sample": good, "holdout": part(1.2, diff=-0.05)}, 12)["label"] == "not better"
     assert study.redeploy_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
+
+
+def _market_and_stocks(seed: int = 3):
+    """ACWI as noise; B0..B9 pure beta (1.5 x ACWI, no own move); A0..A9 the same plus a steady alpha."""
+    rng = np.random.default_rng(seed)
+    rm = rng.normal(0.0003, 0.01, DAYS)
+    bench = pd.Series(100 * np.cumprod(1 + rm), index=IDX)
+    cols = {}
+    for i in range(10):
+        cols[f"B{i}"] = 100 * np.cumprod(1 + 1.5 * rm)
+        cols[f"A{i}"] = 100 * np.cumprod(1 + 1.5 * rm + 0.0005 * (i + 1) + rng.normal(0, 0.002, DAYS))
+    closes = pd.DataFrame(cols, index=IDX)
+    p = panels(closes)
+    p.bench_dkk = bench * 6.5
+    return p
+
+
+def test_residual_momentum_ignores_pure_beta():
+    p = _market_and_stocks()
+    day = IDX[400]
+    r = study._resid(p, day)
+    # a pure-beta stock has (almost) no residual left; alpha stocks rank by their alpha
+    assert r[[f"B{i}" for i in range(10)]].abs().max() < r[[f"A{i}" for i in range(10)]].abs().min()
+    a = r[[f"A{i}" for i in range(10)]]
+    assert a.rank().corr(pd.Series(range(10), index=a.index).astype(float)) > 0.9
+    assert study._resid(p, IDX[100]).isna().all()            # no 12-1 window yet
+
+
+def test_frog_in_the_pan_prefers_a_smooth_path():
+    n = DAYS
+    smooth = 100 * 1.001 ** np.arange(n)
+    jumpy = np.full(n, 100.0) * np.cumprod(np.where(np.arange(n) % 10 == 0, 1.0101, 0.99995))
+    closes = pd.DataFrame({"S": smooth, "J": jumpy}, index=IDX)
+    p = panels(closes)
+    f = study._fip(p, IDX[400])
+    assert p.m["r12_1"].loc[IDX[400]].gt(0).all()
+    assert f["S"] > f["J"]
+
+
+def test_skip_and_volume_variants(cfg):
+    closes = drifting()
+    p = panels(closes)
+    day = IDX[400]
+    assert study._score_skip(p, day).rank().corr(study._score(p, day).rank()) == pytest.approx(1.0)
+    assert study._vol_surge(p, day).isna().all()             # no volumes in these panels: missing, not 0
+    p.volumes = pd.DataFrame(1000.0, index=IDX, columns=closes.columns)
+    p.volumes.iloc[-200:, 0] = 3000.0
+    v = study._vol_surge(p, IDX[-1])
+    assert v.iloc[0] == pytest.approx(1.0) and v.iloc[1] == pytest.approx(1.0)
+    assert study._vol_surge(p, IDX[340]).iloc[0] == pytest.approx(3000 / ((21 * 3000 + 99 * 1000) / 120))  # surge from 320 on

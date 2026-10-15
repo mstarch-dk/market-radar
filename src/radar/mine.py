@@ -12,6 +12,8 @@ from .signals import levels, momentum, technicals
 METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "history",
                "above50", "above200", "trend_ok")
 POSITION_KEYS = ("quantity", "avg_price", "first_trade", "last_sell_date", "last_sell_price")
+RS_HIGH_DAYS = 5      # flag: the RS line against ACWI (both in DKK) made a new 52-week high within this many sessions
+CROSS_DAYS = 20       # flag: the 50-day average crossed the 200-day within this many sessions
 
 
 def _pct_vs(dist: pd.DataFrame, row: pd.Series) -> float | None:
@@ -114,6 +116,14 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
                 f.append("turning up")
             if r["from_high"] > -0.03:
                 f.append("near 52w high")
+            c = closes[r["symbol"]]
+            fx_t = _fx_to_dkk(closes, ccy.get(r["symbol"]))
+            if r["symbol"] != bench and fx_t is not None and technicals.rs_new_high(
+                    c * fx_t.reindex(c.index).ffill(), bench_dkk, RS_HIGH_DAYS):
+                f.append("RS line at 52w high")
+            cross = technicals.sma_cross(c, CROSS_DAYS)
+            if cross:
+                f.append(f"{cross} cross")
         flags.append(f)
     df["since_buy"] = since
     df["bench_since_buy"] = bench_since

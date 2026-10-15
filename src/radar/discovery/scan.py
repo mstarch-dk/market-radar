@@ -250,7 +250,7 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
     df["spark"] = [sig.sparkline(closes[t]) for t in df["ticker"]]
     keys = ["ticker", "name", "kind", "exchange", "country", "currency", "sector", "industry", "category", "isin",
             "positive_list", "market_cap_dkk", "size", "liquidity_dkk", "thin", "score", "score_prev", "d_score",
-            "r1w", "r1m", "r3m", "r6m", "r12_1", "from_high", "vol_surge", "trend_ok", "new_high", "trend_turn",
+            "r1w", "r1m", "r3m", "r6m", "r12_1", "from_high", "vol_surge", "trend_ok", "new_high", "trend_turn", "rs_high",
             "quadrant", "off_radar", "check_data", "stale", "spark"]
     markets = []
     for key, mk in cfg["markets"].items():

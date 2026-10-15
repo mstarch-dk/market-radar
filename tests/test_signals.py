@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from radar.dashboard import _clusters
 from radar.signals import regime
@@ -136,3 +137,48 @@ def test_breadth_row_uses_the_200_day_average():
     inds, _ = regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1", "V"]}, {"us": "US"}, MACRO, CFG)
     row = _by_name(inds)["Breadth – US"]
     assert row["value"] == "50% > 200d" and "100% above 50d" in row["note"]
+
+
+def _momentum_world(n=600, k=50, reverse_at=None):
+    """k stocks with steady drifts from -0.1% to +0.2% a day; from `reverse_at` on, every drift flips sign."""
+    idx = pd.bdate_range("2023-01-02", periods=n)
+    g = np.linspace(-0.001, 0.002, k)
+    steps = np.tile(g, (n, 1))
+    if reverse_at is not None:
+        steps[reverse_at:] *= -1
+    c = pd.DataFrame(100 * np.cumprod(1 + steps, axis=0), index=idx, columns=[f"T{i:02d}" for i in range(k)])
+    c["ACWI"] = 100 * 1.0003 ** np.arange(n)
+    return c
+
+
+def test_momentum_payoff_follows_the_winners():
+    tickers = [f"T{i:02d}" for i in range(50)]
+    assert regime.momentum_payoff(_momentum_world(), tickers, 63) > 0          # winners kept winning
+    assert regime.momentum_payoff(_momentum_world(reverse_at=600 - 63), tickers, 63) < 0   # and then reversed
+    assert np.isnan(regime.momentum_payoff(_momentum_world(n=300), tickers, 63))          # too little history
+    assert np.isnan(regime.momentum_payoff(_momentum_world(), tickers[:20], 63))          # too few names
+
+
+def test_dispersion_is_the_interquartile_spread():
+    c = _momentum_world()
+    tickers = [f"T{i:02d}" for i in range(50)]
+    d = regime.dispersion_history(c, tickers)
+    r = c[tickers].iloc[-1] / c[tickers].iloc[-64] - 1
+    assert d.iloc[-1] == pytest.approx(r.quantile(0.75) - r.quantile(0.25))
+    assert d.index[0] == c.index[63] and regime.dispersion_history(c, tickers[:10]).empty
+
+
+def test_momentum_rows_never_vote():
+    c = _momentum_world()
+    cfg = CFG | {"momentum_payoff_band": 0.02, "dispersion_low_pct": 20, "dispersion_high_pct": 80, "crash_rebound": 0.05}
+    groups = {"us": [f"T{i:02d}" for i in range(50)]}
+    inds, _ = regime.indicators(c, pd.DataFrame(), "ACWI", groups, {"us": "US"}, {}, cfg)
+    rows = _by_name(inds)
+    for name in ("Momentum payoff", "Return dispersion", "Momentum-crash setup"):
+        assert rows[name]["status"] == regime.NEUTRAL, name
+    assert rows["Momentum payoff"]["value"].startswith("+") and rows["Momentum-crash setup"]["value"] == "no"
+    # a falling ACWI over two years that jumps in the last month: the crash setup
+    c2 = c.copy()
+    c2["ACWI"] = np.r_[np.linspace(120, 80, 579), np.linspace(80, 90, 21)]
+    crash = _by_name(regime.indicators(c2, pd.DataFrame(), "ACWI", groups, {"us": "US"}, {}, cfg)[0])
+    assert crash["Momentum-crash setup"]["value"] == "yes"

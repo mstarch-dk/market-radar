@@ -51,7 +51,12 @@ Prøver man ti varianter af scoren, vil én af dem næsten altid se bedre ud, og
 - **Afkast** i noteringsvalutaen på justerede kurser (udbytte medregnet), som merafkast mod gennemsnitsaktien. Toppen af listen gives også i DKK mod ACWI i DKK.
 - **En dato tæller** kun, hvis mindst {{settings:backtest.study_min_names}} aktier har både en score og et afkast. En aktie uden afkast bagefter (fx afnoteret) tælles og udelades, den tælles aldrig som 0.
 - **Opdeling**: pr. år, pr. regime på datoen, pr. region (rangeret inden for regionen) og før/efter holdout-datoen {{settings:backtest.study_holdout_from}}.
-- **Varianter**: komponenterne alene (12-1, 6 og 3 måneder, plus 1 måned som tjek af kortsigtet vending), scoren rangeret inden for regionen, med trend først, volatilitetsjusteret, afstanden til 52-ugers toppen og scoren rangeret inden for sektoren (med dagens sektorer, så ikke helt som på datoen).
+- **Varianter**: komponenterne alene (12-1, 6 og 3 måneder, plus 1 måned som tjek af kortsigtet vending), scoren rangeret inden for regionen, med trend først, volatilitetsjusteret, afstanden til 52-ugers toppen og scoren rangeret inden for sektoren (med dagens sektorer, så ikke helt som på datoen). Desuden fem varianter, der blev valgt på forhånd, før resultaterne var kendt:
+  - *score_skip*: scoren med den seneste måned sprunget over i alle tre dele (12-1, 6-1 og 3-1 måneder).
+  - *resid* (residual momentum): 12-1-måneders afkastet fratrukket beta gange ACWI's afkast, måned for måned i DKK, divideret med sin egen volatilitet. Beta måles på ugeafkast over op til 104 uger (mindst 52). Det er en forenkling af Blitz, Huij og Martens, som fjerner tre faktorer og også alfa; med kun få års historik ville et skæringspunkt sluge det meste af det vindue, der måles. Vinduerne står fast i koden.
+  - *fip* (frog in the pan): andelen af op-dage minus ned-dage i 12-1-vinduet med fortegn efter afkastet, så et afkast skabt af mange små bevægelser rangerer over det samme afkast skabt af få spring.
+  - *score_fip*: scoren og *fip* vægtet 2:1.
+  - *vol_surge*: kolonnen *Vol 20d/120d* fra [Momentum](/momentum) alene. Den viser, om højere volumen end normalt siger noget om afkastet bagefter.
 - **Dom**: en variant er en *candidate improvement*, når dens gennemsnitlige IC er højere end scorens både før og i holdout-perioden, holdout-IC'ens t-tal er over 2, og forskellen til scoren i holdout-perioden selv har et t-tal over 2. Ellers står der fx *better in-sample only (likely chance)*. Rapporten siger, hvor mange varianter der er prøvet.
 - **Stopreglen over mange datoer** (`--exits 6`): hver dags 15 bedste aktier beholdt i 6 måneder mod de samme køb med reglen fulgt (begge halvdele, kun stop, kun take-profit), med kurtage på {{settings:backtest.fee_bps}} basispoint pr. handel.
 
@@ -83,6 +88,7 @@ Sig, at scoren over 54 datoer har en gennemsnitlig IC på 0,06 med et Newey-West
 - **Få uafhængige perioder.** Fem års historik er cirka 20 uafhængige kvartaler. Et resultat, der hviler på 2022 eller 2023 alene, er skrøbeligt; se opdelingen pr. år.
 - **Regionen.** Den samlede rangering blander cirka 500 amerikanske og godt 100 andre aktier. Har USA ført, ligner det dygtighed. Se IC'en inden for hver region.
 - **Momentumkrak.** Momentum kan virke i årevis og så tabe kraftigt i en skarp vending opad efter et fald. En periode uden sådan en vending overvurderer signalet.
+- **Samme IC, anden top.** To varianter kan rangere hele universet lige godt og alligevel vælge vidt forskellige 15 bedste. *resid* og *fip* vælger roligere aktier, så deres top giver typisk mindre afkast end scorens, selv når IC'en er den samme. Se både IC og *top N*.
 - **Toppen er skæv.** Gennemsnittet for de 15 bedste kan bæres af én eller to aktier, der steg meget. Andelen, der slog gennemsnitsaktien (*hit*), siger mere om, hvor bredt det virker.
 - **Ingen skat.** Afkastene er før skat; kurtage er kun med i testen af stopreglen.
 - **Én kurv er ikke et bevis.** En [hindsight-kurv](brugervejledning/scoretest#hindsight-kurve-med-claude) viser et eksempel. Testen over alle måneder er beviset, og selv den er kun så god som dataene.
@@ -92,5 +98,8 @@ Sig, at scoren over 54 datoer har en gennemsnitlig IC på 0,06 med et Newey-West
 - Richard C. Grinold og Ronald N. Kahn: *Active Portfolio Management*, 2. udgave, 1999 (informationskoefficienten).
 - Whitney K. Newey og Kenneth D. West: "A Simple, Positive Semi-Definite, Heteroskedasticity and Autocorrelation Consistent Covariance Matrix", *Econometrica*, 55(3), 1987.
 - Kent Daniel og Tobias J. Moskowitz: "Momentum Crashes", *Journal of Financial Economics*, 122(2), 2016.
+- David Blitz, Joop Huij og Martin Martens: "Residual Momentum", *Journal of Empirical Finance*, 18(3), 2011.
+- Zhi Da, Umit G. Gurun og Mitch Warachka: "Frog in the Pan: Continuous Information and Momentum", *Review of Financial Studies*, 27(7), 2014.
+- Charles M. C. Lee og Bhaskaran Swaminathan: "Price Momentum and Trading Volume", *Journal of Finance*, 55(5), 2000.
 - Campbell R. Harvey, Yan Liu og Heqing Zhu: "… and the Cross-Section of Expected Returns", *Review of Financial Studies*, 29(1), 2016 (om mange tests og for lave t-tal).
 - David H. Bailey og Marcos López de Prado: "The Deflated Sharpe Ratio", *Journal of Portfolio Management*, 40(5), 2014.

@@ -707,6 +707,7 @@ class DiscoveryRow(StockValuation, FundValuation):
     trend_ok: bool | None = None
     new_high: bool | None = None
     trend_turn: bool | None = None
+    rs_high: bool | None = None
     quadrant: str | None = None
     off_radar: bool
     check_data: bool | None = None

@@ -24,6 +24,10 @@ regime:
   cape_cheap_pct: 10       # at or below = cheap (risk-on)
   erp_low_pct: 10          # Damodaran implied ERP percentile (monthly since 2008) at or below = thin premium (risk-off)
   erp_high_pct: 90         # at or above = ample premium (risk-on)
+  momentum_payoff_band: 0.02  # momentum's top minus bottom score quintile over 3m beyond +-2% = paying / losing (display only)
+  dispersion_low_pct: 20   # 3m return dispersion percentile (own history) at or below = narrow (display only)
+  dispersion_high_pct: 80  # at or above = wide
+  crash_rebound: 0.05      # ACWI up this much in a month after a negative 2 years = momentum-crash setup (display only)
   votes:                   # which indicator groups count in the vote (the Regime page can override this for you)
     credit_eu: true        # euro high-yield spread, next to the US one
     valuation: false       # CAPE and the equity risk premium: slow-moving, not a 1-6-month timing signal

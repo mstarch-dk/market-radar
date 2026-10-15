@@ -77,6 +77,12 @@ Nogle indikatorer kan **kun stemme risk-off**, fordi de advarer om stress, men i
 
 Én indikator **stemmer aldrig**: *Equal vs cap weight (RSP/SPY)* viser, om den gennemsnitlige aktie slår indekset (bred fremgang) eller om få megaselskaber bærer det (smal fremgang). Den står der til information.
 
+Tre rækker om momentum selv stemmer heller aldrig. De siger noget om, hvordan momentumscoren har det, ikke om markedet er risikovilligt:
+
+- *Momentum payoff (top − bottom quintile)*: hvad scoren har givet. Det er afkastet for den bedste femtedel af aktierne minus den dårligste over de seneste 3 måneder, med scoren som den var for 3 måneder siden (og det samme for 1 måned). Står MTUM i kurserne, vises også MTUM mod ACWI. Over ±{{settings:regime.momentum_payoff_band|pct}} hedder aflæsningen *paying* eller *losing*.
+- *Return dispersion (3m, all stocks)*: spredningen i 3-måneders afkast mellem aktierne (75 %-fraktilen minus 25 %-fraktilen) og dens percentil i radarens egen historik. Ved højst {{settings:regime.dispersion_low_pct}}. percentil hedder den *narrow*, ved mindst {{settings:regime.dispersion_high_pct}}. *wide*. En bred spredning giver momentum mere at sortere på.
+- *Momentum-crash setup (ACWI)*: *watch*, når ACWI har tabt over 2 år, og *yes*, når den derefter er steget mindst {{settings:regime.crash_rebound|pct}} på en måned. Det er netop den situation, hvor momentum historisk er krakket. Se [Momentumeffekten](laerebog/momentumeffekten).
+
 Hvorfor netop disse indikatorer, og hvad de hver især siger, står i lærebogens del IV: [Markedsbredde](laerebog/markedsbredde), [VIX og volatilitetens terminsstruktur](laerebog/vix), [Kredit, renter og dollar](laerebog/kredit-renter-dollar), [Kobber, guld og olie](laerebog/raavarer) og [Ledende indikatorer og indtjeningsrevisioner](laerebog/ledende-indikatorer).
 
 ### Forældede data (stale)
