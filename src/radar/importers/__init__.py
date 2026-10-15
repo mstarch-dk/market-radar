@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 import re
 from datetime import datetime
 from functools import cache
@@ -67,10 +68,36 @@ def decode(data: bytes) -> str:
         return data.decode("cp1252")
 
 
+def _excel_cell(v) -> tuple[str, bool]:
+    """(text, whether it was a number in the sheet). A number stays its value: re-reading it as text with a
+    preset's decimal comma would turn 1234.5 into 12345."""
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "", False
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return format(float(v), ".15g"), True
+    return str(v), False
+
+
 def read_table(data: bytes, filename: str = "") -> pd.DataFrame:
-    """The file as a table of text cells (numbers and dates are parsed later, with the right conventions)."""
+    """The file as a table of text cells (numbers and dates are parsed later, with the right conventions). For a
+    spreadsheet, `attrs["native"]` holds the (row, column) of cells that were numbers in the sheet."""
     if data[:2] == b"PK" or filename.lower().endswith((".xlsx", ".xlsm")):
-        df = pd.read_excel(io.BytesIO(data), dtype=str)
+        raw = pd.read_excel(io.BytesIO(data))
+        raw.columns = [str(c).strip() for c in raw.columns]
+        native, cells = set(), {}
+        for c in raw.columns:
+            col = []
+            for i, v in raw[c].items():
+                text, number = _excel_cell(v)
+                col.append(text)
+                if number:
+                    native.add((i, c))
+            cells[c] = col
+        df = pd.DataFrame(cells, index=raw.index)
+        df = df.loc[:, [c for c in df.columns if c and not c.startswith("Unnamed")]]
+        df = df.apply(lambda s: s.str.strip())
+        df.attrs["native"] = native
+        return df
     else:
         text = decode(data)
         sample = "\n".join(text.splitlines()[:20])
@@ -128,6 +155,36 @@ def detect(columns: list[str]) -> tuple[str | None, dict[str, str]]:
 
 
 # ---------------- normalizing values ----------------
+
+_AMBIGUOUS = re.compile(r"^-?[1-9]\d{0,2}[.,]\d{3}$")
+
+
+def ambiguous_number(s: str) -> bool:
+    """'1.234' or '1,234': a thousand with a separator, or one and a bit with a decimal mark. Only the file's
+    other values (or its preset) can tell."""
+    return bool(_AMBIGUOUS.match(re.sub(r"[^\d,.\-]", "", str(s).replace("−", "-"))))
+
+
+def infer_decimal(values) -> str | None:
+    """The decimal mark a column uses, from the values that show it: both marks in one value (the last is the
+    decimal), a mark used twice (a thousands separator), or one mark not followed by exactly three digits. None
+    when nothing tells, or the values contradict each other (each value is then read on its own)."""
+    votes = set()
+    for v in values:
+        t = re.sub(r"[^\d,.]", "", str(v))
+        c, d = t.count(","), t.count(".")
+        if c and d:
+            votes.add("," if t.rfind(",") > t.rfind(".") else ".")
+        elif c > 1:
+            votes.add(".")
+        elif d > 1:
+            votes.add(",")
+        elif c == 1 and not re.search(r",\d{3}$", t):
+            votes.add(",")
+        elif d == 1 and not re.search(r"\.\d{3}$", t):
+            votes.add(".")
+    return votes.pop() if len(votes) == 1 else None
+
 
 def parse_number(s: str, decimal: str = "auto") -> float | None:
     """'1.234,56', '1,234.56', '1234,5', '-12', '1 234,5 DKK' → float; empty or unreadable → None."""
@@ -193,6 +250,23 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
     names the row's portfolio (`portfolio`); without one the row goes into the portfolio chosen for the import."""
     p = presets().get(preset or "", {})
     decimal = p.get("decimal", "auto")
+    native = df.attrs.get("native", set())
+    # a generic file: one decimal mark per numeric column, read from all its values; a column that shows nothing
+    # follows the file's other numeric columns (a file writes its numbers one way)
+    numeric = [mapping[f] for f in ("quantity", "price", "fee", "cash_amount") if f in mapping]
+    whole = infer_decimal([v for c in numeric for v in df[c]]) if decimal == "auto" and numeric else None
+    marks = {f: (infer_decimal(df[mapping[f]]) or whole or "auto") if decimal == "auto" else decimal
+             for f in ("quantity", "price", "fee", "cash_amount") if f in mapping}
+
+    def num(r, i, f, notes):
+        if f not in mapping:
+            return None
+        v = r[mapping[f]]
+        if (i, mapping[f]) in native:
+            return float(v)
+        if marks[f] == "auto" and ambiguous_number(v):
+            notes.append((f, v))
+        return parse_number(v, marks[f])
     buy = {w.upper() for w in p.get("buy", DEFAULT_BUY)}
     sell = {w.upper() for w in p.get("sell", DEFAULT_SELL)}
     cash_words = {w.upper(): kind for kind, words in DEFAULT_CASH.items() for w in p.get(kind.lower(), words)}
@@ -203,12 +277,14 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
         if preset == "saxo" and sym:
             sym = saxo_to_yahoo(sym) or sym
         ident = sym or isin or name
-        qty = parse_number(get(r, "quantity"), decimal)
+        unclear: list[tuple[str, str]] = []
+        qty = num(r, i, "quantity", unclear)
         word = get(r, "type").strip().upper()
         if sym.startswith(("^", "$$")) or "=" in sym:            # Yahoo index, FX and cash rows
             continue
         if word in cash_words:
-            rows.append(_cash_row(r, i, get, cash_words[word], ident, sym, isin, name, decimal, p))
+            rows.append(_cash_row(r, i, get, cash_words[word], ident, sym, isin, name, lambda f: num(r, i, f, unclear),
+                                  p) | {"ambiguous": unclear})
             continue
         if not ident:
             continue
@@ -228,10 +304,10 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
         row = {"row": int(i) + 2, "ident": ident, "symbol_in": sym or None, "isin": isin if ISIN_RE.match(isin) else None,
                "name": name or None, "date": parse_date(get(r, "date"), p.get("date_formats"), p.get("dayfirst", True)),
                "type": kind, "quantity": abs(qty) if qty is not None else None,
-               "price": abs(v) if (v := parse_number(get(r, "price"), decimal)) is not None else None,
-               "fee": abs(parse_number(get(r, "fee"), decimal) or 0.0),
+               "price": abs(v) if (v := num(r, i, "price", unclear)) is not None else None,
+               "fee": abs(num(r, i, "fee", unclear) or 0.0),
                "currency": get(r, "currency") or None, "portfolio": get(r, "account").strip() or None,
-               "ext_ref": get(r, "ext_ref") or None, "amount": None, "skip": None}
+               "ext_ref": get(r, "ext_ref") or None, "amount": None, "skip": None, "ambiguous": unclear}
         if kind is None:
             row["skip"] = f"not a buy or sell ({word or 'no type'})"
         elif row["date"] is None:
@@ -242,10 +318,10 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
     return rows, sorted(set(watch))
 
 
-def _cash_row(r, i, get, kind, ident, sym, isin, name, decimal, p) -> dict:
+def _cash_row(r, i, get, kind, ident, sym, isin, name, num, p) -> dict:
     """A deposit, withdrawal, dividend or interest row: an amount in DKK (other currencies are skipped: convert
-    them first). A dividend keeps its instrument so it can be matched to a symbol."""
-    amount = parse_number(get(r, "cash_amount"), decimal)
+    them first). A dividend keeps its instrument so it can be matched to a symbol. `num(field)` reads a number."""
+    amount = num("cash_amount")
     ccy = (get(r, "currency") or "DKK").strip().upper()
     row = {"row": int(i) + 2, "ident": ident if kind == "DIVIDEND" else "", "symbol_in": sym or None,
            "isin": isin if ISIN_RE.match(isin) else None, "name": name or None,
@@ -372,7 +448,14 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
         if tx["symbol"]:
             market_has(tx["symbol"])
         r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
+        for field, value in r.get("ambiguous") or []:
+            dot, comma = parse_number(value, "."), parse_number(value, ",")
+            r["issues"].append({"level": "warning", "field": {"cash_amount": "amount"}.get(field, field),
+                                "message": f"{value!r} could be {dot:g} or {comma:g}: the file doesn't show which "
+                                           "decimal mark it uses. Check the value, or choose the broker's format."})
         so_far.append(tx | {"id": -len(so_far) - 1})
+    for r in rows:
+        r.pop("ambiguous", None)                           # said as warnings above
     counts = {"rows": len(rows), "new": sum(1 for r in rows if not r["skip"] and not r["duplicate"]),
               "duplicates": sum(r["duplicate"] for r in rows), "skipped": sum(bool(r["skip"]) for r in rows),
               "errors": sum(any(i["level"] == "error" for i in r["issues"]) for r in rows),
