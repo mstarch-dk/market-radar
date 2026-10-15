@@ -55,6 +55,7 @@ function flags(r: DiscoveryRow) {
       {r.off_radar && <Badge kind="accent">new to radar</Badge>}
       {r.new_high && <Badge kind="pos">52w high</Badge>}
       {r.trend_turn && <Badge kind="pos">trend turn</Badge>}
+      {r.rs_high && <Badge kind="pos">RS high</Badge>}
       {r.thin && <Badge kind="warn">thin</Badge>}
       {r.check_data && <Badge kind="neg">check data</Badge>}
       {r.stale && <Badge kind="neg">stale</Badge>}
@@ -111,6 +112,8 @@ function columns(kind: DiscoveryMarket["kind"]): Col<DiscoveryRow>[] {
       hidden: true, render: (r) => <Check v={r.new_high} /> },
     { key: "turn", label: "Trend turn", sort: (r) => r.trend_turn, help: "trend_turn", filter: { kind: "bool" }, hidden: true,
       render: (r) => <Check v={r.trend_turn} /> },
+    { key: "rshigh", label: "RS high", name: "RS line at a 52w high", sort: (r) => r.rs_high, help: "rs_high", filter: { kind: "bool" },
+      hidden: true, render: (r) => <Check v={r.rs_high} /> },
     { key: "thin", label: "Thin", name: "Thinly traded", sort: (r) => r.thin, help: "liquidity", filter: { kind: "bool" }, hidden: true,
       render: (r) => <Check v={r.thin} /> },
     { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: false },

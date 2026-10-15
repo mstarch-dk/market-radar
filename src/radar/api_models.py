@@ -190,6 +190,8 @@ class Levels(Section):
     anchor: Num = None
     atr: Num = None
     anchor_basis: str | None = None
+    mode: Literal["trend", "atr"] | None = None      # trend: the level is a moving average to review at; atr: a trailing stop
+    action: Literal["review", "sell"] | None = None
     reasons: list[Reason] = []
     flags: list[str] = []
     breaches: list[Breach] = []
@@ -705,6 +707,7 @@ class DiscoveryRow(StockValuation, FundValuation):
     trend_ok: bool | None = None
     new_high: bool | None = None
     trend_turn: bool | None = None
+    rs_high: bool | None = None
     quadrant: str | None = None
     off_radar: bool
     check_data: bool | None = None
@@ -940,6 +943,8 @@ class MyLevels(Strict):
     anchor: Num = None
     atr: Num = None
     anchor_basis: str | None = None
+    mode: Literal["trend", "atr"] | None = None
+    action: Literal["review", "sell"] | None = None
     reasons: list[Reason]
     flags: list[str]
     breaches: list[Breach]

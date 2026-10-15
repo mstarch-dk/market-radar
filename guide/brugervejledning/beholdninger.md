@@ -1,8 +1,8 @@
 # Mine beholdninger og watchlist
 
-Siden [Holdings & watchlist](/me) viser dine egne navne i tre tabeller: det, du ejer nu (*Holdings*), det, du holder øje med (*Watchlist*), og det, du har solgt (*Sold positions*). Hvert navn får radarens momentum, dit afkast i DKK målt mod en skyggeposition i ACWI, regelbaserede advarsler og, for beholdninger, et mekanisk stop og kursmål.
+Siden [Holdings & watchlist](/me) viser dine egne navne i tre tabeller: det, du ejer nu (*Holdings*), det, du holder øje med (*Watchlist*), og det, du har solgt (*Sold positions*). Hvert navn får radarens momentum, dit afkast i DKK målt mod en skyggeposition i ACWI, regelbaserede advarsler og, for beholdninger, et gennemgangsniveau.
 
-Tallene regnes live ud fra de seneste kurser, hver gang du åbner siden. Regimet og rotationsgrafens kvadranter, som stoppet bruger, kommer fra den seneste opdatering.
+Tallene regnes live ud fra de seneste kurser, hver gang du åbner siden. Regimet og rotationsgrafens kvadranter, som niveauerne bruger, kommer fra den seneste opdatering.
 
 ## Hvor kommer navnene fra?
 
@@ -37,8 +37,8 @@ Alle tre tabeller har de samme grundkolonner:
 |---|---|
 | *Since buy (DKK)* | Den åbne positions samlede afkast i DKK, inklusive valutakurs og udbytte (brutto, regnet som geninvesteret), efter gennemsnitsmetoden |
 | *ACWI (DKK)* | Samme beløb i en skyggeposition i ACWI |
-| *Stop* | Det regelbaserede trailing stop (glidende stop) og afstanden til det |
-| *Target* | Take-profit (kursmål) og afstanden til det |
+| *Review* | Gennemgangsniveauet (200-dages gennemsnittet) og afstanden til det. Med `stops.mode: atr` er det i stedet det glidende stop |
+| *Target* | Take-profit (kursmål) og afstanden til det. Vises kun, når kursmålet er slået til (`stops.take_profit`) |
 
 ### Kun for solgte positioner
 
@@ -69,23 +69,29 @@ De grå mærker i *Flags* er regler, der beskriver tilstanden. Hvilke der kan fo
 | *below 200d* | beholdninger | Kursen under 200-dages gennemsnittet |
 | *turning up* | watchlist, solgte | Over 50-dages gennemsnittet, positivt 1-måneds afkast og stærkere end ACWI over 3 måneder |
 | *near 52w high* | alle | Mindre end 3 % fra 52-ugers høj (grænsen ligger i koden) |
+| *RS line at 52w high* | alle | Kursen divideret med ACWI (begge i DKK) har sat en ny 52-ugers top inden for de seneste 5 handelsdage. Den relative styrke topper ofte før kursen (grænsen ligger i koden) |
+| *golden cross* / *death cross* | alle | 50-dages gennemsnit er krydset over / under 200-dages inden for de seneste 20 handelsdage (grænsen ligger i koden). Det er en beskrivelse af trenden, ikke et signal; se [Trend og glidende gennemsnit](laerebog/trend) |
 | *no data* | alle | Ingen kurs |
 
-De røde mærker kommer fra stoppet: *near stop*, *stop hit*, *near target*, *above highest analyst target* og *stop breached* + dato (et brud inden for den seneste måned).
+De røde mærker kommer fra niveauet: *near review level* og *below review level*, *above highest analyst target* og, med ATR-stoppet, *near stop*, *stop hit*, *near target* og *stop breached* + dato (et brud inden for den seneste måned).
 
 > **Tip:** *turning up* på watchlisten og *losing momentum* eller *below 200d* på beholdningerne er dem, `/market-brief` fremhæver. Brug dem som anledning til at kigge nærmere, ikke som handelssignaler.
 
-## Stop og kursmål
+## Gennemgangsniveau, stop og kursmål
 
-Kun beholdninger får niveauer, og kun aktier samt sektor- og tema-ETF'er (med deres UCITS-tvillinger). Brede regionsfonde får ingen. Reglen er den samme som på tickerprofilen:
+Kun beholdninger får niveauer, og kun aktier samt sektor- og tema-ETF'er (med deres UCITS-tvillinger). Brede regionsfonde får ingen. Reglen er den samme som på tickerprofilen.
+
+**Standard (`stops.mode: trend`):** niveauet er aktiens {{settings:stops.trend_sma}}-dages gennemsnit, og der er intet kursmål. En lukkekurs under det er en anledning til at se på positionen igen, ikke et salgssignal. I radarens test på tidligere momentumledere kostede faste stop og kursmål langt mere afkast, end de fjernede af risiko, mens det var billigere at lægge en del af pengene i en bred fond; se [Virker stop på momentumaktier?](laerebog/stop-og-storrelse#virker-stop-på-momentumaktier).
+
+**Med `stops.mode: atr`** (reglen indtil oktober 2026):
 
 - **Stop** = højeste lukkekurs siden første køb − k × ATR({{settings:stops.atr_days}}).
 - **k** starter på {{settings:stops.k_base}}, og hvert signal flytter det: stærk momentum (score mindst {{settings:stops.strong_score}} og intakt trend) giver mere plads; brudt trend, tabt momentum, en kurs langt over 50-dages gennemsnittet, regimet og en kurs over analytikernes kursmål strammer. k holdes mellem {{settings:stops.k_min}} og {{settings:stops.k_max}}.
-- **Kursmål** = det laveste af kursen + {{settings:stops.reward_risk}} × stopbredden og analytikernes middelkursmål (kræver mindst {{settings:stops.min_analysts}} analytikere).
+- **Kursmål** (kun med `stops.take_profit: true`) = det laveste af kursen + {{settings:stops.reward_risk}} × stopbredden og analytikernes middelkursmål (kræver mindst {{settings:stops.min_analysts}} analytikere).
 
-Klik *why* i kolonnen *Flags* for at se k og hvert signal (▲ mere plads, ▼ strammere), og analytikernes konsensus, hvis den er brugt. Tærsklerne står i `config/settings.yaml` under `stops:`; se [Indstillinger](brugervejledning/indstillinger). Baggrunden står i [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse).
+Klik *why* i kolonnen *Flags* for at se niveauet og, med ATR-stoppet, k og hvert signal (▲ mere plads, ▼ strammere), og analytikernes konsensus, hvis den er brugt. Tærsklerne står i `config/settings.yaml` under `stops:`; se [Indstillinger](brugervejledning/indstillinger). Baggrunden står i [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse).
 
-> **Bemærk:** Stop og kursmål er en mekanisk regel til eftertanke, ikke rådgivning.
+> **Bemærk:** Niveauerne er en mekanisk regel til eftertanke, ikke rådgivning.
 
 ## Hurtig import fra Yahoo Finance
 

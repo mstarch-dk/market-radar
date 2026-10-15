@@ -151,12 +151,13 @@ export function TechnicalsCard({ p }: { p: Profile }) {
 export function LevelsCard({ p }: { p: Profile }) {
   const l = p.levels;
   const cur = p.price.currency;
+  const review = l.mode === "trend";
   return (
-    <Card title="Stop / take-profit (rule)" meta={l}>
+    <Card title={review ? "Review level (rule)" : "Stop / take-profit (rule)"} meta={l}>
       <KV rows={[
-        ["Trailing stop", <>{price(l.stop, cur)} <GaugeBadge g={l.gauges?.stop_dist} name="Stop" /></>, { hint: pct(l.stop_pct), help: "stop" }],
-        ["Take-profit", l.take_profit ? <>{price(l.take_profit, cur)} <GaugeBadge g={l.gauges?.tp_dist} name="Target" /></> : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined, help: "take_profit" }],
-        ["Stop width k × ATR", isNum(l.k) ? `${num(l.k, 1)} × ${price(l.atr)}` : "–", { help: "k" }],
+        [review ? "Review below (200-day average)" : "Trailing stop", <>{price(l.stop, cur)} <GaugeBadge g={l.gauges?.stop_dist} name={review ? "Review level" : "Stop"} /></>, { hint: pct(l.stop_pct), help: "stop" }],
+        ["Take-profit", l.take_profit ? <>{price(l.take_profit, cur)} <GaugeBadge g={l.gauges?.tp_dist} name="Target" /></> : review ? "off" : "none", { hint: l.take_profit ? pct(l.tp_pct) : undefined, help: "take_profit" }],
+        ["Stop width k × ATR", isNum(l.k) ? `${num(l.k, 1)} × ${price(l.atr)}` : "–", { help: "k", hide: review && !isNum(l.k) }],
         ["Regime", l.regime ?? "–"],
       ]} />
       {(l.flags ?? []).length > 0 && <div className="badges">{(l.flags ?? []).map((f) => <Badge key={f} kind="warn">{f}</Badge>)}</div>}
@@ -168,7 +169,7 @@ export function LevelsCard({ p }: { p: Profile }) {
           </li>
         ))}
       </ul>
-      <p className="small muted">A mechanical rule for review, not advice.</p>
+      <p className="small muted">{review ? "A close below the level is a reason to review the position, not a sell signal. Not advice." : "A mechanical rule for review, not advice."}</p>
     </Card>
   );
 }

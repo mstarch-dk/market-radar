@@ -24,6 +24,10 @@ regime:
   cape_cheap_pct: 10       # at or below = cheap (risk-on)
   erp_low_pct: 10          # Damodaran implied ERP percentile (monthly since 2008) at or below = thin premium (risk-off)
   erp_high_pct: 90         # at or above = ample premium (risk-on)
+  momentum_payoff_band: 0.02  # momentum's top minus bottom score quintile over 3m beyond +-2% = paying / losing (display only)
+  dispersion_low_pct: 20   # 3m return dispersion percentile (own history) at or below = narrow (display only)
+  dispersion_high_pct: 80  # at or above = wide
+  crash_rebound: 0.05      # ACWI up this much in a month after a negative 2 years = momentum-crash setup (display only)
   votes:                   # which indicator groups count in the vote (the Regime page can override this for you)
     credit_eu: true        # euro high-yield spread, next to the US one
     valuation: false       # CAPE and the equity risk premium: slow-moving, not a 1-6-month timing signal
@@ -38,7 +42,12 @@ sectors:
 
 snapshot_min_gap_days: 5   # compare against a snapshot at least this old
 
-stops:                     # rule-based stop / take-profit for holdings (signals/levels.py)
+stops:                     # rule-based review level / stop / take-profit for holdings (signals/levels.py)
+  mode: trend              # trend: the review level is the trend_sma-day average (`radar study exits`: the only exit that
+                           # cost little return); atr: the trailing ATR stop below (the rule until 2026-10)
+  trend_sma: 200
+  action: review           # review: a close below the level is a reason to look at the position again, not a sell order
+  take_profit: false       # true: the take-profit below (sold momentum's winners early: it cost the most in the study)
   atr_days: 14
   k_base: 3.0              # stop = highest close since entry - k x ATR
   k_min: 1.5
@@ -61,6 +70,10 @@ backtest:                  # `radar sim exits` (backtest/): the stop/take-profit
   fred_lag_days: 1         # a FRED value counts from the day after its date
   oecd_lag_days: 70        # OECD CLI is published about two months after its month
   valuation_lag_days: 30   # Shiller CAPE / Damodaran ERP monthly values
+  fee_bps: 10              # cost of each simulated rule / parking / basket trade, in basis points of its value (commission + FX spread)
+  study_holdout_from: 2024-10-01   # `radar study score`: formation dates from this day on are the holdout (never tuned on)
+  study_min_names: 30      # a formation date needs at least this many ranked names with a forward return
+  random_baskets: 1000     # `radar sim picks`: random baskets of the same size and caps drawn for the percentile
 
 risk:                      # signals/risk.py: weekly returns in DKK
   windows: {1y: 52, 3y: 156}
@@ -199,7 +212,7 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     scale: sequential
     unit: pct
     anchors: [[-0.15, 0], [-0.08, -0.2], [-0.04, -0.6], [-0.015, -1], [0, -1]]
-    labels: [[-0.08, room to stop], [-0.04, tightening], [0, near stop], [null, through stop]]
+    labels: [[-0.08, room to the level], [-0.04, getting close], [0, near the level], [null, below the level]]
     ticks: [-0.08, -0.04]
     range: [-0.2, 0]
   tp_dist:                 # take-profit vs price (positive = target above the price)

@@ -7,7 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import momentum, rotation
+from . import momentum, rotation, technicals
 
 
 def scores(closes: pd.DataFrame, volumes: pd.DataFrame, tickers: list[str], min_history: int,
@@ -93,6 +93,8 @@ def compute(closes: pd.DataFrame, raw: pd.DataFrame, volumes: pd.DataFrame, meta
     df["new_high"] = ((df["from_high"] >= -1e-9) & (df["vol_surge"] >= fl["new_high_vol"])).where(
         df["from_high"].notna() & df["vol_surge"].notna())
     df["trend_turn"] = [trend_turn(c[t], fl["trend_turn_days"]) for t in tickers]
+    df["rs_high"] = ([technicals.rs_new_high(c[t], closes[bench], fl["rs_high_days"]) for t in tickers]
+                     if bench in closes.columns else None)
     moves = pd.Series({t: max_move(c[t].iloc[-260:]) for t in tickers})
     df["check_data"] = moves > cfg["check_data_move"]
     df["off_radar"] = [t not in tracked for t in tickers]

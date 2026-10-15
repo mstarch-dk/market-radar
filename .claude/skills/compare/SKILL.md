@@ -40,8 +40,11 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 - **Analyst targets** are rescaled to the radar's dividend-adjusted prices (so they aren't round numbers);
   `rec_mean` and the monthly `recommendations` breakdown can disagree (both from Yahoo). Quote the breakdown.
 - **`correlation`:** weekly DKK returns over 1y. With `--personal` it also includes the user's holdings (their real portfolios; never virtual ones unless `--portfolio`/`--tag` names them).
-- **`levels`:** the radar's mechanical stop rule. `risk.budget` is the position size (share of the portfolio) at
-  which hitting that stop costs 1%. Above 1 means the stop is too close for the rule to bound risk.
+- **`levels`:** the radar's mechanical rule. With `levels.mode: trend` (the default) `levels.stop` is a review level at
+  the 200-day average, not a sell level, and there is no take-profit: the radar's own test found fixed stops and
+  targets cost momentum names more return than the risk they removed, and sizing cut risk more cheaply. Present it
+  as "where to review the thesis". `risk.budget` is the position size (share of the portfolio) at which a fall to
+  that level costs 1%. Above 1 means the level is too close to bound the risk.
 
 ## Steps
 

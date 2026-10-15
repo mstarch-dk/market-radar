@@ -61,3 +61,23 @@ def test_volatility_drawdown_and_beta():
     assert technicals.realised_vol(bench) == pytest.approx(0.01 * np.sqrt(252), rel=0.25)
     assert technicals.max_drawdown(_s([100, 120, 90, 110, 95])) == pytest.approx(90 / 120 - 1)
     assert np.isnan(technicals.beta_corr(bench.iloc[:60], bench.iloc[:60])[0])  # too few weeks
+
+
+def test_rs_new_high_and_sma_crosses():
+    idx = pd.bdate_range("2024-01-01", periods=400)
+    bench = pd.Series(100 * 1.0003 ** np.arange(400), index=idx)
+    leader = pd.Series(100 * 1.001 ** np.arange(400), index=idx)
+    laggard = pd.Series(100 * 0.9995 ** np.arange(400), index=idx)
+    assert technicals.rs_new_high(leader, bench) is True
+    assert technicals.rs_new_high(laggard, bench) is False
+    assert technicals.rs_new_high(leader.iloc[:200], bench) is None          # less than a year
+    # down for 300 sessions, then up hard: the 50-day crosses above the 200-day at some point after
+    v = np.r_[100 * 0.999 ** np.arange(300), 100 * 0.999 ** 299 * 1.01 ** np.arange(1, 101)]
+    s = pd.Series(v, index=idx)
+    fast, slow = s.rolling(50).mean(), s.rolling(200).mean()
+    first = (fast > slow).loc[idx[300]:].idxmax()
+    i = idx.get_loc(first)
+    assert technicals.sma_cross(s.iloc[:i + 5]) == "golden"
+    assert technicals.sma_cross(s.iloc[:i + 40]) is None                     # longer ago than 20 sessions
+    assert technicals.sma_cross(-s.iloc[:i + 5] + 1000) == "death"
+    assert technicals.sma_cross(s.iloc[:150]) is None

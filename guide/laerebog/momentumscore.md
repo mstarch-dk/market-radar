@@ -98,7 +98,7 @@ En gruppe vises som klynge, hvis den har mindst {{settings:sectors.cluster_min}}
 ### Øvrige kolonner
 
 - *From 52w high* (`from_high`): $P_t / \max(P_{t-251}, \dots, P_t) - 1$, afstanden til den højeste lukkekurs de seneste 252 rækker. 0 % er en ny top.
-- *Vol 20d/120d* (`vol_surge`): gennemsnitlig volumen de seneste 20 rækker divideret med gennemsnittet over de seneste 120 (som inkluderer de 20). Over 1 betyder mere handel end normalt.
+- *Vol 20d/120d* (`vol_surge`): gennemsnitlig volumen de seneste 20 rækker divideret med gennemsnittet over de seneste 120 (som inkluderer de 20). Over 1 betyder mere handel end normalt. Kolonnen indgår ikke i scoren. I [testen af scoren](laerebog/test-af-scoren) (varianten *vol_surge*) har den ikke vist nogen sammenhæng med afkastet de følgende 1–12 måneder.
 - *Trend* (`trend_ok`): kurs over SMA200 og SMA50 over SMA200; se [Glidende gennemsnit og trend](laerebog/trend).
 
 ### Dine beholdninger: percentil mod hele universet

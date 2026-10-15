@@ -37,12 +37,15 @@ Hver rigtig portefølje får én simuleret portefølje pr. variant. De hedder fx
 
 ## Sådan følger simuleringen reglen
 
+Simuleringen følger reglen, som den står i `config/settings.yaml`. Med standarden (`stops.mode: trend`) sælger den ved en lukkekurs under {{settings:stops.trend_sma}}-dages gennemsnittet og har intet kursmål; i appen er samme niveau kun en anledning til gennemgang, men simuleringen viser, hvad det havde givet at handle på det. ATR-stoppet med kursmål, som var reglen indtil oktober 2026, afspilles med `uv run radar sim exits --rule-spec atr-tp`. Resten af dette afsnit beskriver ATR-stoppet.
+
 - **Stop**: højeste justerede lukkekurs siden købet minus k × ATR. Både k og ATR beregnes hver dag ud fra det, radaren vidste den dag.
 - **Take-profit**: låses ved lukkekursen på købsdagen og låses igen ved hvert tilkøb. Reglen måler kursmålet fra den aktuelle kurs, så et kursmål, der blev regnet om hver dag, ville altid ligge over kursen og aldrig blive ramt.
 - **Udløsning**: en lukkekurs på eller gennem et niveau udløser salg af hele positionen. Niveauerne sammenlignes med justerede kurser, så et udbytte ikke udløser noget.
 - **Handel**: med `fill: {{settings:backtest.fill}}` sælges der til næste handelsdags handlede lukkekurs; med `same` til samme dags. Ingen handel sker til en kurs, der ikke var kendt, da beslutningen blev taget.
 - **Hvilke beholdninger**: kun dem, radaren giver niveauer i dag, altså aktier og sektor- og temafonde. Brede indeksfonde beholdes som i den rigtige portefølje.
 - **Pengene efter et salg** står i {{settings:backtest.park}}, indtil dit næste køb skal betales. Et køb betales først af kontanter, så af de parkerede andele og først derefter af nye penge.
+- **Kurtage**: hvert af reglens salg og hver handel med de parkerede penge koster {{settings:backtest.fee_bps}} basispoint af handlens værdi (kurtage og valutaspread). Dine egne handler beholder de gebyrer, de havde.
 
 ### Det, radaren vidste på dagen
 
@@ -72,10 +75,25 @@ For hver portefølje viser kommandoen tre linjer: den rigtige portefølje og de 
 
 På [Returns](/returns) vælger du porteføljerne med linket fra kommandoen, eller tagget `exits-overlay` mod `exits-rules`.
 
+## Hvilken halvdel af reglen hjælper?
+
+På dine egne handler er der for få salg til at sige meget. `uv run radar study score --exits 6` tester reglen på scorens 15 bedste aktier på hver månedsafslutning i historikken, med begge halvdele, kun stop og kun take-profit. Se [Test momentumscoren på historikken](brugervejledning/scoretest).
+
+## Andre udgaver af reglen
+
+`uv run radar study exits` prøver en fast liste af varianter af reglen på de samme kurve og måler både afkast og risiko (se [Test momentumscoren på historikken](brugervejledning/scoretest#varianter-af-stopreglen)). En variant kan du også afspille på dine egne handler:
+
+```
+uv run radar sim exits --rule-spec k5
+uv run radar sim exits --rule-spec sma200 --variant rules
+```
+
+Varianten får sine egne simulerede porteføljer, fx *ASK · exits rules k5* med tagget `exits-rules-k5`, og sin egen rapport, `reports/sim-exits-k5.json`. Den almindelige kørsel og dens porteføljer røres ikke.
+
 ## Begrænsninger
 
 - **Aktieuniverset er dagens liste.** Aktier, der er gået ud af det, mangler i momentumscoren (overlevelsesbias).
 - **Makrodata er dagens version.** FRED og OECD reviderer tal, og simuleringen bruger de reviderede.
 - **Afstemningen bruger dine nuværende valg** af grupper i regimet.
-- **Ingen skat og ingen kurtage** på reglens handler. ACWI står ikke på positivlisten, så parkeringen ville ikke være mulig på en aktiesparekonto som den er. Sæt `backtest.park` til en UCITS-fond på positivlisten, hvis det skal være realistisk.
+- **Ingen skat**, og kurtagen er et fast skøn ({{settings:backtest.fee_bps}} basispoint), ikke din banks prisliste. ACWI står ikke på positivlisten, så parkeringen ville ikke være mulig på en aktiesparekonto som den er. Sæt `backtest.park` til en UCITS-fond på positivlisten, hvis det skal være realistisk.
 - **Reglen er ikke tunet til dine handler.** Et godt eller dårligt resultat på få handler siger mere om perioden end om reglen.

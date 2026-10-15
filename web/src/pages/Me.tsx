@@ -51,7 +51,7 @@ function Flags({ r }: { r: MyRow }) {
       {lv?.flags.map((f) => <Badge key={f} kind="neg">{f}</Badge>)}
       {lv && (
         <details className="why">
-          <summary>why (k {num(lv.k, 2)})</summary>
+          <summary>{lv.k != null ? <>why (k {num(lv.k, 2)})</> : "why"}</summary>
           <ul className="reasons">
             {lv.reasons.map((x, i) => (
               <li key={i}>
@@ -77,7 +77,7 @@ const holdingCols: Col<MyRow>[] = [
     render: (r) => <Graded g={r.gauges?.excess_vs_acwi}>{pct(r.since_buy)}</Graded> },
   { key: "bench", label: "ACWI (DKK)", sort: (r) => r.bench_since_buy, help: "bench_since_buy",
     render: (r) => <span className="muted">{pct(r.bench_since_buy)}</span> },
-  { key: "stop", label: "Stop", help: "stop", csv: (r) => r.levels?.stop, sort: (r) => r.levels?.stop_pct,
+  { key: "stop", label: "Review", name: "Review level / stop", help: "stop", csv: (r) => r.levels?.stop, sort: (r) => r.levels?.stop_pct,
     render: (r) => r.levels?.stop != null ? <>{num(r.levels.stop)} <Graded g={r.gauges?.stop_dist}>{pct(r.levels.stop_pct)}</Graded></> : <span className="muted">–</span> },
   { key: "target", label: "Target", help: "take_profit", csv: (r) => r.levels?.take_profit, sort: (r) => r.levels?.tp_pct,
     render: (r) => r.levels?.take_profit != null ? <>{num(r.levels.take_profit)} <Graded g={r.gauges?.tp_dist}>{pct(r.levels.tp_pct)}</Graded></> : <span className="muted">–</span> },
@@ -105,7 +105,9 @@ export function Me() {
       {(d) => {
         const by = (s: string) => d.rows.filter((r) => r.status === s);
         const sections = [
-          ["Holdings", by("holding"), holdingCols],
+          // the Target column only when the rule has a take-profit (settings stops.take_profit)
+          ["Holdings", by("holding"), d.rows.some((r) => r.levels?.take_profit != null) ? holdingCols
+            : holdingCols.filter((c) => c.key !== "target")],
           ["Watchlist", by("watch"), watchCols],
           ["Sold positions", by("sold"), soldCols],
         ] as const;
@@ -125,13 +127,19 @@ export function Me() {
               <section key={title} className="group">
                 <h2>{title} ({rows.length})</h2>
                 <div className="card"><DataTable id={TABLE_ID[title] ?? title} csvName={`me-${TABLE_ID[title]}`} rows={[...rows]} cols={[...cols]} rowKey={(r) => r.symbol} /></div>
-                {title === "Holdings" && (
+                {title === "Holdings" && (rows.some((r) => r.levels?.mode === "atr") ? (
                   <p className="note muted">Stop and target are a mechanical rule, not advice. Stop = highest close since entry − k × ATR(14),
                     where k starts at 3 and each signal (▲ more room, ▼ tighter) moves it: momentum score, 50/200-day trend, extension
                     above the 50-day, the radar&apos;s macro regime ({d.regime ?? "unknown"}) and analyst consensus. Target = the lower of
                     2 × the stop width above the price and the analysts&apos; mean target (needs at least 5 analysts). Broad index funds
                     get no levels. Thresholds live in config/settings.yaml (<code>stops:</code>).</p>
-                )}
+                ) : (
+                  <p className="note muted">Review = the stock&apos;s 200-day average. A close below it is a reason to look at the position
+                    again, not a sell signal: in the radar&apos;s test on past momentum leaders, fixed stops and take-profits cost far more
+                    return than the risk they removed, while keeping part of the money in a broad fund cut risk more cheaply
+                    (<Link to="/guide/laerebog/stop-og-storrelse#virker-stop-på-momentumaktier">why</Link>). Broad index funds get no
+                    level. Settings live in config/settings.yaml (<code>stops:</code>).</p>
+                ))}
               </section>
             ))}
             <p className="note"><Link to="/portfolio">Add, correct or import trades on the Portfolio page →</Link></p>

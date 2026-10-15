@@ -7,7 +7,7 @@ from radar.signals import discovery as sig
 N = 300
 IDX = pd.bdate_range(end="2026-10-14", periods=N)
 T = np.arange(N)
-CFG = {"flags": {"new_high_vol": 1.5, "trend_turn_days": 20, "d_score_days": 21},
+CFG = {"flags": {"new_high_vol": 1.5, "trend_turn_days": 20, "d_score_days": 21, "rs_high_days": 5},
        "size_dkk": {"large": 5e10, "mid": 5e9}, "liquidity_floor_dkk": 1e6, "check_data_move": 0.6}
 FX = {"DKK": 1.0, "EUR": 7.46, "GBP": 8.6}
 

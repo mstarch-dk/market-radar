@@ -90,7 +90,7 @@ export function Ticker() {
 
   const p = prof.data;
   const levels: Level[] = useMemo(() => p ? [
-    { price: p.levels.stop, label: "Stop", kind: "stop" },
+    { price: p.levels.stop, label: p.levels.mode === "trend" ? "Review (200d)" : "Stop", kind: "stop" },
     { price: p.levels.take_profit, label: "Take-profit", kind: "target" },
     // the analyst mean is drawn separately only when it isn't already the take-profit
     ...(p.analyst.target_mean != null && p.analyst.target_mean !== p.levels.take_profit

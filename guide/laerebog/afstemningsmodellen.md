@@ -55,6 +55,9 @@ Tærskler med en værdi i `config/settings.yaml` vises med den værdi, du har i 
 | *Breadth – Asia* | samme | samme | prices | [Markedsbredde](laerebog/markedsbredde) |
 | *New highs – new lows* | ≥ +{{settings:regime.highs_lows_band}} | ≤ −{{settings:regime.highs_lows_band}} | prices | [Markedsbredde](laerebog/markedsbredde) |
 | *Equal vs cap weight (RSP/SPY)* | stemmer aldrig | stemmer aldrig | prices | [Markedsbredde](laerebog/markedsbredde) |
+| *Momentum payoff (top − bottom quintile)* | stemmer aldrig | stemmer aldrig | prices | [Regime](brugervejledning/regime) |
+| *Return dispersion (3m, all stocks)* | stemmer aldrig | stemmer aldrig | prices | [Regime](brugervejledning/regime) |
+| *Momentum-crash setup (ACWI)* | stemmer aldrig | stemmer aldrig | prices | [Momentumeffekten](laerebog/momentumeffekten) |
 | *Volatility (VIX)* | < {{settings:regime.vix_calm}} | > {{settings:regime.vix_stress}} | prices | [VIX](laerebog/vix) |
 | *VIX term structure* | VIX/VIX3M < {{settings:regime.vix_term_calm}} | > 1 (kode) | prices | [VIX](laerebog/vix) |
 | *Credit (US HY spread)* | < 0,97 × 126-obs.-snit (kode) | > 1,03 × snit (kode) | fred | [Kredit, renter og dollar](laerebog/kredit-renter-dollar) |
@@ -69,7 +72,7 @@ Tærskler med en værdi i `config/settings.yaml` vises med den værdi, du har i 
 | *Valuation (Shiller CAPE, US)* | ≤ {{settings:regime.cape_cheap_pct}}. percentil | ≥ {{settings:regime.cape_rich_pct}}. percentil | cape | gruppe `valuation` |
 | *Equity risk premium (Damodaran)* | ≥ {{settings:regime.erp_high_pct}}. percentil | ≤ {{settings:regime.erp_low_pct}}. percentil | erp | gruppe `valuation` |
 
-Alt, der ikke rammer risk-on eller risk-off, er neutral. Det giver 20 rækker. RSP/SPY stemmer aldrig, og tre rækker er **envejsrækker**, der kun kan stemme risk-off: rentekurven, den 10-årige rente og olien. Deres modsatte tilstand (positiv kurve, rolige renter, rolig olie) er normaltilstanden og ikke et særligt risk-on-tegn. Værdiansættelsens teori står i [CAPE, risikopræmie og yield gap](laerebog/cape-og-risikopraemie).
+Alt, der ikke rammer risk-on eller risk-off, er neutral. Det giver 23 rækker. RSP/SPY og de tre momentumrækker stemmer aldrig: de beskriver momentumscorens vilkår, ikke markedets risikovillighed. Desuden er tre rækker **envejsrækker**, der kun kan stemme risk-off: rentekurven, den 10-årige rente og olien. Deres modsatte tilstand (positiv kurve, rolige renter, rolig olie) er normaltilstanden og ikke et særligt risk-on-tegn. Værdiansættelsens teori står i [CAPE, risikopræmie og yield gap](laerebog/cape-og-risikopraemie).
 
 ### Status for en række
 
@@ -149,6 +152,7 @@ Et tænkt øjebliksbillede. Antag, at gruppen `valuation` er slået fra og `cred
 | Breadth – Asia | 70 % | risk-on |
 | New highs – new lows | +2,1 | neutral |
 | RSP/SPY | −2,0 % over 3m | neutral (stemmer aldrig) |
+| Momentum payoff, dispersion, crash setup | +3,1 %, 55. percentil, no | neutral (stemmer aldrig) |
 | VIX | 16,5 | risk-on |
 | VIX/VIX3M | 0,86 | risk-on |
 | US HY | 0,99 × snit | neutral |
@@ -163,7 +167,7 @@ Et tænkt øjebliksbillede. Antag, at gruppen `valuation` er slået fra og `cred
 | CAPE | 96. percentil | (risk-off, stemmer ikke: gruppe fra) |
 | ERP | ingen data | (n/a, stemmer ikke: gruppe fra) |
 
-**Optælling** (tærskler som standardindstillingerne): 6 risk-on (trend, bredde USA, bredde Asien, VIX, VIX-struktur, dollar), 2 risk-off (bredde Norden, 10Y), 9 neutrale, 1 stale, 2 rækker uden stemme. I alt 20.
+**Optælling** (tærskler som standardindstillingerne): 6 risk-on (trend, bredde USA, bredde Asien, VIX, VIX-struktur, dollar), 2 risk-off (bredde Norden, 10Y), 12 neutrale (heraf de tre momentumrækker), 1 stale, 2 rækker uden stemme. I alt 23.
 
 $$
 \text{net} = \frac{6 - 2}{6 + 2} = \frac{4}{8} = 0.50

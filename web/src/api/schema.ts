@@ -1511,6 +1511,8 @@ export interface components {
             new_high?: boolean | null;
             /** Trend Turn */
             trend_turn?: boolean | null;
+            /** Rs High */
+            rs_high?: boolean | null;
             /** Quadrant */
             quadrant?: string | null;
             /** Off Radar */
@@ -2229,6 +2231,10 @@ export interface components {
             atr?: number | null;
             /** Anchor Basis */
             anchor_basis?: string | null;
+            /** Mode */
+            mode?: ("trend" | "atr") | null;
+            /** Action */
+            action?: ("review" | "sell") | null;
             /**
              * Reasons
              * @default []
@@ -2511,6 +2517,10 @@ export interface components {
             atr?: number | null;
             /** Anchor Basis */
             anchor_basis?: string | null;
+            /** Mode */
+            mode?: ("trend" | "atr") | null;
+            /** Action */
+            action?: ("review" | "sell") | null;
             /** Reasons */
             reasons: components["schemas"]["Reason"][];
             /** Flags */

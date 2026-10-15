@@ -1,9 +1,13 @@
-"""Rule-based stop-loss / take-profit levels for a position, each with the signals that set it.
+"""Rule-based levels for a position, each with the signals that set it. Two modes (settings `stops.mode`):
 
-Stop = anchor (highest close since entry) - k x ATR. k starts at `k_base` and every signal that
-argues for more or less room moves it by `k_step`; each move is recorded as a reason. Take-profit is
-the lower of a reward/risk multiple of the stop width (k x ATR) and the analysts' mean target.
-A mechanical rule for discipline and review, not a recommendation.
+- **trend** (the default since 2026-10): the level is the `trend_sma`-day average. A close below it is a time to
+  review the position, not a sell order (`stops.action: review`). In `radar study exits` the 200-day exit was the
+  only exit rule that cost little return; tighter stops and the take-profit cost far more than they saved.
+- **atr**: stop = anchor (highest close since entry) - k x ATR. k starts at `k_base` and every signal that argues
+  for more or less room moves it by `k_step`; each move is recorded as a reason.
+
+Take-profit (`stops.take_profit`, off by default): the lower of a reward/risk multiple of the ATR stop width
+(k x ATR) and the analysts' mean target. A mechanical rule for discipline and review, not a recommendation.
 """
 from __future__ import annotations
 
@@ -96,7 +100,8 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
     if not _true(row.get("above50")) and (row.get("r1m") or 0) < 0:
         adjust("Losing momentum", -step, f"below the 50-day average and down {row['r1m']:.1%} over 1 month")
     sma50 = row.get("sma50")
-    if sma50 and last / sma50 - 1 > cfg["extended_vs_sma50"]:
+    ext = cfg.get("extended_vs_sma50")          # None: no tightening for being extended
+    if sma50 and ext is not None and last / sma50 - 1 > ext:
         adjust("Extended", -step, f"{last / sma50 - 1:.0%} above the 50-day average: pullbacks tend to be sharp")
     if regime_label == "Risk-off":
         adjust("Macro regime", -step, "radar regime is Risk-off")
@@ -123,15 +128,28 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
         note("Rotation", f"RRG quadrant vs ACWI: {row['quadrant']}")
 
     k = min(max(k, cfg["k_min"]), cfg["k_max"])
-    stop = anchor_value - k * atr_value
-    reasons.insert(0, {"signal": "Trailing ATR stop", "effect": 0,
-                       "detail": f"{anchor_value:.2f} high − {k:.2f} × ATR {atr_value:.2f} ({atr_value / last:.1%} of price)"})
-    sma200 = row.get("sma200")
-    if sma200 and stop < sma200 < last:
-        note("200-day average", f"{sma200:.2f} sits between price and stop: a break there is an earlier warning")
+    mode = cfg.get("mode", "atr")
+    if mode == "trend":
+        n = int(cfg.get("trend_sma", 200))
+        stop = _num(row.get("trend_level", row.get("sma200") if n == 200 else None))
+        # k only sizes the ATR stop and the take-profit: in trend mode its moves are kept as notes, not effects
+        reasons = [{"signal": r["signal"], "effect": 0, "detail": r["detail"]} for r in reasons] if cfg.get("take_profit") \
+            else [r for r in reasons if not r["effect"]]
+        reasons.insert(0, {"signal": "Review level", "effect": 0, "detail":
+                           f"{n}-day average {stop:.2f}: a close below it is a reason to review the position, "
+                           "not a sell order" if stop is not None else f"no {n}-day average yet (too little history)"})
+    else:
+        stop = anchor_value - k * atr_value
+        reasons.insert(0, {"signal": "Trailing ATR stop", "effect": 0,
+                           "detail": f"{anchor_value:.2f} high − {k:.2f} × ATR {atr_value:.2f} ({atr_value / last:.1%} of price)"})
+        sma200 = row.get("sma200")
+        if sma200 and stop < sma200 < last:
+            note("200-day average", f"{sma200:.2f} sits between price and stop: a break there is an earlier warning")
 
     tp, tp_source = None, None
-    if "above highest analyst target" not in flags:
+    if not cfg.get("take_profit", True):
+        pass
+    elif "above highest analyst target" not in flags:
         cands = []
         # one risk unit is the full stop width (k x ATR), so the target doesn't shrink as price nears the stop
         cands.append((last + cfg["reward_risk"] * k * atr_value, f"{cfg['reward_risk']:g}:1 reward/risk"))
@@ -142,16 +160,18 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
             reasons.append({"signal": "Take-profit", "effect": 0,
                             "detail": " vs ".join(f"{s} {v:.2f}" for v, s in cands) + f" → lower: {tp_source}"})
 
-    if last <= stop:
-        flags.append("stop hit")
-    elif last - stop <= cfg["near_atr"] * atr_value:
-        flags.append("near stop")
+    review = mode == "trend"
+    if stop is not None and (last < stop if review else last <= stop):
+        flags.append("below review level" if review else "stop hit")
+    elif stop is not None and last - stop <= cfg["near_atr"] * atr_value:
+        flags.append("near review level" if review else "near stop")
     if tp is not None and tp - last <= cfg["near_atr"] * atr_value:
         flags.append("near target")
 
-    return {"stop": stop, "stop_pct": stop / last - 1, "take_profit": tp, "tp_pct": None if tp is None else tp / last - 1,
-            "tp_source": tp_source, "k": k, "anchor": anchor_value, "atr": atr_value,
-            "reasons": reasons, "flags": flags}
+    return {"stop": stop, "stop_pct": None if stop is None else stop / last - 1, "take_profit": tp,
+            "tp_pct": None if tp is None else tp / last - 1, "tp_source": tp_source,
+            "k": None if review and not cfg.get("take_profit") else k, "anchor": anchor_value, "atr": atr_value,
+            "reasons": reasons, "flags": flags, "mode": mode, "action": cfg.get("action", "sell")}
 
 
 def for_ticker(ticker: str, closes: pd.DataFrame, highs: pd.DataFrame, lows: pd.DataFrame, row: dict, since,
@@ -164,8 +184,16 @@ def for_ticker(ticker: str, closes: pd.DataFrame, highs: pd.DataFrame, lows: pd.
         return None
     anc, basis = anchor(closes[ticker], since, cfg["info_anchor_days"])
     view = analyst_view(analyst_hist, ticker, closes[ticker], max_age_days=cfg.get("analyst_max_age_days"))
-    k = levels(row, float(a.iloc[-1]), anc, regime_label, view, cfg)["k"]   # k doesn't depend on the anchor
     close = closes[ticker].dropna()
+    if cfg.get("mode", "atr") == "trend":
+        n = int(cfg.get("trend_sma", 200))
+        level = float(close.iloc[-n:].mean()) if len(close) >= n else None
+        out = levels(row | {"trend_level": level}, float(a.iloc[-1]), anc, regime_label, view, cfg)
+        if view and view.get("stale"):
+            out["reasons"].append({"signal": "Analyst data", "effect": 0, "detail":
+                                   f"consensus from {view['fetched']} is older than {view['max_age_days']} days: not used"})
+        return out | {"anchor_basis": None, "analyst": view, "breaches": []}
+    k = levels(row, float(a.iloc[-1]), anc, regime_label, view, cfg)["k"]   # k doesn't depend on the anchor
     start = close.index[-cfg["info_anchor_days"]] if basis.startswith("highest close of") else pd.Timestamp(since)
     start, breaches = trail(close, a, start, k)
     if breaches:

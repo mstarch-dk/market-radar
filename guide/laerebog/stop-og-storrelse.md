@@ -24,6 +24,30 @@ Han, Zhou og Zhu (2016) viser, at en simpel stop-loss-regel på en momentumstrat
 
 Den ærlige konklusion: et stop er først og fremmest et risikostyrings- og disciplinværktøj. Det begrænser, hvor galt det kan gå, og tvinger en genovervejelse. Det er ikke en kilde til merafkast i sig selv.
 
+### Virker stop på momentumaktier?
+
+Momentumaktier er netop dem, hvor et stop har det sværest:
+
+- **Den højre hale.** Momentum tjener en stor del af sit afkast på få aktier, der stiger meget. Et kursmål (take-profit) sælger dem tidligt, og et stop, der ligger tæt, ryster dem ud i et almindeligt tilbagefald, før de stiger videre.
+- **Høj volatilitet.** De stærkeste aktier svinger typisk 3–5 % om dagen. Et ATR-stop på 3 × ATR ligger så 10–15 % under toppen, mens fald på 20–30 % undervejs er almindelige for en vinder.
+- **Ingen vej tilbage.** Når pengene efter et salg står i et bredt indeks, er en fejlagtig udrystning permanent. Genkøb hjælper kun, hvis det ikke selv bliver til flere handler i støjen.
+- **Spredning gør meget af arbejdet.** I en kurv på 15 aktier udligner de enkelte styrt hinanden delvist. Det, der er tilbage, er markedets fald, og dem tager et stop på hver aktie ofte for sent og køber ikke tilbage i tide.
+
+Alternativet til stop er **størrelse**: læg kun en del af pengene i momentumkurven og resten i et bredt indeks fra starten. Det skærer risikoen lineært, uden at amputere den højre hale, og koster kun merafkastet på den del, der står i indekset.
+
+Radaren tester det med `radar study exits` (se [Test momentumscoren på historikken](brugervejledning/scoretest#varianter-af-stopreglen)). I testen fra oktober 2026 (månedens 15 bedste aktier, 54 datoer, 6 måneder) gjaldt:
+
+| | Afkast | Gns. største fald | 10 % dårligste |
+|---|---|---|---|
+| Beholdt | 25,0 % | −17,5 % | −1,1 % |
+| Radarens regel | 7,6 % | −10,9 % | −5,8 % |
+| Uden take-profit, $k$ 5 | 16,0 % | −14,9 % | −5,7 % |
+| Salg under 200-dages gennemsnittet | 22,3 % | −16,8 % | −5,8 % |
+| 75 % i kurven, 25 % i ACWI | 20,1 % | −15,1 % | −0,3 % |
+| 50 % i kurven, 50 % i ACWI | 15,2 % | −12,7 % | 0,1 % |
+
+Hver variant af stoppet købte et mindre fald med en større del af afkastet end en tilsvarende fordeling med ACWI, og ingen af dem forbedrede det dårligste udfald over 6 måneder: et stop låser tabet, før aktien kommer igen. Testen er påvirket af overlevelsesbias (aktier, der styrtede helt og forsvandt fra indekset, mangler), og det taler for stoppet. Så et stop kan stadig give mening som nødbremse langt fra kursen eller på en enkelt stor position, men som fast salgsregel på en spredt momentumkurv har det ikke betalt sig.
+
 ### Average true range
 
 **True range** for en dag er det største af tre spænd: dagens høj minus lav, høj minus gårsdagens lukkekurs, og gårsdagens lukkekurs minus lav (i absolut værdi). Det fanger også kurshop over natten:
@@ -86,7 +110,16 @@ For et aktiv med forventet merafkast $\mu$ og varians $\sigma^2$ er den kontinue
 
 ## Sådan gør radaren
 
-Stop og take-profit beregnes i `signals/levels.py` for dine beholdninger af aktier og sektor- og tema-ETF'er (brede indeksfonde får ingen). De vises på [My holdings](/me) og på tickerprofilen i kortet *Stop / take-profit (rule)*, hvor hver justering står som en grund med sin effekt på $k$. Det er en mekanisk regel til disciplin og opfølgning, ikke en anbefaling.
+Niveauerne beregnes i `signals/levels.py` for dine beholdninger af aktier og sektor- og tema-ETF'er (brede indeksfonde får ingen). Reglen har to tilstande (`stops.mode`):
+
+- **trend** (standard): niveauet er aktiens {{settings:stops.trend_sma}}-dages gennemsnit, og der er intet kursmål. En lukkekurs under gennemsnittet er en anledning til at gennemgå positionen, ikke en salgsordre (`stops.action: review`). Det er resultatet af radarens egen test (se [Virker stop på momentumaktier?](#virker-stop-på-momentumaktier)): salg under 200-dages gennemsnittet var den eneste exit, der kostede lidt afkast, og kursmålet kostede mest. Niveauet hedder *Review* på [My holdings](/me) og *Review level (rule)* på tickerprofilen.
+- **atr**: det glidende ATR-stop og kursmålet, som beskrevet i resten af dette afsnit. Sådan var reglen indtil oktober 2026, og sådan bruges den stadig i simuleringerne af varianter (`radar sim exits --rule-spec atr-tp`).
+
+I ATR-tilstanden står hver justering af $k$ som en grund med sin effekt. Begge er mekaniske regler til disciplin og opfølgning, ikke anbefalinger.
+
+### Gennemgangsniveauet
+
+Niveauet er det simple gennemsnit af de seneste {{settings:stops.trend_sma}} lukkekurser (justerede for udbytte). Har aktien kortere historik, er der intet niveau. *below review level* betyder, at den seneste lukkekurs er under gennemsnittet; *near review level*, at den er inden for {{settings:stops.near_atr}} ATR af det. Risikobudgettet (se nedenfor) regnes med afstanden til niveauet, og da et 200-dages gennemsnit typisk ligger 10–30 % under en momentumaktie, giver det en mindre position end et tæt stop.
 
 ### ATR
 
@@ -155,9 +188,25 @@ Er andelen over 100 %, ligger stoppet så tæt, at reglen ikke kan begrænse ris
 
 `radar sim exits` afspiller dine egne handler med reglen fulgt dag for dag (`backtest/`). Inputtene til $k$ er dem, der var kendt den dag: kurser til og med dagen, momentumscoren mod universet den dag, regimet fra ugens sidste lukkekurs med forsinkelse på makrodata og analytikerkonsensus hentet senest den dag. Take-profit låses ved købet, fordi kursmålet regnes fra den aktuelle kurs og ellers aldrig ville blive nået. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
 
+### Pengene fra et salg
+
+Et salg er kun halvdelen af en beslutning. Den anden halvdel er, hvor pengene går hen. Momentum er en relativ effekt: de bedste aktier de seneste 3–12 måneder har i gennemsnit klaret sig bedre end de andre det næste stykke tid. En take-profit, der sælger en vinder og lægger pengene i ACWI, flytter dem altså fra den gruppe, momentum peger på, til gennemsnittet. Så skal take-profit enten undgå de fald, der kommer efter en stor stigning, eller også koster den afkast. Flyttes pengene i stedet til den næste aktie med høj score, bliver take-profit en måde at holde kurven fuld af aktier med stærk momentum, og spørgsmålet bliver, om det slår at lade vinderen løbe.
+
+Den rene version af den idé er en rotation: hver måned sælges de aktier, der er faldet langt ned på listen, og de bedste købes. Det er den klassiske momentumstrategi fra litteraturen (Jegadeesh og Titman 1993), og den har ingen stop. Skal et stop eller en take-profit tilføje noget, skal de altså slå rotationen alene, ikke bare det at beholde kurven.
+
+`radar study redeploy` tester begge dele med samme kurve: reglen med pengene parkeret, reglen med pengene i en ny aktie, rotationen alene og rotationen med reglen. Bedømmelsen sker på risikojusteret afkast:
+
+$$
+\text{Sharpe} = \frac{\bar r - \bar r_f}{\sigma_r}\sqrt{252}, \qquad
+\text{Sortino} = \frac{\bar r - \bar r_f}{\sqrt{\tfrac{1}{n}\sum \min(r_t - r_{f,t}, 0)^2}}\sqrt{252}, \qquad
+\text{IR} = \frac{\overline{r - r_b}}{\sigma_{r - r_b}}\sqrt{252}
+$$
+
+med daglige afkast $r$ i DKK, ECB's indlånsrente som $r_f$ (kronen følger euroen) og ACWI i DKK som $r_b$. Calmar er det årlige afkast divideret med det største fald. Over vinduer på 6 eller 12 måneder er tallene støjfyldte; de skal sammenlignes mellem varianterne på de samme datoer, ikke med langsigtede tal. To ting trækker resultatet i hver sin retning: at flytte pengene koster kurtage og, i frie midler, skat ved hvert salg; og universet er dagens, så de aktier, pengene flyttes til, er nogle, der overlevede. Det sidste får rotation til at se bedre ud, end den var.
+
 ## Regneeksempel
 
-Eksemplet bruger standardindstillingerne ($k$ starter på 3, trin 0,5, budget 1 %, reward/risk 2); dine indstillinger kan være andre.
+Eksemplet bruger ATR-tilstanden (`stops.mode: atr`, $k$ starter på 3, trin 0,5, budget 1 %, reward/risk 2); standarden er i dag gennemgangsniveauet ved 200-dages gennemsnittet.
 
 Du købte en aktie for nogle måneder siden. Siden da er den højeste lukkekurs 250 kr. I dag:
 
@@ -189,6 +238,7 @@ Du købte en aktie for nogle måneder siden. Siden da er den højeste lukkekurs 
 - **Skat og omkostninger.** Hver handel koster kurtage og spread, og i frie midler udløser et salg beskatning af en gevinst (se [Dansk skat for investorer](laerebog/skat)). Et stop, der ofte rammes, kan være dyrt.
 - **Analytikermål er ikke sandhed.** De halter efter kursen og er ofte for optimistiske. Radaren bruger dem kun som en ekstern ankring og kun med mindst {{settings:stops.min_analysts}} analytikere.
 - **Backtests snyder let.** En test, der bruger data, som først blev kendt senere (look-ahead), eller kun aktier, der stadig findes (overlevelsesbias), ser bedre ud, end reglen var. Radarens backtest skærer hvert input ved dagen, men aktieuniverset er dagens liste, og makrodata er de reviderede tal.
+- **Stop på en spredt kurv.** På en kurv af momentumaktier har en fast stopregel i radarens egen test kostet mere afkast end den samme risikoreduktion opnået ved at lægge en del i et bredt indeks (se [Virker stop på momentumaktier?](laerebog/stop-og-storrelse#virker-stop-på-momentumaktier)).
 - **Det er en regel, ikke et råd.** Radaren foreslår ingen handel. Stoppet er et niveau, hvor din tese bør genovervejes, gerne skrevet ned på forhånd i din [beslutningsjournal](laerebog/adfaerd).
 
 ## Videre læsning
