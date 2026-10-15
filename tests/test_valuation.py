@@ -209,3 +209,73 @@ def test_valuation_rows_vote_only_when_switched_on():
     assert on["off"] == off["off"] + 2 and off["not_voting"] == 2 + 3 and on["not_voting"] == 3  # + the 3 context rows
     assert "valuation" in on["voting_groups"] and "valuation" not in off["voting_groups"]
     assert regime.overall([dict(i) for i in inds])["off"] == on["off"]    # no choice given: every row votes
+
+
+def test_putcall_keeps_the_days_it_got_when_a_later_day_fails(tmp_data):
+    from radar import coverage
+    day = json.loads((FIXTURES / "cboe_daily_options.json").read_text())
+    sentiment.update_putcall(pd.Timestamp("2026-10-07").date(), get=lambda url: _Resp(200, day), sleep=lambda s: None)
+    before = len(sentiment.load_putcall())
+    got = lambda url: _Resp(503) if "2026-10-13" in url else _Resp(200, day)  # noqa: E731
+    with pytest.raises(coverage.PartialFailure, match="3 new days"):
+        sentiment.update_putcall(pd.Timestamp("2026-10-14").date(), get=got, sleep=lambda s: None)
+    stored = set(sentiment.load_putcall()["date"])
+    assert {pd.Timestamp("2026-10-08"), pd.Timestamp("2026-10-09")} <= stored     # fetched before the failure
+    assert len(stored) == before + 3                                               # 8, 9 and 12 Oct
+
+
+def test_putcall_asks_again_for_a_day_that_was_missing(tmp_data):
+    day = json.loads((FIXTURES / "cboe_daily_options.json").read_text())
+    late = "2026-10-12"                         # not published yet (403) on the first run
+    sentiment.update_putcall(pd.Timestamp("2026-10-14").date(), sleep=lambda s: None,
+                             get=lambda url: _Resp(403) if late in url else _Resp(200, day))
+    assert pd.Timestamp(late) not in set(sentiment.load_putcall()["date"])
+    asked = []
+
+    def get(url):
+        asked.append(url)
+        return _Resp(200, day)
+    sentiment.update_putcall(pd.Timestamp("2026-10-15").date(), get=get, sleep=lambda s: None)
+    assert pd.Timestamp(late) in set(sentiment.load_putcall()["date"])
+    assert len(asked) == 2                      # the missing day and the new one, not the whole window
+
+
+# ---------------- the ETF snapshot: never replaced by a thin answer (hardening 1.4) ----------------
+
+def _etf_world(monkeypatch, answers: dict):
+    from fakes import fake_yf
+    monkeypatch.setattr(valuation, "etf_tickers", lambda: sorted(answers))
+    return fake_yf(monkeypatch, funds=answers)
+
+
+EH = pd.DataFrame({"fund": {"Price/Earnings": 0.05, "Price/Book": 0.4}})
+ETFS = [f"ETF{i}" for i in range(10)]
+
+
+def test_a_thin_etf_answer_keeps_the_last_snapshot(tmp_data, monkeypatch):
+    _etf_world(monkeypatch, {t: EH for t in ETFS})
+    valuation.update_etfs(today=pd.Timestamp("2026-10-05").date())
+    before = valuation.ETFS_FILE.read_bytes()
+    _etf_world(monkeypatch, {t: (EH if t in ETFS[:3] else RuntimeError("429")) for t in ETFS})
+    with pytest.raises(ValueError, match="3 of 10"):
+        valuation.update_etfs(today=pd.Timestamp("2026-10-12").date())
+    assert valuation.ETFS_FILE.read_bytes() == before
+
+
+def test_a_same_week_rerun_carries_the_etfs_it_missed(tmp_data, monkeypatch):
+    _etf_world(monkeypatch, {t: EH for t in ETFS})
+    valuation.update_etfs(today=pd.Timestamp("2026-10-12").date())
+    _etf_world(monkeypatch, {t: (EH if t != "ETF9" else None) for t in ETFS})
+    msg = valuation.update_etfs(force=True, today=pd.Timestamp("2026-10-14").date())
+    week = valuation.latest(pd.read_parquet(valuation.ETFS_FILE))
+    assert set(week.index) == set(ETFS) and "carried" in week.loc["ETF9", "note"]
+    assert "1 carried" in msg
+
+
+def test_lookups_count_what_failed(monkeypatch):
+    from fakes import fake_yf
+    fake_yf(monkeypatch, info={"A.CO": {"quoteType": "EQUITY", "currency": "DKK", "regularMarketPrice": 10.0},
+                               "B.CO": RuntimeError("429")})
+    rows = {}
+    n, failed = valuation._lookups(["A.CO", "B.CO"], {"DKK": 1.0}, (1, 300), rows)
+    assert n == 1 and failed == ["B.CO"] and "A.CO" in rows

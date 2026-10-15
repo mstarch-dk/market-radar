@@ -216,6 +216,7 @@ Tjekket er slået fra, til du sætter flueben i *Check for a new version once a 
 | `valuation.min_peers` | {{settings:valuation.min_peers}} | Mindste antal navne med P/E til en sektormedian |
 | `valuation.revision_band` | {{settings:valuation.revision_band|pct}} | En ændring i EPS-estimatet inden for ± dette tæller som uændret |
 | `valuation.etf_history_weeks` | {{settings:valuation.etf_history_weeks}} | Ugentlige snapshots, før en ETF's P/E-percentil i egen historik vises |
+| `valuation.etf_min_share` | {{settings:valuation.etf_min_share}} | Andel af det seneste snapshots ETF'er, et nyt ETF-snapshot skal have fonddata for. Ellers beholdes det seneste |
 
 Se [Relativ værdiansættelse](laerebog/relativ-vaerdiansaettelse) og [Estimatrevisioner](laerebog/estimatrevisioner).
 
@@ -224,6 +225,7 @@ Se [Relativ værdiansættelse](laerebog/relativ-vaerdiansaettelse) og [Estimatre
 | Nøgle | Værdi | Betyder |
 |---|---|---|
 | `sentiment.putcall_backfill_days` | {{settings:sentiment.putcall_backfill_days}} | Dage med CBOE-data, der hentes første gang |
+| `sentiment.putcall_retry_days` | {{settings:sentiment.putcall_retry_days}} | En hverdag inden for så mange dage, som radaren ikke har (CBOE havde ikke offentliggjort den, eller svarede ikke), hentes igen ved næste opdatering |
 | `sentiment.putcall_lookback_days` | {{settings:sentiment.putcall_lookback_days}} | Dage, gennemsnittet af put/call over 10 dage rangeres over (cirka 3 år) |
 | `sentiment.aaii_extreme_pct` | {{settings:sentiment.aaii_extreme_pct}} | Percentil for AAII's bull-bear-spænd: højst dette er ekstrem frygt, mindst 100 minus dette eufori |
 

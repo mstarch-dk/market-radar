@@ -183,8 +183,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     return df
 
 
-class PartialFailure(RuntimeError):
-    """The universe was built, but some market failed and kept its cached names."""
+PartialFailure = coverage.PartialFailure   # the universe was built, but some market failed and kept its cached names
 
 
 def universe_age_days() -> float | None:

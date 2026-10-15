@@ -155,15 +155,27 @@ def _snapshot_due(path, days: int, today: date | None = None) -> tuple[bool, pd.
     return ((today or date.today()) - last).days >= days, old
 
 
-def _store(path, old: pd.DataFrame, new: pd.DataFrame, today: date | None = None) -> None:
-    """Add today's snapshot; one per ISO week (a second run in the same week replaces it)."""
+def _store(path, old: pd.DataFrame, new: pd.DataFrame, today: date | None = None) -> int:
+    """Add today's snapshot; one per ISO week (a second run in the same week replaces it). Names the replaced
+    run had and this one missed are carried into it, with a note, rather than dropped from the week. Returns how
+    many were carried."""
     today = pd.Timestamp(today or date.today())
+    new = new.assign(date=today)
+    carried = pd.DataFrame()
     if not old.empty:
         d = pd.to_datetime(old["date"])
         week = lambda s: s.dt.isocalendar().year * 100 + s.dt.isocalendar().week  # noqa: E731
-        old = old[week(d) != (today.isocalendar().year * 100 + today.isocalendar().week)]
-    new = new.assign(date=today)
-    write_parquet(pd.concat([old, new], ignore_index=True) if not old.empty else new, path, index=False)
+        same = week(d) == (today.isocalendar().year * 100 + today.isocalendar().week)
+        replaced = old[same]
+        carried = replaced[~replaced["ticker"].isin(set(new["ticker"]))].drop_duplicates("ticker", keep="last")
+        if not carried.empty:
+            note = "carried from " + pd.to_datetime(carried["date"]).dt.strftime("%d %b")
+            carried = carried.assign(date=today, note=[f"{n}; {c}" if isinstance(n, str) and n else c
+                                                       for n, c in zip(carried["note"], note)])
+        old = old[~same]
+    parts = [x for x in (old, new, carried) if not x.empty]
+    write_parquet(pd.concat(parts, ignore_index=True), path, index=False)
+    return len(carried)
 
 
 def tracked_stocks() -> list[str]:
@@ -198,31 +210,34 @@ def update_stocks(force: bool = False, today: date | None = None) -> str:
     if short:
         raise ValueError("too few names from Yahoo's screener (" + ", ".join(short) + "): keeping the last snapshot")
     missing = [t for t in tracked_stocks() if t not in rows][: cfg["fallback_max"]]
-    looked = _lookups(missing, fx, rng, rows)
+    looked, failed = _lookups(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
-    _store(STOCKS_FILE, old, df, today)
+    carried = _store(STOCKS_FILE, old, df, today)
     have = sum(t in rows for t in tracked_stocks())
     with_pe = df["pe_fy1"].notna().sum()
     return (f"{len(df):,} names, {with_pe:,} with a forward P/E; {have} of {len(tracked_stocks())} tracked stocks"
-            f" ({looked} looked up one by one)")
+            f" ({looked} looked up one by one" + (f", {len(failed)} lookups failed" if failed else "") + ")"
+            + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
 
-def _lookups(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> int:
+def _lookups(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> tuple[int, list[str]]:
+    """Look up names the screener missed, one by one: (how many were added, the ones whose lookup failed)."""
     import logging
 
     yf = net.yf()
 
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
-    n = 0
+    n, failed = 0, []
     for t in tickers:
         try:
             info = yf.Ticker(t).info or {}
         except Exception:
+            failed.append(t)
             continue
         if info.get("quoteType") == "EQUITY":
             rows[t] = quote_valuation(info_as_quote(t, info), fx, rng, check_estimates=True)
             n += 1
-    return n
+    return n, failed
 
 
 # ---------------- ETFs: Yahoo fund data ----------------
@@ -283,9 +298,15 @@ def update_etfs(force: bool = False, today: date | None = None) -> str:
         rows.append({"ticker": t} | fund_valuation(eh.iloc[:, 0].to_dict(), tuple(cfg["fund_pe_range"])))
     if not rows:
         raise ValueError(f"no fund data for any of {len(tickers)} ETFs: has Yahoo changed?")
+    prev = set(latest(old).index) & set(tickers) if not old.empty else set()
+    need = math.ceil(cfg.get("etf_min_share", 0.8) * len(prev))
+    if len(rows) < need:   # a thin answer (throttled, Yahoo trouble) would replace a fuller snapshot
+        raise ValueError(f"fund data for only {len(rows)} of {len(tickers)} ETFs (the last snapshot had {len(prev)}): "
+                         "keeping the last snapshot")
     df = pd.DataFrame(rows).reindex(columns=ETF_COLS)
-    _store(ETFS_FILE, old, df, today)
-    return f"{len(df)} of {len(tickers)} ETFs, {df['pe'].notna().sum()} with a P/E"
+    carried = _store(ETFS_FILE, old, df, today)
+    return (f"{len(df)} of {len(tickers)} ETFs, {df['pe'].notna().sum()} with a P/E"
+            + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
 
 # ---------------- the market: CAPE and the equity risk premium ----------------
