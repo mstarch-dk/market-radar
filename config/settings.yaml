@@ -1,4 +1,4 @@
-history_years: 3          # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
+history_years: 6          # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
 constituents_max_age_days: 30
 
 rotation:

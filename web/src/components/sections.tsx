@@ -1,26 +1,84 @@
 import type { ReactNode } from "react";
-import { GaugeBadge, GaugeBar, Graded } from "./Gauge";
+import { GaugeBadge, GaugeBar, Graded, lvClass } from "./Gauge";
 import { Sparkline } from "./Sparkline";
 import { Term } from "./Term";
 import { TickerLink } from "./TickerLink";
 import { Link } from "react-router-dom";
 import { ALIGN_KIND, ALIGN_TEXT, dots, VERDICT_KIND } from "../lib/views";
 import type { Profile, Windows } from "../api/client";
+import type { GlossaryKey } from "../lib/glossary";
 import type { components } from "../api/schema";
 
 type RiskWindow = components["schemas"]["RiskWindow"];
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
 import { Badge, Card, KV, Signed } from "./ui";
 
+const yesNo = (v: boolean | null | undefined, yes: string, no: string) => (v === null || v === undefined ? "–" : v ? yes : no);
+
 const WIN: [keyof Windows, string][] = [["r1w", "1W"], ["r1m", "1M"], ["r3m", "3M"], ["r6m", "6M"], ["ytd", "YTD"], ["r1y", "1Y"]];
+
+const EM = new Set<keyof Windows>(["r3m", "r6m"]);   // the momentum horizon
 
 function Row({ label, w, hint }: { label: ReactNode; w?: Windows | null; hint?: string }) {
   if (!w) return null;
   return (
     <tr>
       <td>{label}{hint && <span className="muted small"> {hint}</span>}</td>
-      {WIN.map(([k]) => <td key={k} className={tone(w[k])}>{pct(w[k])}</td>)}
+      {WIN.map(([k]) => <td key={k} className={`${tone(w[k])}${EM.has(k) ? " em" : ""}`}>{pct(w[k])}</td>)}
     </tr>
+  );
+}
+
+function Tile({ k, help, v, sub, cls = "lv0" }: { k: string; help?: GlossaryKey; v: ReactNode; sub?: ReactNode; cls?: string }) {
+  return (
+    <div className={`gl ${cls}`}>
+      <div className="gl-k">{help ? <Term k={help}>{k}</Term> : k}</div>
+      <div className="gl-v">{v}</div>
+      {sub && <div className="gl-s">{sub}</div>}
+    </div>
+  );
+}
+
+/** The few numbers to read first: the momentum score large, then trend, relative strength, distance from the
+ *  high, RSI, analyst upside and the next earnings date. Missing values show as a dash. */
+export function Glance({ p }: { p: Profile }) {
+  const m = p.momentum;
+  const t = p.technicals;
+  const a = p.analyst;
+  const g = m.gauges ?? {};
+  const rel3 = p.price.vs_acwi?.r3m;
+  const days = daysUntil(a.calendar.next_earnings);
+  const fund = p.etf !== null && p.etf !== undefined;
+  const trend = m.trend_ok === true ? "lv+2" : m.trend_ok === false ? "lv-2" : "lv0";
+  const relCls = tone(rel3) === "pos" ? "lv+1" : tone(rel3) === "neg" ? "lv-1" : "lv0";
+  return (
+    <div className="glance" aria-label="At a glance">
+      <div className={`gl main ${lvClass(g.score)}`}>
+        <div className="gl-k"><Term k="score">Momentum score</Term></div>
+        <div className="gl-v">{isNum(m.score) ? num(m.score, 0) : "–"} <small>/ 100</small> <GaugeBadge g={g.score} name="Momentum score" /></div>
+        <GaugeBar g={g.score} />
+        <div className="gl-s">
+          {m.rank ? <span>rank <b>{m.rank}</b> of {m.group_size}</span> : <span>{m.score_basis}</span>}
+          {m.region_label && <span className="muted">· {m.region_label}</span>}
+        </div>
+      </div>
+      <Tile k="Trend" help="trend_ok" cls={trend}
+        v={m.trend_ok === true ? "intact" : m.trend_ok === false ? "not intact" : "–"}
+        sub={<>{yesNo(m.above50, "above", "below")} 50d · {yesNo(m.above200, "above", "below")} 200d</>} />
+      <Tile k="3M vs ACWI" cls={relCls} v={<span className={tone(rel3)}>{pct(rel3).replace("%", " pp")}</span>}
+        sub={<>3M return <span className={tone(m.r3m)}>{pct(m.r3m)}</span></>} />
+      <Tile k="From 52w high" help="from_high" cls={lvClass(g.from_high)} v={pct(m.from_high)}
+        sub={<GaugeBadge g={g.from_high} name="52w high" />} />
+      <Tile k="RSI 14" help="rsi" cls={lvClass(t.gauges?.rsi14)} v={num(t.rsi14, 0)}
+        sub={<GaugeBadge g={t.gauges?.rsi14} name="RSI 14" />} />
+      {!fund && isNum(a.upside) && !a.stale && (
+        <Tile k="Analyst upside" cls={lvClass(a.gauges?.upside)} v={pct(a.upside, 0)}
+          sub={<>to mean {price(a.target_mean, p.price.currency)}</>} />
+      )}
+      {days !== null && days >= 0 && (
+        <Tile k="Next earnings" v={days === 0 ? "today" : `in ${days} d`} sub={date(a.calendar.next_earnings)} />
+      )}
+    </div>
   );
 }
 
@@ -30,7 +88,7 @@ export function Returns({ p }: { p: Profile }) {
     <Card title="Price development" meta={pr}>
       <div className="scroll">
         <table className="t">
-          <thead><tr><th />{WIN.map(([, l]) => <th key={l}>{l}</th>)}</tr></thead>
+          <thead><tr><th />{WIN.map(([k, l]) => <th key={l} className={EM.has(k) ? "em" : undefined}>{l}</th>)}</tr></thead>
           <tbody>
             <Row label={pr.currency ?? "Local"} w={pr.returns} />
             {pr.currency !== "DKK" && <Row label="DKK" w={pr.returns_dkk} />}
@@ -39,7 +97,7 @@ export function Returns({ p }: { p: Profile }) {
           </tbody>
         </table>
       </div>
-      <p className="small muted">Total returns (adjusted closes); "vs" rows are the difference in percentage points.</p>
+      <p className="small muted">Total returns (adjusted closes); "vs" rows are the difference in percentage points. Bold: 3M and 6M, the momentum horizon.</p>
       <h3>52-week range <span className="muted">(adjusted closes, not intraday)</span></h3>
       <KV rows={[
         ["High", price(pr.high_52w, pr.currency), { hint: pct(pr.from_high) }],
@@ -52,14 +110,13 @@ export function Returns({ p }: { p: Profile }) {
   );
 }
 
-const yesNo = (v: boolean | null | undefined, yes: string, no: string) => (v === null || v === undefined ? "–" : v ? yes : no);
 
 export function MomentumCard({ p }: { p: Profile }) {
   const m = p.momentum;
   return (
     <Card title="Momentum & trend" meta={m}>
       <KV rows={[
-        ["Momentum score", <>{isNum(m.score) ? `${num(m.score, 0)} / 100` : "–"} <GaugeBadge g={m.gauges?.score} name="Momentum score" /></>,
+        ["Momentum score", <>{isNum(m.score) ? `${num(m.score, 0)} / 100` : "–"} <GaugeBadge g={m.gauges?.score} name="Momentum score" /><GaugeBar g={m.gauges?.score} /></>,
           { hint: m.rank ? `rank ${m.rank} of ${m.group_size}` : undefined, help: "score" }],
         ["3m / 6m return", <><Signed v={m.r3m}>{pct(m.r3m)}</Signed> / <Signed v={m.r6m}>{pct(m.r6m)}</Signed></>],
         ["12-1 month return", pct(m.r12_1), { tone: m.r12_1, hint: "skips the last month", help: "r12_1" }],
@@ -180,8 +237,9 @@ function TargetRange({ low, mean, high, now, currency }: { low: Maybe; mean: May
       <div className="band" style={{ left: x(low), width: `calc(${x(high)} - ${x(low)})` }} />
       <div className="mark mean" style={{ left: x(mean) }}><span>mean {price(mean, currency)}</span></div>
       <div className="mark now" style={{ left: x(now), top: 2, height: 12 }} title={`price ${price(now, currency)}`} />
-      <span className="small muted" style={{ position: "absolute", left: 0, top: -2 }}>{price(low)}</span>
-      <span className="small muted" style={{ position: "absolute", right: 0, top: -2 }}>{price(high)}</span>
+      <span className="small now-label" style={{ left: x(now) }}>now {price(now)}</span>
+      <span className="small muted" style={{ position: "absolute", left: 0, top: -2 }}>low {price(low)}</span>
+      <span className="small muted" style={{ position: "absolute", right: 0, top: -2 }}>high {price(high, currency)}</span>
     </div>
   );
 }
@@ -193,6 +251,10 @@ export function AnalystCard({ p }: { p: Profile }) {
   return (
     <Card title="Analysts & estimates" meta={a}>
       {a.stale && <p className="small muted">Consensus is older than {a.max_age_days} days: targets not used.</p>}
+      <KV rows={[
+        ["Current price", <b>{price(p.price.last, cur)}</b>,
+          { hint: <span className={tone(p.price.change_1d)}>{pct(p.price.change_1d, 2)} on {date(p.price.asof)}</span> }],
+      ]} />
       {isNum(a.target_mean) && (
         <>
           <KV rows={[
@@ -371,8 +433,17 @@ export function PeersCard({ p }: { p: Profile }) {
             <table className="t">
               <thead><tr><th>Ticker</th><th>Score</th><th>3M</th><th>6M</th><th>Trend</th></tr></thead>
               <tbody>
+                {!s.peers.some((x) => x.ticker === p.identity.symbol) && (
+                  <tr className="self">
+                    <td><b>{p.identity.symbol}</b> <span className="muted small">this stock</span></td>
+                    <td>{num(p.momentum.score, 0)}</td>
+                    <td className={tone(p.momentum.r3m)}>{pct(p.momentum.r3m)}</td>
+                    <td className={tone(p.momentum.r6m)}>{pct(p.momentum.r6m)}</td>
+                    <td>{p.momentum.trend_ok === true ? "✓" : p.momentum.trend_ok === false ? "✗" : "–"}</td>
+                  </tr>
+                )}
                 {s.peers.map((x) => (
-                  <tr key={x.ticker}>
+                  <tr key={x.ticker} className={x.ticker === p.identity.symbol ? "self" : undefined}>
                     <td><TickerLink symbol={x.ticker} name={x.name} /></td>
                     <td>{num(x.score, 0)}</td>
                     <td className={tone(x.r3m)}>{pct(x.r3m)}</td>

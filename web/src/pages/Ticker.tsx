@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type Profile } from "../api/client";
 import { PriceChart, type Level } from "../components/PriceChart";
 import {
-  AnalystCard, EtfCard, FundamentalsCard, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, RiskCard, TechnicalsCard, ViewsCard,
+  AnalystCard, EtfCard, FundamentalsCard, Glance, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, RiskCard, TechnicalsCard, ViewsCard,
 } from "../components/sections";
 import { Badge, Card } from "../components/ui";
 import { WatchButton } from "../components/WatchButton";
@@ -78,7 +78,7 @@ export function Ticker() {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const prof = useQuery({ queryKey: ["profile", sym], queryFn: () => api.profile(sym), retry: false, staleTime: 10 * 60_000 });
-  const ser = useQuery({ queryKey: ["series", sym], queryFn: () => api.series(sym), retry: false, staleTime: 10 * 60_000,
+  const ser = useQuery({ queryKey: ["series", sym], queryFn: () => api.series(sym, 1265), retry: false, staleTime: 10 * 60_000,
     enabled: prof.isSuccess });
 
   useEffect(() => {
@@ -121,6 +121,7 @@ export function Ticker() {
   return (
     <>
       <Header p={p} onRefresh={refresh} refreshing={refreshing} />
+      <Glance p={p} />
       {(p.context.watchouts ?? []).length > 0 && (
         <div className="watchouts" role="note">
           <span className="wo-title">Watch-outs:</span>

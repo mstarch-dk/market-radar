@@ -23,6 +23,8 @@ from .signals import levels, momentum, risk, rotation, technicals
 
 OK, STALE, MISSING = "ok", "stale", "missing"
 WINDOWS = {"r1w": 5, "r1m": 21, "r3m": 63, "r6m": 126, "r1y": 252}
+# the chart's ranges, counted like the return windows (None = year to date)
+CHART_RANGES = {"1W": 5, "1M": 21, "3M": 63, "6M": 126, "YTD": None, "1Y": 252, "3Y": 756, "5Y": 1260}
 REGION_SUFFIXES = {
     "nordic": (".CO", ".ST", ".OL", ".HE", ".IC"),
     "europe": (".DE", ".F", ".PA", ".AS", ".BR", ".L", ".MI", ".SW", ".MC", ".LS", ".VI", ".IR", ".WA"),
@@ -141,6 +143,35 @@ def _ret_since(s: pd.Series, start: pd.Timestamp) -> float | None:
     s = s.dropna()
     base = s[:start]
     return float(s.iloc[-1] / base.iloc[-1] - 1) if not base.empty else None
+
+
+def _range_start(s: pd.Series, n: int | None):
+    """The base date of a window on `s` (n rows back, or the last close of the previous year), None if too short."""
+    if n is None:
+        base = s[:pd.Timestamp(year=s.index[-1].year, month=1, day=1) - pd.Timedelta(days=1)]
+        return base.index[-1] if not base.empty else None
+    return s.index[-1 - n] if len(s) > n else None
+
+
+def chart_ranges(close: pd.Series, bench: pd.Series, own_close: pd.Series) -> dict[str, dict]:
+    """Return, ACWI's return and the difference for each chart range, on the same calendar as the Returns card
+    (forward-filled closes), so 1M/YTD/1Y agree with it. A range longer than the stored history runs from the
+    first close and says so (`short`). High/low are the ticker's own closes in the range."""
+    end = own_close.index[-1]
+    s, b = close.dropna()[:end], bench.dropna()[:end]
+    out = {}
+    for key, n in CHART_RANGES.items():
+        start = _range_start(s, n)
+        short = start is None
+        start = s.index[0] if short else start
+        ret = float(s.iloc[-1] / s[start] - 1)
+        bb = b[:start]
+        acwi = float(b.iloc[-1] / bb.iloc[-1] - 1) if not bb.empty and not b.empty else None
+        own = own_close[start:]
+        out[key] = {"start": start.strftime("%Y-%m-%d"), "short": short, "ret": ret, "acwi": acwi,
+                    "vs_acwi": ret - acwi if acwi is not None else None,
+                    "high": float(own.max()) if not own.empty else None, "low": float(own.min()) if not own.empty else None}
+    return out
 
 
 def _windows(s: pd.Series, end) -> dict[str, float | None]:
@@ -486,7 +517,8 @@ def series(ticker: str, market: Market, days: int = 756) -> dict:
     }).iloc[-days:]
     df["rel_acwi"] = 100 * df["rel_acwi"] / df["rel_acwi"].dropna().iloc[0]   # rebased to 100 at the window start
     df.index = df.index.strftime("%Y-%m-%d")
-    return clean({"symbol": ticker, "dates": list(df.index), **{k: df[k].tolist() for k in df.columns}})
+    ranges = chart_ranges(closes[ticker], closes[bench], c)
+    return clean({"symbol": ticker, "dates": list(df.index), **{k: df[k].tolist() for k in df.columns}, "ranges": ranges})
 
 
 # ---------------- several tickers side by side ----------------

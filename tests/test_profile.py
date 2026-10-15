@@ -129,6 +129,12 @@ def test_missing_yahoo_bars_are_not_shown_as_sessions(env):
 def test_card_and_chart_agree(env):
     p = profile.build("S3")
     s = profile.series("S3", profile.Market.load(), days=60)
+    for key, w in (("1W", "r1w"), ("1M", "r1m"), ("3M", "r3m"), ("YTD", "ytd")):
+        if p["price"]["returns"][w] is not None:
+            assert s["ranges"][key]["ret"] == pytest.approx(p["price"]["returns"][w]), key
+            assert s["ranges"][key]["vs_acwi"] == pytest.approx(p["price"]["vs_acwi"][w]), key
+    assert s["ranges"]["5Y"]["short"] and s["ranges"]["5Y"]["start"] == world.IDX[0].strftime("%Y-%m-%d")
+    assert not s["ranges"]["1M"]["short"]
     assert p["technicals"]["rsi14"] == pytest.approx(s["rsi"][-1])
     assert p["technicals"]["macd_hist"] == pytest.approx(s["macd_hist"][-1])
     assert p["price"]["last"] == pytest.approx(s["close"][-1])

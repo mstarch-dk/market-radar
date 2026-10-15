@@ -3694,6 +3694,27 @@ export interface components {
             bb_lower: (number | null)[];
             /** Rel Acwi */
             rel_acwi: (number | null)[];
+            /** Ranges */
+            ranges: {
+                [key: string]: components["schemas"]["SeriesRange"];
+            };
+        };
+        /** SeriesRange */
+        SeriesRange: {
+            /** Start */
+            start: string;
+            /** Short */
+            short: boolean;
+            /** Ret */
+            ret: number | null;
+            /** Acwi */
+            acwi: number | null;
+            /** Vs Acwi */
+            vs_acwi: number | null;
+            /** High */
+            high: number | null;
+            /** Low */
+            low: number | null;
         };
         /** Source */
         Source: {
