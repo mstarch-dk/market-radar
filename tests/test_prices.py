@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import dashboard, ingest, mine, universe
+from radar import dashboard, ingest, mine
 from radar.mine import _vs_shadow
 
 
@@ -91,6 +91,7 @@ def test_fx_to_dkk_handles_pence_and_unknown_currencies():
 
 
 def test_won_and_taiwan_dollar_cross_via_usd():
+    from radar import universe
     closes = pd.DataFrame({"USDDKK=X": [7.0, 6.8, np.nan], "USDKRW=X": [1400.0, np.nan, 1360.0],
                            "USDTWD=X": [32.0, 34.0, 34.0]}, index=pd.date_range("2025-01-01", periods=3))
     assert mine._fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
