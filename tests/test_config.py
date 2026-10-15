@@ -62,6 +62,9 @@ def test_macro_and_external_keys_the_regime_reads():
 def test_every_currency_used_has_a_dkk_rate():
     for ccy, fx in universe.FX_DKK.items():
         assert fx is None or fx.endswith("DKK=X"), ccy
+    for ccy, fx in universe.FX_VIA_USD.items():
+        assert fx == f"USD{ccy}=X" and ccy not in universe.FX_DKK, ccy
+    assert set(universe.FX_TICKERS) <= set(universe.all_price_tickers(offline=True))
 
 
 def test_coverage_limits_cover_every_dated_source():
