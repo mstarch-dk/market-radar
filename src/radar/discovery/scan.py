@@ -39,26 +39,26 @@ def fx_rates() -> dict[str, float]:
     Raises if neither has rates."""
     yf = net.yf()
 
-    pairs = {c: t for c, t in universe.FX_DKK.items() if t and c != "GBp"}
     stored = ingest.load_prices()
     if not stored.empty:
-        fx = stored[stored["ticker"].isin(set(pairs.values()))].copy()
+        fx = stored[stored["ticker"].isin(universe.FX_TICKERS)].copy()
         fx["date"] = pd.to_datetime(fx["date"])
         last = fx.sort_values("date").groupby("ticker").last()
         recent = last[last["date"] >= pd.Timestamp.today().normalize() - pd.Timedelta(days=7)]
-        out = {"DKK": 1.0} | {c: float(recent.loc[t, "close"]) for c, t in pairs.items() if t in recent.index}
+        out = universe.dkk_rates(recent["close"].astype(float).to_dict())
         if {"EUR", "USD", "GBP", "SEK", "NOK", "CHF"} <= set(out):   # a rate still missing (e.g. a new
             return out                                                    # currency) leaves those caps unknown
-    raw = sources.retry(lambda: yf.download(sorted(set(pairs.values())), period="10d", auto_adjust=False,
+    raw = sources.retry(lambda: yf.download(universe.FX_TICKERS, period="10d", auto_adjust=False,
                                             progress=False, group_by="ticker"))
-    out = {"DKK": 1.0}
-    for ccy, t in pairs.items():
+    last = {}
+    for t in universe.FX_TICKERS:
         try:
             s = raw[t]["Close"].dropna()
         except KeyError:
             continue
         if len(s):
-            out[ccy] = float(s.iloc[-1])
+            last[t] = float(s.iloc[-1])
+    out = universe.dkk_rates(last)
     if len(out) < 4:
         raise RuntimeError("no FX rates from Yahoo")
     return out
@@ -237,8 +237,8 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
     volumes = _wide(prices, "volume")
     bench = universe.benchmark()
     asof = closes[bench].dropna().index[-1] if bench in closes else closes.index[-1]
-    fx = fx or {c: float(closes[t].dropna().iloc[-1]) for c, t in universe.FX_DKK.items()
-                if t and t in closes and closes[t].notna().any()} | {"DKK": 1.0}
+    fx = fx or universe.dkk_rates({t: float(closes[t].dropna().iloc[-1]) for t in universe.FX_TICKERS
+                                   if t in closes and closes[t].notna().any()})
     tracked = set(universe.all_price_tickers(offline=True))
     s = settings()
     df = sig.compute(closes, raw, volumes, meta, bench, fx, tracked, cfg, s["momentum"]["min_history_days"], asof,
@@ -305,8 +305,7 @@ def run(log: Log = print, progress: Progress | None = None, refresh_universe: bo
                 raise
             log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
     meta = load_universe()
-    fx_tickers = sorted({t for t in universe.FX_DKK.values() if t})
-    tickers = sorted(set(meta["ticker"]) | {universe.benchmark()} | set(fx_tickers))
+    tickers = sorted(set(meta["ticker"]) | {universe.benchmark()} | set(universe.FX_TICKERS))
     log(f"Downloading prices for {len(tickers)} names…")
     try:
         with ops.context(source="discovery_prices"):

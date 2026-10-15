@@ -90,7 +90,7 @@ def test_holding_return_against_the_shadow_benchmark(summary):
 def test_coverage(summary):
     cov = summary["coverage"]
     assert set(cov["missing_tickers"]) == {"HG=F", "GC=F", "CL=F"} | {
-        fx for fx in universe.FX_DKK.values() if fx and fx != "USDDKK=X"}
+        fx for fx in universe.FX_TICKERS if fx != "USDDKK=X"}
     assert summary["stale_tickers"] == []
     src = {s["key"]: s for s in cov["sources"]}
     assert src["prices"]["status"] == "ok" and src["fred"]["status"] == "ok"

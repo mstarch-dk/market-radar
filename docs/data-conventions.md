@@ -8,6 +8,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - The history starts `history_years` back, or `backtest.warmup_days` before your first trade when that is earlier (capped at `backtest.max_years`), so your trades can be valued and the rule replayed from the day you bought. A shallower stored history is downloaded again in full, once (`data/prices_from.json`).
 - `ingest.wide()` forward-fills up to 5 sessions, which is right for return windows. Anything shown as a session uses the ticker's own bars (`profile.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last price, day change, recent bars and the chart.
 - Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.
+- DKK rates (`universe.fx_to_dkk`): Yahoo's `xxxDKK=X` pairs (`FX_DKK`), forward-filled over gaps; GBp uses `GBPDKK=X` × 0.01. Yahoo has no KRW/DKK or TWD/DKK quote, so won and Taiwan dollar go through USD (`FX_VIA_USD`: `USDDKK=X / USDKRW=X`, `USDDKK=X / USDTWD=X`; either leg missing means no rate). A currency without any pair (CNY) has no DKK value, never 1.0.
 - Yahoo tickers: `.CO` Copenhagen, `.ST` Stockholm, `.OL` Oslo, `.HE` Helsinki, `.DE` Xetra, `.L` London (often GBp = pence).
 
 ## Sources
