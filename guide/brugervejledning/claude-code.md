@@ -27,6 +27,7 @@ Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skill
 | `/compare <t1> <t2> …` | `research/compare/ÅÅÅÅ-MM-DD_<tickere>.md` | En ærlig sammenligning, med ACWI som alternativet |
 | `/journal …` | `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` | En beslutning med tese og exitregler |
 | `/journal review` | `journal/reviews/ÅÅÅÅ-MM.md` | Den månedlige gennemgang af åbne beslutninger |
+| `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
 Alle mapperne er lokale og personlige; de kommer aldrig med i git (bortset fra `marketing/`, se nedenfor).
@@ -72,6 +73,18 @@ Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, 
 **Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen med `uv run radar portfolio add`, som tjekker den som i appen.
 
 **Månedlig gennemgang** med `/journal review`. Claude opdaterer radaren, læser alle åbne poster og sammenligner exitreglerne med de aktuelle tal. Hver post klassificeres som *Intact*, *Weakening* eller *Invalidated*. Lukkede handler fra de seneste 3 måneder gennemgås også: hvad skete der efter exit? Resultatet skrives i `journal/reviews/ÅÅÅÅ-MM.md` med 2–3 mønstre på tværs af beslutningerne, fx at sælge vindere for tidligt. Claude ændrer ikke status på en post uden at spørge dig.
+
+## /hindsight
+
+`/hindsight 3M 6M` bygger en kurv af aktier, som den kunne have været valgt for 3 og 6 måneder siden ud fra det, radaren vidste dengang, og simulerer den frem til i dag. Claude spørger én gang:
+
+- **Hvor langt tilbage**: 1, 3, 6 eller 12 måneder.
+- **Grundlaget**: scoren alene (mekanisk, den rene test), scoren og dine markedssyn (kun dem, der var oprettet senest på dagen) eller scoren og Claudes vurdering.
+- **Antal aktier** og **spredning**: fx højst 3 pr. sektor, lige vægte eller vægtet efter score.
+
+Claude henter universet med `uv run radar sim picks-candidates`, låser valget i en fil, før noget resultat er kendt, og kører `uv run radar sim picks`. Notatet viser kurven beholdt og med stopreglen fulgt mod ACWI, mod scorens egne bedste aktier og mod gennemsnitsaktien, kurvens placering blandt tilfældige kurve og scorens test over alle måneder (`uv run radar study score`). Én kurv over én periode er et eksempel, ikke et bevis, og det står i notatet.
+
+Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger Claude blindt, med aktierne skjult bag C001, C002 …. Se [Test momentumscoren på historikken](brugervejledning/scoretest).
 
 ## /marketing
 

@@ -185,6 +185,19 @@ uv run radar sim exits "ASK" --variant overlay --fill same
 
 Viser værdi, tidsvægtet afkast (TWR, også pr. år), pengevægtet afkast (MWR pr. år), ACWI, forskellen til ACWI og største fald i DKK fra en fælles startdato, med noter om huller. Se [Afkast over tid](brugervejledning/afkast).
 
+### Test momentumscoren
+
+`radar study score` tester scoren på hver månedsafslutning i historikken; `radar sim picks` simulerer en kurv valgt på en dag i fortiden. Se [Test momentumscoren på historikken](brugervejledning/scoretest).
+
+```
+uv run radar study score
+uv run radar study score --exits 6 --json
+uv run radar study exits
+uv run radar sim picks-candidates --asof 6M
+uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name test-6m
+uv run radar sim picks --rerun tag:picks-live
+```
+
 ## Flyt dine data til en anden computer
 
 ```
@@ -220,4 +233,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se om noget fejler | `uv run radar ops --errors` |
 | se mine porteføljer | `uv run radar portfolios list` |
 | se mit afkast mod ACWI | `uv run radar performance` |
+| teste momentumscoren | `uv run radar study score` |
+| teste varianter af stopreglen | `uv run radar study exits` |
+| simulere en kurv fra for 6 måneder siden | `uv run radar sim picks --asof 6M --rule top-n --name test-6m` |
 | tage backup af mine handler | `uv run radar portfolio export --all --out backup.csv` |

@@ -190,6 +190,8 @@ class Levels(Section):
     anchor: Num = None
     atr: Num = None
     anchor_basis: str | None = None
+    mode: Literal["trend", "atr"] | None = None      # trend: the level is a moving average to review at; atr: a trailing stop
+    action: Literal["review", "sell"] | None = None
     reasons: list[Reason] = []
     flags: list[str] = []
     breaches: list[Breach] = []
@@ -940,6 +942,8 @@ class MyLevels(Strict):
     anchor: Num = None
     atr: Num = None
     anchor_basis: str | None = None
+    mode: Literal["trend", "atr"] | None = None
+    action: Literal["review", "sell"] | None = None
     reasons: list[Reason]
     flags: list[str]
     breaches: list[Breach]

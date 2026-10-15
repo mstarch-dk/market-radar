@@ -17,6 +17,16 @@ The rule, per position (an "episode": from a buy while flat until it is sold out
 - Only holdings the radar gives levels (stocks, sector/theme funds; mine.level_universe) follow the rule; broad
   funds are held as in the real portfolio.
 - The proceeds are parked in `backtest.park` (ACWI) and drawn on, before anything else, for your next buys.
+- **Costs**: every rule and parking trade pays `backtest.fee_bps` of its value (commission and FX spread); your
+  own trades keep the fees they had.
+- **Ablation** (`rule`): `both` (the rule as shown), `stop` (stop-loss only) or `take_profit` (take-profit only),
+  so the study (backtest/study.py) can tell which half of the rule helps.
+- **The rule as settings has it** (`RuleSpec()`): with `stops.mode: trend` (the default) the stop is the close
+  below the `trend_sma`-day average and there is no take-profit; with `mode: atr` the trailing ATR stop below.
+- **Variants** (`RuleSpec`): the rule with other settings (wider k, a slower ATR, no tightening when extended), no
+  take-profit, a fixed % trail from the high or a close below a moving average instead of the ATR stop, and
+  re-entry: after an exit, buy back with that exit's parked money once the stock is in an uptrend with a strong
+  score again (only with `rules`). `RuleSpec()` is the radar's rule exactly as settings has it.
 
 Funding mirrors the real portfolio: with a cash ledger its deposits and withdrawals are copied; without one
 (every buy is new money) each buy is funded from the sim's cash, then the parked units, then a deposit, and each
@@ -26,7 +36,7 @@ return equals the real one's (tests/test_backtest_exits.py pins that).
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
@@ -35,12 +45,45 @@ from ..config import REPORTS, settings
 from .pit import Context
 
 VARIANTS = ("overlay", "rules")
+RULES = ("both", "stop", "take_profit")
 EPS = 1e-9
 REPORT_FILE = "sim-exits.json"
 
 
-def key(variant: str) -> str:
-    return f"exits-{variant}"
+STOP_KINDS = ("atr", "pct", "trend", "none")
+
+
+@dataclass(frozen=True)
+class RuleSpec:
+    """A variant of the stop / take-profit rule for testing. `RuleSpec()` is the radar's rule as settings has it."""
+    key: str = "rule"
+    label: str = "The radar's rule (settings)"
+    stops: tuple = ()             # (key, value) pairs over settings.stops, e.g. (("k_base", 4.0),)
+    tp: str = "fixed"             # fixed: the rule's take-profit, set at the buy; off: none
+    stop: str = "atr"             # atr: the rule's trailing ATR stop; pct: `pct` below the high; trend: a close
+    pct: float = 0.2              # below the `sma`-day average; none: no stop
+    sma: int = 200
+    reentry: bool = False         # buy back after an exit: uptrend, score >= stops.strong_score, above the 50-day
+    reentry_wait: int = 10        # sessions after an exit before a re-entry can trigger
+
+    def __post_init__(self):
+        if self.tp not in ("fixed", "off") or self.stop not in STOP_KINDS:
+            raise ValueError(f"tp must be fixed or off, stop one of {', '.join(STOP_KINDS)}")
+
+    @property
+    def overrides(self) -> dict | None:
+        """The stops settings this variant changes. "rule" is settings as they are; the others fix the ATR mode
+        and the take-profit they name, so they mean the same whatever settings says."""
+        o = dict(self.stops)
+        if self.key != "rule":
+            if self.stop == "atr":
+                o.setdefault("mode", "atr")
+            o.setdefault("take_profit", self.tp == "fixed")
+        return o or None
+
+
+def key(variant: str, spec: RuleSpec | None = None) -> str:
+    return f"exits-{variant}" if spec is None or spec.key == "rule" else f"exits-{variant}-{spec.key}"[:32]
 
 
 @dataclass
@@ -62,6 +105,12 @@ class Replay:
     ledger: bool
     fill: str
     park: str
+    rule: str = "both"
+    fee_bps: float = 0.0
+    spec: RuleSpec = field(default_factory=RuleSpec)
+    watch: dict = field(default_factory=dict)          # exited symbols waiting for a re-entry
+    reentries: list[dict] = field(default_factory=list)
+    _sma: dict = field(default_factory=dict)
     rows: list[dict] = field(default_factory=list)
     exits: list[dict] = field(default_factory=list)
     events: list[dict] = field(default_factory=list)   # skipped / clipped / ignored real sells, top-ups, notes
@@ -109,10 +158,12 @@ class Replay:
         return row
 
     def trade(self, typ: str, sym: str, day: pd.Timestamp, qty: float, price: float, rate: float, note: str) -> float:
-        """A rule or parking trade at a traded price; returns its DKK cash effect."""
+        """A rule or parking trade at a traded price, paying `fee_bps`; returns its DKK cash effect (proceeds
+        after the fee for a sale, the cost with the fee for a buy)."""
+        fee = qty * price * self.fee_bps / 1e4
         self._emit({"symbol": sym, "date": day.date().isoformat(), "type": typ, "quantity": qty, "price": price,
-                    "fee": 0.0, "fx_rate": rate, "note": note})
-        dkk = qty * price * rate
+                    "fee": fee, "fx_rate": rate, "note": note})
+        dkk = (qty * price + (-fee if typ == "SELL" else fee)) * rate
         self.cash += dkk if typ == "SELL" else -dkk
         return dkk
 
@@ -126,7 +177,7 @@ class Replay:
         if need > EPS and self.park_units > EPS:
             px, rate = self.traded(self.park, day), self.rate(self.park, day)
             if px and rate:
-                units = min(self.park_units, need / (px * rate))
+                units = min(self.park_units, need / (px * rate * (1 - self.fee_bps / 1e4)))
                 self.trade("SELL", self.park, pd.Timestamp(date_str), units, px, rate, f"parked money used for {why}")
                 self.park_units -= units
                 if self.park_units < 1e-7:
@@ -210,18 +261,59 @@ class Replay:
             ep.pending = None
             return
         qty = ep.qty
+        k = f" (k {p['k']:.2f})" if p.get("k") is not None else ""
         dkk = self.trade("SELL", sym, day, qty, px, rate,
-                         f"rule: {p['trigger'].replace('_', '-')} at {p['level']:.2f} (k {p['k']:.2f}) on {p['trigger_date']}")
+                         f"rule: {p.get('stop_kind', p['trigger']).replace('_', '-')} at {p['level']:.2f}{k} on {p['trigger_date']}")
         ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
         units = 0.0
         if ppx and prate and dkk > 0:
-            units = dkk / (ppx * prate)
+            units = dkk / (ppx * prate * (1 + self.fee_bps / 1e4))
             self.trade("BUY", self.park, day, units, ppx, prate, f"parked: money from the {sym} exit")
             self.park_units += units
         self.exits.append(p | {"symbol": sym, "fill_date": day.date().isoformat(), "quantity": qty, "fill_price": px,
                                "fx": rate, "proceeds_dkk": dkk, "park_units": units, "park_price": ppx, "park_fx": prate,
                                "episode_start": ep.start.date().isoformat()})
         del self.eps[sym]
+        if self.spec.reentry and units > 0:
+            self.watch[sym] = {"exit": day, "units": units, "pending": None}
+
+    def sma(self, sym: str, day: pd.Timestamp) -> float | None:
+        if sym not in self._sma:
+            self._sma[sym] = self.market.closes[sym].rolling(self.spec.sma, min_periods=self.spec.sma).mean()
+        v = self._sma[sym].get(day)
+        return None if v is None or pd.isna(v) else float(v)
+
+    def check_reentry(self, sym: str, w: dict, day: pd.Timestamp) -> None:
+        """An uptrend again, a strong score and above the 50-day: buy back at the next close."""
+        s = self.ctx.sessions
+        if s.searchsorted(day) - s.searchsorted(w["exit"]) < self.spec.reentry_wait:
+            return
+        row, score = self.ctx.row(sym, day), self.ctx.score(sym, day)
+        cfg = self.ctx.stops | (self.spec.overrides or {})
+        if row and row["trend_ok"] and row["above50"] and score is not None and score >= cfg["strong_score"]:
+            w["pending"] = {"trigger_date": day.date().isoformat(), "score": score}
+            if self.fill == "same":
+                self.reenter(sym, w, day)
+
+    def reenter(self, sym: str, w: dict, day: pd.Timestamp) -> None:
+        units = min(w["units"], self.park_units)
+        px, rate = self.traded(sym, day), self.rate(sym, day)
+        ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
+        del self.watch[sym]
+        if units <= EPS or not (px and rate and ppx and prate):
+            self.events.append({"date": day.date().isoformat(), "kind": "re-entry skipped", "symbol": sym,
+                                "detail": "no parked money left" if units <= EPS else "no traded price or DKK rate"})
+            return
+        dkk = self.trade("SELL", self.park, day, units, ppx, prate, f"parked money back into {sym}")
+        self.park_units -= units
+        if self.park_units < 1e-7:
+            self.park_units = 0.0
+        qty = dkk / (px * rate * (1 + self.fee_bps / 1e4))
+        self.trade("BUY", sym, day, qty, px, rate,
+                   f"re-entry: uptrend and score {w['pending']['score']:.0f} on {w['pending']['trigger_date']}")
+        self.eps[sym] = Episode(qty, day)
+        self.reentries.append({"symbol": sym, "trigger_date": w["pending"]["trigger_date"],
+                               "fill_date": day.date().isoformat(), "price": px, "quantity": qty, "amount_dkk": dkk})
 
     def check(self, sym: str, ep: Episode, day: pd.Timestamp) -> None:
         if sym not in self.ctx.eligible:
@@ -234,26 +326,39 @@ class Replay:
             return
         close = float(close)
         ep.anchor = close if ep.anchor is None else max(ep.anchor, close)
-        lv = self.ctx.levels(sym, day, ep.anchor)
-        if lv is None:
-            self.counts["no_levels_days"] += 1
-            return
+        sp = self.spec
+        lv = None
+        if sp.stop == "atr" or sp.tp == "fixed":
+            lv = self.ctx.levels(sym, day, ep.anchor, sp.overrides)
+            if lv is None:
+                self.counts["no_levels_days"] += 1
+                return
+            for m in lv["context"]["missing"]:
+                self.counts["missing"][m] = self.counts["missing"].get(m, 0) + 1
         self.counts["rule_days"] += 1
-        for m in lv["context"]["missing"]:
-            self.counts["missing"][m] = self.counts["missing"].get(m, 0) + 1
-        if ep.set_tp:
-            ep.tp, ep.set_tp = lv["take_profit"], False
+        if ep.set_tp and lv is not None:
+            ep.tp, ep.set_tp = (lv["take_profit"] if sp.tp == "fixed" else None), False
             ep.tp_meta = {"set": day.date().isoformat(), "source": lv["tp_source"], "k": lv["k"]}
+        if sp.stop == "atr":
+            stop = lv["stop"]
+        elif sp.stop == "pct":
+            stop = ep.anchor * (1 - sp.pct)
+        elif sp.stop == "trend":
+            stop = self.sma(sym, day)
+        else:
+            stop = None
         trig = None
-        if close <= lv["stop"]:
-            trig, level = "stop", lv["stop"]
-        elif ep.tp is not None and close >= ep.tp:
+        if stop is not None and (close < stop if sp.stop == "trend" else close <= stop):
+            trig, level = "stop", stop
+        elif sp.tp == "fixed" and ep.tp is not None and close >= ep.tp:
             trig, level = "take_profit", ep.tp
         if trig is None:
             return
-        ep.pending = {"trigger": trig, "trigger_date": day.date().isoformat(), "level": level, "close_adj": close,
-                      "k": lv["k"], "stop": lv["stop"], "take_profit": ep.tp, "tp_set": ep.tp_meta,
-                      "anchor": ep.anchor, "atr": lv["atr"], "reasons": lv["reasons"], "context": lv["context"]}
+        kind = "take_profit" if trig == "take_profit" else ("stop" if sp.stop == "atr" else f"{sp.stop}-stop")
+        ep.pending = {"trigger": trig, "stop_kind": kind, "trigger_date": day.date().isoformat(), "level": level,
+                      "close_adj": close, "k": lv["k"] if lv else None, "stop": stop, "take_profit": ep.tp,
+                      "tp_set": ep.tp_meta, "anchor": ep.anchor, "atr": lv["atr"] if lv else None,
+                      "reasons": lv["reasons"] if lv else [], "context": lv["context"] if lv else None}
         if self.fill == "same":
             self.execute(sym, ep, day)
 
@@ -289,16 +394,28 @@ def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
     return after
 
 
-def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None) -> dict:
-    """The simulated rows and the report for one real portfolio's rows."""
+def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None,
+           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None) -> dict:
+    """The simulated rows and the report for one real portfolio's rows (`rule`: both / stop / take_profit;
+    `fee_bps` per rule or parking trade, default settings backtest.fee_bps; `spec`: a variant of the rule)."""
     if variant not in VARIANTS:
         raise ValueError(f"variant must be one of {', '.join(VARIANTS)}")
+    if rule not in RULES:
+        raise ValueError(f"rule must be one of {', '.join(RULES)}")
+    spec = spec or RuleSpec()
+    if rule == "stop":
+        spec = replace(spec, tp="off")
+    elif rule == "take_profit":
+        spec = replace(spec, stop="none")
+    if spec.reentry and variant != "rules":
+        raise ValueError("re-entry needs the rules variant (your own sales would mix with the rule's buys)")
     bt = settings().get("backtest") or {}
     market = ctx.market
     rows = sorted([r for r in real_rows if r["type"] in ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST", "DIVIDEND")],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
-                bt.get("park") or universe.benchmark())
+                bt.get("park") or universe.benchmark(), rule,
+                float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps), spec)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
     if not rows:
@@ -330,6 +447,9 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         for sym, ep in list(rp.eps.items()):               # yesterday's triggers sell at today's close
             if ep.pending and rp.has_bar(sym, day) and ep.pending["trigger_date"] < day.date().isoformat():
                 rp.execute(sym, ep, day)
+        for sym, w in list(rp.watch.items()):              # and yesterday's re-entry signals buy back
+            if w["pending"] and rp.has_bar(sym, day) and w["pending"]["trigger_date"] < day.date().isoformat():
+                rp.reenter(sym, w, day)
         today = by_day.get(day, [])
         if not rp.ledger:   # without a ledger a day's sales and buys net (performance.book): sales first, so buys use them
             today = sorted(today, key=lambda r: r["type"] != "SELL")
@@ -342,11 +462,15 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         for sym, ep in list(rp.eps.items()):
             if ep.pending is None:
                 rp.check(sym, ep, day)
+        for sym, w in list(rp.watch.items()):
+            if w["pending"] is None and sym not in rp.eps and rp.has_bar(sym, day):
+                rp.check_reentry(sym, w, day)
 
     open_triggers = [{"symbol": s, **ep.pending} for s, ep in rp.eps.items() if ep.pending]
     return {"rows": rp.rows, "exits": _evaluate(rp, real_rows, days[-1]), "events": rp.events,
             "pending": open_triggers, "no_rule": sorted(rp.no_rule), "counts": rp.counts, "funding":
-            "ledger" if rp.ledger else "implicit", "park": rp.park, "fill": rp.fill,
+            "ledger" if rp.ledger else "implicit", "park": rp.park, "fill": rp.fill, "rule": rp.rule, "fee_bps": rp.fee_bps,
+            "spec": rp.spec.key, "reentries": rp.reentries,
             "start": days[0].date().isoformat(), "end": days[-1].date().isoformat()}
 
 
@@ -382,16 +506,17 @@ def _evaluate(rp: Replay, real_rows: list[dict], last: pd.Timestamp) -> list[dic
 
 # ---------------- runs into simulated portfolios ----------------
 
-def _sim_for(p: dict, variant: str, params: dict) -> int:
-    k = key(variant)
+def _sim_for(p: dict, variant: str, params: dict, spec: RuleSpec | None = None) -> int:
+    k = key(variant, spec)
     sim = simulate.find_sim(p["id"], k)
     if sim:
         tags = sorted(set(sim["tags"]) | {k})
         userstore.save_portfolio({"kind": p["kind"], "params": params, "tags": tags}, sim["id"])
         return sim["id"]
-    name, n = f"{p['name']} · exits {variant}", 2
+    label = variant if spec is None or spec.key == "rule" else f"{variant} {spec.key}"
+    name, n = f"{p['name']} · exits {label}", 2
     while userstore.portfolio_by_name(name):
-        name, n = f"{p['name']} · exits {variant} {n}", n + 1
+        name, n = f"{p['name']} · exits {label} {n}", n + 1
     return simulate.new_sim_portfolio(name, k, params, tags=[k], kind=p["kind"], parent_id=p["id"])
 
 
@@ -410,7 +535,7 @@ def summary(rep: dict) -> dict:
 
 
 def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None, fill: str | None = None,
-            write: bool = True) -> dict:
+            write: bool = True, spec: RuleSpec | None = None) -> dict:
     """Replay each real portfolio with each variant into its simulated portfolio (found again by parent and
     strategy, created the first time) and build the report; written to reports/sim-exits.json."""
     portfolios = [userstore.get_portfolio(i) for i in real_ids]
@@ -429,14 +554,17 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
             continue
         entry = {"id": p["id"], "name": p["name"], "variants": {}}
         for v in variants:
-            params = {"variant": v, "fill": fill or bt.get("fill", "next"), "start": start, "end": end}
-            rep = replay(rows[p["id"]], ctx, v, start, end, fill)
-            sid = _sim_for(p, v, params)
+            if spec is not None and spec.reentry and v != "rules":
+                continue
+            params = {"variant": v, "fill": fill or bt.get("fill", "next"), "start": start, "end": end,
+                      "fee_bps": float(bt.get("fee_bps", 0)), "spec": spec.key if spec else "rule"}
+            rep = replay(rows[p["id"]], ctx, v, start, end, fill, spec=spec)
+            sid = _sim_for(p, v, params, spec)
             s = summary(rep)
             msg = (f"{s['stops']} stops, {s['take_profits']} take-profits; saved at the end "
                    f"{s['at_end']['saved_dkk']:,.0f} DKK" if s["at_end"]["saved_dkk"] is not None else
                    f"{s['stops']} stops, {s['take_profits']} take-profits")
-            res = simulate.write_run(sid, key(v), params, rep["start"], rep["end"], rep["rows"], market, msg)
+            res = simulate.write_run(sid, key(v, spec), params, rep["start"], rep["end"], rep["rows"], market, msg)
             entry["variants"][v] = {"portfolio_id": sid, "name": userstore.get_portfolio(sid)["name"], "run_id": res["run_id"],
                                     "summary": s} | {k: rep[k] for k in ("start", "end", "funding", "park", "fill", "exits",
                                                                           "events", "pending")}
@@ -446,7 +574,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
         out["portfolios"].append(entry)
     if write:
         REPORTS.mkdir(exist_ok=True)
-        f = REPORTS / REPORT_FILE
+        f = REPORTS / (REPORT_FILE if spec is None or spec.key == "rule" else f"sim-exits-{spec.key}.json")
         tmp = f.with_suffix(".tmp")
         tmp.write_text(json.dumps(out, indent=1, default=_json), encoding="utf-8")
         tmp.replace(f)

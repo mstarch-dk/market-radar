@@ -47,6 +47,7 @@ class Context:
     _regime: dict = field(default_factory=dict, repr=False)
     _week_end: pd.Series | None = field(default=None, repr=False)
     _macro: dict | None = field(default=None, repr=False)
+    _atr_by: dict = field(default_factory=dict, repr=False)   # (ticker, atr_days) -> ATR series for other windows
 
     @classmethod
     def build(cls, market, held: set[str]) -> Context:
@@ -167,25 +168,40 @@ class Context:
             return None
         return lv.analyst_view(h, t, self.market.closes[t].loc[:day], max_age_days=self.stops["analyst_max_age_days"])
 
-    def atr_at(self, t: str, day: pd.Timestamp) -> float | None:
+    def atr_at(self, t: str, day: pd.Timestamp, days: int | None = None) -> float | None:
         a = self.atr.get(t)
+        if days is not None and days != self.stops["atr_days"]:
+            if (t, days) not in self._atr_by:
+                m = self.market
+                ok = t in m.closes and t in m.highs and t in m.lows
+                self._atr_by[(t, days)] = lv.atr(m.highs[t], m.lows[t], m.closes[t], days) if ok else None
+            a = self._atr_by[(t, days)]
         if a is None or day not in a.index or pd.isna(a.at[day]):
             return None
         return float(a.at[day])
 
     # ---------------- the rule on day D ----------------
 
-    def levels(self, t: str, day: pd.Timestamp, anchor: float) -> dict | None:
+    def levels(self, t: str, day: pd.Timestamp, anchor: float, stops: dict | None = None) -> dict | None:
         """levels.levels for `t` on `day` with this anchor, from inputs known that day; None without a price or ATR.
-        Adds `context` (what each input was: a value, or why it was missing) and a reason per missing input."""
-        row, atr = self.row(t, day), self.atr_at(t, day)
+        Adds `context` (what each input was: a value, or why it was missing) and a reason per missing input.
+        `stops` overrides settings.stops (for testing variants of the rule)."""
+        cfg = self.stops | stops if stops else self.stops
+        row, atr = self.row(t, day), self.atr_at(t, day, cfg["atr_days"])
         if row is None or atr is None:
             return None
         score = self.score(t, day)
         rg = self.regime(day)
         a = self.analyst_view(t, day)
         quad = self.quadrant(t, day) if t in self.twins or t in self.quadrants else None
-        out = lv.levels(row | {"score": score, "quadrant": quad}, atr, anchor, rg["label"], a, self.stops)
+        extra = {"score": score, "quadrant": quad}
+        if cfg.get("mode") == "trend" and int(cfg.get("trend_sma", 200)) != 200:
+            n = int(cfg["trend_sma"])
+            if (t, "sma", n) not in self._atr_by:
+                self._atr_by[(t, "sma", n)] = self.market.closes[t].rolling(n, min_periods=n).mean()
+            v = self._atr_by[(t, "sma", n)].get(day)
+            extra["trend_level"] = None if v is None or pd.isna(v) else float(v)
+        out = lv.levels(row | extra, atr, anchor, rg["label"], a, cfg)
         missing = []
         if score is None:
             missing.append(("Momentum score", "not enough history to rank it against the universe that day"))

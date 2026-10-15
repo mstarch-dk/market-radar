@@ -110,3 +110,35 @@ def test_trail_records_breach_and_restarts_from_the_next_high():
     start, breaches = levels.trail(c, a, idx[0], k=3.0)
     assert [b["date"] for b in breaches] == [idx[20].date().isoformat()]   # 80 <= 100 - 6
     assert start == idx[21] and c[start:].max() == 95.0
+
+
+# ---------------- trend mode: a review level at the moving average, no take-profit (the live default) ----------------
+
+TREND = CFG | {"mode": "trend", "trend_sma": 200, "action": "review", "take_profit": False}
+
+
+def test_trend_mode_reviews_at_the_200_day_and_has_no_target():
+    res = levels.levels(ROW | {"score": 90.0}, 2.0, 104.0, "Risk-off", None, TREND)
+    assert res["stop"] == 85.0 and res["stop_pct"] == pytest.approx(-0.15)
+    assert res["take_profit"] is None and res["k"] is None and not _effects(res)
+    assert res["mode"] == "trend" and res["action"] == "review" and res["reasons"][0]["signal"] == "Review level"
+    assert res["flags"] == []
+    below = levels.levels(ROW | {"last": 84.0, "above200": False}, 2.0, 104.0, "Risk-on", None, TREND)
+    assert "below review level" in below["flags"] and "stop hit" not in below["flags"]
+    near = levels.levels(ROW | {"last": 86.0}, 2.0, 104.0, "Risk-on", None, TREND)
+    assert near["flags"] == ["near review level"]
+
+
+def test_trend_mode_without_enough_history_has_no_level():
+    res = levels.levels(ROW | {"sma200": None}, 2.0, 104.0, "Risk-on", None, TREND)
+    assert res["stop"] is None and res["stop_pct"] is None and "no 200-day average" in res["reasons"][0]["detail"]
+
+
+def test_for_ticker_in_trend_mode_uses_its_own_average_and_no_trail():
+    idx = pd.bdate_range("2025-01-01", periods=260)
+    c = pd.Series(np.linspace(100, 160, 260), index=idx)
+    closes, highs, lows = c.to_frame("X"), (c + 1).to_frame("X"), (c - 1).to_frame("X")
+    res = levels.for_ticker("X", closes, highs, lows, ROW | {"last": 160.0}, idx[100], "Risk-on", None,
+                            TREND | {"trend_sma": 100})
+    assert res["stop"] == pytest.approx(float(c.iloc[-100:].mean())) and res["breaches"] == []
+    assert res["take_profit"] is None

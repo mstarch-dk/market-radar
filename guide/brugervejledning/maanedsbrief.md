@@ -8,7 +8,7 @@ Alt sker lokalt. Radaren henter selv data, læser dine porteføljer, markedssyn 
 
 En planlagt opgave i Claude-appen (*Scheduled tasks*) kører den første i hver måned om morgenen:
 
-1. Den opdaterer radaren med `uv run radar run`, ligesom knappen *Update data*.
+1. Den opdaterer radaren med `uv run radar run`, ligesom knappen *Update data*. En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
 2. Den læser `reports/summary.json`, dine markedssyn (`uv run radar views --json`), den seneste Discover-scanning, hvis den er under 10 dage gammel, din investorprofil i `notes/investor.md` og dine læsenoter i `notes/`.
 3. Den søger efter årsagerne til det vigtigste på nettet og skriver briefen i `briefs/`.
 

@@ -14,6 +14,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 ## Steps
 
 1. **Refresh the data**: run `uv run radar run` from the project root. If the output lists tickers with no data, mention them at the end of the brief.
+   - **The score's paper trail**, the only test of the momentum score free of hindsight. Once per calendar month, if `uv run radar portfolios list --json` has no portfolio named `live-YYYY-MM · hold` for this month, run `uv run radar sim picks --asof today --rule top-n --n 15 --max-per-sector 4 --name live-YYYY-MM --tag picks-live`. Then run `uv run radar sim picks --rerun tag:picks-live --json` to bring every earlier month's basket up to date. Nothing in it is the user's: these are virtual portfolios.
 2. **Read `reports/summary.json`**:
    - `regime` and `indicators`. These now include breadth (200d and 50d), net new highs, RSP/SPY, the VIX term structure, copper/gold, oil, the OECD CLI and FactSet revisions.
    - `rotation` per group: quadrant, relative returns, rank and rank change. `quadrant_local` is the European sectors' quadrant vs the STOXX 600 rather than ACWI.
@@ -85,6 +86,7 @@ Only when the user has active views. One line per view (highest conviction first
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)
+- The score's paper trail (`picks-live`): one line on how the monthly top-15 baskets have done so far against ACWI and the equal-weight universe (`return_dkk`, `yardsticks`), and their mean percentile among random baskets. Only once at least three baskets are 3 months old; until then just say how many there are.
 
 ## Research-kø
 2–4 concrete candidates for `/research <ticker>`, each with a one-line reason.
