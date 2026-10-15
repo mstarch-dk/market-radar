@@ -423,6 +423,16 @@ class Profile(Strict):
     views: ViewAlignment | None = None   # your market views; left out of anonymous profiles
 
 
+class SeriesRange(Strict):
+    start: str                   # base date: the close the return is measured from
+    short: bool                  # the stored history is shorter than the range: it runs from the first close
+    ret: Num
+    acwi: Num
+    vs_acwi: Num                 # percentage points
+    high: Num
+    low: Num
+
+
 class Series(Strict):
     symbol: str
     dates: list[str]
@@ -439,6 +449,7 @@ class Series(Strict):
     bb_upper: list[Num]
     bb_lower: list[Num]
     rel_acwi: list[Num]
+    ranges: dict[str, SeriesRange]
 
 
 class SearchHit(Strict):

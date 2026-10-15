@@ -19,25 +19,47 @@ Siden samler det, du ellers skulle hente fra mange faner: kursgraf, momentum, te
 
 Til højre står seneste kurs, dagens ændring og datoen for den seneste lukkekurs. Knappen *Add to watchlist* (☆) sætter navnet på din watchlist, og *Remove from watchlist* (★) tager det af igen. En beholdning har ingen knap: den kommer fra dine handler. Knappen *Refresh Yahoo data* henter nøgletal og estimater fra Yahoo med det samme i stedet for at bruge den gemte kopi.
 
+## Overblikket
+
+Lige under sidehovedet står en række felter med de tal, du typisk vil læse først. Feltets farve følger aflæsningen: grøn trækker i den gunstige retning, orange til rød er en advarsel, og gråt er neutralt.
+
+| Felt | Viser |
+|---|---|
+| *Momentum score* | Momentumscoren (0–100) i stort, med ord, en skala med tærsklerne og rangen i aktiegruppen. Se [Radarens momentumscore](laerebog/momentumscore) |
+| *Trend* | Om trenden er intakt (*intact* / *not intact*), og om kursen ligger over eller under 50- og 200-dages gennemsnittet |
+| *3M vs ACWI* | Afkastet over 3 måneder minus ACWI's, i procentpoint, og selve 3-måneders afkastet |
+| *From 52w high* | Afstanden til 52-ugers højeste lukkekurs |
+| *RSI 14* | RSI med ord (fx overkøbt) |
+| *Analyst upside* | Afstanden fra kursen op til analytikernes middelkursmål (kun aktier, og kun når konsensus ikke er for gammel) |
+| *Next earnings* | Antal dage til næste regnskab, når datoen kendes |
+
+Mangler et tal, står der en tankestreg, aldrig 0. Detaljerne står i kortene længere nede.
+
 ### Watch-outs og noter
 
-Under sidehovedet kan der stå en linje *Watch-outs:*. Det er de graderede aflæsninger, der står på et af de to mest advarende trin (orange til rød), fx et RSI i overkøbt område eller en kurs tæt på stoppet. Karaktertræk som beta og det daglige udsving (ATR %) kommer aldrig med, og det hypotetiske stop og kursmål for et navn, du ikke ejer, heller ikke. Under watch-outs står eventuelle noter om manglende data.
+Under overblikket kan der stå en linje *Watch-outs:*. Det er de graderede aflæsninger, der står på et af de to mest advarende trin (orange til rød), fx et RSI i overkøbt område eller en kurs tæt på stoppet. Karaktertræk som beta og det daglige udsving (ATR %) kommer aldrig med, og det hypotetiske stop og kursmål for et navn, du ikke ejer, heller ikke. Under watch-outs står eventuelle noter om manglende data.
 
 ## Kursgrafen
 
-Grafen har tre ruder, der følger hinanden:
+Grafen har op til tre ruder, der følger hinanden:
 
 - **Kurs** med 50- og 200-dages glidende gennemsnit, Bollinger-bånd (prikket) og handelsvolumen nederst. Vandrette linjer viser *Stop* (rød, stiplet), *Take-profit* (grøn, stiplet) og analytikernes middelkursmål, *Analyst mean* (prikket), når det ikke allerede er kursmålet.
 - **RSI 14** med de prikkede linjer ved 30 og 70.
-- **Relativ styrke mod ACWI**, hvor 100 er starten af treårsvinduet. En stigende linje betyder, at navnet klarer sig bedre end verdensindekset.
+- **Relativ styrke mod ACWI**, hvor 100 er starten af den valgte periode. En stigende linje betyder, at navnet klarer sig bedre end verdensindekset i perioden.
 
-Knapperne 3M, 6M, 1Y og 3Y skifter periode. Musehjulet ruller siden, ikke grafen; du zoomer med knapperne, ved at trække eller med to fingre. Holder du musen over en dag, viser aflæsningen over grafen lukkekurs, 50- og 200-dages gennemsnit, RSI, relativ styrke og volumen for netop den handelsdag. Kurserne er udbyttejusterede, og en dag uden data fra Yahoo vises som et hul, ikke som en flad dag. Se [Justerede kurser, udbytter og valuta](laerebog/justerede-kurser).
+Knapperne *1W*, *1M*, *3M*, *6M*, *YTD*, *1Y*, *3Y* og *5Y* skifter periode, og grafen husker dit valg. *YTD* regnes fra sidste lukkekurs i det forrige år. Radaren gemmer {{settings:history_years}} års kurser, så *5Y* også har 200-dages gennemsnittet med fra første dag. Er historikken kortere end perioden, vises det hele, og linjen over grafen siger, hvor mange år der er gemt.
+
+Linjen over grafen opsummerer perioden: afkastet, ACWI's afkast over de samme handelsdage, forskellen i procentpoint, laveste og højeste lukkekurs og startdatoen. Tallene regnes på samme måde som i *Price development*, så 1M, YTD og 1Y stemmer med tabellen.
+
+Klik på en post i forklaringen (50d, 200d, Bollinger, Volume, stop- og kursmålslinjerne, *RSI pane*, *vs ACWI pane*) for at skjule eller vise den; en skjult post er overstreget. Bollinger-båndene er skjult fra start. Knappen *log* skifter til logaritmisk kursakse, hvor lige store procentvise udsving fylder lige meget; det gør lange perioder med store stigninger lettere at læse. Valgene huskes i din browser.
+
+Musehjulet ruller siden, ikke grafen; du zoomer med knapperne, ved at trække eller med to fingre. Holder du musen over en dag, viser aflæsningen over grafen lukkekurs, 50- og 200-dages gennemsnit, RSI, relativ styrke og volumen for netop den handelsdag. Kurserne er udbyttejusterede, og en dag uden data fra Yahoo vises som et hul, ikke som en flad dag. Se [Justerede kurser, udbytter og valuta](laerebog/justerede-kurser).
 
 ## Kortene
 
 ### Price development
 
-Tabellen viser afkast over 1 uge, 1, 3 og 6 måneder, år til dato og 1 år: i handelsvalutaen, i DKK (når valutaen ikke er DKK), og som forskel i procentpoint mod ACWI og mod navnets sektor-ETF. Sektor-ETF'en vælges efter Yahoos sektor og radarens region i `config/universe.yaml`; mangler der en, står det under tabellen. Nederst står 52-ugers høj og lav på lukkekurser (ikke intradag) og afstanden til dem.
+Tabellen viser afkast over 1 uge, 1, 3 og 6 måneder, år til dato og 1 år: i handelsvalutaen, i DKK (når valutaen ikke er DKK), og som forskel i procentpoint mod ACWI og mod navnets sektor-ETF. Sektor-ETF'en vælges efter Yahoos sektor og radarens region i `config/universe.yaml`; mangler der en, står det under tabellen. 3M og 6M står med fed, fordi det er momentumhorisonten. Nederst står 52-ugers høj og lav på lukkekurser (ikke intradag) og afstanden til dem.
 
 ### Momentum & trend
 
@@ -67,7 +89,7 @@ Risikostatistik på hele uger i DKK over 1 og 3 år (antallet af uger står i ov
 
 ### Analysts & estimates (aktier)
 
-Middelkursmål med afstanden fra kursen, konsensus (1 = strong buy, 5 = strong sell) med antal analytikere, ændringen i middelkursmålet over 30 dage og et bånd fra laveste til højeste kursmål. Derunder næste regnskabsdato, eventuel ex-udbyttedag, anbefalinger pr. måned og EPS-estimater med ændringer over 30 og 90 dage og antal op- og nedjusteringer. Er konsensus ældre end grænsen, står det, og kursmålene bruges ikke.
+Øverst den aktuelle kurs med dagens ændring, så du kan holde den op mod middelkursmålet, med afstanden fra kursen, konsensus (1 = strong buy, 5 = strong sell) med antal analytikere, ændringen i middelkursmålet over 30 dage og et bånd fra laveste til højeste kursmål, hvor kursen er markeret med *now*. Derunder næste regnskabsdato, eventuel ex-udbyttedag, anbefalinger pr. måned og EPS-estimater med ændringer over 30 og 90 dage og antal op- og nedjusteringer. Er konsensus ældre end grænsen, står det, og kursmålene bruges ikke.
 
 ### Valuation & fundamentals (aktier)
 
@@ -79,7 +101,7 @@ For en fond vises i stedet omkostninger, fondsstørrelse, udbyder, positivliste-
 
 ### Sector & peers
 
-Sektor-ETF'ens kvadrant på rotationsgrafen (RRG) og det relative 3-måneders afkast, plus de aktier i samme branche, som radaren følger, med score, afkast og trend.
+Sektor-ETF'ens kvadrant på rotationsgrafen (RRG) og det relative 3-måneders afkast, plus de aktier i samme branche, som radaren følger, med score, afkast og trend. Navnet selv står fremhævet i tabellen (*this stock*), så du kan sammenligne direkte.
 
 ### Your market views
 
