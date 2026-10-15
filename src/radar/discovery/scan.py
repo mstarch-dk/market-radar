@@ -198,10 +198,10 @@ def load_prices() -> pd.DataFrame:
 
 
 def update_prices(tickers: list[str], progress: Progress | None = None, log: Log = print, sleep=time.sleep,
-                  waits: tuple[int, ...] = (60, 180)) -> dict:
+                  waits: tuple[int, ...] = (60, 180), today: date | None = None) -> dict:
     """Re-download the whole window (cheap at this length, and always consistently adjusted). Names Yahoo
     refused (rate limit) are asked for again after a pause, twice."""
-    start = date.today() - timedelta(days=discovery_config()["history_days"])
+    start = (today or date.today()) - timedelta(days=discovery_config()["history_days"])
     frames = [ingest._download(tickers, start, progress)]
     for wait in waits:
         missing = sorted(set(tickers) - set(pd.concat(frames)["ticker"]))

@@ -63,10 +63,10 @@ def cot_rows(raw: list[dict], groups: dict[str, str], names: dict[str, str]) -> 
     return pd.DataFrame(rows, columns=["date", "market", "group", "net", "net_pct_oi"])
 
 
-def update_cot() -> int:
+def update_cot(today: date | None = None) -> int:
     contracts = _cfg().get("cot", {})
     existing = load_cot()
-    full = date.today() - timedelta(days=int(365.25 * COT_HISTORY_YEARS))
+    full = (today or date.today()) - timedelta(days=int(365.25 * COT_HISTORY_YEARS))
     last = existing.groupby("market")["date"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     frames = [existing]
     for report, (dataset, groups) in COT_DATASETS.items():
@@ -129,9 +129,9 @@ def parse_oecd_cli(text: str) -> pd.DataFrame:
     return df.sort_index()
 
 
-def update_oecd_cli() -> str:
+def update_oecd_cli(today: date | None = None) -> str:
     areas = _cfg().get("oecd_cli", {})
-    start = (date.today() - timedelta(days=365 * 6)).strftime("%Y-%m")
+    start = ((today or date.today()) - timedelta(days=365 * 6)).strftime("%Y-%m")
     resp = net.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), timeout=60)
     resp.raise_for_status()
     df = parse_oecd_cli(resp.text)
@@ -179,9 +179,9 @@ def parse_ecb(text: str) -> pd.Series:
     return s.dropna().sort_index()
 
 
-def update_ecb() -> str:
+def update_ecb(today: date | None = None) -> str:
     series = _cfg().get("ecb", {})
-    start = (date.today() - timedelta(days=365 * 6)).isoformat()
+    start = ((today or date.today()) - timedelta(days=365 * 6)).isoformat()
     out = {}
     for key, (sid, _label) in series.items():
         resp = net.get(ECB_URL.format(key=sid, start=start), timeout=60)
@@ -246,12 +246,12 @@ def _factset_pages(pdf: bytes) -> list[str]:
         return [pg.extract_text() or "" for pg in p.pages]
 
 
-def update_factset() -> str | None:
+def update_factset(today: date | None = None) -> str | None:
     """Fetch the newest Earnings Insight PDF not seen yet; returns its date or None."""
     existing = load_factset()
     seen = set(existing["report_date"].dt.date) if not existing.empty else set()
     for back in range(FACTSET_LOOKBACK_DAYS + 1):
-        d = date.today() - timedelta(days=back)
+        d = (today or date.today()) - timedelta(days=back)
         if d in seen:
             return None  # newest report already stored
         resp = net.get(FACTSET_URL.format(d=d), timeout=60, expected=(403, 404))
@@ -298,7 +298,7 @@ def parse_analyst(info: dict | None) -> dict | None:
     return row
 
 
-def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
+def update_analyst(tickers: list[str], max_age_days: int = 7, today: date | None = None) -> str:
     """Append a dated consensus row per ticker whose last fetch is older than `max_age_days`.
 
     The history is kept so the levels can tell whether targets are being raised or cut.
@@ -306,7 +306,7 @@ def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
     yf = net.yf()
 
     existing = load_analyst()
-    today = pd.Timestamp(date.today())
+    today = pd.Timestamp(today or date.today())
     last = existing.groupby("ticker")["fetched"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     due = [t for t in tickers if t not in last or (today - last[t]).days >= max_age_days]
     if not due:

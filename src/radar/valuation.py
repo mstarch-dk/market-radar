@@ -147,17 +147,17 @@ def _screen_codes() -> dict[str, dict]:
     return out
 
 
-def _snapshot_due(path, days: int) -> tuple[bool, pd.DataFrame]:
+def _snapshot_due(path, days: int, today: date | None = None) -> tuple[bool, pd.DataFrame]:
     old = pd.read_parquet(path) if path.exists() else pd.DataFrame()
     if old.empty:
         return True, old
     last = pd.to_datetime(old["date"]).max().date()
-    return (date.today() - last).days >= days, old
+    return ((today or date.today()) - last).days >= days, old
 
 
-def _store(path, old: pd.DataFrame, new: pd.DataFrame) -> None:
+def _store(path, old: pd.DataFrame, new: pd.DataFrame, today: date | None = None) -> None:
     """Add today's snapshot; one per ISO week (a second run in the same week replaces it)."""
-    today = pd.Timestamp(date.today())
+    today = pd.Timestamp(today or date.today())
     if not old.empty:
         d = pd.to_datetime(old["date"])
         week = lambda s: s.dt.isocalendar().year * 100 + s.dt.isocalendar().week  # noqa: E731
@@ -177,13 +177,13 @@ def tracked_stocks() -> list[str]:
     return sorted(names - etfs)
 
 
-def update_stocks(force: bool = False) -> str:
+def update_stocks(force: bool = False, today: date | None = None) -> str:
     """The weekly stock snapshot: Yahoo's screener per exchange, then one-by-one lookups for tracked names it
     missed. An exchange returning fewer names than expected raises (the last snapshot stays)."""
     from .discovery import scan, sources
 
     cfg = _cfg()
-    due, old = _snapshot_due(STOCKS_FILE, cfg["snapshot_days"])
+    due, old = _snapshot_due(STOCKS_FILE, cfg["snapshot_days"], today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     fx = scan.fx_rates()
@@ -200,7 +200,7 @@ def update_stocks(force: bool = False) -> str:
     missing = [t for t in tracked_stocks() if t not in rows][: cfg["fallback_max"]]
     looked = _lookups(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
-    _store(STOCKS_FILE, old, df)
+    _store(STOCKS_FILE, old, df, today)
     have = sum(t in rows for t in tracked_stocks())
     with_pe = df["pe_fy1"].notna().sum()
     return (f"{len(df):,} names, {with_pe:,} with a forward P/E; {have} of {len(tracked_stocks())} tracked stocks"
@@ -261,13 +261,13 @@ def etf_tickers() -> list[str]:
     return sorted(out)
 
 
-def update_etfs(force: bool = False) -> str:
+def update_etfs(force: bool = False, today: date | None = None) -> str:
     import logging
 
     yf = net.yf()
 
     cfg = _cfg()
-    due, old = _snapshot_due(ETFS_FILE, cfg["snapshot_days"])
+    due, old = _snapshot_due(ETFS_FILE, cfg["snapshot_days"], today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -284,7 +284,7 @@ def update_etfs(force: bool = False) -> str:
     if not rows:
         raise ValueError(f"no fund data for any of {len(tickers)} ETFs: has Yahoo changed?")
     df = pd.DataFrame(rows).reindex(columns=ETF_COLS)
-    _store(ETFS_FILE, old, df)
+    _store(ETFS_FILE, old, df, today)
     return f"{len(df)} of {len(tickers)} ETFs, {df['pe'].notna().sum()} with a P/E"
 
 

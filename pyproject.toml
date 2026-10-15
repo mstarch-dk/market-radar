@@ -39,3 +39,9 @@ dev = [
 marketing = [
     "playwright>=1.58",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "network: talks to the real sources (live contract checks); deselected unless run with -m network",
+]
+addopts = "-m 'not network'"

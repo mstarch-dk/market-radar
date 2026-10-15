@@ -10,6 +10,13 @@
 - `tests/fixtures/homes/`: one data folder per release plus the legacy layout, opened by `test_upgrade.py`; written by `scripts/release.py fixture` and never changed. An autouse fixture gives every test its own `ops.db` and resets the network limiter, so no test writes to `data/ops.db`.
 - `test_net.py` drives the limiter, retries and cooldowns with a fake clock (`net.clock` / `net.sleep`) and a stubbed `net.requests.get`; HTTP stubs patch `net.requests.get`, since every plain request goes through `net.get`. `test_ops.py` covers the log, its housekeeping, jobs and the Operations endpoints.
 
+## Offline, and the outside world as stand-ins
+- **Tests never reach the internet.** The autouse `_offline` fixture in `tests/conftest.py` refuses sockets to anything but this machine and yfinance's curl_cffi session (libcurl, which bypasses Python sockets). Production code often swallows errors (a failed name lookup becomes the ticker), so every attempt is also recorded and fails the test at teardown, naming the URL. Stub the call; the fixture yields its list of attempts for the guard's own tests.
+- **`tests/fakes.py`** serves any source's answer, the broken ones included: `serve(monkeypatch, {url_pattern: Resp | exception})` answers `net.get` by URL (limits, retries and the operations log still run), `fake_yf(monkeypatch, info=…, funds=…, fast=…, download=…)` stands in for yfinance, and `stored(path)` / `never_shrank(before, after)` measure a stored file per series, ticker or area.
+- **Dates:** the `update_*` functions take `today=` (default `date.today()`), as `sentiment.update_putcall` does; pass a fixed date instead of depending on the clock.
+- **`tests/test_ingest_invariants.py`**: one table of sources × bad answers (an error, an empty answer, a shorter one, one series missing). Each source is updated with a good answer, then a bad one; nothing stored may shrink (rows, first date, last date, per key). Known gaps are `xfail(strict=True)` with the plan item that fixes them: a fix turns the entry green and the strict mark then fails until it is removed. A new source gets a row here.
+- **Live contract checks** (`tests/test_live_contracts.py`, marker `network`, left out of the normal run): each parser against the real, current answer, and whether the data is recent. Run `uv run pytest -m network -q` before a release or when a source looks odd. A failure means updating the parser and its fixture: `uv run python scripts/capture_fixture.py --list` / `<source> [--dry-run]` records a trimmed real answer into `tests/fixtures/`.
+
 ## The guide (`guide/`)
 - `tests/test_guide.py`: every chapter in `guide/guide.yaml` exists (and no file is left out), each H1 equals its manifest title, every `{{settings:…}}` resolves, every link reaches a real chapter, heading or app page, and `page_links`/`glossary_links` point at real pages, glossary keys and headings.
 - Formulas: `uv run python -c "import json; from radar import guide; print(json.dumps({f'{b}/{s}': guide.chapter(b, s)['markdown'] for b, s, _, _ in guide.manifest()['_order']}))" | node web/scripts/check-math.mjs` compiles every `$…$` / `$$…$$` with KaTeX and lists the ones that fail.
@@ -17,4 +24,4 @@
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.
 - Pin method-sensitive numbers (e.g. RRG values) so a change to a method is deliberate.
-- Verify locally before pushing; there is no CI in this repo.
+- Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs `uv run pytest -q` on Windows and Ubuntu, and the web tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.
