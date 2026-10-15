@@ -207,6 +207,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | `uv run pytest -q` | Kører Python-testene |
 | `pnpm -C web install` og `pnpm -C web build` | Bygger webappen til `web/dist` |
 | `pnpm -C web test` | Kører webappens tests |
+| `.\scripts\restart.ps1` | Genstarter appen efter en `git pull`: bygger webappen, synkroniserer pakkerne og starter serveren igen (Windows) |
 
 ## Hurtig reference
 
