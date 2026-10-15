@@ -31,9 +31,10 @@ Følgende rækker vises, men tæller ikke i nettotallet:
 - **n/a:** der er ingen data (kilden mangler, eller historikken er for kort).
 - **stale:** data er ældre end kildens maksimale alder (se nedenfor).
 - **not voting:** indikatoren hører til en gruppe, du har slået fra (se [Grupper du kan slå til og fra](brugervejledning/regime#grupper-du-kan-slå-til-og-fra)).
+- **context:** rækken er kun til baggrund og stemmer aldrig (de tre momentumrækker nedenfor). Den tæller med i "shown but not voting" i optællingen.
 
 ### Dækningslinjen
-Under afstemningen står en linje som "18 of 20 indicators have current data", efterfulgt af de rækker, der mangler data eller er forældede, det ældste input med dato, og eventuelle kilder, hvis seneste opdatering fejlede. Linket *Data & coverage →* fører til siden med alle kilder. Læs den linje, før du stoler på vurderingen: et *Risk-on* bygget på halvdelen af indikatorerne er svagere end et bygget på dem alle.
+Under afstemningen står en linje som "18 of 20 indicators have current data", efterfulgt af de rækker, der mangler data eller er forældede, det ældste input med dato, og eventuelle kilder, hvis seneste opdatering fejlede. Linket *Data & coverage →* fører til siden med alle kilder. Context-rækkerne tælles ikke med her. Læs den linje, før du stoler på vurderingen: et *Risk-on* bygget på halvdelen af indikatorerne er svagere end et bygget på dem alle.
 
 ## Indikatortabellen
 
@@ -43,7 +44,7 @@ Under *Indicators* står én række pr. indikator med disse kolonner:
 |---|---|
 | *Indicator* | Navnet, fx *Volatility (VIX)* eller *Breadth – Nordic (C25 + large caps)* |
 | *Reading* | Den aktuelle aflæsning, fx "16.2" eller "+4.1% vs 200d" |
-| *Vote* | Rækkens stemme: *risk-on*, *risk-off*, *neutral*, *n/a* eller *stale*; plus *not voting*, hvis gruppen er slået fra |
+| *Vote* | Rækkens stemme: *risk-on*, *risk-off*, *neutral*, *n/a* eller *stale*; plus *not voting*, hvis gruppen er slået fra, eller *context* for en baggrundsrække |
 | *Reading, graded* | Et ord og en lille skala med tærskler og en markør, farvet efter hvor tæt aflæsningen er på tærsklerne |
 | *Context* | Forklaring, fx ændring over en måned og datadato |
 
@@ -77,7 +78,7 @@ Nogle indikatorer kan **kun stemme risk-off**, fordi de advarer om stress, men i
 
 Én indikator **stemmer aldrig**: *Equal vs cap weight (RSP/SPY)* viser, om den gennemsnitlige aktie slår indekset (bred fremgang) eller om få megaselskaber bærer det (smal fremgang). Den står der til information.
 
-Tre rækker om momentum selv stemmer heller aldrig. De siger noget om, hvordan momentumscoren har det, ikke om markedet er risikovilligt:
+Tre rækker om momentum selv stemmer heller aldrig og er mærket *context*. De siger noget om, hvordan momentumscoren har det, ikke om markedet er risikovilligt:
 
 - *Momentum payoff (top − bottom quintile)*: hvad scoren har givet. Det er afkastet for den bedste femtedel af aktierne minus den dårligste over de seneste 3 måneder, med scoren som den var for 3 måneder siden (og det samme for 1 måned). Står MTUM i kurserne, vises også MTUM mod ACWI. Over ±{{settings:regime.momentum_payoff_band|pct}} hedder aflæsningen *paying* eller *losing*.
 - *Return dispersion (3m, all stocks)*: spredningen i 3-måneders afkast mellem aktierne (75 %-fraktilen minus 25 %-fraktilen) og dens percentil i radarens egen historik. Ved højst {{settings:regime.dispersion_low_pct}}. percentil hedder den *narrow*, ved mindst {{settings:regime.dispersion_high_pct}}. *wide*. En bred spredning giver momentum mere at sortere på.

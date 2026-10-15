@@ -296,7 +296,8 @@ def _valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str
 
 
 def regime_counts(indicators: list[dict]) -> dict:
-    """How many regime indicators have current data, and which don't."""
+    """How many regime indicators have current data, and which don't. Context rows (never in the vote) are left out."""
+    indicators = [i for i in indicators if i.get("group") != "context"]
     na = [i["name"] for i in indicators if i["status"] == "n/a"]
     stale = [i["name"] for i in indicators if i["status"] == "stale"]
     return {"total": len(indicators), "current": len(indicators) - len(na) - len(stale), "na": na, "stale": stale}

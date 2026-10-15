@@ -206,6 +206,6 @@ def test_valuation_rows_vote_only_when_switched_on():
     assert rows["Valuation"]["group"] == "valuation" and rows["Euro credit"]["group"] == "credit_eu"
     off = regime.overall([dict(i) for i in inds], {"valuation": False, "credit_eu": True})
     on = regime.overall([dict(i) for i in inds], {"valuation": True, "credit_eu": True})
-    assert on["off"] == off["off"] + 2 and off["not_voting"] == 2 and on["not_voting"] == 0
+    assert on["off"] == off["off"] + 2 and off["not_voting"] == 2 + 3 and on["not_voting"] == 3  # + the 3 context rows
     assert "valuation" in on["voting_groups"] and "valuation" not in off["voting_groups"]
     assert regime.overall([dict(i) for i in inds])["off"] == on["off"]    # no choice given: every row votes

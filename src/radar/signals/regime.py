@@ -9,6 +9,7 @@ from . import momentum
 
 ON, OFF, NEUTRAL = "risk-on", "risk-off", "neutral"
 NA, STALE = "n/a", "stale"  # no data / too old: shown, but not counted in the vote
+CONTEXT = "context"  # the group of rows shown for context only: never in the vote, and no switch for it
 
 
 def breadth_history(closes: pd.DataFrame, tickers: list[str], days: int = 200) -> pd.Series:
@@ -73,10 +74,10 @@ SHORT = "less than 3 months of history"
 def _ind(name, value, status, note, source="prices", asof=None, gauge=None, group=None):
     """One regime row. `source` is the data source key (coverage.py), `asof` the last data point used,
     `gauge` the reading graded between the same thresholds the vote uses (gauges.make; display only).
-    `group` names a switchable set of rows (settings.yaml regime.votes); None = always votes."""
+    `group` names a switchable set of rows (settings.yaml regime.votes); None = always votes, CONTEXT = never."""
     return {"name": name, "value": value, "status": status, "note": note, "source": source,
             "asof": None if asof is None else pd.Timestamp(asof).date().isoformat(), "gauge": gauge,
-            "group": group, "votes": True}
+            "group": group, "votes": group != CONTEXT}
 
 
 def _na(name, source, note="no data", group=None):
@@ -147,7 +148,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
     else:
         out.append(_na("Equal vs cap weight (RSP/SPY)", "prices"))
 
-    # the momentum factor itself: shown for context, never in the vote (no group switch: neutral by design)
+    # the momentum factor itself: shown for context, never in the vote
     pay3, pay1 = momentum_payoff(closes, everyone, 63), momentum_payoff(closes, everyone, 21)
     if pd.notna(pay3):
         band = cfg["momentum_payoff_band"]
@@ -158,9 +159,9 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         out.append(_ind("Momentum payoff (top − bottom quintile)", f"{pay3:+.1%} over 3m", NEUTRAL,
                         f"The score's top fifth minus its bottom fifth, scored 3 months ago"
                         + (f"; {pay1:+.1%} over 1m" if pd.notna(pay1) else "") + mt + ". Context, not a vote",
-                        asof=_last(b), gauge=gz.make(gz.band(-band, band, ("losing", "flat", "paying")), pay3)))
+                        asof=_last(b), gauge=gz.make(gz.band(-band, band, ("losing", "flat", "paying")), pay3), group=CONTEXT))
     else:
-        out.append(_na("Momentum payoff (top − bottom quintile)", "prices", "less than 15 months of history"))
+        out.append(_na("Momentum payoff (top − bottom quintile)", "prices", "less than 15 months of history", CONTEXT))
     disp = dispersion_history(closes, everyone)
     if len(disp) >= 126:
         v = disp.iloc[-1]
@@ -169,9 +170,9 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         out.append(_ind("Return dispersion (3m, all stocks)", f"{v:.1%}", NEUTRAL,
                         f"Spread between the 75th and 25th percentile 3-month return; {_ordinal(pct)} percentile since "
                         f"{disp.index[0]:%Y}. Wide spreads give momentum more to sort on. Context, not a vote",
-                        asof=_last(disp), gauge=gz.make(gz.band(lo, hi, ("narrow", "normal", "wide")), pct)))
+                        asof=_last(disp), gauge=gz.make(gz.band(lo, hi, ("narrow", "normal", "wide")), pct), group=CONTEXT))
     else:
-        out.append(_na("Return dispersion (3m, all stocks)", "prices", "less than 9 months of history"))
+        out.append(_na("Return dispersion (3m, all stocks)", "prices", "less than 9 months of history", CONTEXT))
     r24, r1 = _ret(b, 504), _ret(b, 21)
     if pd.notna(r24):
         bear = r24 < 0
@@ -182,9 +183,9 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
                    else "no bear market behind it") + ". Context, not a vote")
         out.append(_ind("Momentum-crash setup (ACWI)", "yes" if setup else "watch" if bear else "no", NEUTRAL, note,
                         asof=_last(b), gauge=gz.make(gz.rising_risk(0.5, 1.5, ("no", "watch", "watch", "setup")),
-                                                     2.0 if setup else 1.0 if bear else 0.0)))
+                                                     2.0 if setup else 1.0 if bear else 0.0), group=CONTEXT))
     else:
-        out.append(_na("Momentum-crash setup (ACWI)", "prices", "less than 2 years of ACWI history"))
+        out.append(_na("Momentum-crash setup (ACWI)", "prices", "less than 2 years of ACWI history", CONTEXT))
 
     if vix_ticker in closes:
         s = closes[vix_ticker].dropna()
@@ -352,15 +353,16 @@ def apply_freshness(inds: list[dict], ref, max_age: dict[str, int]) -> list[dict
 
 def apply_votes(inds: list[dict], votes: dict[str, bool]) -> list[dict]:
     """Mark each row voting or not: a row in a group switched off (settings.yaml regime.votes, or your choice on
-    the Regime page) keeps its reading but leaves the vote. Rows without a group always vote."""
+    the Regime page) keeps its reading but leaves the vote. Rows without a group always vote; CONTEXT rows never."""
     for i in inds:
-        i["votes"] = i.get("group") is None or bool(votes.get(i["group"], True))
+        g = i.get("group")
+        i["votes"] = g is None or (g != CONTEXT and bool(votes.get(g, True)))
     return inds
 
 
 def overall(inds: list[dict], votes: dict[str, bool] | None = None) -> dict:
     """Net vote of the voting risk-on / risk-off rows. Neutral rows inform; n/a and stale rows don't count at
-    all, and nor do rows whose group is switched off in `votes`."""
+    all, and nor do CONTEXT rows or rows whose group is switched off in `votes`."""
     if votes is not None:
         apply_votes(inds, votes)
     voting = [i for i in inds if i.get("votes", True)]
@@ -369,7 +371,7 @@ def overall(inds: list[dict], votes: dict[str, bool] | None = None) -> dict:
     scored = on + off
     net = (on - off) / scored if scored else 0
     label = "Risk-on" if net > 0.33 else "Risk-off" if net < -0.33 else "Mixed"
-    groups = sorted({i["group"] for i in inds if i.get("group")})
+    groups = sorted({i["group"] for i in inds if i.get("group") not in (None, CONTEXT)})
     return {"label": label, "on": on, "off": off, "neutral": count[NEUTRAL], "na": count[NA],
             "stale": count[STALE], "total": len(voting), "net": round(net, 2),
             "not_voting": len(inds) - len(voting),

@@ -141,7 +141,7 @@ def test_regime_vote_switches(client):
     r = client.put("/api/settings/regime-votes", json={"votes": {"valuation": True}})
     assert r.status_code == 200 and {v["group"]: v["on"] for v in r.json()}["valuation"] is True
     after = client.get("/api/regime").json()
-    assert after["overall"]["off"] == before["overall"]["off"] + 2 and after["overall"]["not_voting"] == 0
+    assert after["overall"]["off"] == before["overall"]["off"] + 2 and after["overall"]["not_voting"] == 3  # the 3 context rows
     api_models.RegimeView(**after)
 
     import json

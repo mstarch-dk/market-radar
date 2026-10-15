@@ -16,7 +16,8 @@ const indCols: Col<Ind>[] = [
   { key: "value", label: "Reading", render: (i) => i.value, csv: (i) => i.value },
   { key: "status", label: "Vote", align: "l", sort: (i) => i.status, help: "signal", filter: { kind: "enum" },
     render: (i) => i.votes ? <Signal s={i.status} />
-      : <span className="dim"><Signal s={i.status} /> <Badge>not voting</Badge></span> },
+      : <span className="dim"><Signal s={i.status} /> {i.group === "context"
+        ? <Term k="context_row"><Badge>context</Badge></Term> : <Badge>not voting</Badge>}</span> },
   { key: "gauge", label: "Reading, graded", align: "l", sort: (i) => i.gauge?.score, csv: (i) => i.gauge?.label,
     render: (i) => i.gauge
       ? <span className={i.status === "stale" ? "dim" : ""}><GaugeBadge g={i.gauge} name={i.name} /><GaugeBar g={i.gauge} /></span>

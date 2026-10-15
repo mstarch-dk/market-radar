@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from radar import coverage
 from radar.dashboard import _clusters
 from radar.signals import regime
 
@@ -59,7 +60,8 @@ def test_indicators_without_optional_inputs_show_as_na():
                  "Earnings revisions"):
         assert st[name] == regime.NA, name
     o = regime.overall(inds)
-    assert o["na"] == sum(s == regime.NA for s in st.values()) and o["total"] == len(inds)
+    voting = [i for i in inds if i["group"] != regime.CONTEXT]
+    assert o["na"] == sum(i["status"] == regime.NA for i in voting) and o["total"] == len(voting) == len(inds) - 3
     assert o["on"] + o["off"] + o["neutral"] + o["na"] + o["stale"] == o["total"]
 
 
@@ -175,7 +177,12 @@ def test_momentum_rows_never_vote():
     inds, _ = regime.indicators(c, pd.DataFrame(), "ACWI", groups, {"us": "US"}, {}, cfg)
     rows = _by_name(inds)
     for name in ("Momentum payoff", "Return dispersion", "Momentum-crash setup"):
-        assert rows[name]["status"] == regime.NEUTRAL, name
+        assert rows[name]["status"] == regime.NEUTRAL and rows[name]["group"] == regime.CONTEXT, name
+        assert rows[name]["votes"] is False, name
+    # context rows stay out of the vote, the voting groups and the coverage count, whatever the switches say
+    o = regime.overall(inds, {"context": True})
+    assert o["total"] == len(inds) - 3 and o["not_voting"] == 3 and "context" not in o["voting_groups"]
+    assert coverage.regime_counts(inds)["total"] == len(inds) - 3
     assert rows["Momentum payoff"]["value"].startswith("+") and rows["Momentum-crash setup"]["value"] == "no"
     # a falling ACWI over two years that jumps in the last month: the crash setup
     c2 = c.copy()

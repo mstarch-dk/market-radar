@@ -516,7 +516,7 @@ class Overall(Strict):
     stale: int
     total: int                             # the rows that vote
     net: float
-    not_voting: int = 0                    # rows in a group switched off (regime.votes)
+    not_voting: int = 0                    # rows in a group switched off (regime.votes), and context rows
     voting_groups: list[str] = []
 
 
@@ -528,7 +528,8 @@ class Indicator(Strict):
     source: str
     asof: str | None = None
     gauge: Gauge | None = None
-    group: str | None = None               # a switchable set of rows (settings.yaml regime.votes); None = always votes
+    group: str | None = None               # a switchable set of rows (settings.yaml regime.votes); None = always votes,
+                                           # "context" = shown for context, never votes
     votes: bool = True
 
 
