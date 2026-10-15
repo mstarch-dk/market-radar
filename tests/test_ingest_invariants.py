@@ -238,8 +238,6 @@ def _bars(t: str, start: str, end: str, close: float = 100.0, factor: float = 1.
 class Prices(Source):
     file = ingest.PRICES_FILE
     measure = {"key": "ticker", "date": "date"}
-    gaps = {"short": "a full download that starts late replaces the older stored bars (plan 1.1)",
-            "missing": "a re-based full download that ends early loses the newer bars (plan 1.1)"}
 
     def _serve(self, mp, world):
         def download(tickers, start, progress=None):

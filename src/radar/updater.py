@@ -43,6 +43,13 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
                     + ", ".join(names[:12]) + (f" and {len(names) - 12} more" if len(names) > 12 else ""))
             ops.event("warn", "source", f"prices: {late}", detail=", ".join(names))
             msg += f"; {late}"
+        if res.get("short"):
+            names = sorted(res["short"])
+            short = (f"{len(names)} with a Yahoo history shorter than the one stored (kept the stored bars; "
+                     f"asked again next time): " + ", ".join(names[:12])
+                     + (f" and {len(names) - 12} more" if len(names) > 12 else ""))
+            ops.event("warn", "source", f"prices: {short}", detail=", ".join(names))
+            msg += f"; {short}"
         if res.get("deepened"):
             msg += f"; {res['deepened']} downloaded again further back (to your first trade)"
         if res["rebased"]:

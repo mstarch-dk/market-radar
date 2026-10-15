@@ -5,10 +5,11 @@ import io
 import json
 from datetime import date, timedelta
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from . import net
+from . import locks, net
 from .config import settings, write_parquet
 from .paths import CACHE, FRED_FILE, PRICES_FILE
 
@@ -96,15 +97,17 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     The full history starts `history_years` back, or at `start` when that is earlier (universe.history_start:
     deep enough for your first trade). A stored history that starts later than that is downloaded again in full
     ("deepened"); prices_from.json remembers where each was fetched from, so a ticker listed later than the start
-    isn't fetched again every time.
+    isn't fetched again every time. A full download never shrinks what is stored (`stitch`): when Yahoo's answer
+    starts later or ends earlier, the stored bars beyond it are kept, and a ticker whose answer started late is
+    listed in `short` and asked again next time.
 
     With `bench`, tickers still without a bar on the benchmark's last session are fetched once more and the ones
-    left over are returned as `behind` ({ticker: last bar}); `asof` is that session."""
-    existing = load_prices()
-    if not existing.empty:
-        existing["date"] = pd.to_datetime(existing["date"])
-    if "raw_close" not in existing:  # stored before raw closes were kept: needs a full download
-        existing = existing.iloc[0:0].reindex(columns=COLUMNS)
+    left over are returned as `behind` ({ticker: last bar}); `asof` is that session.
+
+    The downloads run without a lock; the store is then re-read and written under `locks.file_lock`, so an update
+    started elsewhere meanwhile (the app looking up a ticker, `radar update` in a terminal) isn't overwritten."""
+    existing = _load_current()
+    legacy = existing.attrs.get("legacy", False)
     last = existing.groupby("ticker")["date"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     new = [t for t in tickers if t not in last.index]
     known = [t for t in tickers if t in last.index]
@@ -114,7 +117,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     fetched_from = _load_from()
     first = existing.groupby("ticker")["date"].min() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     limit = pd.Timestamp(full_start + timedelta(days=OVERLAP_DAYS))
-    deepen = [t for t in known if pd.Timestamp(fetched_from.get(t) or first[t]) > limit]
+    deepen = known if legacy else [t for t in known if pd.Timestamp(fetched_from.get(t) or first[t]) > limit]
     known = [t for t in known if t not in deepen]
 
     full = _download(new + deepen, full_start, progress) if new or deepen else pd.DataFrame(columns=COLUMNS)
@@ -127,49 +130,113 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
         if rebased:
             inc = inc[~inc["ticker"].isin(rebased)]
             full = pd.concat([full, _download(rebased, full_start)], ignore_index=True)
-
     full = _norm_dates(full)
-    full = pd.concat([full, kept_after(existing, full)], ignore_index=True)
-    existing = existing[~existing["ticker"].isin(set(full["ticker"]))]  # replaced wholesale, not merged
-    df = pd.concat([existing, inc, full], ignore_index=True)
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
 
     # Yahoo sometimes answers without the latest session for a whole exchange; ask once more for those
+    more = pd.DataFrame(columns=COLUMNS)
+    df, _, _ = _merge(existing, full, [inc], limit)
     late = behind(df, tickers, bench)
     if late:
         since = min(date.fromisoformat(d) for d in late.values()) - timedelta(days=OVERLAP_DAYS)
         more = _norm_dates(_download(sorted(late), since))
         more = more[~more["ticker"].isin(rescaled(df, more))]   # another basis: the next run downloads it in full
-        df = pd.concat([df, more], ignore_index=True)
-        df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
-        late = behind(df, tickers, bench)
-    write_parquet(df, PRICES_FILE, index=False)
+
+    with locks.file_lock(PRICES_FILE, what="the price store"):
+        current = _load_current()        # what is stored now, with anything written while we downloaded
+        df, short, reached = _merge(current, full, [inc, more], limit)
+        write_parquet(df, PRICES_FILE, index=False)
+        _save_from(_load_from() | {t: full_start.isoformat() for t in reached})
+    late = behind(df, tickers, bench)
 
     got = set(inc["ticker"]) | set(full["ticker"])
-    _save_from(fetched_from | {t: full_start.isoformat() for t in set(full["ticker"])})
     return {"requested": len(tickers), "new": len(new), "rebased": rebased, "deepened": len(deepen),
             "missing": sorted(set(tickers) - got - set(known)), "rows": len(df), "behind": late,
-            "asof": _last(df, bench)}
+            "short": short, "asof": _last(df, bench)}
 
 
-def kept_after(existing: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
-    """Stored bars newer than a full download's last bar, where both agree on that bar's adjusted close.
+def _load_current() -> pd.DataFrame:
+    """The stored prices with parsed dates. A store from before raw closes were kept gets the column, empty
+    (unknown, never 0), and `attrs["legacy"]`: every ticker in it is then downloaded again in full."""
+    df = load_prices()
+    legacy = not df.empty and "raw_close" not in df
+    df = df.reindex(columns=COLUMNS)
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"])
+    df.attrs["legacy"] = legacy
+    return df
 
-    Yahoo's long history can end a session earlier than what an earlier fetch already stored; replacing the
-    history wholesale would lose those bars. On another adjustment basis they're dropped (the catch-up fetch
-    then gets them on the new one)."""
-    if existing.empty or fresh.empty:
-        return existing.iloc[0:0]
-    end = fresh.groupby("ticker")["date"].max()
-    old = existing[existing["ticker"].isin(end.index)]
-    newer = old[old["date"] > old["ticker"].map(end)]
-    if newer.empty:
-        return newer
-    at_end = old.merge(fresh[["ticker", "date", "close"]], on=["ticker", "date"], suffixes=("_old", "_new"))
-    at_end = at_end[at_end["date"] == at_end["ticker"].map(end)]
-    same = at_end.loc[(at_end["close_new"] / at_end["close_old"] - 1).abs() <= RESCALE_TOL, "ticker"]
-    return newer[newer["ticker"].isin(set(same))]
+
+def _merge(current: pd.DataFrame, full: pd.DataFrame, upserts: list[pd.DataFrame], limit: pd.Timestamp):
+    """(the store, short, reached): full histories stitched onto what is stored (`stitch`), then the incremental
+    bars added (the last answer wins). `short`: {ticker: where Yahoo's history starts} when it didn't reach
+    `limit` while more was stored, or couldn't be joined at all (the stored history is then kept as it is).
+    `reached`: tickers whose stored history now goes as deep as asked (or as deep as the ticker goes)."""
+    cur = {t: g for t, g in current.groupby("ticker", sort=False)} if not current.empty else {}
+    stitched, short, reached, replaced = [], {}, set(), set()
+    for t, g in full.groupby("ticker", sort=False):
+        old = cur.get(t, current.iloc[0:0])
+        fresh_first = g["date"].min()
+        s = stitch(old, g)
+        if s is None:
+            short[t] = fresh_first.date().isoformat()
+            continue
+        stitched.append(s)
+        replaced.add(t)
+        if fresh_first <= limit or old.empty or old["date"].min() >= fresh_first:
+            reached.add(t)
+        else:
+            short[t] = fresh_first.date().isoformat()
+    parts = [current[~current["ticker"].isin(replaced)], *stitched, *upserts]
+    parts = [x for x in parts if not x.empty]
+    df = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=COLUMNS)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"]).reset_index(drop=True)
+    return df, short, reached
+
+
+def stitch(old: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame | None:
+    """One ticker's fresh full history, extended with the stored bars before its first and after its last bar.
+
+    Yahoo's long history can start later or end a session earlier than what an earlier fetch stored; replacing it
+    wholesale would lose those bars. They are kept, rescaled to the fresh adjustment basis at the nearest bar both
+    have (a dividend or split re-bases every earlier bar by one factor, so the factor at that bar holds for the
+    kept ones): adjusted prices by the ratio of adjusted closes, the traded close by the ratio of traded closes,
+    volume by its inverse. None: nothing in common while the stored history reaches further (keep it)."""
+    if old.empty:
+        return fresh
+    lo, hi = fresh["date"].min(), fresh["date"].max()
+    before, after = old[old["date"] < lo], old[old["date"] > hi]
+    if before.empty and after.empty:
+        return fresh
+    o, f = old.set_index("date"), fresh.set_index("date")
+    common = o.index.intersection(f.index)
+    if common.empty:
+        return None
+    parts = [fresh]
+    for side, at in ((before, common.min()), (after, common.max())):
+        if side.empty:
+            continue
+        r = _rescale(side, o.loc[at], f.loc[at])
+        if r is None:
+            return None
+        parts.append(r)
+    return pd.concat(parts, ignore_index=True).sort_values("date")
+
+
+def _rescale(rows: pd.DataFrame, old_bar: pd.Series, new_bar: pd.Series) -> pd.DataFrame | None:
+    """Stored bars moved to a fresh adjustment basis by the factors at one bar both have; None when the factor
+    can't be known (a missing or zero close)."""
+    adj = new_bar["close"] / old_bar["close"]
+    if not np.isfinite(adj) or adj <= 0:
+        return None
+    raw = new_bar["raw_close"] / old_bar["raw_close"]
+    out = rows.copy()
+    for c in ("high", "low", "close"):
+        out[c] = out[c] * adj
+    if np.isfinite(raw) and raw > 0:
+        out["raw_close"] = out["raw_close"] * raw
+        out["volume"] = out["volume"] / raw
+    return out
 
 
 def _last(df: pd.DataFrame, ticker: str | None) -> str | None:

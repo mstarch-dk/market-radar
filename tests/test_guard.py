@@ -171,3 +171,27 @@ def test_replace_succeeds_once_a_real_reader_lets_go(tmp_path):
     config.write_text(path, "new")                          # retries until the reader is done
     t.join()
     assert path.read_text() == "new"
+
+
+def test_a_lock_held_by_another_process_is_respected(tmp_path):
+    import subprocess
+    import sys
+    import time
+    path = tmp_path / "prices.parquet"
+    flag = tmp_path / "held"
+    code = ("import sys, time, pathlib; from radar import locks\n"
+            "with locks.file_lock(pathlib.Path(sys.argv[1])):\n"
+            "    pathlib.Path(sys.argv[2]).write_text('1'); time.sleep(3)\n")
+    proc = subprocess.Popen([sys.executable, "-c", code, str(path), str(flag)])
+    try:
+        deadline = time.monotonic() + 20
+        while not flag.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert flag.exists()
+        with pytest.raises(locks.Busy):
+            with locks.file_lock(path, timeout=0):
+                pass
+        with locks.file_lock(path, timeout=10):     # free once the other process is done
+            pass
+    finally:
+        proc.wait(10)
