@@ -996,3 +996,67 @@ def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (fr
     if fails:
         typer.echo("Why not (longest horizon): " + " | ".join(f"{k}: {w[0]}" for k, w in fails.items()))
     typer.echo("Report: reports/exit-study.json")
+
+
+@study_app.command("redeploy")
+def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months (from 1, 3, 6, 12)"),
+                   n: int = typer.Option(15, "--n", help="Size of each month's top-N basket"),
+                   buffer: int = typer.Option(3, "--buffer", help="Rotation: sell a holding ranked outside buffer x N at month-end"),
+                   cooldown: int = typer.Option(21, "--cooldown", help="Sessions before a sold name can be bought again"),
+                   max_per_sector: int = typer.Option(None, "--max-per-sector", help="Caps on the basket and each new name"),
+                   max_per_group: int = typer.Option(None, "--max-per-group", help="At most this many per region group"),
+                   no_trend: bool = typer.Option(False, "--no-trend", help="Let a new name be bought without an uptrend"),
+                   arms: str = typer.Option("all", help="all, or a comma list of arm keys"),
+                   since: str = typer.Option(None, "--since", help="First formation date"),
+                   as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
+                   out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """The stop/take-profit rule with its money redeployed into the next momentum name instead of parked in ACWI,
+    and a month-end rotation with and without the rule, on every month-end's top-N basket: return, risk and
+    risk-adjusted return (Sharpe, Sortino, Calmar, information ratio), in-sample and holdout. Slow. Writes
+    reports/redeploy-study.json."""
+    import json
+    from pathlib import Path
+
+    from . import profile
+    from .backtest import study
+
+    try:
+        hs = tuple(int(x) for x in horizons.split(","))
+        keys = None if arms == "all" else [v.strip() for v in arms.split(",") if v.strip()]
+        with _job("study") as log:
+            rep = study.redeploy_study(profile.Market.load(), n, hs, buffer, cooldown, max_per_sector, max_per_group,
+                                       not no_trend, since, keys, log)
+            study.write_redeploy(rep)
+    except ValueError as e:
+        raise typer.Exit(f"Not studied: {e}")
+    text = json.dumps(rep, indent=1, default=study._json)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    if as_json:
+        typer.echo(text)
+        return
+    st = rep["settings"]
+    typer.echo(f"\nEach month-end's top {st['n_top']} (equal weights, {st['fee_bps']:g} bp per trade); redeploy buys the best "
+               f"name not held{' in an uptrend' if st['trend'] else ''}, not sold in {st['cooldown']} sessions; rotation "
+               f"sells outside the top {st['buffer']}xN. Sharpe over {st['rf'] or 'nothing (missing)'}; holdout from "
+               f"{st['holdout_from']}.")
+    for h, res in rep["results"].items():
+        first = next(iter(res.values()))["all"] or {}
+        hold = first.get("hold") or {}
+        typer.echo(f"\n{h} months ({first.get('dates', 0)} dates). Held: return {_pct(hold.get('ret_mean'))}, Sharpe "
+                   f"{_num(hold.get('sharpe_mean'))}, Sortino {_num(hold.get('sortino_mean'))}, max DD {_pct(hold.get('dd_mean'))}, "
+                   f"IR {_num(hold.get('ir_mean'))}")
+        typer.echo(f"  {'':<17}{'return':>8} {'vs held':>8} {'Sharpe':>7} {'Sortino':>7} {'Calmar':>7} {'max DD':>7} "
+                   f"{'IR':>6} {'trades':>6} {'fees':>6}  {'Sharpe vs twin':>14} {'holdout':>8}  verdict")
+        for k, r in res.items():
+            a, o = r["all"] or {}, r["holdout"] or {}
+            act, tw = r.get("activity") or {}, ((r.get("vs_twin") or {}).get("all") or {}).get("sharpe") or {}
+            twin = f"{_num(tw.get('mean'))} t{_num(tw.get('t'), '+.1f')}" if tw else ""
+            typer.echo(f"  {k:<17}{_pct(a.get('ret_mean')):>8} {_pct(a.get('diff_mean')):>8} {_num(a.get('sharpe_mean')):>7} "
+                       f"{_num(a.get('sortino_mean')):>7} {_num(a.get('calmar_mean')):>7} {_pct(a.get('dd_mean')):>7} "
+                       f"{_num(a.get('ir_mean')):>6} {_num(act.get('trades'), '.0f'):>6} {_pct(act.get('fees_pct')):>6}  "
+                       f"{twin:>14} {_num(o.get('sharpe_mean')):>8}  {(r['verdict'] or {}).get('label', '')}")
+    typer.echo("\nArms: " + "; ".join(f"{a['key']} = {a['label']}" for a in rep["arms"]))
+    typer.echo("Caveat: " + rep["caveats"][0])
+    typer.echo("Report: reports/redeploy-study.json")

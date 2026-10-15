@@ -44,6 +44,35 @@ Hver månedsafslutnings 15 bedste aktier beholdes og sammenlignes med de samme k
 
 For hver variant vises afkastet og forskellen til at beholde, med t-tal, andelen af datoer hvor den hjalp, det 10 % dårligste udfald, gennemsnitligt og værste største fald (max drawdown) og antal salg pr. kurv. En variant **består**, når den både før og i holdout-perioden højst koster 2 procentpoint afkast pr. 6 måneder (1 pr. 3 måneder), skærer mindst en fjerdedel af det gennemsnitlige største fald væk og løfter det 10 % dårligste udfald. Ellers står der, hvorfor den ikke består. Rapporten ligger i `reports/exit-study.json`.
 
+## Pengene fra et salg i en ny aktie
+
+```
+uv run radar study redeploy                          # 6 og 12 måneder, alle varianter (tager 30–60 minutter)
+uv run radar study redeploy --horizons 6 --max-per-sector 4 --buffer 2
+uv run radar study redeploy --arms tp-only-redeploy,rotate-tp-only
+```
+
+`radar study exits` parkerer pengene fra et salg i {{settings:backtest.park}}. Det er en ulempe for reglen, især for take-profit: den flytter penge fra en aktie, der stiger, til et marked, der i gennemsnit stiger mindre. `radar study redeploy` stiller spørgsmålet anderledes: hvad nu, hvis pengene i stedet købte den næste aktie med høj momentumscore?
+
+Kurvene er de samme: hver månedsafslutnings 15 bedste, lige vægte, kurtage på {{settings:backtest.fee_bps}} basispoint pr. handel. Ved et salg købes den aktie med højest score den dag, salget blev udløst, som ikke allerede er i kurven, ikke er solgt inden for de seneste 21 handelsdage (`--cooldown`), er i optrend (slå fra med `--no-trend`) og passer ind under lofterne pr. sektor og region (`--max-per-sector`, `--max-per-group`). Alle pengene fra salget går i den ene aktie. Er der ingen kandidat, parkeres pengene, og det står i rapporten.
+
+Varianterne kommer i par, så hver gevinst kan føres tilbage til sin årsag:
+
+| Variant | Salg | Pengene | Månedlig rotation |
+|---|---|---|---|
+| *sma200-park* / *sma200-redeploy* | lukkekurs under 200-dages gennemsnittet (som i dag) | {{settings:backtest.park}} / ny aktie | nej |
+| *atr-tp-park* / *atr-tp-redeploy* | ATR-stop og take-profit | {{settings:backtest.park}} / ny aktie | nej |
+| *tp-only-park* / *tp-only-redeploy* | kun take-profit | {{settings:backtest.park}} / ny aktie | nej |
+| *rotate* | intet salg på reglen | ny aktie | ja |
+| *rotate-sma200*, *rotate-atr-tp*, *rotate-tp-only* | som ovenfor | ny aktie | ja |
+| *mix50*, *acwi* | ingen (til sammenligning) | – | nej |
+
+Rotationen sælger ved hver månedsafslutning en aktie, der er faldet uden for de 3 × 15 = 45 bedste (`--buffer`), og køber den næste på samme måde. Bufferen gør, at en aktie ikke sælges, fordi den falder et par pladser.
+
+For hver variant vises afkastet og forskellen til at beholde kurven, **Sharpe** og **Sortino** (afkast over ECB's indlånsrente pr. enhed risiko, Sortino kun med udsvingene nedad), **Calmar** (årligt afkast pr. største fald), største fald, **IR** (informationsratio: merafkast mod ACWI pr. enhed afvigelse fra ACWI), antal handler og kurtage, og Sharpe mod tvillingen (*redeploy* mod *park*, en rotation med regel mod rotationen alene) med t-tal. En variant er **better**, når dens gennemsnitlige Sharpe både før og i holdout-perioden er højere end at beholde kurven og højere end tvillingens, og den højst koster 2 procentpoint afkast pr. 6 måneder. Rapporten ligger i `reports/redeploy-study.json`.
+
+> **Bemærk:** Universet er dagens. Hver aktie, pengene flyttes til, er en, der overlevede til i dag, og det får det at flytte pengene til at se bedre ud end at beholde. Skat er ikke regnet med: i frie midler realiserer hvert salg en gevinst eller et tab, på aktiesparekontoen (lagerbeskatning) koster flere handler ikke ekstra skat. Antallet af handler står i tabellen, så du kan vurdere det. Baggrunden står i [Virker stop på momentumaktier?](laerebog/stop-og-storrelse#pengene-fra-et-salg).
+
 ## En kurv valgt på en dag i fortiden
 
 ```

@@ -193,6 +193,7 @@ Viser værdi, tidsvægtet afkast (TWR, også pr. år), pengevægtet afkast (MWR 
 uv run radar study score
 uv run radar study score --exits 6 --json
 uv run radar study exits
+uv run radar study redeploy
 uv run radar sim picks-candidates --asof 6M
 uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name test-6m
 uv run radar sim picks --rerun tag:picks-live
@@ -235,5 +236,6 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se mit afkast mod ACWI | `uv run radar performance` |
 | teste momentumscoren | `uv run radar study score` |
 | teste varianter af stopreglen | `uv run radar study exits` |
+| teste stopreglen med pengene i en ny aktie | `uv run radar study redeploy` |
 | simulere en kurv fra for 6 måneder siden | `uv run radar sim picks --asof 6M --rule top-n --name test-6m` |
 | tage backup af mine handler | `uv run radar portfolio export --all --out backup.csv` |

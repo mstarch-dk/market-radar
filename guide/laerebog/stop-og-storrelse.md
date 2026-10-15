@@ -188,6 +188,22 @@ Er andelen over 100 %, ligger stoppet så tæt, at reglen ikke kan begrænse ris
 
 `radar sim exits` afspiller dine egne handler med reglen fulgt dag for dag (`backtest/`). Inputtene til $k$ er dem, der var kendt den dag: kurser til og med dagen, momentumscoren mod universet den dag, regimet fra ugens sidste lukkekurs med forsinkelse på makrodata og analytikerkonsensus hentet senest den dag. Take-profit låses ved købet, fordi kursmålet regnes fra den aktuelle kurs og ellers aldrig ville blive nået. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
 
+### Pengene fra et salg
+
+Et salg er kun halvdelen af en beslutning. Den anden halvdel er, hvor pengene går hen. Momentum er en relativ effekt: de bedste aktier de seneste 3–12 måneder har i gennemsnit klaret sig bedre end de andre det næste stykke tid. En take-profit, der sælger en vinder og lægger pengene i ACWI, flytter dem altså fra den gruppe, momentum peger på, til gennemsnittet. Så skal take-profit enten undgå de fald, der kommer efter en stor stigning, eller også koster den afkast. Flyttes pengene i stedet til den næste aktie med høj score, bliver take-profit en måde at holde kurven fuld af aktier med stærk momentum, og spørgsmålet bliver, om det slår at lade vinderen løbe.
+
+Den rene version af den idé er en rotation: hver måned sælges de aktier, der er faldet langt ned på listen, og de bedste købes. Det er den klassiske momentumstrategi fra litteraturen (Jegadeesh og Titman 1993), og den har ingen stop. Skal et stop eller en take-profit tilføje noget, skal de altså slå rotationen alene, ikke bare det at beholde kurven.
+
+`radar study redeploy` tester begge dele med samme kurve: reglen med pengene parkeret, reglen med pengene i en ny aktie, rotationen alene og rotationen med reglen. Bedømmelsen sker på risikojusteret afkast:
+
+$$
+\text{Sharpe} = \frac{\bar r - \bar r_f}{\sigma_r}\sqrt{252}, \qquad
+\text{Sortino} = \frac{\bar r - \bar r_f}{\sqrt{\tfrac{1}{n}\sum \min(r_t - r_{f,t}, 0)^2}}\sqrt{252}, \qquad
+\text{IR} = \frac{\overline{r - r_b}}{\sigma_{r - r_b}}\sqrt{252}
+$$
+
+med daglige afkast $r$ i DKK, ECB's indlånsrente som $r_f$ (kronen følger euroen) og ACWI i DKK som $r_b$. Calmar er det årlige afkast divideret med det største fald. Over vinduer på 6 eller 12 måneder er tallene støjfyldte; de skal sammenlignes mellem varianterne på de samme datoer, ikke med langsigtede tal. To ting trækker resultatet i hver sin retning: at flytte pengene koster kurtage og, i frie midler, skat ved hvert salg; og universet er dagens, så de aktier, pengene flyttes til, er nogle, der overlevede. Det sidste får rotation til at se bedre ud, end den var.
+
 ## Regneeksempel
 
 Eksemplet bruger ATR-tilstanden (`stops.mode: atr`, $k$ starter på 3, trin 0,5, budget 1 %, reward/risk 2); standarden er i dag gennemgangsniveauet ved 200-dages gennemsnittet.

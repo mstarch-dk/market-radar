@@ -149,3 +149,66 @@ def test_summarize_exits_pairs_each_date_with_holding():
     assert s["dates"] == 2 and s["diff_mean"] == pytest.approx(0.03) and s["helped"] == 0.5
     assert s["dd_mean"] == pytest.approx(-0.11) and s["hold"]["dd_mean"] == pytest.approx(-0.25)
     assert s["exits_mean"] == 4
+
+
+# ---------------- redeploy ----------------
+
+def test_risk_adjusted_by_hand():
+    r = np.tile([0.012, -0.006, 0.004, -0.002], 30)
+    idx = pd.Series(np.r_[1.0, np.cumprod(1 + r)], index=pd.bdate_range("2022-01-03", periods=len(r) + 1))
+    rf = pd.Series(0.0001, index=idx.index[:1])                       # carried forward
+    bench = pd.Series(1.0005 ** np.arange(len(idx)), index=idx.index)
+    dd = float((idx / idx.cummax() - 1).min())
+    out = study.risk_adjusted(idx, dd, bench, rf)
+    ex = r - 0.0001
+    assert out["sharpe"] == pytest.approx(ex.mean() / r.std(ddof=1) * math.sqrt(252))
+    assert out["sortino"] == pytest.approx(ex.mean() / math.sqrt((np.minimum(ex, 0) ** 2).mean()) * math.sqrt(252))
+    act = r - 0.0005
+    assert out["te"] == pytest.approx(act.std(ddof=1) * math.sqrt(252))
+    assert out["ir"] == pytest.approx(act.mean() * 252 / out["te"])
+    assert out["ann_ret"] == pytest.approx(idx.iloc[-1] ** (252 / len(r)) - 1)
+    assert out["calmar"] == pytest.approx(out["ann_ret"] / -dd)
+    bare = study.risk_adjusted(idx, dd, None, None)
+    assert bare["sharpe"] is None and bare["ir"] is None and bare["ann_ret"] is not None
+
+
+def test_the_risk_free_rate_is_the_ecb_deposit_rate():
+    class M:
+        def __init__(self, f):
+            self.f = f
+
+        def fred(self):
+            return self.f
+    f = pd.DataFrame({"ECBDFR": [2.52]}, index=[pd.Timestamp("2022-01-03")])
+    assert study.daily_rf(M(f)).iloc[0] == pytest.approx(1.0252 ** (1 / 252) - 1)
+    assert study.daily_rf(M(pd.DataFrame({"DGS3MO": [5.0]}))) is None
+
+
+def test_the_picker_takes_the_best_name_it_may():
+    p = panels(drifting())
+    day = IDX[400]
+    pk = study.Picker(p, 5, trend=False)
+    best = list(study._score(p, day).sort_values(ascending=False).index)
+    assert pk.rank(day, best[0]) == 1 and pk.rank(day, "nope") is None
+    assert pk.pick(day, set(), set()) == best[0]
+    assert pk.pick(day, {best[0]}, {best[1]}) == best[2]
+    capped = study.Picker(p, 5, max_per_sector=1, trend=False)
+    held = {best[0]}
+    got = capped.pick(day, held, set())
+    assert p.sector[got] != p.sector[best[0]]                      # the held name's sector is full
+    assert set(study.Picker(p, 5).capped(day, 40)) <= set(p.m["trend_ok"].loc[day][lambda s: s.eq(True)].index)
+
+
+def test_redeploy_verdicts_follow_the_thresholds():
+    def part(sharpe, hold_sharpe=1.0, diff=0.0):
+        return {"dates": 10, "sharpe_mean": sharpe, "diff_mean": diff, "hold": {"sharpe_mean": hold_sharpe}}
+
+    def tw(x):
+        return {"in_sample": {"sharpe": {"mean": x}}, "holdout": {"sharpe": {"mean": x}}}
+    good = part(1.2)
+    assert study.redeploy_verdict({"in_sample": good, "holdout": good}, 6)["label"] == "better"
+    assert study.redeploy_verdict({"in_sample": good, "holdout": part(0.9)}, 6)["label"] == "not better"
+    assert study.redeploy_verdict({"in_sample": good, "holdout": good, "twin": "p", "vs_twin": tw(-0.1)}, 6)["label"] \
+        == "not better"
+    assert study.redeploy_verdict({"in_sample": good, "holdout": part(1.2, diff=-0.05)}, 12)["label"] == "not better"
+    assert study.redeploy_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
