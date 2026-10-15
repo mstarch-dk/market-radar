@@ -50,6 +50,7 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
         "sentiment": {k: ({x: y for x, y in v.items() if x not in ("gauge", "history")} if v else None)
                       for k, v in d["positioning"]["sentiment"].items()},
         "stale_tickers": cov["stale_tickers"],
+        "behind_tickers": cov.get("behind_tickers", []),
         "coverage": {
             "regime": cov["regime"], "oldest_input": cov["oldest"], "failing_sources": cov["failing"],
             "stale_sources": cov["stale_sources"], "missing_tickers": cov["missing_tickers"],
@@ -85,4 +86,4 @@ def build() -> dict:
     snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), today)
     snapshot.save("momentum", c.leaders, today)
     return {"dashboard": str(out), "asof": d["asof"], "regime": d["regime"]["overall"]["label"],
-            "stale": len(d["coverage"]["stale_tickers"])}
+            "stale": len(d["coverage"]["stale_tickers"]), "behind": len(d["coverage"].get("behind_tickers", []))}

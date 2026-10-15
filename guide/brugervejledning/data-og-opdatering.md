@@ -41,7 +41,9 @@ Trinene køres i denne rækkefølge, og hvert trin logges for sig:
 | Put/call og AAII | CBOE og AAII | Dagligt og ugentligt |
 | Værdiansættelse | Yahoo (screener og fonddata) | Et nyt øjebliksbillede, når det seneste er over {{settings:valuation.snapshot_days}} dage gammelt |
 
-Kurserne hentes inkrementelt: kun de nye dage. Første gang hentes {{settings:history_years}} års historik for hver ticker. Opdager radaren, at et udbytte eller en split har ændret den justerede historik, henter den hele historikken for den ticker igen.
+Kurserne hentes inkrementelt: kun de nye dage. Første gang hentes {{settings:history_years}} års historik for hver ticker. Opdager radaren, at et udbytte eller en split har ændret den justerede historik, henter den hele historikken for den ticker igen. Slutter en ny, fuld historik tidligere end den, radaren allerede havde, beholdes de nyeste gemte dage, så længe de to er justeret ens.
+
+Efter kurserne tjekker radaren, om hver ticker har en kurs for benchmarkets seneste handelsdag. De tickere, der mangler den, hentes én gang til. Mangler de den stadig, står de i loggen, fx "Prices: … 3 without a bar for 2026-10-14 (exchange holiday, or not on Yahoo yet): …". De står også på siden [Operations](/ops) og under *Without the last session* på *Data & coverage*.
 
 ### Rapporten
 Derefter regner radaren regime, rotation, momentum, positionering og dækning ud og skriver resultatet til `dashboard.json` (som siderne læser) og `summary.json` (som Claude Code-kommandoerne læser) i cache-mappens `reports/`. Samtidig gemmes et øjebliksbillede af rangeringerne i `history/snapshots/` i datamappen. Det er dem, der gør det muligt at vise ændring i rang og nye navne siden sidst.
@@ -107,7 +109,7 @@ Gratis kilder fejler af og til: en side ændrer layout, en server svarer ikke, e
 
 Gentagne fejl og sider, der er sat på pause, kan du følge på siden [Operations](/ops); se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift).
 
-> **Tip:** Mangler en enkelt ticker kurser, er det oftest Yahoo, der har et hul den dag. Næste opdatering løser det som regel. *Data & coverage* lister tickers uden kurser (*Missing tickers*) og tickers uden nye kurser (*Stale tickers*).
+> **Tip:** Mangler en enkelt ticker kurser, er det oftest Yahoo, der har et hul den dag. Næste opdatering løser det som regel. *Data & coverage* lister tickers uden kurser (*Missing tickers*), tickers uden nye kurser (*Stale tickers*) og tickers, der mangler den seneste handelsdag (*Without the last session*).
 
 ### Tickers uden for radarens lister
 Søger du på en ticker, som radaren ikke følger, hentes den første gang, du åbner den (det tager omkring 10 sekunder). Den gemmes, men kommer ikke med i den daglige opdatering. Sætter du den på din watchlist, eller køber du den, kommer den med.

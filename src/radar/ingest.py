@@ -89,13 +89,16 @@ def _save_from(d: dict[str, str]) -> None:
     tmp.replace(f)
 
 
-def update_prices(tickers: list[str], progress=None, start: date | None = None) -> dict:
+def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None) -> dict:
     """Incremental price update (full history for new tickers). `progress(done, total)` reports batches.
 
     The full history starts `history_years` back, or at `start` when that is earlier (universe.history_start:
     deep enough for your first trade). A stored history that starts later than that is downloaded again in full
     ("deepened"); prices_from.json remembers where each was fetched from, so a ticker listed later than the start
-    isn't fetched again every time."""
+    isn't fetched again every time.
+
+    With `bench`, tickers still without a bar on the benchmark's last session are fetched once more and the ones
+    left over are returned as `behind` ({ticker: last bar}); `asof` is that session."""
     existing = load_prices()
     if not existing.empty:
         existing["date"] = pd.to_datetime(existing["date"])
@@ -125,15 +128,62 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None) 
             full = pd.concat([full, _download(rebased, full_start)], ignore_index=True)
 
     full = _norm_dates(full)
+    full = pd.concat([full, kept_after(existing, full)], ignore_index=True)
     existing = existing[~existing["ticker"].isin(set(full["ticker"]))]  # replaced wholesale, not merged
     df = pd.concat([existing, inc, full], ignore_index=True)
+    df["date"] = pd.to_datetime(df["date"])
     df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
+
+    # Yahoo sometimes answers without the latest session for a whole exchange; ask once more for those
+    late = behind(df, tickers, bench)
+    if late:
+        since = min(date.fromisoformat(d) for d in late.values()) - timedelta(days=OVERLAP_DAYS)
+        more = _norm_dates(_download(sorted(late), since))
+        more = more[~more["ticker"].isin(rescaled(df, more))]   # another basis: the next run downloads it in full
+        df = pd.concat([df, more], ignore_index=True)
+        df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
+        late = behind(df, tickers, bench)
     write_parquet(df, PRICES_FILE, index=False)
 
     got = set(inc["ticker"]) | set(full["ticker"])
     _save_from(fetched_from | {t: full_start.isoformat() for t in set(full["ticker"])})
     return {"requested": len(tickers), "new": len(new), "rebased": rebased, "deepened": len(deepen),
-            "missing": sorted(set(tickers) - got - set(known)), "rows": len(df)}
+            "missing": sorted(set(tickers) - got - set(known)), "rows": len(df), "behind": late,
+            "asof": _last(df, bench)}
+
+
+def kept_after(existing: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
+    """Stored bars newer than a full download's last bar, where both agree on that bar's adjusted close.
+
+    Yahoo's long history can end a session earlier than what an earlier fetch already stored; replacing the
+    history wholesale would lose those bars. On another adjustment basis they're dropped (the catch-up fetch
+    then gets them on the new one)."""
+    if existing.empty or fresh.empty:
+        return existing.iloc[0:0]
+    end = fresh.groupby("ticker")["date"].max()
+    old = existing[existing["ticker"].isin(end.index)]
+    newer = old[old["date"] > old["ticker"].map(end)]
+    if newer.empty:
+        return newer
+    at_end = old.merge(fresh[["ticker", "date", "close"]], on=["ticker", "date"], suffixes=("_old", "_new"))
+    at_end = at_end[at_end["date"] == at_end["ticker"].map(end)]
+    same = at_end.loc[(at_end["close_new"] / at_end["close_old"] - 1).abs() <= RESCALE_TOL, "ticker"]
+    return newer[newer["ticker"].isin(set(same))]
+
+
+def _last(df: pd.DataFrame, ticker: str | None) -> str | None:
+    d = df.loc[df["ticker"] == ticker, "date"] if ticker else df.iloc[0:0]["date"]
+    return pd.Timestamp(d.max()).date().isoformat() if not d.empty else None
+
+
+def behind(df: pd.DataFrame, tickers: list[str], bench: str | None) -> dict[str, str]:
+    """{ticker: its last bar} for tickers without a bar on the benchmark's last session (an exchange holiday,
+    or Yahoo doesn't have it yet). Tickers with no prices at all are `missing`, not behind."""
+    ref = _last(df, bench)
+    if ref is None:
+        return {}
+    last = df[df["ticker"].isin(set(tickers))].groupby("ticker")["date"].max()
+    return {t: pd.Timestamp(d).date().isoformat() for t, d in last.items() if d < pd.Timestamp(ref)}
 
 
 def _norm_dates(df: pd.DataFrame) -> pd.DataFrame:

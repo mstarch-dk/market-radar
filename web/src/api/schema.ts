@@ -1577,6 +1577,11 @@ export interface components {
             missing_tickers: string[];
             /** Stale Tickers */
             stale_tickers: string[];
+            /**
+             * Behind Tickers
+             * @default []
+             */
+            behind_tickers: string[];
             /** Blind Spots */
             blind_spots: string[];
         };

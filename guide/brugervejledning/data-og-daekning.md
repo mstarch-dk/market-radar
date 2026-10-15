@@ -98,10 +98,11 @@ Afsnittet *What the radar doesn't see* lister radarens blinde vinkler, så et "r
 
 ## Manglende og forældede tickere
 
-Nederst står to lister:
+Nederst står to lister, og nogle gange en tredje:
 
 - **Missing tickers**: symboler i `config/universe.yaml`, som radaren slet ikke har kurser for. Symbolet kan være forkert eller ikke findes på Yahoo. Ret det i `universe.yaml`.
 - **Stale tickers**: symboler uden ny kurs i mere end {{settings:coverage.max_age.prices}} dage. Papiret kan være afnoteret eller suspenderet.
+- **Without the last session**: symboler uden kurs for benchmarkets seneste handelsdag, som er dashboardets datadato. Listen vises kun, når den ikke er tom. Årsagen er enten en helligdag på børsen, eller at Yahoo ikke havde dagen endnu ved sidste opdatering. Næste opdatering spørger igen.
 
 Klik på et symbol for at åbne dets [tickerprofil](brugervejledning/tickerprofil).
 

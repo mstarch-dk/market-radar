@@ -148,10 +148,13 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     last = prices.groupby("ticker")["date"].max() if not prices.empty else pd.Series(dtype="datetime64[ns]")
     missing = sorted(set(configured) - set(last.index))
     stale = sorted(t for t, d in last.items() if t in set(configured) and (pd.Timestamp(ref) - d).days > max_age["prices"])
+    # without the as-of session but not yet stale: an exchange holiday, or a bar Yahoo hasn't delivered
+    behind = sorted(t for t, d in last.items() if t in set(configured) and t not in stale and d < pd.Timestamp(ref))
     have = len(set(configured) & set(last.index))
     span = f"history from {_d(prices['date'].min())}" if not prices.empty else ""
     rows.append(_row("prices", pd.Timestamp(ref) if not prices.empty else None, today, max_age["prices"],
-                     f"{have} of {len(configured)} configured tickers" + (f"; {len(stale)} stale" if stale else ""),
+                     f"{have} of {len(configured)} configured tickers" + (f"; {len(stale)} stale" if stale else "")
+                     + (f"; {len(behind)} without a bar for {_d(ref)}" if behind else ""),
                      span, log))
 
     # FRED: the oldest series decides
@@ -235,7 +238,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
         "oldest": {"name": oldest["name"], "asof": oldest["asof"], "age_days": oldest["age_days"]} if oldest else None,
         "failing": [r["name"] for r in rows if r["error"]],
         "stale_sources": [r["name"] for r in rows if r["status"] == STALE and not r["key"].startswith("discovery")],
-        "missing_tickers": missing, "stale_tickers": stale,
+        "missing_tickers": missing, "stale_tickers": stale, "behind_tickers": behind,
         "blind_spots": cfg["coverage"].get("blind_spots") or [],
     }
 

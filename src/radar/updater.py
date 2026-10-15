@@ -35,8 +35,14 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
     log(f"Updating {len(tickers)} tickers…")
 
     def prices():
-        res = ingest.update_prices(tickers, progress, start=universe.history_start())
+        res = ingest.update_prices(tickers, progress, start=universe.history_start(), bench=universe.benchmark())
         msg = f"{res['rows']:,} rows, {res['new']} new tickers"
+        if res["behind"]:
+            names = sorted(res["behind"])
+            late = (f"{len(names)} without a bar for {res['asof']} (exchange holiday, or not on Yahoo yet): "
+                    + ", ".join(names[:12]) + (f" and {len(names) - 12} more" if len(names) > 12 else ""))
+            ops.event("warn", "source", f"prices: {late}", detail=", ".join(names))
+            msg += f"; {late}"
         if res.get("deepened"):
             msg += f"; {res['deepened']} downloaded again further back (to your first trade)"
         if res["rebased"]:
@@ -83,7 +89,8 @@ def update_external(log: Log = print) -> None:
 
 def build_report(log: Log = print) -> dict:
     res = report.build()
-    log(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}")
+    log(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}"
+        + (f"; without the last session: {res['behind']}" if res.get("behind") else ""))
     return res
 
 

@@ -920,6 +920,7 @@ class CoverageView(Snapshot):
     stale_sources: list[str]
     missing_tickers: list[str]
     stale_tickers: list[str]
+    behind_tickers: list[str] = []  # no bar on the as-of session: holiday, or not on Yahoo yet
     blind_spots: list[str]
 
 
