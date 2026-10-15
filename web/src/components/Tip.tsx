@@ -35,7 +35,8 @@ export function Tip({ content, children, placement = "top", focusable = true, cl
       </span>
       {open && (
         <FloatingPortal>
-          <div ref={refs.setFloating} style={floatingStyles} className="tip" {...getFloatingProps()}>{content}</div>
+          <div ref={refs.setFloating} style={floatingStyles} className={`tip${interactive ? " tip-interactive" : ""}`}
+            {...getFloatingProps()}>{content}</div>
         </FloatingPortal>
       )}
     </>
