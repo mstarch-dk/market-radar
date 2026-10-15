@@ -152,9 +152,11 @@ valuation:                 # src/radar/valuation.py and signals/valuation.py
   min_peers: 5             # a sector median needs at least this many names with a P/E
   revision_band: 0.01      # a forward EPS change within +-1% counts as unchanged
   etf_history_weeks: 26    # an ETF's P/E percentile needs this many weekly snapshots
+  etf_min_share: 0.8       # a new ETF snapshot needs fund data for this share of the last one's ETFs, else it's kept
 
 sentiment:                 # src/radar/sentiment.py
   putcall_backfill_days: 365
+  putcall_retry_days: 10   # a weekday in this window that isn't stored (not published yet, refused) is asked again
   putcall_lookback_days: 756   # percentile of the 10-day average equity put/call over ~3 years
   aaii_extreme_pct: 10         # bull-bear spread percentile at or below = extreme fear, at or above 100-x = euphoria
 

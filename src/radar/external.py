@@ -12,7 +12,7 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
-from . import net
+from . import guard, net
 from .config import universe_config, write_parquet
 from .paths import CACHE, HISTORY
 
@@ -125,19 +125,28 @@ def parse_oecd_cli(text: str) -> pd.DataFrame:
     if dupes.any():  # pivot_table would silently average two different series
         raise ValueError(f"{dupes.sum()} duplicate area/month observations: the query matches more than one series")
     df = csv.pivot_table(index="TIME_PERIOD", columns="REF_AREA", values="OBS_VALUE")
+    if df.empty:
+        raise ValueError("no observations in the OECD's answer: has the query or the format changed?")
     df.index = pd.PeriodIndex(df.index, freq="M").to_timestamp()
     return df.sort_index()
 
 
 def update_oecd_cli(today: date | None = None) -> str:
+    """The CLI for the configured areas over a rolling six-year window. The answer is checked against what is
+    stored before anything is written (guard): an area missing from it keeps its stored values (and says so); an
+    area that ends earlier than stored, or has markedly fewer months, keeps the stored file."""
     areas = _cfg().get("oecd_cli", {})
     start = ((today or date.today()) - timedelta(days=365 * 6)).strftime("%Y-%m")
     resp = net.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), timeout=60)
     resp.raise_for_status()
     df = parse_oecd_cli(resp.text)
-    write_parquet(df, CLI_FILE)
-    missing = [a for a in areas if a not in df.columns]
-    return f"latest {df.index[-1]:%b %Y}" + (f"; no data for {', '.join(missing)}" if missing else "")
+    notes = guard.replace(CLI_FILE, load_oecd_cli(), df, what="OECD CLI", key=None, date=None,
+                          expected_keys=list(areas), carry=True,
+                          start_tol=timedelta(days=62), row_tol=0.05)   # the window rolls a month at a time
+    missing = [a for a in areas if a not in df.columns and not any(a in n for n in notes)]
+    return (f"latest {df.index[-1]:%b %Y}" + (f"; no data for {', '.join(missing)}" if missing else "")
+            + "".join(f"; {n}" for n in notes))
+
 
 
 def load_oecd_cli() -> pd.DataFrame:

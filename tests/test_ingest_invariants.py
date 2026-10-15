@@ -113,9 +113,6 @@ class Fred(Source):
 class Oecd(Source):
     file = external.CLI_FILE
     measure = {"key": None, "date": None}
-    gaps = {"empty": "OECD writes before it validates (plan 1.3)",
-            "short": "OECD replaces wholesale (plan 1.3)",
-            "missing": "an area missing from the answer drops its stored column (plan 1.3)"}
 
     def areas(self):
         return list(external._cfg().get("oecd_cli", {}))
@@ -204,8 +201,6 @@ class Erp(Cape):
 class Etfs(Source):
     file = valuation.ETFS_FILE
     measure = {"key": "ticker", "date": None}   # weekly snapshots: a same-week rerun re-dates a row by design
-    gaps = {"short": "a same-week rerun with few ETFs replaces the week (plan 1.4)",
-            "missing": "a same-week rerun with few ETFs replaces the week (plan 1.4)"}
     modes = ("error", "empty", "short", "missing")
     TICKERS = [f"ETF{i}" for i in range(10)]
 

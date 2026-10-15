@@ -105,6 +105,8 @@ Gratis kilder fejler af og til: en side ændrer layout, en server svarer ikke, e
 - **Kilden beholder sine seneste data.** En fejl overskriver aldrig det, der allerede ligger i cachen. Resten af opdateringen fortsætter.
 - **Fejlen bliver vist.** I loggen står fx "CFTC positioning: FAILED (…); using cached data." På *Data & coverage* viser kolonnen *Last update* "failed" med dato og fejl samt den seneste vellykkede opdatering. På *Regime* står "last update failed" i dækningslinjen under afstemningen.
 - **En kilde, der svarer med noget tomt, fejler højlydt.** Hvis en kilde svarer, men svaret ikke kan læses til noget brugbart, regnes det som en fejl, og cachen bevares. Radaren erstatter aldrig data med nuller.
+- **Et svar med mindre end det gemte erstatter det ikke.** Mangler en serie i svaret, beholdes de gemte værdier, og loggen siger det (fx "kept the stored USA"). Slutter en serie tidligere end den gemte, beholdes hele den gemte fil. Får et nyt ETF-snapshot fonddata for for få ETF'er (under {{settings:valuation.etf_min_share}} af det seneste snapshots), beholdes det seneste.
+- **En kilde, der fejler midtvejs, beholder det, den nåede.** Put/call hentes dag for dag. Fejler en dag, gemmes dagene før den, og opdateringen meldes som fejlet med det, der blev gemt. En dag, CBOE ikke havde endnu, hentes igen ved de næste opdateringer.
 - **Bliver fejlen ved, ældes data.** Efter kildens maksimale alder bliver den *stale* og holder op med at tælle.
 
 Gentagne fejl og sider, der er sat på pause, kan du følge på siden [Operations](/ops); se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift).

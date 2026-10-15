@@ -39,31 +39,47 @@ def load_putcall() -> pd.DataFrame:
 
 
 def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str:
-    """Fetch every weekday since the last stored one (a year back on the first run). A missing day (holiday, not
-    yet published) is skipped; nothing new for a week of weekdays means the source has moved: raise."""
+    """Fetch every weekday since the last stored one (a year back on the first run), and any weekday in the last
+    `sentiment.putcall_retry_days` that isn't stored (a day CBOE hadn't published yet, or refused, is asked again
+    instead of staying a hole). A missing day (holiday, not yet published) is skipped; nothing new for a week of
+    weekdays means the source has moved: raise. A failure part-way stores the days already fetched, then raises
+    `PartialFailure`."""
+    from .coverage import PartialFailure
+
     today = today or date.today()
     get = get or (lambda url: net.get(url, timeout=30, expected=(403, 404)))
+    cfg = settings()["sentiment"]
     old = load_putcall()
-    start = (pd.to_datetime(old["date"]).max().date() + timedelta(days=1) if not old.empty
-             else today - timedelta(days=settings()["sentiment"]["putcall_backfill_days"]))
-    days = [d.date() for d in pd.bdate_range(start, today)]
-    rows, misses = [], 0
+    have = set(pd.to_datetime(old["date"]).dt.date) if not old.empty else set()
+    last = max(have) if have else None
+    start = (min(last + timedelta(days=1), today - timedelta(days=cfg.get("putcall_retry_days", 10))) if last
+             else today - timedelta(days=cfg["putcall_backfill_days"]))
+    days = [d.date() for d in pd.bdate_range(start, today) if d.date() not in have]
+    rows, failed = [], None
     for d in days:
-        r = get(CBOE_URL.format(d=d))
-        if r.status_code in (403, 404):
-            misses += 1
-            continue
-        r.raise_for_status()
-        rows.append({"date": pd.Timestamp(d)} | parse_cboe(r.json()))
+        try:
+            r = get(CBOE_URL.format(d=d))
+            if r.status_code in (403, 404):
+                continue
+            r.raise_for_status()
+            rows.append({"date": pd.Timestamp(d)} | parse_cboe(r.json()))
+        except Exception as e:  # keep what came before it; say what failed
+            failed = (d, e)
+            break
         sleep(0.15)
-    if not rows and len(days) >= 5:
-        raise ValueError(f"no CBOE statistics for any of the last {len(days)} weekdays: has the address changed?")
+    new_days = [d for d in days if last is None or d > last]
+    if not rows and failed is None and len(new_days) >= 5:
+        raise ValueError(f"no CBOE statistics for any of the last {len(new_days)} weekdays: has the address changed?")
     if rows:
         df = pd.concat([old, pd.DataFrame(rows)], ignore_index=True) if not old.empty else pd.DataFrame(rows)
         df = df.drop_duplicates("date", keep="last").sort_values("date")
         write_parquet(df, PUTCALL_FILE, index=False)
-    last = rows[-1]["date"] if rows else (pd.to_datetime(old["date"]).max() if not old.empty else None)
-    return f"{len(rows)} new days" + (f", latest {last:%d %b}" if last is not None else "")
+    newest = max([r["date"] for r in rows] + ([pd.Timestamp(last)] if last else []), default=None)
+    msg = f"{len(rows)} new days" + (f", latest {newest:%d %b}" if newest is not None else "")
+    if failed:
+        d, e = failed
+        raise PartialFailure(f"{msg}; stopped at {d}: {type(e).__name__}: {e}") from e
+    return msg
 
 
 # ---------------- AAII sentiment survey ----------------

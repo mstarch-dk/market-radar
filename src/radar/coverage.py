@@ -64,6 +64,10 @@ def load_log() -> dict:
         return {}
 
 
+class PartialFailure(RuntimeError):
+    """The step stored part of what it fetched, then failed: the message says what was kept and what failed."""
+
+
 def record(source: str, ok: bool, detail: str | None = None, error: str | None = None,
            exc: BaseException | None = None) -> None:
     """Log one update attempt. A failure keeps the last success, so the page can say how old the data is. Each

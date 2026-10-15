@@ -257,3 +257,35 @@ def test_download_empty_response(monkeypatch):
     monkeypatch.setattr(ingest.yf, "download", lambda batch, **kw: pd.DataFrame())
     out = ingest._download(["AAA"], pd.Timestamp("2026-10-01").date())
     assert out.empty and list(out.columns) == ingest.COLUMNS
+
+
+# ---------------- OECD: nothing is written before the answer is checked (hardening 1.3) ----------------
+
+def _oecd(areas, months=24, end="2026-08"):
+    rows = ["REF_AREA,TIME_PERIOD,OBS_VALUE"] + [f"{a},{m:%Y-%m},100.0" for a in areas
+                                                 for m in pd.period_range(end=end, periods=months, freq="M").to_timestamp()]
+    return "\n".join(rows) + "\n"
+
+
+def test_oecd_header_only_answer_raises_and_writes_nothing(monkeypatch):
+    from fakes import Resp, serve
+    areas = list(external._cfg().get("oecd_cli", {}))
+    serve(monkeypatch, {"oecd": Resp(text=_oecd(areas))})
+    external.update_oecd_cli()
+    before = external.CLI_FILE.read_bytes()
+    serve(monkeypatch, {"oecd": Resp(text="REF_AREA,TIME_PERIOD,OBS_VALUE\n")})
+    with pytest.raises(ValueError):
+        external.update_oecd_cli()
+    assert external.CLI_FILE.read_bytes() == before
+
+
+def test_oecd_area_missing_from_the_answer_keeps_its_stored_values(monkeypatch):
+    from fakes import Resp, serve
+    areas = list(external._cfg().get("oecd_cli", {}))
+    serve(monkeypatch, {"oecd": Resp(text=_oecd(areas))})
+    external.update_oecd_cli()
+    serve(monkeypatch, {"oecd": Resp(text=_oecd(areas[1:], end="2026-09"))})
+    msg = external.update_oecd_cli()
+    df = pd.read_parquet(external.CLI_FILE)
+    assert areas[0] in df.columns and df[areas[0]].notna().sum() == 24
+    assert f"kept the stored {areas[0]}" in msg
