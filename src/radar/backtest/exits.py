@@ -27,6 +27,10 @@ The rule, per position (an "episode": from a buy while flat until it is sold out
   take-profit, a fixed % trail from the high or a close below a moving average instead of the ATR stop, and
   re-entry: after an exit, buy back with that exit's parked money once the stock is in an uptrend with a strong
   score again (only with `rules`). `RuleSpec()` is the radar's rule exactly as settings has it.
+- **Redeploy and rotation** (`RuleSpec.redeploy`, `rotate`; only with `rules` and a `picker` from the study):
+  instead of parking, an exit's proceeds buy the best-scoring name the picker offers on the trigger day (not
+  held, not sold in the last `cooldown` sessions), at the same fill close; and at each month-end a holding ranked
+  outside `rotate` x the basket size is sold the same way. Without a candidate the money is parked, and said so.
 
 Funding mirrors the real portfolio: with a cash ledger its deposits and withdrawals are copied; without one
 (every buy is new money) each buy is funded from the sim's cash, then the parked units, then a deposit, and each
@@ -65,10 +69,17 @@ class RuleSpec:
     sma: int = 200
     reentry: bool = False         # buy back after an exit: uptrend, score >= stops.strong_score, above the 50-day
     reentry_wait: int = 10        # sessions after an exit before a re-entry can trigger
+    redeploy: str = "park"        # park: an exit's proceeds wait in backtest.park; score: they buy the picker's best name
+    rotate: int = 0               # > 0: sell at month-end a holding ranked outside rotate x the picker's basket size
+    cooldown: int = 21            # sessions after a sale before redeploy can buy the name again
 
     def __post_init__(self):
         if self.tp not in ("fixed", "off") or self.stop not in STOP_KINDS:
             raise ValueError(f"tp must be fixed or off, stop one of {', '.join(STOP_KINDS)}")
+        if self.redeploy not in ("park", "score") or self.rotate < 0 or self.cooldown < 0:
+            raise ValueError("redeploy must be park or score, rotate and cooldown >= 0")
+        if self.rotate and self.redeploy != "score":
+            raise ValueError("rotation needs redeploy: score (a rotated-out name's money buys the next one)")
 
     @property
     def overrides(self) -> dict | None:
@@ -108,6 +119,9 @@ class Replay:
     rule: str = "both"
     fee_bps: float = 0.0
     spec: RuleSpec = field(default_factory=RuleSpec)
+    picker: object = None            # study.Picker: n, pick(day, held, barred) -> name | None, rank(day, name) -> int | None
+    sold: dict = field(default_factory=dict)            # symbol -> the session of its last rule / rotation sale
+    redeploys: list[dict] = field(default_factory=list)
     watch: dict = field(default_factory=dict)          # exited symbols waiting for a re-entry
     reentries: list[dict] = field(default_factory=list)
     _sma: dict = field(default_factory=dict)
@@ -262,20 +276,71 @@ class Replay:
             return
         qty = ep.qty
         k = f" (k {p['k']:.2f})" if p.get("k") is not None else ""
-        dkk = self.trade("SELL", sym, day, qty, px, rate,
-                         f"rule: {p.get('stop_kind', p['trigger']).replace('_', '-')} at {p['level']:.2f}{k} on {p['trigger_date']}")
-        ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
-        units = 0.0
-        if ppx and prate and dkk > 0:
-            units = dkk / (ppx * prate * (1 + self.fee_bps / 1e4))
-            self.trade("BUY", self.park, day, units, ppx, prate, f"parked: money from the {sym} exit")
-            self.park_units += units
+        why = (f"rotation: rank {p['rank'] if p['rank'] is not None else 'none'} outside the top {p['keep']} on "
+               f"{p['trigger_date']}" if p["trigger"] == "rotation" else
+               f"rule: {p.get('stop_kind', p['trigger']).replace('_', '-')} at {p['level']:.2f}{k} on {p['trigger_date']}")
+        dkk = self.trade("SELL", sym, day, qty, px, rate, why)
+        del self.eps[sym]
+        self.sold[sym] = day
+        units, ppx, prate = 0.0, None, None
+        if not (dkk > 0 and self.redeploy(sym, p, day, dkk)):
+            ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
+            if ppx and prate and dkk > 0:
+                units = dkk / (ppx * prate * (1 + self.fee_bps / 1e4))
+                self.trade("BUY", self.park, day, units, ppx, prate, f"parked: money from the {sym} exit")
+                self.park_units += units
         self.exits.append(p | {"symbol": sym, "fill_date": day.date().isoformat(), "quantity": qty, "fill_price": px,
                                "fx": rate, "proceeds_dkk": dkk, "park_units": units, "park_price": ppx, "park_fx": prate,
                                "episode_start": ep.start.date().isoformat()})
-        del self.eps[sym]
         if self.spec.reentry and units > 0:
             self.watch[sym] = {"exit": day, "units": units, "pending": None}
+
+    def barred(self, day: pd.Timestamp) -> set[str]:
+        """Names sold within the last `cooldown` sessions (up to `day`)."""
+        s = self.ctx.sessions
+        i = s.searchsorted(day)
+        return {t for t, d in self.sold.items() if i - s.searchsorted(d) <= self.spec.cooldown}
+
+    def redeploy(self, sym: str, p: dict, day: pd.Timestamp, dkk: float) -> bool:
+        """Buy the picker's best name with an exit's proceeds at `day`'s close, ranked on the trigger day (known at
+        that close). False (the money is then parked) without a picker, a candidate, a price or a DKK rate."""
+        if self.spec.redeploy != "score" or self.picker is None:
+            return False
+        trig = pd.Timestamp(p["trigger_date"])
+        new = self.picker.pick(trig, set(self.eps), self.barred(day))
+        px, rate = (self.traded(new, day), self.rate(new, day)) if new else (None, None)
+        if not new or not (px and rate) or not self.has_bar(new, day):
+            self.events.append({"date": day.date().isoformat(), "kind": "redeploy skipped", "symbol": sym,
+                                "detail": "no candidate" if not new else f"{new}: no traded price or DKK rate that day"})
+            return False
+        qty = dkk / (px * rate * (1 + self.fee_bps / 1e4))
+        self.trade("BUY", new, day, qty, px, rate, f"redeploy: money from the {sym} {p['trigger'].replace('_', '-')}")
+        self.eps[new] = Episode(qty, day)
+        self.redeploys.append({"symbol": new, "from": sym, "trigger": p["trigger"], "trigger_date": p["trigger_date"],
+                               "fill_date": day.date().isoformat(), "price": px, "quantity": qty, "amount_dkk": dkk})
+        return True
+
+    def month_end(self, day: pd.Timestamp) -> bool:
+        s = self.ctx.sessions
+        i = s.searchsorted(day)
+        return i + 1 < len(s) and s[i] == day and s[i + 1].month != day.month
+
+    def check_rotation(self, day: pd.Timestamp) -> None:
+        """At a month-end: a holding ranked outside `rotate` x the basket size (or without a rank) is sold at the
+        next fill and its money redeployed."""
+        keep = self.spec.rotate * self.picker.n
+        for sym, ep in list(self.eps.items()):
+            if ep.pending is not None or not self.has_bar(sym, day):
+                continue
+            r = self.picker.rank(day, sym)
+            if r is not None and r <= keep:
+                continue
+            ep.pending = {"trigger": "rotation", "stop_kind": "rotation", "trigger_date": day.date().isoformat(),
+                          "level": float(r) if r is not None else float("nan"), "rank": r, "keep": keep, "k": None,
+                          "close_adj": None, "stop": None, "take_profit": ep.tp, "tp_set": ep.tp_meta,
+                          "anchor": ep.anchor, "atr": None, "reasons": [], "context": None}
+            if self.fill == "same":
+                self.execute(sym, ep, day)
 
     def sma(self, sym: str, day: pd.Timestamp) -> float | None:
         if sym not in self._sma:
@@ -395,9 +460,10 @@ def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
 
 
 def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None,
-           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None) -> dict:
+           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None, picker=None) -> dict:
     """The simulated rows and the report for one real portfolio's rows (`rule`: both / stop / take_profit;
-    `fee_bps` per rule or parking trade, default settings backtest.fee_bps; `spec`: a variant of the rule)."""
+    `fee_bps` per rule or parking trade, default settings backtest.fee_bps; `spec`: a variant of the rule;
+    `picker`: the candidates for `spec.redeploy` / `spec.rotate`)."""
     if variant not in VARIANTS:
         raise ValueError(f"variant must be one of {', '.join(VARIANTS)}")
     if rule not in RULES:
@@ -409,13 +475,15 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         spec = replace(spec, stop="none")
     if spec.reentry and variant != "rules":
         raise ValueError("re-entry needs the rules variant (your own sales would mix with the rule's buys)")
+    if spec.redeploy == "score" and (variant != "rules" or picker is None):
+        raise ValueError("redeploy needs the rules variant and a picker")
     bt = settings().get("backtest") or {}
     market = ctx.market
     rows = sorted([r for r in real_rows if r["type"] in ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST", "DIVIDEND")],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
                 bt.get("park") or universe.benchmark(), rule,
-                float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps), spec)
+                float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
     if not rows:
@@ -462,6 +530,8 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         for sym, ep in list(rp.eps.items()):
             if ep.pending is None:
                 rp.check(sym, ep, day)
+        if spec.rotate and rp.month_end(day):
+            rp.check_rotation(day)
         for sym, w in list(rp.watch.items()):
             if w["pending"] is None and sym not in rp.eps and rp.has_bar(sym, day):
                 rp.check_reentry(sym, w, day)
@@ -470,7 +540,7 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
     return {"rows": rp.rows, "exits": _evaluate(rp, real_rows, days[-1]), "events": rp.events,
             "pending": open_triggers, "no_rule": sorted(rp.no_rule), "counts": rp.counts, "funding":
             "ledger" if rp.ledger else "implicit", "park": rp.park, "fill": rp.fill, "rule": rp.rule, "fee_bps": rp.fee_bps,
-            "spec": rp.spec.key, "reentries": rp.reentries,
+            "spec": rp.spec.key, "reentries": rp.reentries, "redeploys": rp.redeploys,
             "start": days[0].date().isoformat(), "end": days[-1].date().isoformat()}
 
 

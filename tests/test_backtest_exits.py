@@ -353,3 +353,112 @@ def test_path_measures_return_and_drawdown(market):
     assert r["max_dd"] == pytest.approx(crash()[UP + DOWN - 1] / crash()[UP - 1] - 1)
     assert r["worst20"] == pytest.approx(0.99 ** 20 - 1)
     assert study.path(rows, market, IDX[i0], IDX[N - 1] + pd.Timedelta(days=30)) is None
+
+
+# ---------------- redeploy and rotation ----------------
+
+class FakePicker:
+    """Candidates in a fixed order; records what it was asked."""
+    n = 5
+
+    def __init__(self, order, ranks=None):
+        self.order, self.ranks, self.calls = order, ranks or {}, []
+
+    def pick(self, day, held, barred):
+        self.calls.append((day, set(held), set(barred)))
+        return next((t for t in self.order if t not in held and t not in barred), None)
+
+    def rank(self, day, t):
+        return self.ranks.get(t)
+
+
+def funded(*buys):
+    return [{"date": IDX[190].date().isoformat(), "type": "DEPOSIT", "amount": 20_000.0}, *buys]
+
+
+def test_redeploy_buys_the_next_name_with_all_the_money(market):
+    ctx = context(market, "CRASH", "S1", "S2")
+    pk = FakePicker(["CRASH", "S1", "S2"])
+    spec = exits.RuleSpec("r", tp="off", stop="pct", pct=0.05, redeploy="score")
+    rep = exits.replay(funded(buy("CRASH", 190, 10, fx=FX)), ctx, "rules", fee_bps=10, spec=spec, picker=pk)
+    [e] = rep["exits"]
+    [r] = rep["redeploys"]
+    assert r["symbol"] == "S1" and r["from"] == "CRASH" and r["fill_date"] == e["fill_date"] and e["park_units"] == 0
+    assert r["amount_dkk"] == pytest.approx(e["proceeds_dkk"])
+    [buy_s1] = [x for x in rep["rows"] if x.get("symbol") == "S1"]
+    assert buy_s1["fee"] == pytest.approx(buy_s1["quantity"] * buy_s1["price"] * 10 / 1e4)
+    assert buy_s1["quantity"] * buy_s1["price"] * buy_s1["fx_rate"] + buy_s1["fee"] * buy_s1["fx_rate"] == \
+        pytest.approx(e["proceeds_dkk"])
+    assert not [x for x in rep["rows"] if x.get("symbol") == "ACWI"]
+    day, held, barred = pk.calls[0]
+    assert day == pd.Timestamp(e["trigger_date"]) < pd.Timestamp(e["fill_date"])     # ranked on what was known
+    assert "CRASH" in barred and "CRASH" not in held                                  # the cool-down
+    assert simulate.check_rows(rep["rows"], market) == []
+
+
+def test_without_a_candidate_the_money_is_parked_and_said(market):
+    ctx = context(market, "CRASH")
+    spec = exits.RuleSpec("r", tp="off", stop="pct", pct=0.05, redeploy="score")
+    rep = exits.replay(funded(buy("CRASH", 190, 10, fx=FX)), ctx, "rules", fee_bps=10, spec=spec,
+                       picker=FakePicker(["CRASH"]))
+    [e] = rep["exits"]
+    assert e["park_units"] > 0 and rep["redeploys"] == []
+    assert [ev["kind"] for ev in rep["events"]] == ["redeploy skipped"]
+
+
+def test_parking_is_unchanged_by_the_new_options(market):
+    ctx = context(market, "CRASH")
+    rows = funded(buy("CRASH", 190, 10, fx=FX))
+    a = exits.replay(rows, ctx, "rules", fee_bps=10, spec=exits.RuleSpec("p", tp="off", stop="pct", pct=0.05))
+    b = exits.replay(rows, ctx, "rules", fee_bps=10, spec=exits.RuleSpec("p", tp="off", stop="pct", pct=0.05),
+                     picker=FakePicker(["S1"]))
+    assert a["rows"] == b["rows"] and b["redeploys"] == []
+
+
+def test_rotation_sells_names_outside_the_buffer_at_month_end(market):
+    ctx = context(market, "S1", "S2", "S3")
+    pk = FakePicker(["S1", "S2", "S3"], ranks={"S1": 2, "S2": 40})            # keep = 3 x 5 = 15; S2 is out
+    spec = exits.RuleSpec("rot", tp="off", stop="none", redeploy="score", rotate=3)
+    rep = exits.replay(funded(buy("S1", 190, 10, fx=FX), buy("S2", 190, 10, fx=FX)), ctx, "rules", fee_bps=10,
+                       spec=spec, picker=pk)
+    sold = {e["symbol"] for e in rep["exits"]}
+    assert sold == {"S2", "S3"}                     # S3 came in for S2 and, unranked, went out at the next month-end
+    first = min(rep["exits"], key=lambda e: e["trigger_date"])
+    t = pd.Timestamp(first["trigger_date"])
+    assert first["symbol"] == "S2" and first["trigger"] == "rotation" and first["rank"] == 40
+    assert IDX[IDX.get_loc(t) + 1].month != t.month                              # on the last session of a month
+    assert rep["redeploys"][0]["symbol"] == "S3"
+
+
+def test_redeploy_and_rotation_are_checked():
+    with pytest.raises(ValueError):
+        exits.RuleSpec("x", rotate=3)                        # rotation without redeploy
+    with pytest.raises(ValueError):
+        exits.RuleSpec("x", redeploy="cash")
+
+
+def test_redeploy_needs_a_picker_and_the_rules_variant(market):
+    ctx = context(market, "CRASH")
+    spec = exits.RuleSpec("r", tp="off", stop="pct", pct=0.05, redeploy="score")
+    with pytest.raises(ValueError):
+        exits.replay([buy("CRASH", 190, 10)], ctx, "rules", spec=spec)
+    with pytest.raises(ValueError):
+        exits.replay([buy("CRASH", 190, 10)], ctx, "overlay", spec=spec, picker=FakePicker([]))
+
+
+def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
+    from radar.backtest import study
+
+    monkeypatch.setattr(study, "REPORTS", exits.REPORTS)
+    rep = study.redeploy_study(market, n_top=3, horizons=(1,), keys=["sma200-redeploy", "rotate-tp-only"])
+    assert [a["key"] for a in rep["arms"]][:3] == ["sma200-park", "sma200-redeploy", "rotate"]
+    res = rep["results"]["1"]
+    assert set(res) == {"sma200-park", "sma200-redeploy", "rotate", "rotate-tp-only", "mix50", "acwi"}
+    a = res["sma200-park"]["all"]
+    assert a["dates"] >= 1 and a["hold"]["ret_mean"] is not None
+    assert res["sma200-redeploy"]["twin"] == "sma200-park" and res["rotate-tp-only"]["twin"] == "rotate"
+    for d in rep["dates"]:
+        for k, run in d["runs"].items():
+            assert run["trades"] >= 3 and run["fees_pct"] > 0
+    study.write_redeploy(rep)
+    assert (exits.REPORTS / study.REDEPLOY_REPORT_FILE).exists()
