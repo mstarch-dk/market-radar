@@ -8,6 +8,8 @@ argument-hint: "[review] | <action> <ticker> [notes]"
 
 The journal makes decisions deliberate and reviewable. Each entry records *why* a decision was made and *what would prove it wrong*.
 
+**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+
 ## Mode 1: record a decision (`/journal buy RHM.DE …`)
 
 1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (the user's real portfolios from `uv run radar portfolios list --json`, read with what `notes/investor.md` says each is for; without either, e.g. aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.

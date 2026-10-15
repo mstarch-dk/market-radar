@@ -13,12 +13,13 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 from . import net
-from .config import DATA, universe_config, write_parquet
+from .config import universe_config, write_parquet
+from .paths import CACHE, HISTORY
 
-COT_FILE = DATA / "cot.parquet"
-CLI_FILE = DATA / "oecd_cli.parquet"
-FACTSET_FILE = DATA / "factset.parquet"
-FACTSET_TEXT = DATA / "factset_latest.txt"
+COT_FILE = CACHE / "cot.parquet"
+CLI_FILE = CACHE / "oecd_cli.parquet"
+FACTSET_FILE = HISTORY / "factset.parquet"      # one row per weekly report; the source only looks 14 days back
+FACTSET_TEXT = CACHE / "factset_latest.txt"
 
 
 def _cfg() -> dict:
@@ -81,7 +82,6 @@ def update_cot() -> int:
     df = pd.concat([f for f in frames if not f.empty], ignore_index=True) if any(not f.empty for f in frames) \
         else pd.DataFrame(columns=["date", "market", "group", "net", "net_pct_oi"])
     df = df.drop_duplicates(["date", "market", "group"], keep="last").sort_values(["market", "group", "date"])
-    DATA.mkdir(exist_ok=True)
     write_parquet(df, COT_FILE, index=False)
     return len(df) - len(existing)
 
@@ -135,7 +135,6 @@ def update_oecd_cli() -> str:
     resp = net.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), timeout=60)
     resp.raise_for_status()
     df = parse_oecd_cli(resp.text)
-    DATA.mkdir(exist_ok=True)
     write_parquet(df, CLI_FILE)
     missing = [a for a in areas if a not in df.columns]
     return f"latest {df.index[-1]:%b %Y}" + (f"; no data for {', '.join(missing)}" if missing else "")
@@ -163,7 +162,7 @@ def cli_table(cli: pd.DataFrame, labels: dict[str, str]) -> pd.DataFrame:
 
 # ---------------- ECB Data Portal (euro-area rates) ----------------
 
-ECB_FILE = DATA / "ecb.parquet"
+ECB_FILE = CACHE / "ecb.parquet"
 ECB_URL = "https://data-api.ecb.europa.eu/service/data/{key}?startPeriod={start}&format=csvdata"
 
 
@@ -189,7 +188,6 @@ def update_ecb() -> str:
         resp.raise_for_status()
         out[key] = parse_ecb(resp.text)
     df = pd.DataFrame(out).sort_index()
-    DATA.mkdir(exist_ok=True)
     write_parquet(df, ECB_FILE)
     return ", ".join(f"{k} {s.index[-1]:%d %b}" for k, s in out.items())
 
@@ -265,8 +263,8 @@ def update_factset() -> str | None:
         if missing:  # not stored, so the next run retries; the wording has probably changed
             raise ValueError(f"report {d} parsed without {', '.join(missing)}: has the FactSet wording changed?")
         df = pd.concat([existing, pd.DataFrame([row])], ignore_index=True).sort_values("report_date")
-        DATA.mkdir(exist_ok=True)
         write_parquet(df, FACTSET_FILE, index=False)
+        FACTSET_TEXT.parent.mkdir(parents=True, exist_ok=True)
         keep = [p for p in pages if any(h in p[:200] for h in FACTSET_TEXT_PAGES)]
         FACTSET_TEXT.write_text(f"FactSet Earnings Insight {d.isoformat()}\n{FACTSET_URL.format(d=d)}\n\n"
                                 + "\n\n".join(keep), encoding="utf-8")
@@ -280,7 +278,7 @@ def load_factset() -> pd.DataFrame:
 
 # ---------------- Analyst consensus (Yahoo) ----------------
 
-ANALYST_FILE = DATA / "analyst.parquet"
+ANALYST_FILE = HISTORY / "analyst.parquet"   # kept as fetched: history
 ANALYST_FIELDS = {  # Yahoo .info key -> column
     "currentPrice": "current_price", "currency": "currency", "targetMeanPrice": "target_mean",
     "targetMedianPrice": "target_median", "targetHighPrice": "target_high", "targetLowPrice": "target_low",
@@ -329,7 +327,6 @@ def update_analyst(tickers: list[str], max_age_days: int = 7) -> str:
     for col in ("current_price", "target_mean", "target_median", "target_high", "target_low", "n_analysts", "rec_mean"):
         new[col] = pd.to_numeric(new[col], errors="coerce")
     df = pd.concat([existing, new], ignore_index=True).drop_duplicates(["ticker", "fetched"], keep="last")
-    DATA.mkdir(exist_ok=True)
     write_parquet(df.sort_values(["ticker", "fetched"]), ANALYST_FILE, index=False)
     return f"{len(rows)} of {len(due)} tickers refreshed"
 
@@ -344,7 +341,7 @@ def load_analyst() -> pd.DataFrame:
 # netExpenseRatio in percent, margins and growth as fractions), so every ratio is normalised to a fraction
 # and range-checked: a value that can't be right is dropped with a note, never shown.
 
-PROFILE_DIR = DATA / "profiles"
+PROFILE_DIR = CACHE / "profiles"
 DETAIL_INFO_KEYS = (
     "quoteType", "longName", "shortName", "currency", "financialCurrency", "exchange", "fullExchangeName",
     "sector", "industry", "country", "website", "longBusinessSummary", "fullTimeEmployees", "marketCap",

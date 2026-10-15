@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from radar import api, notebook
+from radar import api, notebook, paths
 from radar.api_models import NotebookDocument, NotebookListing
 
 ENTRY = """---
@@ -27,12 +27,10 @@ Defence budgets.
 
 @pytest.fixture
 def folders(tmp_path, monkeypatch):
-    dirs = {k: tmp_path / rel for k, rel in
-            {"briefs": "briefs", "research": "research", "compare": "research/compare", "journal": "journal",
-             "reviews": "journal/reviews"}.items()}
+    paths.configure(paths.Locations.flat(tmp_path))
+    dirs = {k: d.now() for k, d in notebook.FOLDERS.items()}
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(notebook, "FOLDERS", dirs)
     (dirs["briefs"] / "2026-09-01.md").write_text("# Market brief – 2026-09-01\n\n## TL;DR\n- a\n", encoding="utf-8")
     (dirs["briefs"] / "2026-10-01.md").write_text("# Markedsbrief – 2026-10-01\n", encoding="utf-8")
     (dirs["briefs"] / "lyt").mkdir()                                # the NotebookLM listening version
@@ -77,7 +75,7 @@ def test_document_strips_front_matter_and_reads_only_listed_files(folders):
 
 
 def test_missing_folders_are_empty(tmp_path, monkeypatch):
-    monkeypatch.setattr(notebook, "FOLDERS", {k: tmp_path / k for k in notebook.FOLDERS})
+    paths.configure(paths.Locations.flat(tmp_path))
     assert all(v == [] for v in notebook.listing().values())
 
 

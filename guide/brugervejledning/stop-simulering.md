@@ -20,7 +20,7 @@ uv run radar sim exits --fill same --json
 - `--fill`: hvornår et udløst salg handles (se nedenfor).
 - `--json` / `--out FIL`: hele rapporten som JSON.
 
-Kommandoen skriver rapporten til `reports/sim-exits.json` og afslutter med et link til *Returns* med de rigtige og de simulerede porteføljer valgt.
+Kommandoen skriver rapporten til `sim-exits.json` i cache-mappens `reports/` og afslutter med et link til *Returns* med de rigtige og de simulerede porteføljer valgt.
 
 ## To varianter
 
@@ -88,7 +88,7 @@ uv run radar sim exits --rule-spec k5
 uv run radar sim exits --rule-spec sma200 --variant rules
 ```
 
-Varianten får sine egne simulerede porteføljer, fx *ASK · exits rules k5* med tagget `exits-rules-k5`, og sin egen rapport, `reports/sim-exits-k5.json`. Den almindelige kørsel og dens porteføljer røres ikke.
+Varianten får sine egne simulerede porteføljer, fx *ASK · exits rules k5* med tagget `exits-rules-k5`, og sin egen rapport, `sim-exits-k5.json`. Den almindelige kørsel og dens porteføljer røres ikke.
 
 ## Begrænsninger
 

@@ -54,7 +54,7 @@ source above.
 
 ## Practical rules for your copy
 
-- Keep `data/`, `reports/` and `exports/` to yourself. The repository already leaves them out of git; don't
+- Keep the cache folder (market data and reports; `radar paths` shows where) and `exports/` to yourself. `radar export` holds only your own data (trades, views, notes), never market data. They live outside the program folder and out of git; don't
   publish them elsewhere either.
 - Don't expose `radar serve` to the internet or your network for other people to use. It listens on
   `127.0.0.1` (your computer only) on purpose.

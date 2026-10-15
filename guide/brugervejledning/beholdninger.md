@@ -7,7 +7,7 @@ Tallene regnes live ud fra de seneste kurser, hver gang du åbner siden. Regimet
 ## Hvor kommer navnene fra?
 
 - **Beholdninger og solgte positioner** følger af dine handler på siden [Portfolio](/portfolio). Se [Portefølje: handler, kontanter og import](brugervejledning/portefolje).
-- **Watchlisten** bygger du selv: klik ☆ ud for et navn i en tabel, eller *Add to watchlist* på en [tickerprofil](brugervejledning/tickerprofil). ★ tager det af igen. Ændringerne gemmes i `userdata/` og overlever en ny import. Navne fra listen `watchlist:` i `config/universe.yaml` og watchlisten fra en Yahoo-import kommer også med.
+- **Watchlisten** bygger du selv: klik ☆ ud for et navn i en tabel, eller *Add to watchlist* på en [tickerprofil](brugervejledning/tickerprofil). ★ tager det af igen. Ændringerne gemmes i `radar.db` i din datamappe og overlever en ny import. Navne fra listen `watchlist:` i `config/universe.yaml` og watchlisten fra en Yahoo-import kommer også med.
 
 Har du ingen beholdninger endnu, foreslår siden at importere dem fra Yahoo Finance nederst (se [Hurtig import fra Yahoo Finance](#hurtig-import-fra-yahoo-finance)).
 

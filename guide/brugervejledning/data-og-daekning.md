@@ -4,6 +4,16 @@ Siden [Data & coverage](/data) er radarens varedeklaration. Den siger, hvor hver
 
 Øverst på siden står knappen *Update data*, som henter nye data og bygger rapporten igen, præcis som `uv run radar run`. Mens den kører, ser du fremskridt og en log; du kan bruge appen imens, og siderne genindlæses, når den er færdig. Se [Data og opdatering](brugervejledning/data-og-opdatering).
 
+## Dine data
+
+Øverst på siden, under *Your data*, står, hvor dine data ligger, og hvordan de er sikret. Afsnittet vises også, før du har hentet markedsdata første gang.
+
+- **Mapperne:** en tabel med datamappen (*Your data folder*), *Notes*, *Research*, *Journal*, *Briefs*, *Exports*, *Backups*, *History* og *Market data (cache)*. For hver står stien, antal filer og størrelse, om indholdet er dit (*yours: can't be downloaded again*), historik (*built up over time*) eller cache (*can be deleted*), og en knap *Open*, der åbner mappen i Stifinder eller Finder. Her står også, hvilken version af Market Radar du kører, og en advarsel, hvis datamappen ligger i en synkroniseret mappe.
+- **Kortet *Backups*:** hvornår den seneste backup blev taget, knappen *Back up now*, knappen *Export my data (CSV, JSON, Markdown)*, de nyeste backupper med *Restore…* og under *A second copy, off this disk* en anden mappe, som hver backup også kopieres til.
+- **Kortet *New versions*:** hvordan du opdaterer, og fluebenet for det daglige tjek for en ny version.
+
+Alt om det står i [Dine data, backup og opdatering](brugervejledning/dine-data).
+
 ## Kildetabellen
 
 Tabellen *Sources* har én række pr. datakilde:
@@ -18,7 +28,7 @@ Tabellen *Sources* har én række pr. datakilde:
 | *Status* | *ok*, *stale* (for gammel), *missing* (ingen data) eller *info* (kun oplysning, ingen grænse) |
 | *Last update* | Tidspunktet for seneste vellykkede opdatering, eller i rødt: hvornår den fejlede og hvorfor, med seneste succes under |
 
-Kolonnen *Last update* læses direkte fra opdateringsloggen (`data/sources.json`), hver gang du åbner siden. En kilde, der fejlede efter den seneste rapport, vises derfor med det samme, også selvom resten af tabellen stammer fra den seneste kørsel.
+Kolonnen *Last update* læses direkte fra opdateringsloggen (`sources.json` i cache-mappen), hver gang du åbner siden. En kilde, der fejlede efter den seneste rapport, vises derfor med det samme, også selvom resten af tabellen stammer fra den seneste kørsel.
 
 ### Alder og grænser
 

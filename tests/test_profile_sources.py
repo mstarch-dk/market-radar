@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from radar import external
+from radar import external, paths
 from conftest import FIXTURES
 
 
@@ -76,11 +76,11 @@ def test_etf_has_look_through_but_no_estimates():
 
 
 def test_detail_cache_and_failure(tmp_path, monkeypatch):
-    monkeypatch.setattr(external, "PROFILE_DIR", tmp_path)
+    paths.configure(paths.Locations.flat(tmp_path))
     raw = _raw("msft") | {"fetched": "2026-10-13T08:00:00"}
     monkeypatch.setattr(external, "fetch_detail", lambda t: raw)
     got, status = external.detail("MSFT", max_age_hours=1e9)
-    assert status == "ok" and (tmp_path / "MSFT.json").exists()
+    assert status == "ok" and (tmp_path / "profiles" / "MSFT.json").exists()
 
     def down(t):
         raise ConnectionError("yahoo down")

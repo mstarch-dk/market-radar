@@ -13,10 +13,10 @@ from datetime import date
 import pandas as pd
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, mine, net, ops, portfolio, profile, tickers, universe, updater, userstore, valuation
+from . import dashboard, home, mine, net, ops, paths, portfolio, profile, tickers, universe, updater, userstore, valuation
 from .api_models import (
     AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
@@ -26,20 +26,40 @@ from .api_models import (
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
     GuideChapter, GuideHit, GuideTree, NotebookDocument, NotebookListing,
+    HomeStatus, LegacyFound, SetupIn, SetupResult,
+    BackupRow, DataHome, MirrorIn, OpenIn, RestoreIn, RestoreResult, UpdateCheck, UpdateCheckIn,
 )
 from .config import settings
 from .config import ROOT
 
 WEB_DIST = ROOT / "web" / "dist"
 
-@asynccontextmanager
-async def _lifespan(_app):
+def _open_home() -> None:
+    """Once a usable data home is known: tidy the operations log and record this version in the manifest."""
+    global _gate
+    _gate = home.gate()
+    if _gate[0] != "ok":
+        return
+    from . import backup
+
+    try:
+        backup.before_upgrade()                  # a new version's first start: keep the data as it was
+        home.upgrade(paths.locations().home)
+        backup.daily()
+    except Exception as e:                       # a full disk must not stop the app; the Data page shows the age
+        ops.event("error", "job", f"backup: {type(e).__name__}: {e}", source="backup", exc=e)
+    home.touch(paths.locations().home)
     ops.mark_interrupted()   # a job 'running' in the log from an earlier server can't still be running
     ops.prune()
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    _open_home()
     yield
 
 
-app = FastAPI(title="Market Radar", version="0.1.0", lifespan=_lifespan)
+app = FastAPI(title="Market Radar", version=home.app_version(), lifespan=_lifespan)
 _lock = threading.Lock()  # one price download / market reload at a time
 _market: profile.Market | None = None
 
@@ -71,6 +91,181 @@ def _selection(portfolio: list[int] | None, tag: list[str] | None, scope: str | 
 PortfolioQ = Query(None, description="Portfolio ids (repeatable); default: your real portfolios")
 TagQ = Query(None, description="Portfolios carrying any of these tags (repeatable)")
 ScopeQ = Query(None, description="real | virtual | all (when no portfolio or tag is given)")
+
+
+_gate: tuple[str, str | None] | None = None      # (state, why read-only), from home.gate() at start
+SETUP_FREE = ("/api/setup", "/api/guide", "/api/ops/doctor")    # usable before the data folder is chosen
+READS = {"GET", "HEAD", "OPTIONS"}
+
+
+@app.middleware("http")
+async def _data_home(request: Request, call_next):
+    """No data folder yet (or it is missing): only the setup screen and the guide answer. Data written by a newer
+    version: reads only."""
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith(SETUP_FREE):
+        if _gate is None:
+            _open_home()
+        state, why = _gate
+        if state in ("unset", "missing"):
+            return JSONResponse({"detail": {"setup": state, "message": "Choose where your data is first."}}, 409)
+        if why and request.method not in READS:
+            return JSONResponse({"detail": {"read_only": why, "message": why}}, 409)
+    return await call_next(request)
+
+
+@app.get("/api/setup", response_model=HomeStatus)
+def setup_status() -> dict:
+    """Where the data is, whether it can be used, and (before setup) the old folders found with data in them."""
+    return home.status()
+
+
+@app.get("/api/setup/scan", response_model=LegacyFound)
+def setup_scan(path: str = Query(..., min_length=1, max_length=1000)) -> dict:
+    """What an old Market Radar folder the user points to holds (404 if nothing of theirs)."""
+    found = home.legacy_summary(Path(path).expanduser())
+    if found is None:
+        raise HTTPException(404, f"No Market Radar data in {path}.")
+    return found
+
+
+@app.post("/api/setup", response_model=SetupResult)
+def setup(body: SetupIn) -> dict:
+    """Choose the data folder: copy an old version's data into it, start empty, or use one that exists. Refused
+    once a folder is in use (409)."""
+    if (_gate or home.gate())[0] not in ("unset", "missing"):
+        raise HTTPException(409, "A data folder is already in use.")
+    target = Path(body.home).expanduser() if body.home else None
+    files: dict[str, int] = {}
+    try:
+        if body.action == "migrate":
+            if not body.source:
+                raise HTTPException(422, "Choose the old folder to copy from.")
+            files = home.migrate(Path(body.source), target, copy_cache=body.copy_cache)["files"]
+        elif body.action == "create":
+            home.create(target)
+        else:
+            if not target:
+                raise HTTPException(422, "Choose the data folder to use.")
+            home.use(target)
+    except home.HomeError as e:
+        raise HTTPException(422, str(e)) from e
+    _open_home()
+    return {"status": home.status(), "files": files}
+
+
+def _folders() -> list[dict]:
+    from . import home as h
+
+    loc = paths.locations()
+    rows = [("data", "Your data folder", loc.home, "personal"), ("notes", "Notes", loc.home / "notes", "personal"),
+            ("research", "Research", loc.home / "research", "personal"),
+            ("journal", "Journal", loc.home / "journal", "personal"),
+            ("briefs", "Briefs", loc.home / "briefs", "personal"),
+            ("exports", "Exports", loc.home / "exports", "personal"),
+            ("backups", "Backups", loc.userdata / "backups", "personal"),
+            ("history", "History", loc.history, "history"), ("cache", "Market data (cache)", loc.cache, "cache")]
+    out = []
+    for key, label, d, tier in rows:
+        fs = h._files(d) if key != "data" else ([loc.userdata / h.DB_NAME] if (loc.userdata / h.DB_NAME).exists() else [])
+        out.append({"key": key, "label": label, "path": str(d), "tier": tier, "files": len(fs),
+                    "mb": round(sum(f.stat().st_size for f in fs) / 1e6, 1)})
+    return out
+
+
+@app.get("/api/data-home", response_model=DataHome)
+def data_home() -> dict:
+    """Where your data, the history and the market data are; the backups and the second backup folder."""
+    from . import backup
+
+    m = backup.mirror() if backup.is_home() else None
+    return {"status": home.status(), "folders": _folders(), "backups": backup.listing() if backup.is_home() else [],
+            "mirror": str(m) if m else None, "mirror_backups": backup.listing(m) if m else []}
+
+
+@app.post("/api/data-home/backup", response_model=BackupRow)
+def data_home_backup() -> dict:
+    from . import backup
+
+    try:
+        f = backup.create("manual")
+    except backup.BackupError as e:
+        raise HTTPException(409, str(e)) from e
+    return next(r for r in backup.listing() if r["name"] == f.name)
+
+
+@app.put("/api/data-home/mirror", response_model=DataHome)
+def data_home_mirror(body: MirrorIn) -> dict:
+    """Set (or clear) the second folder every backup is copied to."""
+    from . import backup
+
+    try:
+        backup.set_mirror(Path(body.path) if body.path else None)
+    except (backup.BackupError, OSError) as e:
+        raise HTTPException(422, str(e)) from e
+    return data_home()
+
+
+@app.post("/api/data-home/restore", response_model=RestoreResult)
+def data_home_restore(body: RestoreIn) -> dict:
+    """Put one of the listed backups back (what is there now is backed up first)."""
+    from . import backup
+
+    m = backup.mirror()
+    known = {r["name"]: r["path"] for r in [*backup.listing(), *(backup.listing(m) if m else [])]}
+    if body.name not in known:
+        raise HTTPException(404, f"No backup called {body.name}.")
+    try:
+        res = backup.restore(Path(known[body.name]))
+    except backup.BackupError as e:
+        raise HTTPException(422, str(e)) from e
+    global _market
+    _market = None
+    return res
+
+
+@app.post("/api/data-home/open", response_model=bool)
+def data_home_open(body: OpenIn) -> bool:
+    """Show one of the folders in Explorer / Finder / the file manager (the app only runs on your own computer)."""
+    import os
+    import subprocess
+    import sys
+
+    path = next((f["path"] for f in _folders() if f["key"] == body.key), None)
+    if path is None:
+        raise HTTPException(404, f"No folder {body.key}.")
+    Path(path).mkdir(parents=True, exist_ok=True)
+    if sys.platform == "win32":
+        os.startfile(path)                                    # noqa: S606 (a folder the app itself chose)
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", path])
+    return True
+
+
+@app.get("/api/updates", response_model=UpdateCheck)
+def get_updates() -> dict:
+    """Is a newer Market Radar out? Asks GitHub at most once a day, and only when switched on."""
+    from . import updates
+
+    return updates.status()
+
+
+@app.put("/api/updates", response_model=UpdateCheck)
+def put_updates(body: UpdateCheckIn) -> dict:
+    from . import updates
+
+    updates.set_enabled(body.enabled)
+    return updates.status()
+
+
+@app.get("/api/data-home/export", include_in_schema=False)
+def data_home_export() -> Response:
+    """Everything of yours in open formats, as a zip download (export.py)."""
+    from . import export
+
+    name = f"market-radar-export-{date.today().isoformat()}.zip"
+    return Response(export.build(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 NOT_RECORDED = {503}   # "no dashboard / scan yet" is a state the pages explain, not an operational error
@@ -203,7 +398,7 @@ def get_positioning() -> dict:
 
 @app.get("/api/coverage", response_model=CoverageView)
 def get_coverage() -> dict:
-    """The coverage section, with each source's last attempt and error read live from data/sources.json (a
+    """The coverage section, with each source's last attempt and error read live from sources.json (a
     failure after the last report build shows at once)."""
     from . import coverage
 

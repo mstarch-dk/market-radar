@@ -9,7 +9,8 @@ import pandas as pd
 import yfinance as yf
 
 from . import net
-from .config import DATA, FRED_FILE, PRICES_FILE, settings, write_parquet
+from .config import settings, write_parquet
+from .paths import CACHE, FRED_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
 COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]
@@ -74,7 +75,7 @@ def rescaled(existing: pd.DataFrame, fresh: pd.DataFrame) -> list[str]:
 
 
 def _load_from() -> dict[str, str]:
-    f = DATA / FROM_FILE
+    f = CACHE / FROM_FILE
     try:
         return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
     except ValueError:
@@ -82,7 +83,7 @@ def _load_from() -> dict[str, str]:
 
 
 def _save_from(d: dict[str, str]) -> None:
-    f = DATA / FROM_FILE
+    f = CACHE / FROM_FILE
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(d, sort_keys=True), encoding="utf-8")
     tmp.replace(f)
@@ -127,7 +128,6 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None) 
     existing = existing[~existing["ticker"].isin(set(full["ticker"]))]  # replaced wholesale, not merged
     df = pd.concat([existing, inc, full], ignore_index=True)
     df = df.drop_duplicates(["ticker", "date"], keep="last").sort_values(["ticker", "date"])
-    DATA.mkdir(exist_ok=True)
     write_parquet(df, PRICES_FILE, index=False)
 
     got = set(inc["ticker"]) | set(full["ticker"])
@@ -157,7 +157,6 @@ def update_fred(series: list[str]) -> list[str]:
             if sid in cached:
                 cols[sid] = cached[sid]
     if cols:
-        DATA.mkdir(exist_ok=True)
         write_parquet(pd.DataFrame(cols), FRED_FILE)
     return failed
 

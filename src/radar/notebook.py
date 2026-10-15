@@ -16,15 +16,15 @@ from pathlib import Path
 import yaml
 
 from . import guide
-from .config import ROOT
+from .paths import HOME
 
 # kind -> folder (each holds *.md directly; subfolders are their own kinds)
 FOLDERS = {
-    "briefs": ROOT / "briefs",
-    "research": ROOT / "research",
-    "compare": ROOT / "research" / "compare",
-    "journal": ROOT / "journal",
-    "reviews": ROOT / "journal" / "reviews",
+    "briefs": HOME / "briefs",
+    "research": HOME / "research",
+    "compare": HOME / "research" / "compare",
+    "journal": HOME / "journal",
+    "reviews": HOME / "journal" / "reviews",
 }
 JOURNAL_FIELDS = ("ticker", "action", "account", "horizon", "status", "review_by", "views")
 DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}(?:-\d{2})?)")

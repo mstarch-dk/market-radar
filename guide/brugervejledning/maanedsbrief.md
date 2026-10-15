@@ -1,16 +1,18 @@
 # Månedsbriefen
 
-Den første i hver måned skriver Claude en markedsbrief på din egen computer: `briefs/YYYY-MM-DD.md`. Det er den samme brief, som du får med `/market-brief` (se [Claude Code-skills](brugervejledning/claude-code)), bare startet af en planlagt opgave i Claude-appen, så du ikke skal huske det.
+Den første i hver måned skriver Claude en markedsbrief på din egen computer: `briefs/YYYY-MM-DD.md` i din datamappe. Det er den samme brief, som du får med `/market-brief` (se [Claude Code-skills](brugervejledning/claude-code)), bare startet af en planlagt opgave i Claude-appen, så du ikke skal huske det.
 
-Alt sker lokalt. Radaren henter selv data, læser dine porteføljer, markedssyn og noter, hvor de ligger, og briefen bliver liggende i mappen `briefs/`. Intet sendes til GitHub.
+Alt sker lokalt. Radaren henter selv data, læser dine porteføljer, markedssyn og noter, hvor de ligger, og briefen bliver liggende i mappen `briefs/` i datamappen. Intet sendes til GitHub.
+
+> **Bemærk:** Opgaven finder datamappen med `uv run radar paths --json`. Datamappen ligger uden for projektmappen, så Claude Code kan spørge om lov til at læse og skrive der. Svar ja, gerne med "altid", så opgaven ikke venter på dig næste måned.
 
 ## Sådan kører den
 
 En planlagt opgave i Claude-appen (*Scheduled tasks*) kører den første i hver måned om morgenen:
 
 1. Den opdaterer radaren med `uv run radar run`, ligesom knappen *Update data*. En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
-2. Den læser `reports/summary.json`, dine markedssyn (`uv run radar views --json`), den seneste Discover-scanning, hvis den er under 10 dage gammel, din investorprofil i `notes/investor.md` og dine læsenoter i `notes/`.
-3. Den søger efter årsagerne til det vigtigste på nettet og skriver briefen i `briefs/`.
+2. Den læser `summary.json` (i cache-mappens `reports/`), dine markedssyn (`uv run radar views --json`), den seneste Discover-scanning, hvis den er under 10 dage gammel, din investorprofil i `notes/investor.md` og dine læsenoter i `notes/` i datamappen.
+3. Den søger efter årsagerne til det vigtigste på nettet og skriver briefen i `briefs/` i datamappen.
 
 Den committer intet og opretter ingen pull request. Briefen er din, og den ligger kun på din computer.
 
@@ -22,7 +24,7 @@ Briefen er skrevet på dansk og har en fast opbygning: TL;DR, regime, positioner
 
 Fordi den kører, hvor dine data er, får briefen det hele med: dine rigtige porteføljer og deres afkast mod ACWI, watchlist, markedssyn, Discover og dine noter.
 
-"Nye" momentumledere og "faldet ud" sammenlignes med radarens egne rangsnapshots i `data/snapshots/`, som bygges op, hver gang radaren opdateres. Har du kun opdateret få gange, er der mindre at sammenligne med i starten.
+"Nye" momentumledere og "faldet ud" sammenlignes med radarens egne rangsnapshots i `history/snapshots/` i datamappen, som bygges op, hver gang radaren opdateres. Har du kun opdateret få gange, er der mindre at sammenligne med i starten.
 
 ## Som podcast (NotebookLM)
 

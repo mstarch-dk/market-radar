@@ -90,7 +90,7 @@ Svarer et websted ikke, eller svarer det med en midlertidig fejl (HTTP 429 eller
 
 HTTP 429 betyder "for mange forespørgsler": webstedet beder radaren sætte farten ned. Får radaren {{settings:network.cooldown.trip}} sådanne svar fra samme websted inden for {{settings:network.cooldown.window_min}} minutter, sættes webstedet på pause i {{settings:network.cooldown.cooldown_min}} minutter. Sker det igen samme dag, fordobles pausen hver gang, dog højst til {{settings:network.cooldown.max_cooldown_min}} minutter.
 
-Under en pause sendes intet til webstedet. De trin i opdateringen, der skal bruge det, fejler med det samme og beholder deres seneste data, ligesom ved enhver anden fejl. Pausen gemmes i `data/ops.db`, så appen og kommandolinjen respekterer den samme pause.
+Under en pause sendes intet til webstedet. De trin i opdateringen, der skal bruge det, fejler med det samme og beholder deres seneste data, ligesom ved enhver anden fejl. Pausen gemmes i `ops.db` i cache-mappen, så appen og kommandolinjen respekterer den samme pause.
 
 Pausen ophører af sig selv. Vil du ikke vente, kan du klikke *Resume now*. Gør det kun, hvis du har en grund til at tro, at webstedet er klar igen: kommer der straks nye 429-svar, bliver næste pause længere.
 
@@ -114,6 +114,6 @@ uv run radar ops --errors     # også de seneste 20 fejlhændelser
 
 ## Loggens størrelse
 
-Driftsloggen ligger i `data/ops.db`. Forespørgsler gemmes i {{settings:ops.keep_requests_days}} dage, hændelser og job i {{settings:ops.keep_events_days}} dage; ældre rækker ryddes op efter hvert job og når appen starter.
+Driftsloggen ligger i `ops.db` i cache-mappen (se [Dine data, backup og opdatering](brugervejledning/dine-data#cache-mappen)). Sletter du cache-mappen, starter loggen forfra. Forespørgsler gemmes i {{settings:ops.keep_requests_days}} dage, hændelser og job i {{settings:ops.keep_events_days}} dage; ældre rækker ryddes op efter hvert job og når appen starter.
 
 Filen kan slettes når som helst, mens appen ikke kører. Intet i den indgår i en markedsaflæsning, og radaren opretter en ny tom log. Du mister kun historikken på denne side og eventuelle aktive pauser.

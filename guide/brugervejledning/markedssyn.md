@@ -104,13 +104,13 @@ Det samlede mærke vægter de syn, der gælder for navnet, med din overbevisning
 
 ## Personlige data
 
-Dine syn er personlige og gemmes i `userdata/radar.db`. De kommer med i:
+Dine syn er personlige og gemmes i `radar.db` i din datamappe. De kommer med i:
 
 - tickerprofilen i appen og `uv run radar info <TICKER>`,
 - `uv run radar info A B` (sammenligning) kun med `--personal`,
 - `uv run radar views [--json] [--archived]`, som skills læser,
 - [månedsbriefen](brugervejledning/maanedsbrief), som sammenholder dem med data,
-- bundtet, når du flytter dine data til en anden computer, som `views.json` (se [Kommandolinjen](brugervejledning/kommandolinjen#flyt-dine-data-til-en-anden-computer)).
+- dine backupper, og som `views.json` i en eksport og i bundtet, når du flytter dine data til en anden computer (se [Dine data, backup og opdatering](brugervejledning/dine-data#eksport-til-åbne-formater)).
 
 `uv run radar views` viser hvert syn med overbevisning, horisont, hvad det hjælper og skader, evidensen pr. indikator og din falsifikation.
 

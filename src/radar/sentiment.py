@@ -10,10 +10,11 @@ from datetime import date, timedelta
 import pandas as pd
 
 from . import net
-from .config import DATA, settings, write_parquet
+from .config import settings, write_parquet
+from .paths import CACHE, HISTORY
 
-PUTCALL_FILE = DATA / "putcall.parquet"
-AAII_FILE = DATA / "aaii.parquet"
+PUTCALL_FILE = HISTORY / "putcall.parquet"   # the backfill only reaches a year back
+AAII_FILE = CACHE / "aaii.parquet"
 
 CBOE_URL = "https://cdn.cboe.com/data/us/options/market_statistics/daily/{d:%Y-%m-%d}_daily_options"
 CBOE_RATIOS = {"TOTAL PUT/CALL RATIO": "total", "EQUITY PUT/CALL RATIO": "equity", "INDEX PUT/CALL RATIO": "index"}

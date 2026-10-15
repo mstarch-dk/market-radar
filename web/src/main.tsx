@@ -3,6 +3,7 @@ import { lazy, StrictMode, Suspense, useEffect, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { Search } from "./components/Search";
+import { SetupGate } from "./components/Setup";
 import { Data } from "./pages/Data";
 import { Discover } from "./pages/Discover";
 import { Home } from "./pages/Home";
@@ -98,7 +99,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Shell />
+        <SetupGate><Shell /></SetupGate>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

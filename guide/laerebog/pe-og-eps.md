@@ -176,7 +176,7 @@ $$
 - **Basen skifter over året.** Kort efter årsregnskabet falder *P/E next yr* mekanisk. Sammenlign derfor helst aktier, der har samme regnskabsår, eller brug ændringen i P/E med omtanke omkring januar–marts.
 - **Lav P/E er ikke det samme som billig.** Cykliske selskaber på toppen, selskaber med strukturelt faldende indtjening og selskaber med høj gæld ser billige ud på P/E. P/E ser ikke gælden; EV/EBIT gør, men det modellerer radaren ikke.
 - **Høj P/E er ikke det samme som dyr.** Vækst gør en høj multipel rimelig, se Gordon-formlen ovenfor.
-- **Manglende tal er information.** Et tomt felt betyder underskud, et inkonsistent skøn eller ingen dækning. Noten gemmes i snapshottet (`data/valuation/stocks.parquet`); se på den, før du drager konklusioner.
+- **Manglende tal er information.** Et tomt felt betyder underskud, et inkonsistent skøn eller ingen dækning. Noten gemmes i snapshottet (`history/valuation/stocks.parquet` i datamappen); se på den, før du drager konklusioner.
 - **Ugentlig opløsning.** P/E-tallet er fra snapshottets dag, ikke fra i dag. Har kursen flyttet sig 10 % siden, har P/E også.
 
 ## Videre læsning

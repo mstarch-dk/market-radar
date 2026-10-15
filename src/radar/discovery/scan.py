@@ -14,15 +14,16 @@ from typing import Callable
 import pandas as pd
 
 from .. import coverage, ingest, net, ops, universe
-from ..config import DATA, REPORTS, discovery_config, settings, write_parquet
+from ..config import discovery_config, settings, write_parquet
+from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
 from . import sources
 
-DIR = DATA / "discovery"
+DIR = CACHE / "discovery"
 UNIVERSE_FILE = DIR / "universe.csv"
 ISIN_MAP_FILE = DIR / "isin_map.csv"
 PRICES_FILE = DIR / "prices.parquet"
-SNAPSHOTS = DIR / "snapshots"
+SNAPSHOTS = HISTORY / "discovery" / "snapshots"
 REPORT_FILE = REPORTS / "discovery.json"
 
 Log = Callable[[str], None]
@@ -169,7 +170,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
         log(f"  looking up quote currencies for {len(need_ccy)} ETFs (cached)…")
         cur = universe.currencies(need_ccy)
         df.loc[df["ticker"].isin(need_ccy), "currency"] = df["ticker"].map(cur)
-    known = universe.DATA / "sectors.csv"
+    known = CACHE / "sectors.csv"
     ind = pd.read_csv(known, keep_default_na=False).set_index("ticker")["industry"] if known.exists() else pd.Series(dtype=str)
     df["industry"] = df["ticker"].map(ind).fillna("")
     for col in ("sector", "category"):

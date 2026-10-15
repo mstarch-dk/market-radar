@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import dashboard, ingest, mine
+from radar import dashboard, ingest, mine, paths
 from radar.mine import _vs_shadow
 
 
@@ -109,8 +109,7 @@ def test_records_are_json_safe():
 
 @pytest.fixture
 def price_store(tmp_path, monkeypatch):
-    monkeypatch.setattr(ingest, "DATA", tmp_path)
-    monkeypatch.setattr(ingest, "PRICES_FILE", tmp_path / "prices.parquet")
+    paths.configure(paths.Locations.flat(tmp_path))
     monkeypatch.setattr(ingest, "settings", lambda: {"history_years": 1})
     calls = []
 
@@ -175,7 +174,7 @@ def test_a_deeper_start_downloads_a_shallow_history_again_once(price_store):
     res = ingest.update_prices(["A", "B"], start=deep)
     a = ingest.load_prices().query("ticker == 'A'")
     assert res["deepened"] == 2 and a["date"].min() == pd.Timestamp(deep) and not a.duplicated("date").any()
-    assert json.loads((ingest.DATA / ingest.FROM_FILE).read_text())["B"] == deep.isoformat()
+    assert json.loads((ingest.CACHE / ingest.FROM_FILE).read_text())["B"] == deep.isoformat()
     res = ingest.update_prices(["A", "B"], start=deep)                 # remembered: not again, B neither
     assert res["deepened"] == 0 and calls[-1][1] > deep
     # a dividend re-bases A: the full download goes back to the deep start, not history_years

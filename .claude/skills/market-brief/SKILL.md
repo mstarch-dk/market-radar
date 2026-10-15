@@ -7,6 +7,8 @@ description: Refresh the market radar and write a dated market brief in Danish (
 
 Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice. Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
 
+**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+
 **Write the brief in Danish.** Follow `guide/STIL.md` for tone ("du", plain and precise), number format (decimal comma, thousands with a dot, "5 %") and its fixed terminology table (fører / svækkes / halter / forbedres, markedsbredde, positivlisten, ASK / frie midler, markedssyn …). Keep tickers, indicator names and the app's UI terms as they appear in the app. Your reply to the user is in Danish too.
 
 **Arguments:** `podcast` also writes a listening version for NotebookLM (step 7); `personal` adds the personal sections to that listening version. Example: `/market-brief podcast` or `/market-brief podcast personal`.
@@ -33,7 +35,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - If `reports/discovery.json` exists and its `asof` is under 10 days old, read it too: per market, rows with `off_radar` true and a high `score`, a big `d_score`, `new_high` or `trend_turn`, leaving out `thin`, `check_data` and `stale` rows. These are names outside the radar's own lists. If it is older, say the discovery scan is stale and skip it.
    - Run `uv run radar views --json` for the user's market views (their subjective beliefs from the app's *My market views* page) with the radar's evidence per view. If there are none, skip the views section.
 
-   If `earnings_factset` is present, also read `data/factset_latest.txt` (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
+   If `earnings_factset` is present, also read `data/factset_latest.txt` (in the cache folder) (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
 3. **Pick what matters (at most 6–8 items).** Prioritise:
    - A change in the regime reading or in any indicator's status
    - ETFs that moved **Improving → Leading** or **Leading → Weakening**, and the biggest rank changes

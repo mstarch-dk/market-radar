@@ -63,7 +63,7 @@ Derudover har hver aktie og ETF sin egen tickerprofil med graf, teknik, risiko, 
 
 ## Dine data bliver hos dig
 
-Market Radar kører på `127.0.0.1` og kan kun nås fra din egen computer. Der er intet login og ingen konto. Dine handler, din watchlist og dine noter ligger i lokale mapper og forlader aldrig maskinen. Hvordan mapperne er delt op, står i [Data og opdatering](brugervejledning/data-og-opdatering#hvor-dine-data-ligger).
+Market Radar kører på `127.0.0.1` og kan kun nås fra din egen computer. Der er intet login og ingen konto. Dine handler, din watchlist og dine noter ligger i en datamappe på din computer og forlader aldrig maskinen. Hvordan mapperne er delt op, og hvordan du tager backup, står i [Dine data, backup og opdatering](brugervejledning/dine-data).
 
 ## De to bøger
 

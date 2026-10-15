@@ -4,6 +4,169 @@
  */
 
 export interface paths {
+    "/api/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Setup Status
+         * @description Where the data is, whether it can be used, and (before setup) the old folders found with data in them.
+         */
+        get: operations["setup_status_api_setup_get"];
+        put?: never;
+        /**
+         * Setup
+         * @description Choose the data folder: copy an old version's data into it, start empty, or use one that exists. Refused
+         *     once a folder is in use (409).
+         */
+        post: operations["setup_api_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Setup Scan
+         * @description What an old Market Radar folder the user points to holds (404 if nothing of theirs).
+         */
+        get: operations["setup_scan_api_setup_scan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Data Home
+         * @description Where your data, the history and the market data are; the backups and the second backup folder.
+         */
+        get: operations["data_home_api_data_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-home/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Data Home Backup */
+        post: operations["data_home_backup_api_data_home_backup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-home/mirror": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Data Home Mirror
+         * @description Set (or clear) the second folder every backup is copied to.
+         */
+        put: operations["data_home_mirror_api_data_home_mirror_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-home/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Data Home Restore
+         * @description Put one of the listed backups back (what is there now is backed up first).
+         */
+        post: operations["data_home_restore_api_data_home_restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-home/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Data Home Open
+         * @description Show one of the folders in Explorer / Finder / the file manager (the app only runs on your own computer).
+         */
+        post: operations["data_home_open_api_data_home_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Updates
+         * @description Is a newer Market Radar out? Asks GitHub at most once a day, and only when switched on.
+         */
+        get: operations["get_updates_api_updates_get"];
+        /** Put Updates */
+        put: operations["put_updates_api_updates_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ticker/{symbol}": {
         parameters: {
             query?: never;
@@ -180,7 +343,7 @@ export interface paths {
         };
         /**
          * Get Coverage
-         * @description The coverage section, with each source's last attempt and error read live from data/sources.json (a
+         * @description The coverage section, with each source's last attempt and error read live from sources.json (a
          *     failure after the last report build shows at once).
          */
         get: operations["get_coverage_api_coverage_get"];
@@ -1179,6 +1342,22 @@ export interface components {
             /** Tickers */
             tickers: components["schemas"]["ListedTicker"][];
         };
+        /** BackupRow */
+        BackupRow: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Created */
+            created: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "manual" | "daily" | "upgrade" | "restore";
+            /** Size */
+            size: number;
+        };
         /** Bar */
         Bar: {
             /** Date */
@@ -1400,6 +1579,42 @@ export interface components {
             stale_tickers: string[];
             /** Blind Spots */
             blind_spots: string[];
+        };
+        /**
+         * DataFolder
+         * @description One place the app keeps things: your data (personal), history, or the market-data cache.
+         */
+        DataFolder: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Path */
+            path: string;
+            /**
+             * Tier
+             * @enum {string}
+             */
+            tier: "personal" | "history" | "cache";
+            /** Files */
+            files: number;
+            /** Mb */
+            mb: number;
+        };
+        /**
+         * DataHome
+         * @description The Data page's "Your data": where everything is, the backups here and in the second folder.
+         */
+        DataHome: {
+            status: components["schemas"]["HomeStatus"];
+            /** Folders */
+            folders: components["schemas"]["DataFolder"][];
+            /** Backups */
+            backups: components["schemas"]["BackupRow"][];
+            /** Mirror */
+            mirror?: string | null;
+            /** Mirror Backups */
+            mirror_backups: components["schemas"]["BackupRow"][];
         };
         /** DiscoveryMarket */
         DiscoveryMarket: {
@@ -1955,6 +2170,38 @@ export interface components {
             /** Weight */
             weight?: number | null;
         };
+        /**
+         * HomeStatus
+         * @description Where the data is and whether the app can use it: ok, unset (first start: choose), missing (chosen, not
+         *     found) or newer (a newer version wrote it: read-only).
+         */
+        HomeStatus: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ok" | "unset" | "missing" | "newer";
+            /** Source */
+            source: string;
+            /** App Version */
+            app_version: string;
+            /** Pointer */
+            pointer: string;
+            /** Default Home */
+            default_home: string;
+            /** Default Cache */
+            default_cache: string;
+            /** Home */
+            home?: string | null;
+            /** Cache */
+            cache?: string | null;
+            /** Read Only */
+            read_only?: string | null;
+            /** Warning */
+            warning?: string | null;
+            /** Found */
+            found: components["schemas"]["LegacyFound"][];
+        };
         /** Identity */
         Identity: {
             /**
@@ -2202,6 +2449,36 @@ export interface components {
             /** Views */
             views?: unknown[] | null;
         };
+        /**
+         * LegacyFound
+         * @description An install folder from before the data home that holds your data (home.legacy_summary).
+         */
+        LegacyFound: {
+            /** Path */
+            path: string;
+            /** Is This Install */
+            is_this_install: boolean;
+            /** Database */
+            database: boolean;
+            /** Counts */
+            counts: {
+                [key: string]: number | string;
+            };
+            /** Personal */
+            personal: {
+                [key: string]: number;
+            };
+            /** Imports */
+            imports: number;
+            /** History Files */
+            history_files: number;
+            /** Cache Mb */
+            cache_mb: number;
+            /** Newest */
+            newest?: string | null;
+            /** Moved */
+            moved: boolean;
+        };
         /** Levels */
         Levels: {
             /**
@@ -2313,6 +2590,11 @@ export interface components {
             regime?: string | null;
             /** Rows */
             rows: components["schemas"]["MyRow"][];
+        };
+        /** MirrorIn */
+        MirrorIn: {
+            /** Path */
+            path?: string | null;
         };
         /** Momentum */
         Momentum: {
@@ -2704,6 +2986,11 @@ export interface components {
             asof?: string | null;
             /** Age Days */
             age_days?: number | null;
+        };
+        /** OpenIn */
+        OpenIn: {
+            /** Key */
+            key: string;
         };
         /** OpsCooldown */
         OpsCooldown: {
@@ -3409,6 +3696,26 @@ export interface components {
             charts: components["schemas"]["LineChart"][];
             coverage: components["schemas"]["RegimeCoverage"];
         };
+        /** RestoreIn */
+        RestoreIn: {
+            /** Name */
+            name: string;
+        };
+        /** RestoreResult */
+        RestoreResult: {
+            /** Restored */
+            restored: string;
+            /** Created */
+            created: string;
+            /** Files */
+            files: number;
+            /** Tables */
+            tables: {
+                [key: string]: number;
+            };
+            /** Saved First */
+            saved_first: string;
+        };
         /** RevisionRow */
         RevisionRow: {
             /** Group */
@@ -3726,6 +4033,37 @@ export interface components {
             /** Low */
             low: number | null;
         };
+        /**
+         * SetupIn
+         * @description migrate: copy an old folder's data (`source`) into a new home; create: an empty home; use: an existing one.
+         */
+        SetupIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "migrate" | "create" | "use";
+            /** Source */
+            source?: string | null;
+            /** Home */
+            home?: string | null;
+            /**
+             * Copy Cache
+             * @default true
+             */
+            copy_cache: boolean;
+        };
+        /** SetupResult */
+        SetupResult: {
+            status: components["schemas"]["HomeStatus"];
+            /**
+             * Files
+             * @default {}
+             */
+            files: {
+                [key: string]: number;
+            };
+        };
         /** Source */
         Source: {
             /** Key */
@@ -3976,6 +4314,35 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * UpdateCheck
+         * @description Is a newer release out (updates.py)? Only when the user switched the check on and a repo is configured.
+         */
+        UpdateCheck: {
+            /** Enabled */
+            enabled: boolean;
+            /** Repo */
+            repo?: string | null;
+            /** Current */
+            current: string;
+            /** Latest */
+            latest?: string | null;
+            /** Newer */
+            newer: boolean;
+            /** Url */
+            url?: string | null;
+            /** Published */
+            published?: string | null;
+            /** Checked */
+            checked?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /** UpdateCheckIn */
+        UpdateCheckIn: {
+            /** Enabled */
+            enabled: boolean;
         };
         /** UpdateProgress */
         UpdateProgress: {
@@ -4312,6 +4679,282 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    setup_status_api_setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeStatus"];
+                };
+            };
+        };
+    };
+    setup_api_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_scan_api_setup_scan_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyFound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    data_home_api_data_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataHome"];
+                };
+            };
+        };
+    };
+    data_home_backup_api_data_home_backup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupRow"];
+                };
+            };
+        };
+    };
+    data_home_mirror_api_data_home_mirror_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MirrorIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataHome"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    data_home_restore_api_data_home_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    data_home_open_api_data_home_open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": boolean;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_updates_api_updates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCheck"];
+                };
+            };
+        };
+    };
+    put_updates_api_updates_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_profile_api_ticker__symbol__get: {
         parameters: {
             query?: {

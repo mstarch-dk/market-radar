@@ -129,13 +129,17 @@ network:                   # src/radar/net.py: every external request is paced p
     "www.multpl.com": {rate: 0.5, burst: 1, concurrency: 1}
     "pages.stern.nyu.edu": {rate: 0.5, burst: 1, concurrency: 1}
     "www.aaii.com": {rate: 0.5, burst: 1, concurrency: 1}
+    "api.github.com": {rate: 0.2, burst: 1, concurrency: 1}              # the opt-in check for a new version
   cooldown:                # pause a host that keeps answering 429 (shared by the app and the CLI through ops.db)
     trip: 3                # this many 429s ...
     window_min: 10         # ... within this many minutes
     cooldown_min: 15       # first pause; doubles for each repeat within a day
     max_cooldown_min: 120
 
-ops:                       # the operations log (data/ops.db, the Operations page, `radar ops`)
+updates:                   # src/radar/updates.py: the check for a new version (off until switched on in the app)
+  repo: null               # the public repo's "owner/name" on GitHub; without it there is nothing to check
+
+ops:                       # the operations log (ops.db in the cache folder, the Operations page, `radar ops`)
   keep_requests_days: 30
   keep_events_days: 180    # events and job runs
 

@@ -1,5 +1,5 @@
 """The operations record: every external request, operational events (failed sources, parse errors, API errors,
-throttling), job runs with their log, and per-host throttling state. Stored in `data/ops.db` (SQLite, WAL), which
+throttling), job runs with their log, and per-host throttling state. Stored in `ops.db` in the cache folder (SQLite, WAL), which
 can be deleted at any time: nothing here feeds a market reading. The Operations page and `radar ops` read it.
 
 Recording never breaks the work it records: a write that fails (locked or broken database) is dropped with a
@@ -19,9 +19,10 @@ import traceback
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
 
-from .config import DATA, settings
+from .config import settings
+from .paths import CACHE
 
-DB = DATA / "ops.db"
+DB = CACHE / "ops.db"
 log = logging.getLogger("radar.ops")
 
 _source: contextvars.ContextVar[str | None] = contextvars.ContextVar("ops_source", default=None)

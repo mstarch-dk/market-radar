@@ -6,7 +6,8 @@
 ## Fixtures
 - `tests/fixtures/` holds trimmed copies of real payloads (FRED, OECD, CFTC, FactSet text, Yahoo ticker detail). When a source changes format, fix the parser and refresh its fixture from a real response.
 - `tests/world.py` is a small synthetic market whose answers are known in advance (geometric prices, one holding, one watchlist name). It is shared by the report, profile and API tests; `world.install()` patches config, caches and Yahoo lookups.
-- `tests/conftest.py`'s `tmp_data` points every module-level data path (including `userdata/`) at a temp directory. An autouse fixture gives every test its own `ops.db` and resets the network limiter, so no test writes to `data/ops.db`.
+- An autouse fixture in `tests/conftest.py` points every data path at a fresh temp directory (`paths.configure(paths.Locations.flat(...))`), clears `MARKET_RADAR_*` env vars and keeps the pointer file and default folders in temp too, so no test can read or write the real data folder. `tmp_data` does the same for `tmp_path` and returns it (every tier in one folder, `radar.db` in `userdata/`). Paths are `paths.Lazy`, so never monkeypatch a module's path constant: configure the locations instead (`paths.Locations.at(home, cache)` for a real data folder, `.legacy(root)` for the old layout).
+- `tests/fixtures/homes/`: one data folder per release plus the legacy layout, opened by `test_upgrade.py`; written by `scripts/release.py fixture` and never changed. An autouse fixture gives every test its own `ops.db` and resets the network limiter, so no test writes to `data/ops.db`.
 - `test_net.py` drives the limiter, retries and cooldowns with a fake clock (`net.clock` / `net.sleep`) and a stubbed `net.requests.get`; HTTP stubs patch `net.requests.get`, since every plain request goes through `net.get`. `test_ops.py` covers the log, its housekeeping, jobs and the Operations endpoints.
 
 ## The guide (`guide/`)

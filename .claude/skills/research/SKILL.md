@@ -8,13 +8,15 @@ argument-hint: <yahoo-ticker>
 
 Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
 
+**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+
 Output goes to `research/<TICKER>.md`. If the file already exists, keep the earlier content and add a new dated `## Update YYYY-MM-DD` section at the top that states what changed, especially whether the thesis still holds.
 
 ## Steps
 
 1. **Radar context**: run `uv run radar info <TICKER>`. It returns momentum, trend, relative strength vs ACWI, rank in its region and the user's status (holding, watch, sold, or none), plus the full profile: `price` (returns in local currency and DKK, vs ACWI and vs the sector ETF), `technicals`, `levels`, `analyst` (targets, recommendation trend, EPS estimate revisions, next earnings date), `fundamentals` (valuation multiples, margins, growth, dividend yield; `fundamentals.snapshot` is the radar's weekly valuation snapshot: P/E on next year's consensus EPS, `pe_vs_sector` against its sector's median among its radar peers, EPS revisions over 4 and 12 weeks once the history exists, and the P/E over the stored weeks; for a fund, Yahoo's fund P/E against ACWI's), `etf` (holdings, sectors, expense ratio, overlap with the user's holdings) and `peers` (tracked stocks in the same industry, the sector ETF's rotation quadrant). Use these numbers for the momentum, valuation and catalyst sections instead of looking them up again; check each section's `status` and `context.notes`, and write "n/a" where a section is missing. If the ticker is ambiguous, check the Yahoo symbol first (e.g. `NOVO-B.CO`, `RHM.DE`). The user can open the same data as a page with `uv run radar ticker <TICKER>`.
    Also read `reports/summary.json` to see how the stock's sector or theme is rotating.
-2. **The user's history**: check `imports/transactions.csv` and `journal/` for earlier trades or decisions on this name, and mention them briefly.
+2. **The user's history**: check `uv run radar portfolio list --symbol <TICKER>` and `journal/` for earlier trades or decisions on this name, and mention them briefly.
    **The user's market views**: `radar info` has a `views` section when the user has written views on the app's *My market views* page: the overall fit (`aligned` / `conflicts` / `mixed` / `unrelated`), and per view the reasons and the radar's evidence for that view (`supported` / `contradicted` / `mixed` / `unclear` / `no data`). For the full views (rationale, "what would change my mind", conviction, horizon) run `uv run radar views --json`. These are the user's subjective beliefs: use them to frame the memo, never as evidence.
 3. **Web research** (send the searches together; use extended mode if results are thin):
    - Business: what the company does, segments, competitive position (2–3 sentences)

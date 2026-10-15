@@ -30,7 +30,6 @@ def market(tmp_data, monkeypatch):
     extra = world.install(tmp_data, monkeypatch)
     extra["CRASH"] = world.bars("CRASH", crash())
     monkeypatch.setattr(performance, "_cache", {})
-    monkeypatch.setattr(exits, "REPORTS", tmp_data / "reports")
     return profile.Market.load()
 
 
@@ -449,7 +448,6 @@ def test_redeploy_needs_a_picker_and_the_rules_variant(market):
 def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
     from radar.backtest import study
 
-    monkeypatch.setattr(study, "REPORTS", exits.REPORTS)
     rep = study.redeploy_study(market, n_top=3, horizons=(1,), keys=["sma200-redeploy", "rotate-tp-only"])
     assert [a["key"] for a in rep["arms"]][:3] == ["sma200-park", "sma200-redeploy", "rotate"]
     res = rep["results"]["1"]

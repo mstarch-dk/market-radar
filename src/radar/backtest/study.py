@@ -43,7 +43,8 @@ import numpy as np
 import pandas as pd
 
 from .. import universe
-from ..config import REPORTS, settings
+from ..config import settings
+from ..paths import REPORTS
 from ..signals import momentum
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
@@ -608,7 +609,7 @@ def _value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -
 
 
 def write(rep: dict) -> None:
-    REPORTS.mkdir(exist_ok=True)
+    REPORTS.mkdir(parents=True, exist_ok=True)
     f = REPORTS / REPORT_FILE
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(rep, indent=1, default=_json), encoding="utf-8")
@@ -916,7 +917,7 @@ EXIT_REPORT_FILE = "exit-study.json"
 
 
 def write_exits(rep: dict) -> None:
-    REPORTS.mkdir(exist_ok=True)
+    REPORTS.mkdir(parents=True, exist_ok=True)
     f = REPORTS / EXIT_REPORT_FILE
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(rep, indent=1, default=_json), encoding="utf-8")
@@ -1186,7 +1187,7 @@ REDEPLOY_REPORT_FILE = "redeploy-study.json"
 
 
 def write_redeploy(rep: dict) -> None:
-    REPORTS.mkdir(exist_ok=True)
+    REPORTS.mkdir(parents=True, exist_ok=True)
     f = REPORTS / REDEPLOY_REPORT_FILE
     tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(rep, indent=1, default=_json), encoding="utf-8")

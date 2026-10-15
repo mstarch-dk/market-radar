@@ -18,12 +18,12 @@ from datetime import date, datetime, timezone
 import pandas as pd
 
 from . import net
-from .config import DATA, discovery_config, settings, write_parquet
+from .config import discovery_config, settings, write_parquet
+from .paths import CACHE, HISTORY
 
-DIR = DATA / "valuation"
-STOCKS_FILE = DIR / "stocks.parquet"
-ETFS_FILE = DIR / "etfs.parquet"
-MARKET_FILE = DIR / "market.parquet"
+STOCKS_FILE = HISTORY / "valuation" / "stocks.parquet"     # weekly snapshots: history
+ETFS_FILE = HISTORY / "valuation" / "etfs.parquet"
+MARKET_FILE = CACHE / "valuation" / "market.parquet"        # each series replaced from its source: cache
 
 STOCK_COLS = ["date", "ticker", "quote_type", "currency", "financial_currency", "cross_ccy", "price", "eps_ttm", "eps_cy",
               "eps_fy1", "pe_ttm", "pe_cy", "pe_fy1", "pb", "div_yield", "earnings_date", "note"]
@@ -163,7 +163,6 @@ def _store(path, old: pd.DataFrame, new: pd.DataFrame) -> None:
         week = lambda s: s.dt.isocalendar().year * 100 + s.dt.isocalendar().week  # noqa: E731
         old = old[week(d) != (today.isocalendar().year * 100 + today.isocalendar().week)]
     new = new.assign(date=today)
-    DIR.mkdir(parents=True, exist_ok=True)
     write_parquet(pd.concat([old, new], ignore_index=True) if not old.empty else new, path, index=False)
 
 
@@ -328,7 +327,6 @@ def _market_merge(name: str, s: pd.Series) -> None:
     old = load_market()
     new = pd.DataFrame({"date": s.index, "series": name, "value": s.values})
     df = pd.concat([old[old["series"] != name], new], ignore_index=True) if not old.empty else new
-    DIR.mkdir(parents=True, exist_ok=True)
     write_parquet(df.sort_values(["series", "date"]), MARKET_FILE, index=False)
 
 
@@ -404,7 +402,7 @@ class Context:
         self.weeks = sv.history_weeks(hist)
         self.asof = pd.to_datetime(hist["date"]).max().date().isoformat() if not hist.empty else None
         self.now = latest(hist)
-        sec_file = DATA / "sectors.csv"
+        sec_file = CACHE / "sectors.csv"
         sectors = (pd.read_csv(sec_file, keep_default_na=False).set_index("ticker")["sector"].to_dict()
                    if sec_file.exists() else {})
         self.radar_group = {t: g for g, ts in universe.stock_groups(offline=True).items() for t in ts}

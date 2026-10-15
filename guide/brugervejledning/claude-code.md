@@ -1,6 +1,6 @@
 # Claude Code-skills
 
-Bruger du [Claude Code](https://claude.com/claude-code), kan du åbne Market Radar-mappen i det og få en række kommandoer (skills), der bruger radarens data. Claude læser tallene fra radaren, søger på nettet efter forklaringerne og skriver et dokument til dig: en månedlig markedsbrief, et notat om én aktie, en sammenligning eller en beslutning i din journal.
+Bruger du [Claude Code](https://claude.com/claude-code), kan du åbne programmappen (den mappe, hvor startscriptet ligger) i det og få en række kommandoer (skills), der bruger radarens data. Claude læser tallene fra radaren, søger på nettet efter forklaringerne og skriver et dokument til dig: en månedlig markedsbrief, et notat om én aktie, en sammenligning eller en beslutning i din journal.
 
 Skills er valgfrie. Appen virker fuldt ud uden dem.
 
@@ -8,7 +8,7 @@ Skills er valgfrie. Appen virker fuldt ud uden dem.
 
 ## Før du starter: din investorprofil
 
-Skills tilpasser sig dig gennem filen `notes/investor.md`. Kopiér skabelonen `investor.example.md` til `notes/investor.md`, og udfyld den:
+Skills tilpasser sig dig gennem filen `notes/investor.md` i din datamappe. Kopiér skabelonen `investor.example.md` fra programmappen til `notes/investor.md` i datamappen (`uv run radar paths` viser, hvor den ligger), og udfyld den:
 
 - **Accounts**: hvad hver konto er til, fx aktiesparekonto (ASK) til momentumhandler og frie midler til langsigtede positioner. Brug de samme navne som dine rigtige porteføljer i appen (se `uv run radar portfolios list`), for `/journal` registrerer handler i porteføljen ved navn.
 - **Horizon and style**: din typiske holdeperiode og stil.
@@ -17,6 +17,14 @@ Skills tilpasser sig dig gennem filen `notes/investor.md`. Kopiér skabelonen `i
 Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skills læser dem med `uv run radar views --json`. Se [Mine markedssyn](brugervejledning/markedssyn).
 
 `notes/` bliver på din computer og bliver aldrig delt. Sundhedstjekket (`uv run radar doctor`) siger, om profilen findes.
+
+## Hvor skills læser og skriver
+
+Dine data ligger i datamappen, uden for programmappen (se [Dine data, backup og opdatering](brugervejledning/dine-data)). Hver skill begynder derfor med `uv run radar paths --json`, som siger, hvor datamappen, `summary.json` og de andre mapper ligger. Stierne i dette kapitel, fx `briefs/` og `research/`, er mapper i datamappen, og `summary.json` ligger i cache-mappens `reports/`.
+
+> **Bemærk:** Fordi datamappen ligger uden for den mappe, du har åbnet i Claude Code, kan Claude Code spørge om lov, før den læser eller skriver der. Giv lov til datamappen; det er der, dine noter, briefs, research og journal hører hjemme.
+
+Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller køre `uv run radar setup` først.
 
 ## Oversigt
 
@@ -30,13 +38,13 @@ Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skill
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
-Alle mapperne er lokale og personlige; de kommer aldrig med i git (bortset fra `marketing/`, se nedenfor).
+Alle mapperne ligger i din datamappe og er lokale og personlige; de kommer med i dine backupper, men aldrig i git. Undtagelsen er `marketing/`, som ligger i programmappen; se nedenfor.
 
 Alt, hvad skills skriver, kan du læse i appen på siden [Notebook](/notebook) (gruppen *Mine*); se [Notesbogen](brugervejledning/notesbog).
 
 ## /market-brief
 
-Markedsbriefen opdaterer først radaren (`uv run radar run`) og læser derefter `reports/summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen under 10 dage gammel, læses den også, og dine markedssyn hentes med `radar views --json`.
+Markedsbriefen opdaterer først radaren (`uv run radar run`) og læser derefter `summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen under 10 dage gammel, læses den også, og dine markedssyn hentes med `radar views --json`.
 
 Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Briefen skrives på dansk.
 
@@ -56,7 +64,7 @@ Findes notatet allerede, beholdes det gamle indhold, og Claude tilføjer et date
 
 ## /compare
 
-`/compare NVDA AMD MU` sammenligner to eller flere navne side om side og altid med ACWI som det at gøre ingenting. Claude henter data med `uv run radar info NVDA AMD MU --out exports/…` og går frem i fast rækkefølge:
+`/compare NVDA AMD MU` sammenligner to eller flere navne side om side og altid med ACWI som det at gøre ingenting. Claude henter data med `uv run radar info NVDA AMD MU --out …` (en fil i `exports/` i datamappen) og går frem i fast rækkefølge:
 
 1. **Rubrik** fra radarens data alene, før nyhederne: momentum, indtjeningsmomentum, værdiansættelse mod vækst, kvalitet, risiko, rotationsmedvind, overstrækning, praktiske forhold.
 2. **Fakta fra nettet** med kilder.
@@ -94,7 +102,7 @@ Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger C
 
 Skills bruger de samme tal som appen:
 
-- `reports/summary.json` fra seneste `radar run`: hele markedsbilledet, dine beholdninger og porteføljernes afkast. Kun dine rigtige porteføljer; virtuelle kommer aldrig med.
+- `summary.json` fra seneste `radar run` (i cache-mappens `reports/`): hele markedsbilledet, dine beholdninger og porteføljernes afkast. Kun dine rigtige porteføljer; virtuelle kommer aldrig med.
 - `uv run radar info` for enkelte navne.
 - `uv run radar views --json` for dine markedssyn.
 - `uv run radar portfolios list --json` for dine konti.

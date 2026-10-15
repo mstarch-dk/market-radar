@@ -26,9 +26,20 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Build the zip
         run: uv run --no-project python scripts/build_release_zip.py --out "dist-release/market-radar-${GITHUB_REF_NAME}.zip" --prefix "market-radar-${GITHUB_REF_NAME}"
+      - name: Checksums and release notes
+        shell: bash
+        run: |
+          (cd dist-release && sha256sum *.zip > SHA256SUMS)
+          {
+            echo "**Download \`market-radar-${GITHUB_REF_NAME}.zip\` below**, unzip it anywhere, and double-click"
+            echo "\`Start Market Radar.cmd\` (Windows), \`Start Market Radar.command\` (Mac) or run \`./start-market-radar.sh\` (Linux)."
+            echo "Updating: the new version finds your data folder by itself and backs it up first; then delete the old folder."
+            echo
+            uv run --no-project python scripts/release.py notes "$GITHUB_REF_NAME"
+          } > dist-release/NOTES.md
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist-release/*.zip
-          body: |
-            **Download `market-radar-${{ github.ref_name }}.zip` below**, unzip it, and double-click
-            `Start Market Radar.cmd` (Windows) or `Start Market Radar.command` (Mac). See the README for details.
+          files: |
+            dist-release/*.zip
+            dist-release/SHA256SUMS
+          body_path: dist-release/NOTES.md

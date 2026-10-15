@@ -70,6 +70,15 @@ export type GuideHit = S["GuideHit"];
 export type NotebookListing = S["NotebookListing"];
 export type NotebookEntry = S["NotebookEntry"];
 export type NotebookDocument = S["NotebookDocument"];
+export type HomeStatus = S["HomeStatus"];
+export type LegacyFound = S["LegacyFound"];
+export type SetupIn = S["SetupIn"];
+export type SetupResult = S["SetupResult"];
+export type DataHome = S["DataHome"];
+export type DataFolder = S["DataFolder"];
+export type BackupRow = S["BackupRow"];
+export type RestoreResult = S["RestoreResult"];
+export type UpdateCheck = S["UpdateCheck"];
 export type ImportParams = { filename: string; preset?: string; portfolio?: number; mapping?: Record<string, string>;
   symbols?: Record<string, string>; confirm?: boolean };
 
@@ -193,6 +202,17 @@ export const api = {
     get<ImportCommitResult>(`/api/portfolio/import/commit?${importQuery(p)}`, "POST", file, "application/octet-stream"),
   imports: () => get<ImportRecord[]>("/api/portfolio/imports"),
   undoImport: (id: number) => get<number>(`/api/portfolio/imports/${id}`, "DELETE"),
+  setupStatus: () => get<HomeStatus>("/api/setup"),
+  setupScan: (path: string) => get<LegacyFound>(`/api/setup/scan?path=${enc(path)}`),
+  setup: (s: SetupIn) => get<SetupResult>("/api/setup", "POST", json(s), "application/json"),
+  dataHome: () => get<DataHome>("/api/data-home"),
+  backupNow: () => get<BackupRow>("/api/data-home/backup", "POST"),
+  setMirror: (path: string | null) => get<DataHome>("/api/data-home/mirror", "PUT", json({ path }), "application/json"),
+  restoreBackup: (name: string) => get<RestoreResult>("/api/data-home/restore", "POST", json({ name }), "application/json"),
+  openFolder: (key: string) => get<boolean>("/api/data-home/open", "POST", json({ key }), "application/json"),
+  dataExportUrl: "/api/data-home/export",
+  updates: () => get<UpdateCheck>("/api/updates"),
+  setUpdates: (enabled: boolean) => get<UpdateCheck>("/api/updates", "PUT", json({ enabled }), "application/json"),
   watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
   unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };

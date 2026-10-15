@@ -5,7 +5,7 @@ from datetime import date
 
 import pandas as pd
 
-from .config import SNAPSHOTS
+from .paths import SNAPSHOTS
 
 
 def save(kind: str, df: pd.DataFrame, today: date | None = None) -> None:

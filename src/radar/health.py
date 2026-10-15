@@ -5,7 +5,8 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 
-from .config import POSITIVE_LIST_FILE, PRICES_FILE, REPORTS, ROOT, settings
+from .config import POSITIVE_LIST_FILE, ROOT, settings
+from .paths import NOTES, PRICES_FILE, REPORTS
 
 # the services `radar update` and the discovery scan read from (no API keys needed); any answer below 500 is "up"
 SERVICES = {
@@ -43,6 +44,32 @@ def checks(offline: bool = False) -> list[dict]:
                       "built" if dist.exists() else "web/dist is missing",
                       "Download the release zip (it includes the built app), or build it: pnpm -C web install && pnpm -C web build."))
 
+    from . import home
+
+    st = home.status()
+    if st["state"] == "unset":
+        out.append(_check("Data folder", "warn", "not chosen yet (first start of this version)",
+                          "Start the app: it finds your data from an earlier version, or starts an empty folder. "
+                          "Or run: uv run radar setup"))
+    elif st["state"] == "missing":
+        out.append(_check("Data folder", "fail", f"{st['home']} can't be found",
+                          "Connect the drive it is on, or if you moved it: uv run radar setup --use NEW_PATH"))
+    else:
+        out.append(_check("Data folder", "fail" if st["read_only"] else "warn" if st["warning"] else "ok",
+                          st["read_only"] or st["warning"] or st["home"],
+                          "Start the newest Market Radar you have." if st["read_only"] else None))
+    if st["state"] in ("ok", "newer"):
+        out += _data_checks()
+    else:
+        out += _positive_list()
+    if not offline:
+        out += _internet()
+    _ = settings()  # config files parse (raises with the file name if not)
+    return out
+
+
+def _data_checks() -> list[dict]:
+    out = []
     age = _age_days(PRICES_FILE)
     if age is None:
         out.append(_check("Market data", "warn", "not downloaded yet",
@@ -56,7 +83,13 @@ def checks(offline: bool = False) -> list[dict]:
     out.append(_check("Dashboard", "ok" if dage is not None and dage <= 7 else "warn",
                       "not built yet" if dage is None else f"built {dage} day(s) ago",
                       "It is built at the end of every update (\"Update data\" in the app, or uv run radar run)."))
+    out += _positive_list()
+    out += _portfolio()
+    return out
 
+
+def _positive_list() -> list[dict]:
+    out = []
     if POSITIVE_LIST_FILE.exists():
         import pandas as pd
 
@@ -74,9 +107,13 @@ def checks(offline: bool = False) -> list[dict]:
     else:
         out.append(_check("SKAT positive list", "warn", "imports/positivliste.xlsx is missing",
                           "Download it from skat.dk; without it the positive-list column shows \"?\"."))
+    return out
 
+
+def _portfolio() -> list[dict]:
     from . import universe, userstore
 
+    out = []
     legacy = userstore.meta_get("legacy_csv") or {}
     if legacy.get("status") == "failed":
         out.append(_check("Your portfolio", "warn",
@@ -88,26 +125,28 @@ def checks(offline: bool = False) -> list[dict]:
         n = len(universe.transactions())
         out.append(_check("Your portfolio", "info", f"{n} transactions" if n else "no transactions yet (optional)",
                           None if n else "In the app: Portfolio → add a trade, or import from your broker or Yahoo Finance."))
-    profile = ROOT / "notes" / "investor.md"
+    profile = NOTES / "investor.md"
     out.append(_check("Investor profile for Claude", "info",
-                      "notes/investor.md found" if profile.exists() else "not set up (optional, for the Claude Code skills)",
-                      None if profile.exists() else "Copy investor.example.md to notes/investor.md and fill it in."))
+                      f"{profile} found" if profile.exists() else "not set up (optional, for the Claude Code skills)",
+                      None if profile.exists() else f"Copy investor.example.md to {profile} and fill it in."))
+    return out
 
-    if not offline:
-        from . import net
 
-        for name, url in SERVICES.items():
-            try:
-                r = net.get(url, source="doctor", timeout=8, retries=0, expected=tuple(range(400, 500)))
-                ok = r.status_code < 500
-                out.append(_check(f"Internet: {name}", "ok" if ok else "warn", f"HTTP {r.status_code}",
-                                  "The service may be down for a moment; updates keep the last data and retry next time."))
-            except net.Throttled as e:
-                out.append(_check(f"Internet: {name}", "warn", str(e),
-                                  "Market Radar paused this site after it asked us to slow down; it resumes by itself "
-                                  "(or clear the pause on the Operations page)."))
-            except Exception as e:
-                out.append(_check(f"Internet: {name}", "fail", f"no connection ({type(e).__name__})",
-                                  "Check the internet connection, or whether a firewall or VPN blocks Python."))
-    _ = settings()  # config files parse (raises with the file name if not)
+def _internet() -> list[dict]:
+    from . import net
+
+    out = []
+    for name, url in SERVICES.items():
+        try:
+            r = net.get(url, source="doctor", timeout=8, retries=0, expected=tuple(range(400, 500)))
+            ok = r.status_code < 500
+            out.append(_check(f"Internet: {name}", "ok" if ok else "warn", f"HTTP {r.status_code}",
+                              "The service may be down for a moment; updates keep the last data and retry next time."))
+        except net.Throttled as e:
+            out.append(_check(f"Internet: {name}", "warn", str(e),
+                              "Market Radar paused this site after it asked us to slow down; it resumes by itself "
+                              "(or clear the pause on the Operations page)."))
+        except Exception as e:
+            out.append(_check(f"Internet: {name}", "fail", f"no connection ({type(e).__name__})",
+                              "Check the internet connection, or whether a firewall or VPN blocks Python."))
     return out

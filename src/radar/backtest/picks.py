@@ -24,7 +24,8 @@ import numpy as np
 import pandas as pd
 
 from .. import performance, simulate, universe, userstore
-from ..config import REPORTS, settings
+from ..config import settings
+from ..paths import REPORTS
 from . import exits as ex
 from . import study
 

@@ -4,7 +4,7 @@ Alt, hvad appen kan, bygger på kommandoen `radar`, som du også kan bruge direk
 
 ## Sådan kører du kommandoerne
 
-Åbn en terminal i Market Radar-mappen (den mappe, hvor startscriptet ligger), og skriv kommandoerne med `uv run` foran:
+Åbn en terminal i programmappen (den mappe, hvor startscriptet ligger), og skriv kommandoerne med `uv run` foran:
 
 ```
 uv run radar doctor
@@ -20,20 +20,29 @@ uv run radar info --help
 
 Kommandoerne og appen deler de samme data. Kører appen, mens du ændrer noget på kommandolinjen, ser appen ændringen næste gang siden indlæses.
 
+Kommandoerne finder selv din datamappe (se [Dine data, backup og opdatering](brugervejledning/dine-data)). To tilvalg gælder for alle kommandoer og skrives før kommandoens navn:
+
+```
+uv run radar --version                       # hvilken version af Market Radar du kører
+uv run radar --home "D:\Test\Market Radar" portfolios list   # brug en anden datamappe, kun denne gang
+```
+
+Er der endnu ikke valgt en datamappe, mangler den, eller er dataene skrevet af en nyere version, nægter kommandoerne at køre og siger hvorfor. Kun `setup`, `paths`, `serve`, `doctor`, `ticker` og `openapi` kører alligevel.
+
 ## Data og rapport
 
 | Kommando | Gør |
 |---|---|
 | `radar run` | Henter nye data og bygger rapporten. Det samme som *Update data* i appen |
 | `radar update` | Kun den første halvdel: henter kurser, makroserier og de øvrige kilder |
-| `radar report` | Kun den anden halvdel: bygger `reports/dashboard.json` og `reports/summary.json` fra de data, der er |
+| `radar report` | Kun den anden halvdel: bygger `dashboard.json` og `summary.json` i cache-mappens `reports/` fra de data, der er |
 | `radar discover` | Den separate Discover-scanning (nordiske og europæiske aktier, S&P 500, ETF'er fra positivlisten) |
 | `radar doctor` | Sundhedstjekket |
 | `radar ops` | Driftsloggen: forespørgsler, fejl og pauser |
 
 ### radar run, update og report
 
-`radar run` henter kun det nye (kurser siden sidste gang), henter de ikke-kursbaserede kilder (FRED, CFTC, OECD, FactSet, analytikerkonsensus, værdiansættelse, sentiment) og bygger rapporten. En kilde, der fejler, skriver en advarsel og beholder sine data. Hver kilde logges i `data/sources.json`, som siden [Data & coverage](/data) viser.
+`radar run` henter kun det nye (kurser siden sidste gang), henter de ikke-kursbaserede kilder (FRED, CFTC, OECD, FactSet, analytikerkonsensus, værdiansættelse, sentiment) og bygger rapporten. Først tager den dagens backup af dine data, hvis der ikke er taget en i dag. En kilde, der fejler, skriver en advarsel og beholder sine data. Hver kilde logges i `sources.json` i cache-mappen, som siden [Data & coverage](/data) viser.
 
 ```
 uv run radar run
@@ -51,7 +60,7 @@ uv run radar discover
 uv run radar discover --refresh-universe     # byg navnelisten igen nu (ellers månedligt)
 ```
 
-Scanningen skriver `reports/discovery.json` til siden *Discover* og rører ikke resten af radarens data. Kør den cirka ugentligt. Knappen *Scan again* på siden gør det samme. Se [Discover](brugervejledning/discover).
+Scanningen skriver `discovery.json` i cache-mappens `reports/` til siden *Discover* og rører ikke resten af radarens data. Kør den cirka ugentligt. Knappen *Scan again* på siden gør det samme. Se [Discover](brugervejledning/discover).
 
 ### radar doctor
 
@@ -60,7 +69,7 @@ uv run radar doctor
 uv run radar doctor --offline                # uden at kontakte datakilderne
 ```
 
-Tjekker Python, den byggede app, markedsdata, rapporten, positivlisten, din portefølje, investorprofilen og hver datakilde, og siger, hvordan du retter det, der mangler. Se [Fejlfinding og spørgsmål](brugervejledning/fejlfinding#sundhedstjekket-radar-doctor).
+Tjekker Python, den byggede app, datamappen, markedsdata, rapporten, positivlisten, din portefølje, investorprofilen og hver datakilde, og siger, hvordan du retter det, der mangler. Se [Fejlfinding og spørgsmål](brugervejledning/fejlfinding#sundhedstjekket-radar-doctor).
 
 ### radar ops
 
@@ -96,7 +105,7 @@ Med flere navne får du en sammenligning side om side, med ACWI som benchmark, u
 
 ```
 uv run radar info NVDA AMD MU
-uv run radar info NVDA AMD MU --out exports/chips.json
+uv run radar info NVDA AMD MU --out chips.json
 uv run radar info NVDA AMD --personal        # med dine positioner, beholdninger og markedssyn
 uv run radar info NVDA AMD --personal --portfolio ASK
 ```
@@ -199,7 +208,32 @@ uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name t
 uv run radar sim picks --rerun tag:picks-live
 ```
 
+## Datamappe, backup og eksport
+
+| Kommando | Gør |
+|---|---|
+| `radar paths` | Viser, hvor datamappen, historikken, backupperne og cache-mappen ligger, og hvordan de blev fundet (`--json` til skills) |
+| `radar setup` | Vælger datamappen: kopierer dine data fra en ældre version, starter tomt (`--fresh`) eller bruger en mappe, der findes (`--use STI`) |
+| `radar backup` | Tager en backup nu. `--reason ord` sætter et ord i filnavnet; `--mirror STI` kopierer fremover hver backup til en anden mappe, `--mirror off` stopper det |
+| `radar backups` | Lister backupperne i datamappen og i den anden mappe |
+| `radar restore FIL` | Gendanner en backup; det, der er der nu, tages backup af først. `--yes` spørger ikke |
+| `radar export` | Skriver dine data i åbne formater (CSV, JSON, Markdown) som zip i `exports/` i datamappen; `--out FIL` vælger et andet sted |
+| `radar import-export FIL` | Indlæser en eksport: porteføljerne i den får præcis dens rækker, og dokumenter, der ikke findes, bliver lagt ind |
+| `radar updates` | Viser, om der er en ny version; `--on` og `--off` slår det daglige tjek til og fra |
+
+```
+uv run radar setup                           # spørger, hvilken gammel mappe der skal kopieres fra
+uv run radar setup --from "C:\Users\dig\Downloads\market-radar-v0.1" --to "D:\Market Radar"
+uv run radar setup --use "D:\Market Radar"    # mappen er flyttet eller kopieret fra en anden computer
+uv run radar backup --mirror "C:\Users\dig\OneDrive\Market Radar backups"
+uv run radar restore "C:\Users\dig\Market Radar\backups\market-radar-20261015-091500-daily-daily.zip"
+```
+
+Alt om datamappen, backup, eksport og opdatering står i [Dine data, backup og opdatering](brugervejledning/dine-data).
+
 ## Flyt dine data til en anden computer
+
+Den nemmeste vej er at kopiere hele datamappen og køre `uv run radar setup --use STI` på den nye computer; se [Flyt datamappen](brugervejledning/dine-data#flyt-datamappen). En eksport (`radar export` og `radar import-export`) tager porteføljer, markedssyn og dokumenter med, men ikke historikken. Vil du kun have porteføljedelen med som én tekstfil, findes også:
 
 ```
 uv run radar bundle-holdings --out min-radar.bundle
@@ -238,4 +272,8 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | teste varianter af stopreglen | `uv run radar study exits` |
 | teste stopreglen med pengene i en ny aktie | `uv run radar study redeploy` |
 | simulere en kurv fra for 6 måneder siden | `uv run radar sim picks --asof 6M --rule top-n --name test-6m` |
-| tage backup af mine handler | `uv run radar portfolio export --all --out backup.csv` |
+| se hvor mine data ligger | `uv run radar paths` |
+| tage backup af alle mine data | `uv run radar backup` |
+| eksportere mine data til CSV, JSON og Markdown | `uv run radar export` |
+| gemme mine handler som CSV | `uv run radar portfolio export --all --out handler.csv` |
+| se hvilken version jeg har | `uv run radar --version` |

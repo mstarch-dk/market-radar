@@ -684,3 +684,23 @@ dl.nb-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14
 dl.nb-facts dt { color: var(--muted); }
 dl.nb-facts dd { margin: 0; }
 .nb-ticker { margin-top: 8px; color: var(--ink-2); }
+
+/* first start: choosing the data folder (components/Setup.tsx) */
+.setup { max-width: 760px; margin: 32px auto; padding: 0 16px; display: grid; gap: 14px; }
+.setup h1 { font-size: 20px; margin: 0; }
+.setup p { margin: 0; line-height: 1.5; }
+.setup-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.setup-path { flex: 1 1 320px; min-width: 0; font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.setup-found { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.setup-found legend { margin-bottom: 6px; }
+.setup-choice { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.setup-choice.on { border-color: var(--accent); }
+.setup label.check, .card > label.check { display: flex; gap: 6px; align-items: center; margin-top: 10px; cursor: pointer; }
+.setup-banner { padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 13px; }
+.data-home { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
+.data-home td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+.data-home td.wrap { overflow-wrap: anywhere; }
+.data-home td.num { text-align: right; white-space: nowrap; }
+.setup details.card summary { cursor: pointer; font-weight: 600; font-size: 13px; }

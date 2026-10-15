@@ -57,7 +57,7 @@ Tags ændrer aldrig, hvad der tæller som dit. De bruges til at gruppere:
 ## Arkivér, slet og flyt
 
 - **Arkivér** (*archive*): porteføljen beholder alle rækker, men tæller ikke længere som din og forsvinder fra listen. *show N archived* viser den igen, og *unarchive* henter den tilbage.
-- **Slet** (*delete*): en virtuel portefølje slettes med alle rækker, efter at radaren har taget en sikkerhedskopi i `userdata/backups/`. En rigtig portefølje kan kun slettes, når den er tom.
+- **Slet** (*delete*): en virtuel portefølje slettes med alle rækker, efter at radaren har taget en sikkerhedskopi i `backups/` i datamappen. En rigtig portefølje kan kun slettes, når den er tom.
 - **Flyt rækker**: på siden *Portfolio* kan handler i *Main* flyttes til en anden rigtig portefølje, alle eller ét symbol ad gangen. På kommandolinjen kan alle porteføljer flyttes: `uv run radar portfolios move Main --to ASK --symbol NOVO-B.CO`. En flytning afvises, hvis et salg ville miste det køb, det hører til.
 
 Radaren tager en sikkerhedskopi før hver flytning.
@@ -110,4 +110,4 @@ Da valget står i adressen, kan du gemme en visning som bogmærke. *back to your
 
 Alle kommandoer køres som `uv run radar …`. Se også [Kommandolinjen](brugervejledning/kommandolinjen).
 
-> **Tip:** Brug de samme navne på dine rigtige porteføljer som i `notes/investor.md`. `/journal` registrerer handler i porteføljen ved navn. Se [Claude Code-skills](brugervejledning/claude-code).
+> **Tip:** Brug de samme navne på dine rigtige porteføljer som i `notes/investor.md` i datamappen. `/journal` registrerer handler i porteføljen ved navn. Se [Claude Code-skills](brugervejledning/claude-code).

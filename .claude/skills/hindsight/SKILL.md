@@ -8,6 +8,8 @@ argument-hint: "[1M|3M|6M|1Y …]"
 
 Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
 
+**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+
 Output goes to `research/hindsight/YYYY-MM-DD_<name>.md`, one memo per basket. Reply with the results table and the
 links. This is a simulation for inspiration and for judging the score, not advice. **One basket over one period
 is an illustration; the evidence is the rolling study (`radar study score`).** Say so in every memo.

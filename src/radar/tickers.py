@@ -6,14 +6,14 @@ from __future__ import annotations
 import pandas as pd
 
 from . import dashboard, universe
-from .config import DATA
+from .paths import CACHE
 
 _cache: tuple[tuple, list[dict]] | None = None
 
 
 def _cached_currencies(tickers: list[str]) -> dict[str, str | None]:
     """Quote currencies from the local cache only (no Yahoo lookups on a hover)."""
-    f = DATA / "currencies.csv"
+    f = CACHE / "currencies.csv"
     cached = dict(pd.read_csv(f).values) if f.exists() else {}
     return {t: cached.get(t) for t in tickers}
 

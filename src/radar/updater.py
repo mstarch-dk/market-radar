@@ -1,7 +1,7 @@
 """Refreshing the data: the steps behind `radar update` / `radar run`, and a background job so the web app can
 run them with a button and show progress (for people who don't use a terminal).
 
-Each source is a step; a failing step is logged (data/sources.json) and keeps its cached data, so one broken
+Each source is a step; a failing step is logged (sources.json in the cache) and keeps its cached data, so one broken
 source never blocks the rest.
 """
 from __future__ import annotations
@@ -97,7 +97,7 @@ class UpdateJob:
         self._lock = threading.Lock()
         self._label = label
         self._kind = kind     # the job's kind in the operations log
-        self._work = work or (lambda log, progress: (update(log, progress=progress), build_report(log)))
+        self._work = work or (lambda log, progress: (_daily_backup(log), update(log, progress=progress), build_report(log)))
         self.state = {"status": "idle", "started": None, "finished": None, "log": [], "progress": None, "error": None}
 
     def _log(self, line: str) -> None:
@@ -132,6 +132,18 @@ class UpdateJob:
             # the status changes last, so whoever waits for it sees the operations log complete
             self.state.update(error=error, finished=datetime.now().isoformat(timespec="seconds"), progress=None,
                               status=status)
+
+
+def _daily_backup(log: Log) -> None:
+    """Today's backup, if the app has been open since before today (it is also taken at start)."""
+    from . import backup
+
+    try:
+        if (b := backup.daily()):
+            log(f"Backup: {b.name}")
+    except Exception as e:                        # never stops the update; the Data page shows the backups' age
+        log(f"Backup failed: {type(e).__name__}: {e}")
+        ops.event("error", "job", f"backup: {type(e).__name__}: {e}", source="backup", exc=e)
 
 
 def _discover(log: Log, progress: Callable[[int, int], None]) -> None:

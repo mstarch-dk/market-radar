@@ -1,28 +1,31 @@
 .venv/
 __pycache__/
-reports/
+/reports/
 
 # local data: prices and caches are re-downloadable; rank snapshots (data/snapshots/) build up with each run
-data/
+/data/
 
 # personal holdings stay local
-imports/*
-!imports/README.md
-!imports/positivliste.xlsx
+/imports/*
+!/imports/README.md
+!/imports/positivliste.xlsx
 
 # personal reading notes (may quote paid sources such as Bloomberg); local only (the /market-brief skill reads them)
-notes/
+/notes/
+
+# portable mode (src/radar/paths.py): data kept beside the program; the marketing demo writes one into .demo/
+/portable.json
 
 # your own edits from the web app (portfolios, watchlist, views): local only; `radar bundle-holdings` carries them to another machine
-userdata/
+/userdata/
 
 # ticker comparisons written by `radar info A B --out` / the /compare skill (may hold personal data with --personal)
-exports/
+/exports/
 
 # your briefs, research memos and decision journal: they name your holdings and decisions
-briefs/*
-research/
-journal/
+/briefs/*
+/research/
+/journal/
 
 # release zips built by scripts/build_release_zip.py
 dist-release/

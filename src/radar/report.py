@@ -6,7 +6,7 @@ import json
 from datetime import date
 
 from . import dashboard, snapshot
-from .config import REPORTS
+from .paths import REPORTS
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
                     "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
@@ -76,7 +76,7 @@ def _portfolios() -> list[dict]:
 def build() -> dict:
     c = dashboard.compute()
     d = c.data
-    REPORTS.mkdir(exist_ok=True)
+    REPORTS.mkdir(parents=True, exist_ok=True)
     out = REPORTS / dashboard.FILE_NAME
     _write(out, d)
     _write(REPORTS / "summary.json", summary(d, c.me, _portfolios()))

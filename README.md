@@ -20,7 +20,7 @@ helps you spot:
 
 ---
 
-## Get started (Windows or Mac)
+## Get started (Windows, Mac or Linux)
 
 You don't need to install anything yourself. The start script sets everything up the first time.
 
@@ -31,10 +31,14 @@ You don't need to install anything yourself. The start script sets everything up
      click *More info* → *Run anyway* (the script is plain text; you can open it in Notepad to see what it does).
    - **Mac:** right-click (or Control-click) **`Start Market Radar.command`** → *Open* → *Open*. This is only
      needed the first time; afterwards a double-click is enough.
+   - **Linux:** run `./start-market-radar.sh` in a terminal.
 4. A black window opens and prepares everything. The first time this takes a few minutes: it downloads
    [uv](https://docs.astral.sh/uv/), the small tool that runs Market Radar, and the Python it needs. Your browser
    then opens Market Radar at <http://127.0.0.1:8780>.
-5. **Click "Download market data".** The first download covers about 700 stocks and ETFs and takes **a few
+5. **Choose where your data goes.** The first start shows a setup screen. Your own data gets a folder of its own,
+   outside the program folder (`~/Market Radar` by default). If you used an older version, it finds that folder
+   and offers *Copy my data*; otherwise click *Start with an empty folder*.
+6. **Click "Download market data".** The first download covers about 700 stocks and ETFs and takes **a few
    minutes** (about one to five, depending on your connection). You can watch the progress, and it's fine to look around meanwhile.
 
 **Keep the black window open** while you use Market Radar. Closing it stops the app. Next time, just
@@ -57,17 +61,48 @@ double-click the start script again.
 
 ## Your data stays yours
 
-Everything you add stays in these folders on your computer and is never uploaded anywhere:
+Everything you add stays on your computer and is never uploaded anywhere. It lives apart from the program, so a
+new version never touches it:
 
-| Folder | What |
-|---|---|
-| `userdata/` | Your trades, accounts, watchlist changes (and automatic backups in `userdata/backups/`) |
-| `imports/` | Old Yahoo import files (moved into `userdata/` automatically) |
-| `data/`, `reports/` | Downloaded market data and the dashboard (can be re-downloaded) |
-| `notes/` | Your own notes and investor profile (for the Claude skills) |
-| `briefs/`, `research/`, `journal/` | What the Claude skills write for you |
+| Where | What | Re-downloadable? |
+|---|---|---|
+| **Data folder**, `~/Market Radar` by default (Windows: `C:\Users\<you>\Market Radar`) | `radar.db` (portfolios, trades, market views, watchlist, choices), `notes/` (incl. your investor profile), `briefs/`, `research/`, `journal/`, `exports/`, `imports/` (broker files), `history/` (what the radar builds up over time: rank snapshots, valuation snapshots, analyst targets), `backups/` | **No**: back it up |
+| **Cache folder**: `%LOCALAPPDATA%\MarketRadar\Cache` (Windows), `~/Library/Caches/MarketRadar` (Mac), `~/.cache/MarketRadar` (Linux) | Downloaded market data, the operations log and the built dashboard (`reports/`) | Yes: delete it any time |
 
-Updating Market Radar to a newer release: unzip the new version and copy these folders across.
+The computer remembers where the data folder is (in `location.json` under `%LOCALAPPDATA%\MarketRadar`,
+`~/Library/Application Support/MarketRadar` or `~/.config/MarketRadar`), so every version you unzip finds it.
+`uv run radar paths` lists every location; the *Data & coverage* page shows them under *Your data*.
+
+Keep the data folder out of OneDrive, iCloud Drive and Dropbox (a database synced while in use can be damaged);
+send the backups there instead. The full story, in Danish, is in the app's guide: *Dine data, backup og opdatering*.
+
+### Updating to a new version
+
+Download the new zip, unzip it anywhere and start it. It finds your data folder, backs it up and opens; then
+delete the old program folder. Nothing to copy. On a Mac, the right-click → *Open* step is needed again for each
+newly downloaded `.command`. To go back, unzip the previous version: if the newer one changed the data format, the
+older one opens your data read-only, and you can restore the backup taken just before the upgrade.
+
+Coming from a version before the data folder (0.1.x)? The first start of the new version shows a setup screen that
+finds the old folder (unzip the new version next to it), copies your data across and checks the copy. The old
+folder isn't changed. Command line: `uv run radar setup`.
+
+### Backups and export
+
+- **Backups** are taken by themselves once a day and before a new version first uses your data (7 daily, 5 weekly
+  and 12 monthly kept). Each is a zip of `radar.db`, your folders and the history, never the market data. On the
+  *Data & coverage* page: *Back up now*, *Restore…* (what is there now is backed up first, so a restore can be
+  undone), and a second folder every backup is copied to, such as a cloud-sync folder or a USB disk.
+  Command line: `radar backup [--mirror PATH|off]`, `radar backups`, `radar restore FILE`.
+- **Export** (*Export my data (CSV, JSON, Markdown)*, or `radar export`) writes everything of yours in open formats:
+  `transactions.csv`, `portfolios.json`, `views.json`, your Markdown documents and an `EXPORT.md` explaining every
+  column. `radar import-export FILE` reads one back.
+
+### Moving to a new computer
+
+Close the app, copy the whole data folder to the new computer, unzip Market Radar there and run
+`uv run radar setup --use "PATH/TO/Market Radar"`. Then start the app and update the market data. (An export
+works too, but leaves the history behind.)
 
 ## Optional: Claude Code skills
 
@@ -81,8 +116,10 @@ use the radar's data:
 | `/compare NVDA AMD MU` | An honest side-by-side, including whether any of them beats just owning the world index |
 | `/journal buy RHM.DE …` / `/journal review` | A decision journal with exit rules, and a monthly review of open decisions |
 
-First copy `investor.example.md` to `notes/investor.md` and fill it in (your accounts, e.g. aktiesparekonto and
-frie midler, your horizon and limits), so the skills fit you.
+First copy `investor.example.md` to `notes/investor.md` in your data folder and fill it in (your accounts, e.g.
+aktiesparekonto and frie midler, your horizon and limits), so the skills fit you. The skills find the data folder
+with `uv run radar paths --json` and write their files there; Claude Code may ask permission to use it, since it is
+outside the project folder.
 
 ## Troubleshooting
 
@@ -94,11 +131,15 @@ frie midler, your horizon and limits), so the skills fit you.
   lists them, and the next update usually fixes it.
 - **Firewall or antivirus questions:** Market Radar only talks to its data sources (Yahoo Finance, FRED, the
   OECD, the CFTC, the ECB, FactSet, SSGA, iShares, Cboe, AAII, multpl.com and NYU Stern; the full list is in
-  [DATA_LICENSE.md](DATA_LICENSE.md)). The app itself is only reachable from your own computer.
+  [DATA_LICENSE.md](DATA_LICENSE.md)), and to api.github.com only if you switch on the check for new versions. The
+  app itself is only reachable from your own computer.
 - **Mac: "cannot be opened because it is from an unidentified developer":** right-click the file → *Open* (see
   step 3).
-- **Start over:** delete the `data/` and `reports/` folders and download the market data again. Your portfolio
-  and watchlist are kept.
+- **"Your data folder can't be found":** the drive it is on isn't connected, or you moved it. Connect it and
+  reload, or type where it is now and click *Use this folder* (`uv run radar setup --use PATH`).
+- **"Read-only" banner:** your data was written by a newer Market Radar. Start the newest version you have.
+- **Start over with market data:** close the app, delete the cache folder (`uv run radar paths` shows where) and
+  download the market data again. Your data folder is kept.
 
 ## For the technically curious
 
@@ -108,6 +149,7 @@ frie midler, your horizon and limits), so the skills fit you.
   - `uv run radar serve --open` (the app)
   - `uv run radar info NOVO-B.CO` (one ticker as JSON)
   - `uv run radar doctor` (setup check)
+  - `uv run radar paths` (where your data is) and `uv run radar --version`
 - Building from source needs Node 22+ and pnpm: `pnpm -C web install && pnpm -C web build`.
 - Developer docs are in [`docs/`](docs/) (commands, architecture, data conventions, testing, web app). Tests:
   `uv run pytest -q` and `pnpm -C web test`.

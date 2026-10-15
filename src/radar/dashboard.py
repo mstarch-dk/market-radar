@@ -13,7 +13,8 @@ import numpy as np
 import pandas as pd
 
 from . import coverage, external, mine, sentiment, snapshot, universe, valuation
-from .config import REPORTS, settings, universe_config
+from .config import settings, universe_config
+from .paths import REPORTS
 from .ingest import load_fred, load_prices, wide
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation

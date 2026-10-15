@@ -19,7 +19,7 @@ uv run radar study score --horizons 3,6 --variants score,r12_1 --no-regime
 uv run radar study score --seasoned       # uden aktier noteret under et år på datoen
 ```
 
-Kommandoen skriver `reports/score-study.json` og viser én tabel pr. horisont:
+Kommandoen skriver `score-study.json` i cache-mappens `reports/` og viser én tabel pr. horisont:
 
 - **IC** og **t**: rangkorrelationen mellem scoren og afkastet bagefter, i gennemsnit, med et t-tal, der tager højde for overlappende perioder. Et t-tal over cirka 2 betyder, at gennemsnittet næppe er 0 ved et tilfælde.
 - **IC>0**: andelen af måneder, hvor scoren pegede den rigtige vej.
@@ -42,7 +42,7 @@ uv run radar study exits --variants k5,sma200 --no-reentry
 
 Hver månedsafslutnings 15 bedste aktier beholdes og sammenlignes med de samme køb, hvor en variant af reglen sælger, og pengene står i {{settings:backtest.park}} bagefter. Varianterne er reglen som i dag, uden take-profit, med bredere $k$, med ATR over 63 dage, uden strammere stop, når kursen er strakt, med et fast fald på 20 eller 30 % fra toppen og med salg ved en lukkekurs under 100- eller 200-dages gennemsnittet. Den variant, der klarer sig bedst før holdout-perioden, prøves også med genkøb: når aktien igen er i optrend med en stærk score, købes den tilbage for de parkerede penge. Til sammenligning vises to rækker helt uden salgsregel, hvor kun en del af pengene står i kurven og resten i {{settings:backtest.park}} fra starten (*mix75* og *mix50*): de viser, hvad den samme risikoreduktion koster ved at gøre positionen mindre i stedet. Se [Virker stop på momentumaktier?](laerebog/stop-og-storrelse#virker-stop-på-momentumaktier).
 
-For hver variant vises afkastet og forskellen til at beholde, med t-tal, andelen af datoer hvor den hjalp, det 10 % dårligste udfald, gennemsnitligt og værste største fald (max drawdown) og antal salg pr. kurv. En variant **består**, når den både før og i holdout-perioden højst koster 2 procentpoint afkast pr. 6 måneder (1 pr. 3 måneder), skærer mindst en fjerdedel af det gennemsnitlige største fald væk og løfter det 10 % dårligste udfald. Ellers står der, hvorfor den ikke består. Rapporten ligger i `reports/exit-study.json`.
+For hver variant vises afkastet og forskellen til at beholde, med t-tal, andelen af datoer hvor den hjalp, det 10 % dårligste udfald, gennemsnitligt og værste største fald (max drawdown) og antal salg pr. kurv. En variant **består**, når den både før og i holdout-perioden højst koster 2 procentpoint afkast pr. 6 måneder (1 pr. 3 måneder), skærer mindst en fjerdedel af det gennemsnitlige største fald væk og løfter det 10 % dårligste udfald. Ellers står der, hvorfor den ikke består. Rapporten ligger i `exit-study.json` i cache-mappens `reports/`.
 
 ## Pengene fra et salg i en ny aktie
 
@@ -69,7 +69,7 @@ Varianterne kommer i par, så hver gevinst kan føres tilbage til sin årsag:
 
 Rotationen sælger ved hver månedsafslutning en aktie, der er faldet uden for de 3 × 15 = 45 bedste (`--buffer`), og køber den næste på samme måde. Bufferen gør, at en aktie ikke sælges, fordi den falder et par pladser.
 
-For hver variant vises afkastet og forskellen til at beholde kurven, **Sharpe** og **Sortino** (afkast over ECB's indlånsrente pr. enhed risiko, Sortino kun med udsvingene nedad), **Calmar** (årligt afkast pr. største fald), største fald, **IR** (informationsratio: merafkast mod ACWI pr. enhed afvigelse fra ACWI), antal handler og kurtage, og Sharpe mod tvillingen (*redeploy* mod *park*, en rotation med regel mod rotationen alene) med t-tal. En variant er **better**, når dens gennemsnitlige Sharpe både før og i holdout-perioden er højere end at beholde kurven og højere end tvillingens, og den højst koster 2 procentpoint afkast pr. 6 måneder. Rapporten ligger i `reports/redeploy-study.json`.
+For hver variant vises afkastet og forskellen til at beholde kurven, **Sharpe** og **Sortino** (afkast over ECB's indlånsrente pr. enhed risiko, Sortino kun med udsvingene nedad), **Calmar** (årligt afkast pr. største fald), største fald, **IR** (informationsratio: merafkast mod ACWI pr. enhed afvigelse fra ACWI), antal handler og kurtage, og Sharpe mod tvillingen (*redeploy* mod *park*, en rotation med regel mod rotationen alene) med t-tal. En variant er **better**, når dens gennemsnitlige Sharpe både før og i holdout-perioden er højere end at beholde kurven og højere end tvillingens, og den højst koster 2 procentpoint afkast pr. 6 måneder. Rapporten ligger i `redeploy-study.json` i cache-mappens `reports/`.
 
 > **Bemærk:** Universet er dagens. Hver aktie, pengene flyttes til, er en, der overlevede til i dag, og det får det at flytte pengene til at se bedre ud end at beholde. Skat er ikke regnet med: i frie midler realiserer hvert salg en gevinst eller et tab, på aktiesparekontoen (lagerbeskatning) koster flere handler ikke ekstra skat. Antallet af handler står i tabellen, så du kan vurdere det. Baggrunden står i [Virker stop på momentumaktier?](laerebog/stop-og-storrelse#pengene-fra-et-salg).
 
@@ -87,13 +87,13 @@ uv run radar sim picks --rerun test-6m                            # samme kurv i
 - `--max-per-sector`, `--max-per-group` (pr. region), `--trend` og `--weighting equal|score` styrer sammensætningen.
 - Kurven købes til næste handelsdags lukkekurs med kurtage på {{settings:backtest.fee_bps}} basispoint.
 
-Hver kurv bliver til virtuelle porteføljer med tagget `picks`: *‹navn› · hold* (beholdt), *‹navn› · exits* (stopreglen fulgt) og *‹navn› · control* (scorens egne N bedste med de samme lofter, når din kurv er en anden). Kommandoen viser afkastet i DKK med alle omkostninger mod ACWI og mod gennemsnitsaktien, kurvens placering blandt {{settings:backtest.random_baskets}} tilfældige kurve af samme størrelse og med samme lofter, og scorens test på netop den dag. Linket går til [Returns](/returns) med porteføljerne valgt. Rapporten ligger i `reports/sim-picks/`.
+Hver kurv bliver til virtuelle porteføljer med tagget `picks`: *‹navn› · hold* (beholdt), *‹navn› · exits* (stopreglen fulgt) og *‹navn› · control* (scorens egne N bedste med de samme lofter, når din kurv er en anden). Kommandoen viser afkastet i DKK med alle omkostninger mod ACWI og mod gennemsnitsaktien, kurvens placering blandt {{settings:backtest.random_baskets}} tilfældige kurve af samme størrelse og med samme lofter, og scorens test på netop den dag. Linket går til [Returns](/returns) med porteføljerne valgt. Rapporten ligger i `sim-picks/` i cache-mappens `reports/`.
 
 > **Bemærk:** Aktier i en valuta uden en kurs til DKK i radaren (lige nu koreanske won og taiwanske dollar) kan ikke købes i en simulering. De står i listen med `dkk: false` og springes over.
 
 ### Hindsight-kurve med Claude
 
-`/hindsight` i Claude Code (se [Claude Code-skills](brugervejledning/claude-code#hindsight)) stiller spørgsmålene for dig: hvor langt tilbage, om kurven skal vælges af scoren alene, af scoren og dine markedssyn eller af scoren og Claudes vurdering, hvor mange aktier og hvor spredt. Derefter vælger, kører og beskriver Claude kurven i `research/hindsight/`.
+`/hindsight` i Claude Code (se [Claude Code-skills](brugervejledning/claude-code#hindsight)) stiller spørgsmålene for dig: hvor langt tilbage, om kurven skal vælges af scoren alene, af scoren og dine markedssyn eller af scoren og Claudes vurdering, hvor mange aktier og hvor spredt. Derefter vælger, kører og beskriver Claude kurven i `research/hindsight/` i datamappen.
 
 Claude kender markedet frem til sin egen vidensgrænse. En kurv valgt af Claude til en dag *før* den grænse kan være påvirket af, hvad Claude ved skete bagefter. Derfor vælger Claude på sådan en dag blindt (aktierne hedder C001, C002 …), og notatet siger, at det ikke helt kan udelukkes. Dage efter grænsen er rene. Dine markedssyn bruges kun, hvis de var oprettet senest på dagen.
 
