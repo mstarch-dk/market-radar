@@ -19,7 +19,7 @@ import { Themes } from "./pages/Themes";
 import { Views } from "./pages/Views";
 import { Ticker } from "./pages/Ticker";
 import { pageChapter, useGuideTree } from "./lib/guide";
-import { ALL_PAGES, groupOf, lastPage, NAV, remember } from "./lib/nav";
+import { ALL_PAGES, groupOf, lastPage, NAV, remember, rememberFrom, tickerLocation } from "./lib/nav";
 import "./styles.css";
 
 // Markdown + KaTeX load only when the guide or the notebook is opened
@@ -44,10 +44,12 @@ function Shell() {
   const home = pathname === "/";
   const guide = useGuideTree();
   const about = guide.data ? pageChapter(guide.data.page_links, pathname) : null;
-  const group = groupOf(pathname);
-  const showPages = group !== null && !pathname.startsWith("/ticker/");
+  // a ticker profile sits under the page it was opened from (else under Markets); read before this visit is remembered
+  const ticker = tickerLocation(pathname);
+  const group = ticker?.group ?? groupOf(pathname);
   useEffect(() => {
     remember(pathname, search);
+    rememberFrom(pathname, search);
   }, [pathname, search]);
   // a link from deep in a long table opens the next page at its top (a link to a #heading scrolls there instead)
   useEffect(() => {
@@ -77,12 +79,22 @@ function Shell() {
         ))}
         {about && <Link to={`/guide/${about}`} className="about-page" title="Kapitlet om denne side i brugervejledningen">? Om denne side</Link>}
       </nav>
-      {showPages && (
+      {group && (
         <nav className="tabs" aria-label={group.label}>
-          {group.pages.map((p) => <NavLink key={p.path} to={p.path} title={p.blurb}>{p.label}</NavLink>)}
+          {group.pages.map((p) => p.path === ticker?.page?.path
+            ? <Link key={p.path} to={ticker.from!} title={`Back to ${p.label}`} className="parent">{p.label}</Link>
+            : <NavLink key={p.path} to={p.path} title={p.blurb}>{p.label}</NavLink>)}
+          {ticker && <NavLink to={pathname} className="tab-ticker" title="The ticker profile you are on">{ticker.symbol}</NavLink>}
         </nav>
       )}
-      {!showPages && <div className="nav-rule" />}
+      {!group && <div className="nav-rule" />}
+      {ticker && (
+        <p className="crumb small muted" aria-label="You are here">
+          <Link to={lastPage(ticker.group)}>{ticker.group.label}</Link> ›{" "}
+          {ticker.page && <><Link to={ticker.from!}>{ticker.page.label}</Link> ›{" "}</>}
+          <span>{ticker.symbol}</span>
+        </p>
+      )}
       <Routes>
         <Route path="/" element={<Home />} />
         {ALL_PAGES.map((p) => <Route key={p.path} path={p.path} element={ELEMENTS[p.path]} />)}

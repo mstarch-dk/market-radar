@@ -69,6 +69,9 @@ nav.tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid v
 nav.tabs a { padding: 8px 12px; color: var(--ink-2); border-bottom: 2px solid transparent; white-space: nowrap; font-size: 13px; }
 nav.tabs a:hover { color: var(--ink); text-decoration: none; }
 nav.tabs a.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+nav.tabs a.parent { color: var(--ink); border-bottom-color: var(--muted); }   /* the page a ticker profile was opened from */
+nav.tabs a.tab-ticker { margin-left: 6px; padding-left: 14px; border-left: 1px solid var(--line); }
+.crumb { margin: -12px 0 10px; }
 
 .num { font-variant-numeric: tabular-nums; }
 .pos { color: var(--pos); }

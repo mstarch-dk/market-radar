@@ -67,6 +67,38 @@ export function remember(pathname: string, search: string, store: Store = browse
   store.set(KEY, JSON.stringify({ ...read(store), [g.id]: pathname + search }));
 }
 
+const FROM = "nav.from";
+
+/** Per-tab browser storage (sessionStorage), for where a ticker profile was opened from. */
+export const tabStore: Store = {
+  get: (k) => { try { return window.sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { window.sessionStorage.setItem(k, v); } catch { /* not remembered */ } },
+};
+
+/** Remember the page a ticker profile is opened from: every page in a group counts; home, the guide and unknown pages
+ *  clear it; a ticker page keeps it (one profile linking to the next stays under the same page). */
+export function rememberFrom(pathname: string, search: string, store: Store = tabStore): void {
+  if (pathname.startsWith("/ticker/")) return;
+  store.set(FROM, groupOf(pathname) ? pathname + search : "");
+}
+
+export type Location = { group: NavGroup; page: NavPage | null; from: string | null; symbol: string };
+
+/** Where a ticker page sits in the menu: under the page it was opened from (with that page's query string, so the
+ *  way back keeps its filters), else under Markets with no page. Null for any other path. */
+export function tickerLocation(pathname: string, store: Store = tabStore): Location | null {
+  if (!pathname.startsWith("/ticker/")) return null;
+  let symbol = pathname.slice("/ticker/".length);
+  try { symbol = decodeURIComponent(symbol); } catch { /* shown as written */ }
+  symbol = symbol.toUpperCase();
+  const from = store.get(FROM) || null;
+  const path = from?.split("?")[0] ?? "";
+  const group = from ? groupOf(path) : null;
+  if (!group) return { group: NAV[0]!, page: null, from: null, symbol };
+  const page = group.pages.find((p) => path === p.path || path.startsWith(`${p.path}/`)) ?? null;
+  return { group, page, from, symbol };
+}
+
 /** Where a group's tab leads: the page last opened in it, else its first page. */
 export function lastPage(group: NavGroup, store: Store = browserStore): string {
   const last = read(store)[group.id];
