@@ -225,7 +225,7 @@ def _levels_row(lv: dict | None) -> dict | None:
         return None
     a = lv.get("analyst") or None
     return {k: _v(lv.get(k)) for k in ("stop", "stop_pct", "take_profit", "tp_pct", "tp_source", "k", "anchor", "atr",
-                                       "anchor_basis")} | {
+                                       "anchor_basis", "mode", "action")} | {
         "reasons": [{"signal": x["signal"], "effect": float(x["effect"]), "detail": x["detail"]} for x in lv["reasons"]],
         "flags": list(lv["flags"]), "breaches": lv.get("breaches") or [],
         "analyst": {k: _v(a.get(k)) for k in ("fetched", "rec_key", "n_analysts", "target_low", "target_high",

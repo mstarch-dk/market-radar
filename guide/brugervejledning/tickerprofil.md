@@ -2,7 +2,7 @@
 
 Tickerprofilen er radarens side om ét enkelt værdipapir: en aktie, en ETF eller et andet symbol, som Yahoo Finance kender. Du når den ved at søge i søgefeltet øverst (tast `/` for at hoppe derhen), ved at klikke på et tickersymbol i en hvilken som helst tabel, eller direkte på adressen `/ticker/<SYMBOL>`, fx `/ticker/NOVO-B.CO`.
 
-Siden samler det, du ellers skulle hente fra mange faner: kursgraf, momentum, tekniske indikatorer, et regelbaseret stop og kursmål, risiko mod verdensindekset, analytikernes konsensus, værdiansættelse, fondsgennemlysning, peers og hvordan navnet passer med dine egne markedssyn.
+Siden samler det, du ellers skulle hente fra mange faner: kursgraf, momentum, tekniske indikatorer, et regelbaseret gennemgangsniveau, risiko mod verdensindekset, analytikernes konsensus, værdiansættelse, fondsgennemlysning, peers og hvordan navnet passer med dine egne markedssyn.
 
 ## Sidehovedet
 
@@ -43,7 +43,7 @@ Under overblikket kan der stå en linje *Watch-outs:*. Det er de graderede aflæ
 
 Grafen har op til tre ruder, der følger hinanden:
 
-- **Kurs** med 50- og 200-dages glidende gennemsnit, Bollinger-bånd (prikket) og handelsvolumen nederst. Vandrette linjer viser *Stop* (rød, stiplet), *Take-profit* (grøn, stiplet) og analytikernes middelkursmål, *Analyst mean* (prikket), når det ikke allerede er kursmålet.
+- **Kurs** med 50- og 200-dages glidende gennemsnit, Bollinger-bånd (prikket) og handelsvolumen nederst. Vandrette linjer viser gennemgangsniveauet *Review (200d)* (rød, stiplet; *Stop* med ATR-stoppet), *Take-profit* (grøn, stiplet, kun når kursmålet er slået til) og analytikernes middelkursmål, *Analyst mean* (prikket), når det ikke allerede er kursmålet.
 - **RSI 14** med de prikkede linjer ved 30 og 70.
 - **Relativ styrke mod ACWI**, hvor 100 er starten af den valgte periode. En stigende linje betyder, at navnet klarer sig bedre end verdensindekset i perioden.
 
@@ -69,9 +69,11 @@ Momentumscoren (0–100) med rang i gruppen, afkast over 3 og 6 måneder, 12-1-m
 
 RSI 14, MACD-histogrammet (12/26/9), Bollinger %B, ATR 14 (det typiske daglige udsving, også som procent af kursen), volatilitet over 3 måneder (annualiseret), største fald det seneste år og beta/korrelation mod ACWI på ugedata over et år. Hver aflæsning har et farvet ord; hold musen over det for at se tærsklen. Se [Tekniske indikatorer](laerebog/tekniske-indikatorer).
 
-### Stop / take-profit (rule)
+### Review level (rule)
 
-Et mekanisk trailing stop (glidende stop) og en take-profit (kursmål), beregnet efter en fast regel:
+Som standard (`stops.mode: trend`) viser kortet aktiens {{settings:stops.trend_sma}}-dages gennemsnit som gennemgangsniveau og afstanden til det. En lukkekurs under niveauet er en anledning til at gennemgå positionen, ikke et salgssignal. *Take-profit* står som *off*. Mærkerne er *near review level* (inden for {{settings:stops.near_atr}} ATR) og *below review level*.
+
+Med `stops.mode: atr` hedder kortet *Stop / take-profit (rule)* og viser et mekanisk trailing stop (glidende stop) og, med `stops.take_profit: true`, et kursmål:
 
 - **Stop** = højeste lukkekurs siden køb − k × ATR({{settings:stops.atr_days}}). For et navn, du ikke ejer, bruges den højeste lukkekurs over de seneste {{settings:stops.info_anchor_days}} handelsdage. Er stoppet blevet brudt siden, glider det fra den højeste kurs efter bruddet.
 - **k** starter på {{settings:stops.k_base}} og flyttes ±{{settings:stops.k_step}} af hvert signal (stærk momentum, brudt trend, tabt momentum, en kurs mere end {{settings:stops.extended_vs_sma50|pct}} over 50-dages gennemsnittet, regimet og analytikerne), inden for {{settings:stops.k_min}}–{{settings:stops.k_max}}.
@@ -83,7 +85,7 @@ Listen under tallene forklarer hvert signal linje for linje (+ giver mere plads,
 
 Risikostatistik på hele uger i DKK over 1 og 3 år (antallet af uger står i overskriften): annualiseret afkast, volatilitet, beta med standardfejl og R², downside-beta, alfa med t-værdi, aktiespecifik volatilitet, Sharpe/Sortino og største fald med antal uger under toppen. Med færre end {{settings:risk.min_weeks}} uger vises intet tal, aldrig et gæt.
 
-*Factor tilts* viser, hvor meget af bevægelserne der forklares af faktor-ETF'er ({{settings:risk.factors}}) ud over markedet; fremhævede mærker har |t| ≥ 2. Linjen *Size at 1% risk* er den andel af porteføljen, hvor et fald til regelstoppet koster {{settings:risk.budget|pct}} af porteføljen.
+*Factor tilts* viser, hvor meget af bevægelserne der forklares af faktor-ETF'er ({{settings:risk.factors}}) ud over markedet; fremhævede mærker har |t| ≥ 2. Linjen *Size at 1% risk* er den andel af porteføljen, hvor et fald til gennemgangsniveauet (eller ATR-stoppet) koster {{settings:risk.budget|pct}} af porteføljen.
 
 > **Bemærk:** Etårs-beta er støjende. Sammenlign 1 og 3 år, og læs standardfejlen, før du stoler på nogen af dem. Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 

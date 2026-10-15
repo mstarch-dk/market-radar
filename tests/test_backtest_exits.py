@@ -37,6 +37,7 @@ def market(tmp_data, monkeypatch):
 def context(market, *held):
     ctx = pit.Context.build(market, set(held) | {"ACWI"})
     ctx.eligible |= {"CRASH"}                                    # a stock, as far as the rule is concerned
+    ctx.stops = ctx.stops | {"mode": "atr", "take_profit": True}  # these tests pin the ATR stop and its take-profit
     return ctx
 
 
@@ -118,7 +119,7 @@ def test_missing_inputs_move_nothing_and_are_named(market):
 
 def test_a_stop_sells_at_the_next_close_and_parks_the_money(market):
     ctx = context(market, "CRASH")
-    rep = exits.replay([buy("CRASH", 190, 10)], ctx, "rules")
+    rep = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0)
     [e] = rep["exits"]
     assert e["trigger"] == "stop" and UP <= IDX.get_loc(pd.Timestamp(e["trigger_date"])) < UP + DOWN
     t = IDX.get_loc(pd.Timestamp(e["trigger_date"]))
@@ -132,7 +133,7 @@ def test_a_stop_sells_at_the_next_close_and_parks_the_money(market):
     assert end["parked_dkk"] == pytest.approx(e["park_units"] * acwi(N - 1) * FX)
     assert end["saved_dkk"] == pytest.approx(end["parked_dkk"] - end["position_dkk"]) and end["saved_dkk"] > 0
     assert simulate.check_rows(rep["rows"], market) == []
-    same = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fill="same")["exits"][0]
+    same = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fill="same", fee_bps=0)["exits"][0]
     assert same["fill_date"] == same["trigger_date"]
 
 
@@ -229,3 +230,126 @@ def test_refresh_writes_both_variants_once_and_finds_them_again(market, tmp_data
 
 def test_simulations_accept_interest():
     assert "INTEREST" in simulate.SIM_TYPES
+
+
+# ---------------- costs and the ablation ----------------
+
+def test_rule_and_parking_trades_pay_the_fee(market):
+    ctx = context(market, "CRASH")
+    free = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0)["exits"][0]
+    paid = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=25)
+    [e] = paid["exits"]
+    assert e["proceeds_dkk"] == pytest.approx(free["proceeds_dkk"] * (1 - 0.0025))
+    assert e["park_units"] == pytest.approx(free["park_units"] * (1 - 0.0025) / (1 + 0.0025))
+    rule_rows = [r for r in paid["rows"] if r["type"] in ("BUY", "SELL") and not r["note"].startswith("as your")]
+    assert rule_rows and all(r["fee"] == pytest.approx(r["quantity"] * r["price"] * 0.0025) for r in rule_rows)
+    assert simulate.check_rows(paid["rows"], market) == []
+
+
+def test_the_ablation_keeps_only_one_half_of_the_rule(market):
+    ctx = context(market, "CRASH")
+    both = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0)
+    stop = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="stop", fee_bps=0)
+    tp = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="take_profit", fee_bps=0)
+    assert [e["trigger"] for e in both["exits"]] == [e["trigger"] for e in stop["exits"]] == ["stop"]
+    assert all(e["trigger"] == "take_profit" for e in tp["exits"]) and both["rule"] == "both"
+    with pytest.raises(ValueError):
+        exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="trailing")
+
+
+# ---------------- variants of the rule (RuleSpec) ----------------
+
+def dip() -> np.ndarray:
+    """Rises 0.3 % a bar for 200 bars, falls 1 % a bar for 10, then rises 0.5 % a bar: a shake-out."""
+    up = 100 * 1.003 ** np.arange(200)
+    down = up[-1] * 0.99 ** np.arange(1, 11)
+    return np.r_[up, down, down[-1] * 1.005 ** np.arange(1, N - 210 + 1)]
+
+
+@pytest.fixture
+def dip_market(tmp_data, monkeypatch):
+    extra = world.install(tmp_data, monkeypatch)
+    extra["CRASH"] = world.bars("CRASH", crash())
+    extra["DIP"] = world.bars("DIP", dip())
+    monkeypatch.setattr(performance, "_cache", {})
+    return profile.Market.load()
+
+
+def test_the_default_spec_is_the_rule_as_set(market):
+    ctx = context(market, "CRASH", "S1")
+    rows = [buy("CRASH", 190, 10), buy("S1", 50, 10, c1(50))]
+    assert exits.replay(rows, ctx, "rules")["rows"] == exits.replay(rows, ctx, "rules", spec=exits.RuleSpec())["rows"]
+
+
+def test_without_the_take_profit_nothing_sells_on_a_target(market):
+    ctx = context(market, "S1")
+    rep = exits.replay([buy("S1", 50, 10, c1(50))], ctx, "rules", spec=exits.RuleSpec("x", tp="off"))
+    assert rep["exits"] == [] and rep["spec"] == "x"
+
+
+def test_a_percent_trail_sells_that_far_below_the_high(market):
+    ctx = context(market, "CRASH")
+    rep = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0,
+                       spec=exits.RuleSpec("t5", tp="off", stop="pct", pct=0.05))
+    [e] = rep["exits"]
+    peak = crash()[UP - 1]
+    assert e["stop_kind"] == "pct-stop" and e["level"] == pytest.approx(peak * 0.95) and e["k"] is None
+    assert IDX.get_loc(pd.Timestamp(e["trigger_date"])) == N - len(crash()) + UP - 1 + 6     # 0.99^6 < 0.95 < 0.99^5
+
+
+def test_a_trend_exit_sells_on_the_close_below_the_average(market):
+    ctx = context(market, "CRASH")
+    rep = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0,
+                       spec=exits.RuleSpec("s50", tp="off", stop="trend", sma=50))
+    [e] = rep["exits"]
+    s = pd.Series(crash(), index=IDX)
+    below = s[s < s.rolling(50).mean()]
+    assert e["trigger_date"] == below.loc[IDX[190]:].index[0].date().isoformat()
+    assert e["level"] == pytest.approx(s.rolling(50).mean()[pd.Timestamp(e["trigger_date"])])
+
+
+def test_reentry_buys_back_with_the_parked_money(dip_market):
+    ctx = pit.Context.build(dip_market, {"DIP", "ACWI"})
+    ctx.eligible |= {"DIP"}
+    spec = exits.RuleSpec("re", tp="off", stop="pct", pct=0.05, reentry=True)
+    rep = exits.replay([{"date": IDX[190].date().isoformat(), "type": "DEPOSIT", "amount": 10_000.0},
+                        buy("DIP", 190, 10, float(dip()[190]), FX)], ctx, "rules", fee_bps=10, spec=spec)
+    [e] = rep["exits"]
+    [r] = rep["reentries"]
+    assert r["fill_date"] > e["fill_date"] and r["symbol"] == "DIP"
+    t = IDX.get_loc(pd.Timestamp(r["trigger_date"]))
+    assert ctx.row("DIP", IDX[t])["trend_ok"] and ctx.score("DIP", IDX[t]) >= ctx.stops["strong_score"]
+    assert t - IDX.get_loc(pd.Timestamp(e["fill_date"])) >= spec.reentry_wait
+    parked = [x for x in rep["rows"] if x.get("symbol") == "ACWI"]
+    assert sum(x["quantity"] for x in parked if x["type"] == "BUY") == pytest.approx(
+        sum(x["quantity"] for x in parked if x["type"] == "SELL"))                      # all of it went back in
+    assert simulate.check_rows(rep["rows"], dip_market) == []
+    with pytest.raises(ValueError):
+        exits.replay([buy("DIP", 190, 10, 100.0)], ctx, "overlay", spec=spec)
+
+
+def test_wider_k_moves_the_stop_down(market):
+    ctx = context(market, "CRASH")
+    d, a = IDX[N - len(crash()) + UP - 1], float(crash()[UP - 1])
+    base = ctx.levels("CRASH", d, a)
+    wide = ctx.levels("CRASH", d, a, {"k_base": 5.0, "k_min": 4.0, "k_max": 6.0})
+    assert wide["k"] > base["k"] and wide["stop"] < base["stop"]
+    slow = ctx.levels("CRASH", d, a, {"atr_days": 63})
+    assert slow["atr"] != base["atr"]
+    off = ctx.levels("CRASH", d, a, {"extended_vs_sma50": None})
+    assert all(r["signal"] != "Extended" for r in off["reasons"])
+
+
+# ---------------- risk on a path ----------------
+
+def test_path_measures_return_and_drawdown(market):
+    from radar.backtest import study
+
+    i0 = N - len(crash())
+    rows = [{"date": IDX[i0].date().isoformat(), "type": "DEPOSIT", "amount": 10 * float(crash()[0]) * FX},
+            {**buy("CRASH", i0, 10, float(crash()[0]), FX)}]
+    r = study.path(rows, market, IDX[i0], IDX[N - 1])
+    assert r["ret"] == pytest.approx(crash()[-1] / crash()[0] - 1)
+    assert r["max_dd"] == pytest.approx(crash()[UP + DOWN - 1] / crash()[UP - 1] - 1)
+    assert r["worst20"] == pytest.approx(0.99 ** 20 - 1)
+    assert study.path(rows, market, IDX[i0], IDX[N - 1] + pd.Timedelta(days=30)) is None

@@ -14,6 +14,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar info <TICKER>` / `uv run radar serve`: one ticker's profile as JSON / the local web app (the dashboard UI)
 - `uv run radar info <T1> <T2> … [--personal] [--out PATH]`: several tickers side by side with ACWI (personal data left out unless `--personal`)
 - `uv run radar portfolios list [--json]` / `uv run radar performance [NAME…] [--tag T]`: the portfolios (real ones are "yours"; virtual ones only when named) and their returns over time vs ACWI
+- `uv run radar study score [--exits 6]`: the momentum score tested at every past month-end (IC, quintiles, holdout, variants, the exit rule); `uv run radar sim picks …`: a basket picked on a past day, simulated
 - `uv run radar ops [--errors]`: the operations log (external requests per host, errors, 429s, paused hosts, jobs); the app's Operations page shows the same
 - `uv run pytest -q`: the tests
 
@@ -22,6 +23,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `/research <ticker>` → `research/<TICKER>.md`
 - `/compare <t1> <t2> … [--personal]` → `research/compare/YYYY-MM-DD_<tickers>.md` (rubric incl. ACWI, bull/bear, red team, sizing, decision record)
 - `/journal …` and `/journal review` → `journal/`
+- `/hindsight [1M 3M 6M 1Y]` → `research/hindsight/YYYY-MM-DD_<name>.md` (a basket picked on a past day by score / views / Claude's judgment, simulated against ACWI, a score-only control, the equal-weight universe and random baskets; blind before the model's cutoff)
 - `/marketing` → `marketing/` (Danish brochure, HTML + PDF, with screenshots of a demo copy holding a fictional investor; the PDF and its sources are committed, the screenshots aren't)
 
 ## Documentation for the user (Danish)

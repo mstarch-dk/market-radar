@@ -30,6 +30,7 @@ books:
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
           - {slug: stop-simulering, title: Simulér stop og take-profit på dine handler}
+          - {slug: scoretest, title: Test momentumscoren på historikken}
           - {slug: markedssyn, title: Mine markedssyn}
           - {slug: notesbog, title: "Notesbogen: briefs, research og journal"}
       - title: Data og drift
@@ -62,6 +63,7 @@ books:
           - {slug: trend, title: Glidende gennemsnit og trend}
           - {slug: momentumeffekten, title: Momentumeffekten}
           - {slug: momentumscore, title: Radarens momentumscore}
+          - {slug: test-af-scoren, title: Test af momentumscoren}
           - {slug: tekniske-indikatorer, title: Tekniske indikatorer}
       - title: III. Rotation
         chapters:

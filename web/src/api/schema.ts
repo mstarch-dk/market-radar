@@ -2229,6 +2229,10 @@ export interface components {
             atr?: number | null;
             /** Anchor Basis */
             anchor_basis?: string | null;
+            /** Mode */
+            mode?: ("trend" | "atr") | null;
+            /** Action */
+            action?: ("review" | "sell") | null;
             /**
              * Reasons
              * @default []
@@ -2511,6 +2515,10 @@ export interface components {
             atr?: number | null;
             /** Anchor Basis */
             anchor_basis?: string | null;
+            /** Mode */
+            mode?: ("trend" | "atr") | null;
+            /** Action */
+            action?: ("review" | "sell") | null;
             /** Reasons */
             reasons: components["schemas"]["Reason"][];
             /** Flags */

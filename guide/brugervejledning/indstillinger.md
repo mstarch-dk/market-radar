@@ -90,10 +90,14 @@ En sektor eller branche markeres som en klynge i en regions top {{settings:momen
 
 ## `stops`: stop og kursmål
 
-Reglen bag stop og kursmål for beholdninger, tema-ETF'er og tickerprofiler.
+Reglen bag gennemgangsniveau, stop og kursmål for beholdninger, tema-ETF'er og tickerprofiler.
 
 | Nøgle | Værdi | Betyder |
 |---|---|---|
+| `stops.mode` | {{settings:stops.mode}} | `trend`: niveauet er et glidende gennemsnit; `atr`: det glidende ATR-stop (reglen indtil oktober 2026) |
+| `stops.trend_sma` | {{settings:stops.trend_sma}} | Dage i gennemsnittet, når `mode` er `trend` |
+| `stops.action` | {{settings:stops.action}} | `review`: en lukkekurs under niveauet er en anledning til at gennemgå positionen, ikke et salgssignal |
+| `stops.take_profit` | `false` | `true` slår kursmålet til igen (i radarens test kostede det mest afkast) |
 | `stops.atr_days` | {{settings:stops.atr_days}} | Dage i ATR (det typiske daglige udsving) |
 | `stops.k_base` | {{settings:stops.k_base}} | Startværdi for k: stop = højeste lukkekurs siden køb − k × ATR |
 | `stops.k_min` / `k_max` | {{settings:stops.k_min}} / {{settings:stops.k_max}} | Grænser for k |
@@ -109,7 +113,7 @@ Reglen bag stop og kursmål for beholdninger, tema-ETF'er og tickerprofiler.
 
 Brede indeksfonde får aldrig niveauer. Se [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse).
 
-## `backtest`: stop-simulering på dine handler
+## `backtest`: stop-simulering og test af scoren
 
 | Nøgle | Værdi | Betyder |
 |---|---|---|
@@ -120,8 +124,12 @@ Brede indeksfonde får aldrig niveauer. Se [Stop-loss, take-profit og positionss
 | `backtest.fred_lag_days` | {{settings:backtest.fred_lag_days}} | Dage før en FRED-værdi regnes som kendt |
 | `backtest.oecd_lag_days` | {{settings:backtest.oecd_lag_days}} | Dage før en OECD-indikator regnes som kendt |
 | `backtest.valuation_lag_days` | {{settings:backtest.valuation_lag_days}} | Dage før CAPE og risikopræmie regnes som kendt |
+| `backtest.fee_bps` | {{settings:backtest.fee_bps}} | Kurtage pr. simuleret handel (reglens salg, parkering og kurve) i basispoint af handlens værdi |
+| `backtest.study_holdout_from` | {{settings:backtest.study_holdout_from}} | `radar study score`: datoer fra denne dag er holdout-perioden, som varianter ikke vælges på |
+| `backtest.study_min_names` | {{settings:backtest.study_min_names}} | Mindste antal aktier med score og afkast, før en dato tæller i testen |
+| `backtest.random_baskets` | {{settings:backtest.random_baskets}} | `radar sim picks`: antal tilfældige kurve, en kurv sammenlignes med |
 
-Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
+Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering) og [Test momentumscoren på historikken](brugervejledning/scoretest).
 
 ## `risk`: risikostatistik
 

@@ -636,6 +636,8 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
               start: str = typer.Option(None, help="Start from what the portfolio held at this day's close"),
               end: str = typer.Option(None, help="Stop at this day (default: the latest prices)"),
               fill: str = typer.Option(None, help="next | same: when a triggered exit sells (default: settings)"),
+              rule_spec: str = typer.Option(None, "--rule-spec", help="A variant of the rule from `radar study exits` "
+                                                                      "(e.g. k5, sma200), into its own portfolios"),
               as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
               out: str = typer.Option(None, "--out", help="Also write the JSON report here")):
     """Your real trades replayed with the radar's stop-loss / take-profit rule followed, using only what was known
@@ -661,7 +663,14 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
             log(f"Note: prices start {have}, your trades need them from {need}: run `radar update` to fetch the "
                 "deeper history (early decisions lack the 200-day average and momentum until then).")
         try:
-            rep = exits.refresh(ids, market, variants, start, end, fill)
+            spec = None
+            if rule_spec:
+                from .backtest import study
+
+                spec = next((x for x in study._exit_variants() if x.key == rule_spec), None)
+                if spec is None:
+                    raise ValueError(f"no rule variant {rule_spec} (known: {', '.join(x.key for x in study._exit_variants())})")
+            rep = exits.refresh(ids, market, variants, start, end, fill, spec=spec)
         except ValueError as e:
             raise typer.Exit(f"Not simulated: {e}")
     if out:
@@ -687,7 +696,8 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
                        f"{s['at_end']['exits']} exits helped to the end)")
             for e in res["exits"]:
                 a = e["after"]
-                typer.echo(f"    {e['trigger_date']} {e['symbol']:<10} {e['trigger'].replace('_', '-'):<11} k {e['k']:.2f}  "
+                k = f"k {e['k']:.2f}" if e.get("k") is not None else "      "
+                typer.echo(f"    {e['trigger_date']} {e['symbol']:<10} {e.get('stop_kind', e['trigger']).replace('_', '-'):<11} {k}  "
                            f"sold {e['fill_date']} at {e['fill_price']:.2f}  {e['proceeds_dkk']:>10,.0f} DKK  "
                            f"saved {dkk(a['end']['saved_dkk'])} (end)"
                            + (f", {dkk(a['your_sale']['saved_dkk'])} (your sale {a['your_sale']['date']})" if "your_sale" in a else ""))
@@ -705,3 +715,284 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
         typer.echo(f"\nReturns page: /returns?pf={ids_q}&from={rep['portfolios'][0]['start']}  "
                    f"(or radar performance --tag exits-overlay --tag exits-rules)")
     typer.echo("Report: reports/sim-exits.json")
+
+
+def _pct(v, signed: bool = True) -> str:
+    return "–" if v is None else (f"{v:+.1%}" if signed else f"{v:.0%}")
+
+
+def _num(v, fmt: str = "+.2f") -> str:
+    return "–" if v is None else format(v, fmt)
+
+
+def _picks_meta(n, max_per_sector, max_per_group, trend, weighting, basis) -> dict:
+    return {"n": n, "max_per_sector": max_per_sector, "max_per_group": max_per_group, "trend": trend,
+            "weighting": weighting, "basis": basis}
+
+
+@sim_app.command("picks-candidates")
+def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6M, 1Y (back from the latest prices), "
+                                                                      "today, or a date"),
+                         top: int = typer.Option(None, "--top", help="Only the best N by score"),
+                         blind: bool = typer.Option(False, "--blind", help="Hide tickers and names (ids C001… by rank)"),
+                         views: bool = typer.Option(False, "--views", help="Add your market views created by then "
+                                                                           "(personal)"),
+                         model_cutoff: str = typer.Option(None, "--model-cutoff", help="The picker's knowledge cutoff "
+                                                                                       "(YYYY-MM), to flag hindsight"),
+                         as_json: bool = typer.Option(False, "--json", help="Machine-readable output (for the skills)"),
+                         out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """The stock universe ranked by momentum score as the radar saw it on a past day: only data up to that day
+    (sectors are today's). For picking a hindsight basket (`radar sim picks`)."""
+    import json
+    from pathlib import Path
+
+    from . import profile
+    from .backtest import picks
+
+    try:
+        rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff)
+    except ValueError as e:
+        raise typer.Exit(str(e))
+    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    if as_json:
+        typer.echo(text)
+        return
+    typer.echo(f"Ranked on {rep['asof']} ({rep['ranked']} of {rep['universe']} with a score); buy at {rep['fill'] or '–'}")
+    if rep["note"]:
+        typer.echo(rep["note"])
+    typer.echo(f"{'rank':>4}  {'':<10} {'score':>5} {'3m':>7} {'6m':>7} {'12-1':>7}  {'trend':<5} {'group':<7} sector")
+    for r in rep["candidates"][: top or 40]:
+        trend = "yes" if r["trend_ok"] else "no" if r["trend_ok"] is False else "–"
+        typer.echo(f"{_num(r['rank'], '.0f'):>4}  {(r['ticker'] or r['id']):<10} {_num(r['score'], '.0f'):>5} "
+                   f"{_pct(r['r3m']):>7} {_pct(r['r6m']):>7} {_pct(r['r12_1']):>7}  "
+                   f"{trend:<5} {r['group'] or '':<7} {r['sector'] or ''}")
+
+
+@sim_app.command("picks")
+def sim_picks(asof: str = typer.Option(None, "--asof", help="1M, 3M, 6M, 1Y, today, or a date"),
+              name: str = typer.Option(None, "--name", help="The basket's name (its portfolios are '<name> · hold' etc.)"),
+              picks_file: str = typer.Option(None, "--picks", help="JSON: a list (or {picks: […], meta: {…}}) of "
+                                                                   "{ticker or id, weight?, why?}"),
+              rule: str = typer.Option(None, "--rule", help="top-n: the score's own top N instead of a picks file"),
+              n: int = typer.Option(15, "--n", help="Names in a top-n basket (and in the control)"),
+              max_per_sector: int = typer.Option(None, "--max-per-sector"),
+              max_per_group: int = typer.Option(None, "--max-per-group", help="At most this many per region group"),
+              trend: bool = typer.Option(False, "--trend", help="Only names in an uptrend (top-n)"),
+              weighting: str = typer.Option("equal", "--weighting", help="equal | score (top-n)"),
+              capital: float = typer.Option(100_000.0, "--capital", help="DKK"),
+              end: str = typer.Option(None, "--end", help="Stop at this day (default: the latest prices)"),
+              model_cutoff: str = typer.Option(None, "--model-cutoff", help="The picker's knowledge cutoff (YYYY-MM)"),
+              tag: list[str] = typer.Option(None, "--tag", help="Extra tags (e.g. picks-live)"),
+              rerun: str = typer.Option(None, "--rerun", help="Run stored baskets again on the latest prices: a "
+                                                              "basket's name, or tag:<tag>"),
+              as_json: bool = typer.Option(False, "--json", help="The report as JSON")):
+    """A basket picked on a past day, simulated from there: kept, with the stop/take-profit rule followed, and the
+    score's own top N as a control (virtual portfolios, on the Returns page with ACWI). Reports the equal-weight
+    universe, the percentile among random baskets and that day's score check; writes
+    reports/sim-picks/<name>.json."""
+    import json
+    from pathlib import Path
+
+    from . import profile
+    from .backtest import picks, study
+
+    universe.ensure_migrated()
+    with _job("sim") as log:
+        market = profile.Market.load()
+        p = study.panels(market)
+        try:
+            if rerun:
+                hs = picks.baskets(rerun[4:]) if rerun.startswith("tag:") else \
+                    [h for h in picks.baskets() if h["name"] == f"{rerun} · hold"]
+                if not hs:
+                    raise ValueError(f"no stored basket {rerun}")
+                reps = [picks.rerun(market, h, p) for h in hs]
+            else:
+                if not (asof and name):
+                    raise ValueError("give --asof and --name (or --rerun)")
+                meta = _picks_meta(n, max_per_sector, max_per_group, trend, weighting, "score")
+                if rule:
+                    if rule != "top-n":
+                        raise ValueError("--rule must be top-n")
+                    chosen = None
+                elif picks_file:
+                    data = json.loads(Path(picks_file).read_text(encoding="utf-8"))
+                    chosen = data["picks"] if isinstance(data, dict) else data
+                    given = (data.get("meta") or {}) if isinstance(data, dict) else {}
+                    meta = _picks_meta(len(chosen), max_per_sector, max_per_group, trend, "equal", "judgment") | given
+                else:
+                    raise ValueError("give --picks FILE or --rule top-n")
+                reps = [picks.run(market, asof, chosen, name, capital, meta, end, model_cutoff, tag or (), p=p)]
+        except (ValueError, KeyError) as e:
+            raise typer.Exit(f"Not simulated: {e}")
+        for r in reps:
+            log(f"{r['name']}: picked {r['asof']}, bought {r['fill']}, to {r['end']}")
+    if as_json:
+        typer.echo(json.dumps(reps[0] if len(reps) == 1 else reps, indent=1, ensure_ascii=False, default=study._json))
+        return
+    for r in reps:
+        y = r["yardsticks"]
+        typer.echo(f"\n{r['name']}: picked on {r['asof']}, bought {r['fill']}, to {r['end']} ({r['sessions']} sessions, DKK)")
+        for kind, pf in r["portfolios"].items():
+            st = pf["stats"] or {}
+            typer.echo(f"  {kind:<8} {pf['name'][:40]:<41} {_pct(pf['return_dkk']):>8}  vs ACWI {_pct(pf['excess_dkk']):>8}"
+                       f"  max DD {_pct(st.get('max_drawdown')):>7}")
+        typer.echo(f"  ACWI {_pct(y['acwi_dkk'])}, equal-weight universe {_pct(y['universe_ew_dkk'])}; "
+                   f"basket before fees {_pct(y['basket_gross_dkk'])}")
+        rnd = y["random"]
+        if rnd.get("percentile") is not None:
+            typer.echo(f"  Among {rnd['draws']} random baskets of the same size and caps: percentile {rnd['percentile']:.0f} "
+                       f"(median {_pct(rnd['median'])}, 10–90 % {_pct(rnd['p10'])} to {_pct(rnd['p90'])})")
+        sc = r["score_check"]
+        if sc:
+            typer.echo(f"  Score check that day ({sc['n']} names): IC {_num(sc['ic'])}, quintile excess "
+                       + " ".join(_pct(q) for q in sc["q"]) + f"; the score's own top {len(r['picks'])} (no caps) beat the "
+                       f"average stock {_pct(sc['top_hit'], False)} of the time")
+        s = r["exits"]["summary"]
+        typer.echo(f"  Rule: {s['stops']} stop and {s['take_profits']} take-profit exits")
+        if r["same_as_control"]:
+            typer.echo("  (the basket is the score's own top N, so it is its own control)")
+        typer.echo(f"  Returns page: {r['returns_link']}")
+    typer.echo("\nOne basket over one period is an illustration, not evidence: `radar study score` tests the score "
+               "across every month.")
+
+
+study_app = typer.Typer(help="Tests of the radar's signals on past data (analysis, not advice).", no_args_is_help=True)
+app.add_typer(study_app, name="study")
+
+
+@study_app.command("score")
+def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons in months (from 1, 3, 6, 12)"),
+                variants: str = typer.Option("all", help="all, or a comma list of variant keys"),
+                n: int = typer.Option(15, "--n", help="Size of the top-N basket per date"),
+                exits_months: int = typer.Option(None, "--exits", help="Also test the stop/take-profit rule on each "
+                                                                       "date's top N over this many months (slow)"),
+                seasoned: bool = typer.Option(False, "--seasoned", help="Leave out names listed less than a year by then"),
+                since: str = typer.Option(None, "--since", help="First formation date"),
+                no_regime: bool = typer.Option(False, "--no-regime", help="Skip the split by regime (faster)"),
+                as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
+                out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """How well the momentum score ranked stocks at every past month-end, on the returns that followed: rank
+    correlation (IC) with Newey-West t, quintile spreads, the top N against the universe and ACWI, splits by
+    year, regime, group and holdout, and variants of the score tested fairly. Writes reports/score-study.json."""
+    import json
+    from pathlib import Path
+
+    from . import profile
+    from .backtest import study
+
+    try:
+        hs = tuple(int(x) for x in horizons.split(","))
+        keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
+        with _job("study") as log:
+            rep = study.run(profile.Market.load(), hs, keys, n, exits_months, seasoned, since, not no_regime, log)
+            study.write(rep)
+    except ValueError as e:
+        raise typer.Exit(f"Not studied: {e}")
+    text = json.dumps(rep, indent=1, default=study._json)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    if as_json:
+        typer.echo(text)
+        return
+    u = rep["universe"]
+    typer.echo(f"\n{u['tickers']} stocks, formation dates {u['first']} to {u['last']}; holdout from "
+               f"{rep['settings']['holdout_from']}; {rep['variants_tried']} variants tried against the score")
+    labels = {v["key"]: v for v in rep["variants"]}
+    for h, res in rep["results"].items():
+        typer.echo(f"\n{h} month(s) ahead: excess over the equal-weight universe")
+        typer.echo(f"  {'':<14}{'dates':>5} {'IC':>6} {'t':>6} {'IC>0':>5}  {'Q1':>7} {'Q3':>7} {'Q5':>7} {'Q5-Q1':>7} {'t':>6}"
+                   f"  {'top N':>7} {'hit':>4}  {'holdout IC':>10}  verdict")
+        for k, r in res.items():
+            a, o = r["all"] or {}, r["holdout"] or {}
+            q = a.get("q") or [None] * 5
+            v = rep["verdicts"][h].get(k, {}).get("label", "baseline")
+            pit = "" if labels[k]["pit"] else " (not point-in-time)"
+            typer.echo(f"  {k:<14}{a.get('dates', 0):>5} {_num(a.get('ic_mean')):>6} {_num(a.get('ic_t'), '+.1f'):>6} "
+                       f"{_pct(a.get('ic_pos'), False):>5}  {_pct(q[0]):>7} {_pct(q[2]):>7} {_pct(q[4]):>7} "
+                       f"{_pct(a.get('spread')):>7} {_num(a.get('spread_t'), '+.1f'):>6}  {_pct(a.get('top_excess')):>7} "
+                       f"{_pct(a.get('top_hit'), False):>4}  {_num(o.get('ic_mean')):>10}  {v}{pit}")
+        base = res[study.BASELINE]
+        reg = {g: s for g, s in (base.get("by_regime") or {}).items() if s}
+        if reg:
+            typer.echo("  score IC by regime on D: " + ", ".join(f"{g} {_num(s['ic_mean'])} ({s['dates']})" for g, s in reg.items()))
+        grp = {g: s for g, s in (base.get("by_group") or {}).items() if s}
+        if grp:
+            typer.echo("  score IC within each group: " + ", ".join(f"{g} {_num(s['ic_mean'])}" for g, s in grp.items()))
+        a = base["all"] or {}
+        if a.get("top_dkk") is not None:
+            typer.echo(f"  top {n} in DKK: mean {_pct(a['top_dkk'])} against ACWI {_pct(a['acwi_dkk'])}, "
+                       f"ahead on {_pct(a['top_beats_acwi'], False)} of dates")
+    typer.echo("\nIC decay (score): " + ", ".join(f"{h}m {_num(v)}" for h, v in rep["decay"][study.BASELINE].items()))
+    typer.echo(f"Top-quintile turnover per month (score): {_pct(rep['turnover'][study.BASELINE], False)}")
+    e = rep.get("exits")
+    if e and e.get("summary"):
+        s = e["summary"]
+        typer.echo(f"\nStop/take-profit rule on each date's top {e['n_top']}, {e['months']} months, fees {e['fee_bps']:g} bp:")
+        typer.echo(f"  held: mean {_pct(s['hold']['mean'])} (ACWI {_pct(s['hold']['acwi_mean'])}), ahead of ACWI on "
+                   f"{_pct(s['hold']['beats_acwi'], False)} of {s['both']['dates']} dates")
+        for rule in ("both", "stop", "take_profit"):
+            x = s[rule]
+            typer.echo(f"  {rule:<12} vs held: mean {_pct(x['mean_diff'])} (t {_num(x['t'], '+.1f')}), helped on "
+                       f"{_pct(x['helped'], False)} of dates, worst {_pct(x['worst'])}, best {_pct(x['best'])}, "
+                       f"{_num(x['exits_mean'], '.1f')} exits per basket")
+        if e.get("inputs_missing"):
+            typer.echo("  inputs missing on rule days: " + ", ".join(f"{k} {v:.0%}" for k, v in e["inputs_missing"].items()))
+    typer.echo("\nCaveats: " + " ".join(rep["caveats"][:2]))
+    typer.echo("Report: reports/score-study.json")
+
+
+@study_app.command("exits")
+def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (from 1, 3, 6, 12)"),
+                n: int = typer.Option(15, "--n", help="Size of each month's top-N basket"),
+                variants: str = typer.Option("all", help="all, or a comma list of variant keys"),
+                since: str = typer.Option(None, "--since", help="First formation date"),
+                no_reentry: bool = typer.Option(False, "--no-reentry", help="Skip the re-entry run of the best variant"),
+                as_json: bool = typer.Option(False, "--json", help="The full report as JSON")):
+    """Variants of the stop/take-profit rule on every month-end's top-N basket, against simply holding it: return
+    and risk (max drawdown, volatility, worst 20 sessions, the 10 % worst outcome), in-sample and in the holdout,
+    with a verdict per variant. Slow (10-20 minutes). Writes reports/exit-study.json."""
+    import json
+
+    from . import profile
+    from .backtest import study
+
+    try:
+        hs = tuple(int(x) for x in horizons.split(","))
+        keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
+        with _job("study") as log:
+            rep = study.exit_variants(profile.Market.load(), n, hs, keys, since, not no_reentry, log)
+            study.write_exits(rep)
+    except ValueError as e:
+        raise typer.Exit(f"Not studied: {e}")
+    if as_json:
+        typer.echo(json.dumps(rep, indent=1, default=study._json))
+        return
+    st = rep["settings"]
+    typer.echo(f"\nEach month-end's top {st['n_top']} (equal weights, {st['fee_bps']:g} bp per trade), exits parked in "
+               f"{st['park']}; holdout from {st['holdout_from']}. Pass: costs at most {st['cost_per_6m']:.0%} per 6 months, "
+               f"cuts mean max drawdown by {st['dd_cut']:.0%} and lifts the 10 % worst outcome, in-sample and holdout.")
+    labels = {v["key"]: v["label"] for v in rep["variants"]}
+    for h, res in rep["results"].items():
+        first = next(iter(res.values()))["all"] or {}
+        hold = first.get("hold") or {}
+        typer.echo(f"\n{h} months ({first.get('dates', 0)} dates). Held: return {_pct(hold.get('ret_mean'))}, worst 10 % "
+                   f"{_pct(hold.get('ret_p10'))}, max DD {_pct(hold.get('dd_mean'))} (worst {_pct(hold.get('dd_worst'))})")
+        typer.echo(f"  {'':<14}{'return':>8} {'vs held':>8} {'t':>5} {'helped':>6}  {'worst10%':>8} {'max DD':>7} "
+                   f"{'worstDD':>8} {'exits':>5}  {'holdout vs held':>15}  verdict")
+        for k, r in res.items():
+            a, o = r["all"] or {}, r["holdout"] or {}
+            v = r["verdict"]
+            typer.echo(f"  {k:<14}{_pct(a.get('ret_mean')):>8} {_pct(a.get('diff_mean')):>8} {_num(a.get('diff_t'), '+.1f'):>5} "
+                       f"{_pct(a.get('helped'), False):>6}  {_pct(a.get('ret_p10')):>8} {_pct(a.get('dd_mean')):>7} "
+                       f"{_pct(a.get('dd_worst')):>8} {_num(a.get('exits_mean'), '.1f'):>5}  {_pct(o.get('diff_mean')):>15}  "
+                       f"{v['label']}")
+    typer.echo("\nVariants: " + "; ".join(f"{k} = {lab}" for k, lab in labels.items()))
+    fails = {k: r["verdict"]["why"] for k, r in rep["results"][str(max(int(x) for x in rep["results"]))].items() if r["verdict"]["why"]}
+    if fails:
+        typer.echo("Why not (longest horizon): " + " | ".join(f"{k}: {w[0]}" for k, w in fails.items()))
+    typer.echo("Report: reports/exit-study.json")
