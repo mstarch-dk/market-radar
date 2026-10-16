@@ -91,7 +91,9 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 5. **Bull and bear per ticker**: three arguments each way, each tied to a rubric cell or a cited source. Label
    anything that rests on neither as *narrative*. Drop arguments the data contradicts; don't soften them.
 
-6. **Red team**: launch a separate subagent (general-purpose) with only the JSON path and your step-5 text. Its
+6. **Red team**: launch a separate subagent (general-purpose) with only the JSON path, `reports/longrun-study.json`
+   (the long-run base rates of momentum, value and quality: how often each lost over 6 and 12 months, and its
+   worst drawdown) and your step-5 text. Its
    brief:
    - attack each bull case
    - write a pre-mortem per ticker ("it's down 30% at the end of the horizon: the most likely reasons")

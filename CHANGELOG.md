@@ -70,6 +70,14 @@ Your data now lives apart from the program, so a new version never touches it.
   rough gauge of `radar study score`'s survivorship bias against `propose.survivorship_haircut`
   (`reports/longrun-study.json`). The histories are fetched monthly in `radar update` (`factors/returns.parquet`
   in the cache; `factors` in settings.yaml); FRED adds `DEXDNUS` and `USREC` (`macro.fred_study`).
+- **Proposals weigh in the long run** (`propose.study_view`, `longrun.tilt_prior`, `propose.prior`): the rule
+  study's excess is cut by the survivorship haircut (the configured one, or `radar study longrun`'s gauge when it
+  implies more: `haircut_from_gauge`) and shrunk toward the tilt's long-run prior by precision (normal-normal
+  update, extra prior uncertainty `tau_annual`): JKP's survivorship-free tercile portfolios of the same
+  characteristics (12-1 and 6-1 momentum, FCF yield, EBITDA/EV, net payout, QMJ) in developed markets since
+  2008, in today's ACWI trend when that split has enough periods; ex US and US shown beside it. `evaluate` flags
+  K+V picks outside the US (`untested_kv`). The skills (`/propose-portfolio`, `/hindsight`, `/compare`) quote
+  the long-run evidence. The prior is model, not rule: it doesn't make `propose-study.json` stale.
 - **Ten years of prices** (`history_years: 10`, was 6): `radar study score` gets about twice the month-ends and
   the 2020 Covid crash. The first update after upgrading downloads every price history again.
 - **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a

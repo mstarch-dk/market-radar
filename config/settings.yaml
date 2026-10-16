@@ -124,6 +124,19 @@ propose:                   # src/radar/propose.py: `radar propose` and /propose-
   shrink: 0.3              # covariance: this share pulled towards a constant-correlation matrix
   acwi_drift_annual: 0.06  # an assumption, not a forecast: ACWI's expected return a year, to centre the bootstrap
   survivorship_haircut: 0.3  # share of a positive study excess taken off (today's universe flatters the past)
+  haircut_from_gauge: true # a larger haircut when `radar study longrun`'s survivorship gauge implies one (never smaller)
+  prior:                   # the long-run prior the rule study's excess is shrunk toward (backtest/longrun.tilt_prior)
+    region: developed      # JKP region whose stocks give the prior; the others are shown beside it
+    report_regions: [world_ex_us, usa]
+    since: 2008-01-01      # the era after momentum's decay (= longrun.holdout_from): the conservative choice
+    components:            # the tilt's inputs as JKP characteristics (top tercile less the mean of the three)
+      momentum: [ret_12_1, ret_6_1]
+      value: [fcf_me, ebitda_mev, eqnpo_me]   # FCF yield, EBITDA/EV, net payout (≈ shareholder) yield
+      quality: [qmj]       # quality minus junk: profitability, growth, safety
+    qv: {value: 0.5, quality: 0.5}   # K+V = the mean of the værdiscore and the kvalitetsscore
+    tau_annual: 0.03       # extra prior uncertainty a year: a few of today's names are not a tercile of thousands
+    trend_months: 10       # the prior in today's trend (ACWI vs its 10-month average) when that split has ...
+    min_trend_eff_n: 20    # ... at least this many independent periods
   bootstrap: {draws: 5000, block_weeks: 4, seed: 7, ewma_lambda: 0.94}
   stress:                  # historical episodes replayed on today's weights (only where the price history covers them)
     - {key: covid, label: "Covid crash", start: 2020-02-19, end: 2020-03-23}
@@ -227,6 +240,10 @@ factors:                   # src/radar/factors.py: long monthly histories for `r
     themes_developed: {region: developed, theme: all_themes, weighting: vw_cap, series: name}  # 13 factor themes
     themes_world_ex_us: {region: world_ex_us, theme: all_themes, weighting: vw_cap, series: name}
     themes_usa: {region: usa, theme: all_themes, weighting: vw_cap, series: name}
+  jkp_portfolios:          # JKP's long-only terciles per characteristic and region: the proposals' long-run prior
+    weighting: vw_cap
+    regions: [developed, world_ex_us, usa]
+    characteristics: [ret_12_1, ret_6_1, fcf_me, ebitda_mev, eqnpo_me, qmj]
 
 longrun:                   # src/radar/backtest/longrun.py: `radar study longrun` (pre-registered: set before the first run)
   holdout_from: 2008-01-01 # formation months from this one on are the holdout (never tuned on)

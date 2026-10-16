@@ -419,3 +419,49 @@ def test_parse_amount():
 
     assert parse_amount("50000") == parse_amount("50.000") == parse_amount("50,000") == parse_amount("50k") == 50_000
     assert parse_amount("1.5m") == 1_500_000 and parse_amount("12,5k") == 12_500
+
+
+def test_shrink_weights_by_precision():
+    c = {"prior": {"tau_annual": 0.0}}
+    prior = {"mean": 0.01, "se": 0.01}
+    s = propose.shrink(0.05, 0.01, prior, 12, c)
+    assert s["w_short"] == pytest.approx(0.5) and s["drift"] == pytest.approx(0.03)
+    s = propose.shrink(0.05, 0.03, prior, 12, c)                   # a noisier study counts for less
+    assert s["w_short"] == pytest.approx(0.1) and s["drift"] == pytest.approx(0.014)
+    wide = propose.shrink(0.05, 0.01, prior, 12, {"prior": {"tau_annual": 0.02}})   # tau widens the prior
+    assert wide["w_short"] > 0.5
+    assert propose.shrink(0.05, 0.01, None, 6, c)["drift"] == 0.05          # no prior: the study alone, said so
+    assert propose.shrink(0.05, None, prior, 6, c)["drift"] == 0.01         # no standard error: the prior alone
+    assert propose.shrink(None, 0.01, prior, 6, c)["drift"] is None
+
+
+def test_haircut_from_the_gauge_is_never_smaller():
+    c = {"survivorship_haircut": 0.3, "haircut_from_gauge": True}
+    assert propose.haircut(c, {"survivorship": {"implied_haircut": 0.55}})["used"] == 0.55
+    assert propose.haircut(c, {"survivorship": {"implied_haircut": 0.1}})["used"] == 0.3
+    assert propose.haircut(c, {"survivorship": {"implied_haircut": 1.4}})["used"] == 0.3   # nonsense: ignored
+    assert propose.haircut(c, None)["used"] == 0.3
+    assert propose.haircut(c | {"haircut_from_gauge": False}, {"survivorship": {"implied_haircut": 0.55}})["used"] == 0.3
+
+
+def test_study_view_shrinks_toward_the_prior(market, monkeypatch):
+    c = market.cfg["propose"] | {"prior": {"tau_annual": 0.0}}
+    kept = {"all": {"dates": 40, "gross_mean": 0.10, "mean": 0.09, "t": 3.0}}
+    rep = {"stale": False, "results": {"momentum": {"5": {"6": {"kept": kept}}}}}
+    monkeypatch.setattr(propose, "long_prior", lambda tilt, h, trend, c=None: {"mean": 0.01, "se": 0.03})
+    v = propose.study_view(rep, "momentum", 5, 6, None, c, "up")
+    short = 0.10 * (1 - c["survivorship_haircut"])
+    assert v["drift_short"] == pytest.approx(short) and v["se_short"] == pytest.approx(0.03)
+    assert v["w_short"] == pytest.approx(0.5) and v["drift_gross"] == pytest.approx((short + 0.01) / 2)
+
+
+def test_kv_picks_outside_the_us_are_flagged_untested(market, ask):
+    d = _draft(market, ask)["draft_picks"]
+    tickers = [p["ticker"] for p in d["picks"]]
+    region = propose.info(tickers, propose.Prices(market))["region"]
+    ev = propose.evaluate(market, d, offline=True, light=True)                     # momentum: K+V not used
+    assert ev["untested_kv"] == []
+    d["meta"]["tilt"] = "mix"
+    ev = propose.evaluate(market, d, offline=True, light=True)
+    assert ev["untested_kv"] == sorted(t for t in tickers if region[t] != "us")
+    assert ev["untested_kv"] and any("never tested K+V" in n for n in ev["notes"])   # the fixture's pick is European

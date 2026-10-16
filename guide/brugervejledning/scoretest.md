@@ -78,7 +78,7 @@ Derefter følger **basisrater** for momentum, værdi og kvalitet som lang-kort-f
 
 Til sidst en grov **måling af survivorship bias**: den bedste femtedels merafkast i `radar study score` (dagens univers) ved siden af det samme for alle amerikanske aktier uden survivorship bias i de samme måneder (Frenchs momentumdeciler), og den nedskrivning, forskellen svarer til, mod den faste nedskrivning på {{settings:propose.survivorship_haircut|pct}} i porteføljeforslagene.
 
-Rapporten hedder `longrun-study.json` i cache-mappens `reports/`.
+Rapporten hedder `longrun-study.json` i cache-mappens `reports/`. Den har også de **priorer**, porteføljeforslagene trækker deres forventede merafkast mod: for hver hældning og horisont, hvad den bedste tredjedel af aktierne på de samme egenskaber har givet over gennemsnittet i udviklede markeder, uden for USA og i USA siden {{settings:propose.prior.since}}, i alt og pr. trend. Se [Porteføljeforslag](laerebog/portefoeljeforslag#sådan-gør-radaren).
 
 > **Bemærk:** Det er brancher og lande, ikke aktier. Det, der kan overføres, er reglen (vinduer og vægte), basisraterne og ideen om rotation, ikke et tal for en aktiekurv: enkeltaktier svinger mere, og deres momentum er stærkere og krakker hårdere. JKP-serierne opdateres omkring en gang om året og slutter derfor tidligere end Frenchs. Kilderne står i [Datakilder og licenser](brugervejledning/datalicenser).
 
