@@ -101,6 +101,7 @@ books:
           - {slug: beta-og-alfa, title: "Beta, alfa og faktorer"}
           - {slug: stop-og-storrelse, title: "Stop-loss, take-profit og positionsstørrelse"}
           - {slug: diversifikation, title: Diversifikation og korrelation}
+          - {slug: portefoeljeforslag, title: "Porteføljeforslag: forventet afkast, drawdown og nulhypotesen"}
       - title: VIII. Afkastmåling, adfærd og skat
         chapters:
           - {slug: twr-og-mwr, title: Tidsvægtet og pengevægtet afkast}

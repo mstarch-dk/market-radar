@@ -34,6 +34,8 @@ SOURCES = {
     "analyst": ("Analyst consensus", "Yahoo Finance", False, "weekly re-fetch", "Levels (take-profit)"),
     "constituents": ("S&P 500 constituents", "SSGA SPY holdings", True, "monthly re-fetch",
                      "Momentum, breadth"),
+    "acwi_holdings": ("MSCI ACWI weights", "iShares MSCI ACWI UCITS holdings", True, "monthly re-fetch, on use",
+                      "Portfolio proposals (sector, region and currency vs ACWI)"),
     "reference": ("Names, sectors, currencies", "Yahoo Finance (cached)", False, "on first use",
                   "Momentum clusters, Holdings (DKK)"),
     "positive_list": ("Positive list (aktiebaserede inv.selskaber)", "SKAT (manual download)", True, "yearly",
@@ -205,6 +207,13 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     n_cons = len(pd.read_csv(cons)) if cons.exists() else 0
     rows.append(_row("constituents", _mtime(cons), today, cfg["constituents_max_age_days"] + 14,
                      f"{n_cons} US stocks", "Today's members only: no history of index changes", log))
+
+    # ACWI's weights (fetched when a proposal needs them)
+    aw = CACHE / "acwi_holdings.csv"
+    n_aw = len(pd.read_csv(aw)) if aw.exists() else 0
+    rows.append(_row("acwi_holdings", _mtime(aw), today, cfg["constituents_max_age_days"] + 14,
+                     f"{n_aw} stocks", "Fetched by `radar propose` when older than a month", log,
+                     state=None if aw.exists() else INFO))
 
     # reference caches: how many stocks have a sector (used by the momentum clusters)
     sec_file = CACHE / "sectors.csv"

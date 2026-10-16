@@ -46,10 +46,12 @@ If this goes wrong, the most likely reason is: …
 
 Keep the user's own wording for the thesis. Suggest a concrete invalidation rule if they give none, and mark it as a suggestion.
 
+**From a proposal** (`/propose-portfolio`): when the buy comes from a frozen proposal (`exports/proposals/<date>_<portfolio>.json`), take the pick's `why` as the starting thesis (and ask the user to confirm or reword it), and copy its exit criteria into *Exit rules* as written there: the review level (close below the 200-day average), the signal exit (momentum score or K+V below its level), each thesis check, and the time stop as `review_by`. Add `proposal: <file name>` to the front matter, so the review can find it.
+
 ## Mode 2: monthly review (`/journal review`)
 
 1. Run `uv run radar run`, then read every journal entry with `status: open`.
-2. For each entry, compare the exit rules with the current `uv run radar info <TICKER>` and the rotation context. Classify it as **Intact**, **Weakening** (some rules are close to triggering) or **Invalidated** (a rule has triggered). For entries with `views:`, also give each linked view's current evidence from `uv run radar views --json` (and say if the user has archived it): a position resting on a view the data now contradicts deserves a question.
+2. For each entry, compare the exit rules with the current `uv run radar info <TICKER>` and the rotation context. For entries with `proposal:`, also run `uv run radar propose check --json` once and use its status per pick (Intact / Weakening / Triggered, with the evidence; `older_rule` means the criteria were set under other settings). Classify it as **Intact**, **Weakening** (some rules are close to triggering) or **Invalidated** (a rule has triggered). For entries with `views:`, also give each linked view's current evidence from `uv run radar views --json` (and say if the user has archived it): a position resting on a view the data now contradicts deserves a question.
 3. Also go through closed trades from the last 3 months: what happened after the exit, and what can be learned from it.
 4. Write `journal/reviews/YYYY-MM.md` with a table (ticker | thesis | status | evidence | linked views and their data | question to consider) and 2–3 patterns noticed across decisions, such as selling winners too early, adding to losers, or theme concentration.
 5. Don't change any entry's status without asking the user first.

@@ -35,6 +35,8 @@ Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller
 | `/compare <t1> <t2> …` | `research/compare/ÅÅÅÅ-MM-DD_<tickere>.md` | En ærlig sammenligning, med ACWI som alternativet |
 | `/journal …` | `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` | En beslutning med tese og exitregler |
 | `/journal review` | `journal/reviews/ÅÅÅÅ-MM.md` | Den månedlige gennemgang af åbne beslutninger |
+| `/propose-portfolio <portefølje> <beløb>` | `research/proposals/ÅÅÅÅ-MM-DD_<portefølje>.md` | Et forslag til nye aktier for et beløb, testet mod ACWI og alternativerne |
+| `/propose-portfolio review` | `research/proposals/reviews/ÅÅÅÅ-MM.md` | Hvordan tidligere forslag er gået, og om deres exitkriterier er udløst |
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
@@ -81,6 +83,36 @@ Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, 
 **Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen med `uv run radar portfolio add`, som tjekker den som i appen.
 
 **Månedlig gennemgang** med `/journal review`. Claude opdaterer radaren, læser alle åbne poster og sammenligner exitreglerne med de aktuelle tal. Hver post klassificeres som *Intact*, *Weakening* eller *Invalidated*. Lukkede handler fra de seneste 3 måneder gennemgås også: hvad skete der efter exit? Resultatet skrives i `journal/reviews/ÅÅÅÅ-MM.md` med 2–3 mønstre på tværs af beslutningerne, fx at sælge vindere for tidligt. Claude ændrer ikke status på en post uden at spørge dig.
+
+## /propose-portfolio
+
+`/propose-portfolio ASK 50000` foreslår en spredt kurv af nye aktier til et beløb i en af dine porteføljer. Beløbet kan skrives `50000`, `50.000` eller `50k`. Claude spørger én gang efter det, der mangler:
+
+- **Hældning**: momentum, værdi (K+V) eller en blanding. Ved hvert valg står, hvad radarens test af reglen har vist for den hældning, også i det aktuelle regime. Claude anbefaler ikke den hældning, der klarede sig bedst i testen; det ville være at tilpasse sig historikken.
+- **Tilgang**: de højeste scorer (*conviction*) eller sektorer, hvor porteføljen er undervægtet mod ACWI (*fill-gaps*).
+- **Horisont** (3 eller 6 måneder), **antal aktier** og om et overskydende beløb skal i en ACWI-ETF.
+
+**Sådan vælges aktierne.** Hver aktie skal mindst have {{settings:propose.min_ticket_dkk}} kr. (indstillingen `propose.min_ticket_dkk`), fordi kurtagens minimum gør små handler dyre; der bliver højst {{settings:propose.max_names}} nye navne. En aktie er med i puljen, når den har de data, hældningen kræver, en kurs fra den seneste uge, mindst {{settings:propose.gates.min_history_weeks}} ugers historik og en gennemsnitlig daglig omsætning på mindst {{settings:propose.gates.min_adv_dkk}} kr. Ved momentum skal den også være i optrend. Radarens forslagsscore vægter percentilen af momentumscoren og K+V efter hældningen og trækker point fra for høj volatilitet, en stor stigning den seneste måned og høj korrelation med det, du allerede ejer. Kurven bygges derefter under lofter, som gælder **porteføljen efter købet**:
+
+- højst {{settings:propose.max_per_sector}} nye navne pr. sektor;
+- ingen sektor, region eller valuta mere end hhv. {{settings:propose.caps.sector|pct}}, {{settings:propose.caps.region|pct}} og {{settings:propose.caps.currency|pct}} over ACWI's vægt. ACWI's vægte kommer fra iShares' beholdningsfil for MSCI ACWI UCITS;
+- ingen korrelation over {{settings:propose.max_corr}} med en anden ny aktie eller en beholdning (så er det samme væddemål);
+- valgfrit en største position i forhold til alle dine rigtige porteføljer.
+
+Antal stk. regnes i hele aktier med porteføljens kurtage, valutatillæg og et skønnet spread. På en aktiesparekonto bruges en ETF til restbeløbet kun, hvis den står på positivlisten.
+
+**Claudes vurdering har grænser.** Claude tager udgangspunkt i reglens egen kurv og må højst bytte {{settings:propose.max_swaps}} aktier ud, hver med en skrevet grund: et regnskab inden for to uger, en konflikt med et af dine markedssyn med høj overbevisning, en sektor du undgår. Valget låses i en fil med `uv run radar propose freeze`, **før** modellens tal ses. Derefter regner `uv run radar propose evaluate` det hele.
+
+**Hvad notatet viser.**
+- **Det forventede merafkast over ACWI** kommer kun fra testen af reglen (`uv run radar study propose`: samme regel på hver tidligere månedsultimo), med fradrag for overlevelsesbias ({{settings:propose.survivorship_haircut|pct}} af et positivt merafkast) og for forslagets egne handelsomkostninger. Aktiernes egne historiske afkast bruges ikke: de er valgt, fordi de har været høje.
+- **Forventet maks. drawdown** set på tre måder: testens realiserede drawdowns, en bootstrap af ugentlige afkast skaleret til dagens volatilitet, og historiske stressperioder lagt på dagens vægte. Notatet viser et forventet tal og et dårligt scenarie.
+- **Alternativerne på samme mål**: ACWI for hele beløbet (A0), reglens kurv uden Claudes vurdering (A1), de to andre hældninger (A2), færre eller flere aktier (A3), at købe mere af det, du har (A4), sektor-ETF'er med samme sektorfordeling (A5) og tilfældige kurve under samme lofter (A6).
+- **Konklusionen** følger en regel, der er fastlagt på forhånd: aktier foreslås kun, hvis det forventede merafkast efter omkostninger er over {{settings:propose.min_edge|pct}}, testens holdout-periode peger samme vej, og det dårlige scenarie ligger inden for din tolerance. Ellers er svaret ACWI, og det siger notatet ligeud.
+- **Exitkriterier for hver aktie**: lukkekurs under 200-dages gennemsnittet (et signal til at se på positionen igen), et signal-exit (momentumscore under {{settings:propose.exit.min_score}} eller K+V under {{settings:propose.exit.min_qv}}), 1–2 punkter fra tesen og en dato for genvurdering.
+
+**Bagefter.** Claude tilbyder to ting. `uv run radar propose shadow` laver virtuelle kopier af porteføljen med forslaget, med ACWI og med reglens kurv, så siden [Returns](/returns) følger alle tre. `/journal` registrerer rigtige køb med exitkriterierne som exitregler. `uv run radar propose check` viser for hvert åbent forslag, om kriterierne er *Intact*, *Weakening* eller *Triggered*; `/journal review` og `/market-brief` bruger det. `/propose-portfolio review` gør status: afkast mod ACWI og mod reglens kurv, og om drawdown holdt sig inden for det forventede. Med færre end {{settings:propose.review_min}} forslag er det for tidligt at sige noget om metoden, og det står der.
+
+Metoden er beskrevet i [Porteføljeforslag: forventet afkast, drawdown og nulhypotesen](laerebog/portefoeljeforslag).
 
 ## /hindsight
 

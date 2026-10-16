@@ -18,7 +18,10 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
-const TAB_OF: Record<string, Tab> = { briefs: "briefs", research: "research", compare: "research", journal: "journal", reviews: "journal" };
+const TAB_OF: Record<string, Tab> = {
+  briefs: "briefs", research: "research", compare: "research", proposals: "research", proposal_reviews: "research",
+  journal: "journal", reviews: "journal",
+};
 const docPath = (e: Pick<NotebookEntry, "kind" | "name">) => `/notebook/${e.kind}/${encodeURIComponent(e.name)}`;
 const STATUS_KIND: Record<string, string> = { open: "accent", closed: "", invalidated: "neg" };
 
@@ -81,7 +84,7 @@ function Listing() {
   const nb: NotebookListing | undefined = q.data;
   const counts: Record<Tab, number> = {
     briefs: nb?.briefs.length ?? 0,
-    research: (nb?.research.length ?? 0) + (nb?.compare.length ?? 0),
+    research: (nb?.research.length ?? 0) + (nb?.compare.length ?? 0) + (nb?.proposals.length ?? 0),
     journal: (nb?.journal.length ?? 0) + (nb?.reviews.length ?? 0),
   };
   const due = nb?.journal.filter((e) => e.review_due).length ?? 0;
@@ -108,6 +111,13 @@ function Listing() {
           <DocList rows={nb.research} empty={<>None yet. Write one with <code>/research &lt;ticker&gt;</code> in Claude Code.</>} />
           <h2>Comparisons</h2>
           <DocList rows={nb.compare} empty={<>None yet. Compare tickers with <code>/compare &lt;t1&gt; &lt;t2&gt; …</code> in Claude Code.</>} />
+          <h2>Proposals</h2>
+          <DocList rows={nb.proposals} empty={<>None yet. Ask for a basket with <code>/propose-portfolio &lt;portfolio&gt; &lt;amount&gt;</code> in
+            Claude Code: it is tested against ACWI and the alternatives.</>} />
+          {nb.proposal_reviews.length > 0 && <>
+            <h2>Proposal reviews</h2>
+            <DocList rows={nb.proposal_reviews} empty="" />
+          </>}
         </>
       )}
       {nb && tab === "journal" && (

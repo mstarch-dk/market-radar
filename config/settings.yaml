@@ -82,6 +82,67 @@ abtest:                    # src/radar/abtest.py: the forward A/B test (kvalitet
   capital: 100000          # DKK each basket starts with (virtual)
   value_score: qv          # the value basket ranks on qv (kvalitet + værdi) or value (værdiscore alone)
 
+propose:                   # src/radar/propose.py: `radar propose` and /propose-portfolio (analysis, not advice)
+  # --- the rule (pre-registered: a change here makes reports/propose-study.json stale; re-run `radar study propose`)
+  min_ticket_dkk: 10000    # at least this much per new name (fees: a broker minimum on a small ticket costs a lot)
+  max_names: 8             # never more new names than this in one proposal
+  tilts:                   # the proposal score: weights on the momentum score and K+V (kvalitet + værdi) percentiles
+    momentum: {momentum: 1.0, qv: 0.0}
+    value: {momentum: 0.0, qv: 1.0}
+    mix: {momentum: 0.5, qv: 0.5}
+  require_trend_from: 0.5  # a tilt with at least this momentum weight only takes names in an uptrend (trend_ok)
+  penalties:               # points taken off the 0-100 proposal score
+    vol: 10                # × the name's volatility percentile in the pool (0-1)
+    stretch: 5             # when the 1-month return is in the pool's top decile (a spike that often gives back)
+    corr: 10               # × the name's correlation with the portfolio's weekly returns (when above 0)
+  fill_gaps_bonus: 20      # mode fill-gaps: points × how far the name's sector is under ACWI's weight in the portfolio
+  max_per_sector: 2        # new names per sector in one proposal
+  caps:                    # active weight vs ACWI of the portfolio after the addition (sector, region, currency)
+    sector: 0.25
+    region: 0.40
+    currency: 0.40
+  max_corr: 0.7            # weekly-return correlation above this with a pick or a holding counts as the same bet
+  gates:
+    max_stale_days: 7      # last price older than this: left out
+    min_history_weeks: 52
+    min_adv_dkk: 5000000   # mean daily traded value over 20 sessions, in DKK
+  exit:                    # the exits each pick gets (and the rule study replays)
+    min_score: 50          # momentum tilts: a momentum score below this is a signal exit
+    min_qv: 40             # value tilt: a K+V below this is a signal exit
+    weakening: 0.05        # within this share of a level (price) or 5 points (scores): "weakening"
+  # --- costs
+  spread_bps:              # estimated half-spread by liquidity (mean daily traded value in DKK); an estimate
+    - {min_adv_dkk: 500000000, bps: 3}
+    - {min_adv_dkk: 50000000, bps: 8}
+    - {min_adv_dkk: 0, bps: 20}
+  study_cost_bps: 30       # the rule study's cost per trade (fee + FX + half-spread), each way
+  # --- the model
+  horizons: [3, 6]         # months
+  study_ns: [3, 5, 8]      # basket sizes the rule study tests
+  history_weeks: 156       # weekly DKK returns for the covariance and the bootstrap
+  min_weeks: 26
+  shrink: 0.3              # covariance: this share pulled towards a constant-correlation matrix
+  acwi_drift_annual: 0.06  # an assumption, not a forecast: ACWI's expected return a year, to centre the bootstrap
+  survivorship_haircut: 0.3  # share of a positive study excess taken off (today's universe flatters the past)
+  bootstrap: {draws: 5000, block_weeks: 4, seed: 7, ewma_lambda: 0.94}
+  stress:                  # historical episodes replayed on today's weights (only where the price history covers them)
+    - {key: covid, label: "Covid crash", start: 2020-02-19, end: 2020-03-23}
+    - {key: rates2022, label: "2022 rate shock", start: 2022-01-03, end: 2022-10-12}
+    - {key: unwind2024, label: "Summer 2024 momentum unwind", start: 2024-07-10, end: 2024-08-05}
+    - {key: tariffs2025, label: "2025 tariff shock", start: 2025-02-19, end: 2025-04-08}
+  # --- the decision rule (pre-committed)
+  min_edge: 0.01           # modelled excess over ACWI after costs, over the horizon, needed to propose stocks
+  min_regime_dates: 12     # use the regime's own study figures only with this many dates in that regime
+  max_swaps: 2             # judgment may replace at most this many of the rule's picks
+  frontier_knee: 0.005     # basket size: the smallest n after which one more name cuts volatility by less than this
+  # --- the account
+  ask_deposit_cap: null    # aktiesparekonto: the year's deposit ceiling in DKK (fill in from skat.dk; null = not checked)
+  ask_cap_year: null
+  etf_filler: {ticker: SSAC.L, model: ACWI, name: "iShares MSCI ACWI UCITS (Acc)", isin: IE00B6R52259, min_dkk: 3000}
+  look_through: [IWDA.AS, IWDA.L, SWDA.L, EUNL.DE, VWCE.DE, VWRL.AS, VWRL.L, ISAC.L, SPYI.DE]  # broad world funds
+                           # counted with ACWI's weights (an approximation: MSCI World leaves out emerging markets)
+  review_min: 6            # `radar propose review`: fewer proposals than this are too few to judge anything by
+
 risk:                      # signals/risk.py: weekly returns in DKK
   windows: {1y: 52, 3y: 156}
   min_weeks: 26            # fewer weeks: no statistic (null), never a guess

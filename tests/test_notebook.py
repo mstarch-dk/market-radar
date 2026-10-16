@@ -37,6 +37,8 @@ def folders(tmp_path, monkeypatch):
     (dirs["briefs"] / "lyt" / "2026-10-01.md").write_text("# Markedsbrief til lytning\n", encoding="utf-8")
     (dirs["research"] / "NOVO-B.CO.md").write_text("# Novo Nordisk\n", encoding="utf-8")
     (dirs["compare"] / "2026-10-14_NVDA-AMD.md").write_text("# NVDA vs AMD\n", encoding="utf-8")
+    (dirs["proposals"] / "2026-10-16_ask.md").write_text("# Proposal: 50.000 DKK into ASK\n", encoding="utf-8")
+    (dirs["proposals"] / "2026-10-16_ask.json").write_text("{}", encoding="utf-8")   # a picks file: not a document
     (dirs["journal"] / "2026-09-01-RHM.DE-buy.md").write_text(ENTRY, encoding="utf-8")
     (dirs["journal"] / "2026-09-02-X-pass.md").write_text("---\nstatus: [open\n---\n# Pass X\n", encoding="utf-8")
     (dirs["reviews"] / "2026-09.md").write_text("# Journal review – September\n", encoding="utf-8")
@@ -56,6 +58,7 @@ def test_listing_newest_first_with_journal_fields(folders):
     broken = next(e for e in nb["journal"] if e["name"] == "2026-09-02-X-pass")
     assert broken["problem"] and not broken["review_due"]          # still listed, with what is wrong
     assert nb["reviews"][0]["date"] == "2026-09"
+    assert [e["name"] for e in nb["proposals"]] == ["2026-10-16_ask"] and nb["proposal_reviews"] == []
 
 
 def test_a_closed_or_future_review_is_not_due(folders):

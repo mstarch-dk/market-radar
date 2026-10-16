@@ -243,9 +243,9 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "names.csv", "sectors.csv", "currencies.csv", "sources.json", "ops.db", "updates.json",
         "discovery/universe.csv", "discovery/isin_map.csv", "discovery/prices.parquet",
         "fundamentals/edgar.parquet", "fundamentals/cik.csv", "fundamentals/edgar_log.csv",
-        "fundamentals/yahoo_log.csv",
+        "fundamentals/yahoo_log.csv", "acwi_holdings.csv",
         "*.lock",                       # locks.file_lock: one writer at a time, next to the file it guards
     ),
     "reports": ("dashboard.json", "summary.json", "discovery.json", "score-study.json", "score-study-*.json", "exit-study.json",
-                "redeploy-study.json", "sim-exits.json", "sim-exits-*.json", "sim-picks/"),
+                "redeploy-study.json", "propose-study.json", "sim-exits.json", "sim-exits-*.json", "sim-picks/"),
 }

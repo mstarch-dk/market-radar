@@ -3323,7 +3323,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -3350,7 +3350,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -3375,6 +3375,10 @@ export interface components {
             research: components["schemas"]["NotebookEntry"][];
             /** Compare */
             compare: components["schemas"]["NotebookEntry"][];
+            /** Proposals */
+            proposals: components["schemas"]["NotebookEntry"][];
+            /** Proposal Reviews */
+            proposal_reviews: components["schemas"]["NotebookEntry"][];
             /** Journal */
             journal: components["schemas"]["NotebookEntry"][];
             /** Reviews */
