@@ -1177,6 +1177,94 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
     typer.echo(f"Report: reports/{sig.report}")
 
 
+@study_app.command("longrun")
+def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a comma list of panels (longrun.panels: "
+                                             "french49, countries)"),
+                  horizons: str = typer.Option(None, help="Forward horizons in months (default longrun.horizons)"),
+                  variants: str = typer.Option("all", help="all, or a comma list of variant keys"),
+                  since: str = typer.Option(None, "--since", help="First formation month (YYYY or YYYY-MM-DD)"),
+                  fetch: bool = typer.Option(False, "--fetch", help="Download the French and JKP histories first "
+                                                                    "(they are part of `radar update` too)"),
+                  as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
+                  out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """The momentum score's rule over decades, on portfolios without survivorship bias: US industries since 1926
+    (Fama-French 49) and developed-market countries since 1986 (JKP). Variants of the lookbacks and weights with the
+    verdict rule of `radar study score`, splits by decade, market trend and recession, the long-run base rates of the
+    momentum, value and quality factors, and a rough gauge of the survivorship bias in `radar study score`. Writes
+    reports/longrun-study.json."""
+    import json
+    from pathlib import Path
+
+    from . import factors
+    from .backtest import longrun, study
+
+    try:
+        with _job("study") as log:
+            if fetch:
+                log(f"Long histories: {factors.update_factors(force=True)}")
+            hs = [int(x) for x in horizons.split(",")] if horizons else None
+            keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
+            ps = None if panels == "all" else [x.strip() for x in panels.split(",") if x.strip()]
+            rep = longrun.build(ps, hs, keys, since, log)
+            longrun.write(rep)
+    except (ValueError, RuntimeError) as e:
+        raise typer.Exit(f"Not studied: {e}")
+    text = json.dumps(rep, indent=1, default=study._json)
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+    if as_json:
+        typer.echo(text)
+        return
+    typer.echo("\nData to: " + ", ".join(f"{k} {m}" for k, m in rep["data_asof"].items()))
+    for key, pr in rep["panels"].items():
+        typer.echo(f"\n{pr['label']}: {pr['members']} members, top {pr['n_top']}, {pr['months']} formation months "
+                   f"{pr['first']:%Y-%m} to {pr['last']:%Y-%m}; holdout from {rep['settings']['holdout_from']}; "
+                   f"{pr['variants_tried']} variants tried")
+        for h, res in pr["results"].items():
+            typer.echo(f"\n  {h} month(s) ahead: excess over the panel's equal weight")
+            typer.echo(f"    {'':<12}{'dates':>6} {'eff N':>6} {'IC':>6} {'t':>6}  {'Q5-Q1':>7} {'t':>6}  {'top N':>7} {'t':>6}"
+                       f"  {'vs mkt':>7}  {'holdout IC':>10}  verdict")
+            for k, r in res.items():
+                a, o = r["all"] or {}, r["holdout"] or {}
+                v = pr["verdicts"][h].get(k, {}).get("label", "baseline")
+                typer.echo(f"    {k:<12}{a.get('dates', 0):>6} {_num(a.get('eff_n'), '.0f'):>6} {_num(a.get('ic_mean')):>6} "
+                           f"{_num(a.get('ic_t'), '+.1f'):>6}  {_pct(a.get('spread')):>7} {_num(a.get('spread_t'), '+.1f'):>6}  "
+                           f"{_pct(a.get('top_excess')):>7} {_num(a.get('top_excess_t'), '+.1f'):>6}  "
+                           f"{_pct(a.get('top_vs_market')):>7}  {_num(o.get('ic_mean')):>10}  {v}")
+            base = res["score"]
+            dec = {d: s for d, s in (base.get("by_decade") or {}).items() if s}
+            typer.echo("    score IC by decade: " + ", ".join(f"{d} {_num(s['ic_mean'])}" for d, s in dec.items()))
+            for split in ("by_trend", "by_recession"):
+                parts = {g: s for g, s in (base.get(split) or {}).items() if s}
+                if parts:
+                    typer.echo(f"    score {split.replace('_', ' ')}: " + ", ".join(
+                        f"{g} IC {_num(s['ic_mean'])}, top N {_pct(s['top_excess'])} ({s['dates']} dates)"
+                        for g, s in parts.items()))
+    for k, e in rep["errors"].items():
+        typer.echo(f"\n{k}: not studied ({e})")
+    typer.echo("\nBase rates of the long-short factors (annualised; share of 6- and 12-month windows that lost):")
+    for label, b in rep["base_rates"].items():
+        if not b:
+            typer.echo(f"  {label}: no data")
+            continue
+        d = b["drawdown"]
+        rec = f"{d['months_to_recover']} months to recover" if d["months_to_recover"] is not None else "not recovered"
+        typer.echo(f"  {label}: {b['first']:%Y}-{b['last']:%Y}, {_pct(b['ann_return'])} a year (t {_num(b['t'], '+.1f')}), "
+                   f"last 10y {_pct(b['last_10y_ann'])}; lost in {_pct(b['roll6']['share_negative'], False)} / "
+                   f"{_pct(b['roll12']['share_negative'], False)} of windows; worst drawdown {_pct(d['max'])} "
+                   f"({d['peak']:%Y-%m}, {rec})")
+    s = rep.get("survivorship")
+    if s:
+        typer.echo(f"\nSurvivorship gauge ({s['window']['first']:%Y-%m} to {s['window']['last']:%Y-%m}): top-quintile "
+                   f"excess a month {_pct(s['study_top_quintile_excess_1m'])} in `radar study score` against "
+                   f"{_pct(s['survivorship_free_same_months'])} for all US stocks without survivorship bias "
+                   f"({_pct(s['survivorship_free_since_1927'])} since 1927); implied haircut "
+                   f"{_pct(s['implied_haircut'], False)}, configured {_pct(s['configured_haircut'], False)}. {s['note']}.")
+    typer.echo("\nCaveats: " + " ".join(rep["caveats"][:2]))
+    typer.echo(f"Report: reports/{longrun.REPORT_FILE}")
+
+
 @study_app.command("exits")
 def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (from 1, 3, 6, 12)"),
                 n: int = typer.Option(15, "--n", help="Size of each month's top-N basket"),

@@ -145,6 +145,10 @@ Med den 3-måneders amerikanske statsrente fra FRED regnes der i merafkast over 
 
 Det amerikanske aktieunivers er **dagens** S&P 500 (fra SSGA's SPY-beholdningsliste). Når radaren beregner markedsbredde bagud (andel over 200-dages gennemsnit, nye 52-ugers højder minus lavpunkter), bruger den de nuværende medlemmer for hele historikken. Selskaber, der er røget ud af indekset, typisk efter kursfald, mangler; selskaber, der er kommet ind efter kursstigninger, er med. Historisk markedsbredde ser derfor lidt stærkere ud, end den var, og det er både survivorship og look-ahead bias. Radaren skriver det selv under *blind spots* på [Data og dækning](/data). Det samme gælder Discover, som kun kender dagens noteringer. Se [Markedsbredde](laerebog/markedsbredde).
 
+### Lange serier uden survivorship bias
+
+`radar study score` har kun de år, kurshistorikken rækker ({{settings:history_years}}), og dagens aktier. Med en 6-måneders horisont giver det omkring 15 uafhængige perioder, og efter afsnittet *Hvor længe skal man vente på bevis?* nedenfor er det alt for lidt til at skelne en god regel fra held. `radar study longrun` bruger i stedet månedsserier, som forskere har bygget af alle noterede aktier på hvert tidspunkt: 49 amerikanske brancher siden 1926 (Kenneth R. French) og 23 udviklede aktiemarkeder siden 1986 (JKP Global Factor Data). Det giver hundredvis af uafhængige perioder og ingen survivorship bias, til gengæld er det brancher og lande, ikke aktier. Den bruger også en holdout-periode (fra {{settings:longrun.holdout_from}}), og den viser basisrater: hvor ofte momentum- og værdifaktoren har tabt over 6 og 12 måneder. Se [Testen over årtier](brugervejledning/scoretest#testen-over-årtier).
+
 ## Regneeksempel
 
 ### Percentil og rang

@@ -299,7 +299,7 @@ FUND_CAVEATS = [
     "Sectors and industries are today's: the peer groups and the bank/insurer set aren't strictly as of D.",
     "Facts count from their filing date plus backtest.fundamentals_lag_days; a restatement filed later doesn't "
     "change an earlier date. Yahoo's market-value check is skipped (its figure is today's).",
-    "Monthly dates over a short price history: about five years of month-ends at history_years: 6, and statements "
+    "Monthly dates over a short price history (history_years, at most backtest.max_years), and statements "
     "move slowly, so neighbouring months share most of their information. The t-statistics use Newey-West errors "
     "for overlapping horizons, but the number of independent periods is small.",
     "Several variants are tried: a few will look better by chance. Only one that also holds in the holdout counts.",

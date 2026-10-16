@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import coverage, external, ingest, net, sentiment, universe, updater, valuation
+from radar import coverage, external, factors, ingest, net, sentiment, universe, updater, valuation
 from radar.fundamentals import edgar, yahoo
 
 
@@ -58,13 +58,14 @@ def test_every_external_source_is_tried_even_when_one_raises(tmp_data, monkeypat
     monkeypatch.setattr(valuation, "update_erp", ok("erp"))
     monkeypatch.setattr(sentiment, "update_putcall", ok("putcall"))
     monkeypatch.setattr(sentiment, "update_aaii", ok("aaii"))
+    monkeypatch.setattr(factors, "update_factors", ok("factors"))
     monkeypatch.setattr(valuation, "update_etfs", ok("valuation_etfs"))
     monkeypatch.setattr(valuation, "update_stocks", ok("valuation_stocks"))
     monkeypatch.setattr(edgar, "update_edgar", ok("fundamentals_edgar"))
     monkeypatch.setattr(yahoo, "update_yahoo", ok("fundamentals_yahoo"))
     lines = []
     updater.update_external(lines.append)
-    assert ran == ["cftc", "oecd", "factset", "analyst", "ecb", "cape", "erp", "putcall", "aaii",
+    assert ran == ["cftc", "oecd", "factset", "analyst", "ecb", "cape", "erp", "putcall", "aaii", "factors",
                    "valuation_etfs", "valuation_stocks", "fundamentals_edgar", "fundamentals_yahoo"]
     log = coverage.load_log()
     assert log["ecb"]["error"] == "ValueError: ECB changed its format"

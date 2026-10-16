@@ -334,6 +334,11 @@ def macro_fred_views() -> dict[str, str]:
     return universe_config()["macro"].get("fred_views") or {}
 
 
+def macro_fred_study() -> dict[str, str]:
+    """FRED series only `radar study longrun` reads (USD/DKK since 1971, US recessions)."""
+    return universe_config()["macro"].get("fred_study") or {}
+
+
 # ---------- holdings / watchlist ----------
 
 HOLDING_COLS = ["symbol", "status", "quantity", "avg_price", "first_trade", "last_sell_date", "last_sell_price"]
