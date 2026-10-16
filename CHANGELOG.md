@@ -22,6 +22,13 @@ Your data now lives apart from the program, so a new version never touches it.
   another computer: the Data page, `radar export`, `radar import-export`.
 - **Safer updates**: data written by a newer version opens read-only in an older one; `radar --version`; an
   opt-in daily check for a new release (`radar updates --on`, needs `updates.repo` in settings.yaml).
+- **Portfolio page reorganised**: only your accounts (real portfolios), with an account strip and tabs
+  (*Positions*, *Transactions*, *Imports*, *Accounts*; `?tab=`); the trade form opens above the transactions table.
+- **Experiments page** (`/experiments`) for virtual portfolios: the A/B test card, a list with returns vs ACWI, and
+  one experiment's holdings, trades, rebalances and returns. `GET /api/portfolios/{id}/runs` lists a sim's runs.
+- **Fee schedules** per account (`portfolios.fee_schedule`, `fees.py`, presets for Saxo and Danske Bank in
+  `config/fee_presets.yaml`): the trade form prefills the fee with an estimate (`fee_estimate` from validate).
+- Ticker lookup in the trade form: keyboard navigation, the tracked badge and the chosen name under the field.
 - Linux start script `start-market-radar.sh`.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the

@@ -1,6 +1,6 @@
 # Rigtige og virtuelle porteføljer
 
-Alle dine handler ligger i en portefølje. Radaren skelner mellem to slags: **rigtige** porteføljer, som er dine konti, og **virtuelle**, som er simuleringer og A/B-tests. Forskellen afgør, hvad der tæller som "dit" i appen, i månedsbriefen og i Claude-skills. Du styrer porteføljerne i kortet *Portfolios* nederst på siden [Portfolio](/portfolio) eller med `uv run radar portfolios`.
+Alle dine handler ligger i en portefølje. Radaren skelner mellem to slags: **rigtige** porteføljer, som er dine konti, og **virtuelle**, som er simuleringer og A/B-tests. Forskellen afgør, hvad der tæller som "dit" i appen, i månedsbriefen og i Claude-skills. De har hver sin side: dine konti styrer du under fanen *Accounts* på siden [Portfolio](/portfolio), de virtuelle på siden [Experiments](/experiments) (se [Eksperimenter: virtuelle porteføljer](brugervejledning/eksperimenter)). På kommandolinjen: `uv run radar portfolios`.
 
 ## Rigtige og virtuelle
 
@@ -13,11 +13,13 @@ Alle dine handler ligger i en portefølje. Radaren skelner mellem to slags: **ri
 
 Handler fra før porteføljerne fandtes, ligger i den rigtige portefølje *Main*, indtil du flytter dem.
 
-Virtuelle porteføljer kommer aldrig med af sig selv. De vises kun, når du vælger dem i porteføljevælgeren, nævner dem ved navn på kommandolinjen eller beder om dem med `--include-virtual`, når du pakker dine data til en anden computer.
+Virtuelle porteføljer kommer aldrig med af sig selv. De vises kun på siden *Experiments*, når du vælger dem i porteføljevælgeren på *Holdings & watchlist* eller *Returns*, nævner dem ved navn på kommandolinjen eller beder om dem med `--include-virtual`, når du pakker dine data til en anden computer.
 
 ## Opret en portefølje
 
-Skriv et navn i feltet nederst i kortet *Portfolios*, vælg skattetype, sæt eventuelt flueben ved *virtual*, og klik *Add*. En ny virtuel portefølje får automatisk tagget `virtual`.
+En ny konto: skriv et navn i feltet nederst under fanen *Accounts* på siden *Portfolio*, vælg skattetype, og klik *Add account*. En ny virtuel portefølje opretter du nederst på siden *Experiments*; den får automatisk tagget `virtual`.
+
+Under *Accounts* sætter du også kontoens kurtageskema (*fees: …*), som formularen bruger til at estimere kurtagen på en handel. Se [Kurtage-estimatet](brugervejledning/portefolje#kurtage-estimatet).
 
 ### Skattetype
 
@@ -66,10 +68,10 @@ Radaren tager en sikkerhedskopi før hver flytning.
 
 En fork er en virtuel kopi af en portefølje, som den stod ved lukkekursen en bestemt dag. Den bruges til at teste en ændring mod originalen: kopiér porteføljen, foretag ændringen i kopien, og sammenlign de to fra den dag.
 
-1. Klik *fork* ud for porteføljen (kun porteføljer med rækker).
+1. Klik *fork into an experiment* ud for kontoen under fanen *Accounts* (kun konti med rækker).
 2. Skriv datoen (ÅÅÅÅ-MM-DD) og et navn til kopien.
 3. Radaren opretter en virtuel portefølje med én indbetaling af porteføljens værdi den dag og et køb af hver beholdning til dagens lukkekurs og valutakurs. Kopien får tagget `fork`.
-4. Siden [Returns](/returns) åbner med originalen og kopien sammenlignet fra den dag.
+4. Siden [Experiments](/experiments) åbner med kopien. Under fanen *Returns* kan du åbne den på siden *Returns* og sammenligne den med originalen fra den dag.
 
 Mangler en beholdning kurs eller valutakurs den dag, afvises forken. Udbytte, som originalen fik før dagen, bliver hos originalen.
 
@@ -91,13 +93,13 @@ Hver kurv har lige vægte, højst {{settings:abtest.max_per_sector}} aktier fra 
 
 **Én gang om måneden.** Den første rapport i hver kalendermåned (efter *Update data* eller `uv run radar run`) gemmer nye lister ud fra den dags scorer. Næste handelsdag handles alle tre porteføljer til de nye vægte til dagens lukkekurser, og hver handel koster {{settings:backtest.fee_bps}} basispoint (`backtest.fee_bps`). En gemt liste ændres aldrig bagefter, så testen kan ikke se frem eller justeres i bakspejlet. Det er den rene test, som backtests på fortiden ikke kan give.
 
-**Følg den** med `uv run radar abtest status`, eller på siden [Afkast](/returns) med tagget `ab-qvm`, mod ACWI. Status viser også korrelationen mellem kurvenes ugentlige afkast; den kræver mindst {{settings:risk.min_weeks}} uger. Se [Diversifikation og korrelation](laerebog/diversifikation#værdi-og-momentum-side-om-side).
+**Følg den** på siden [Experiments](/experiments), hvor testen har sit eget kort med kurvenes afkast og næste ombalancering, og hver kurv viser beholdning, handler og ombalanceringer. Eller med `uv run radar abtest status`, eller på siden [Afkast](/returns) med tagget `ab-qvm`, mod ACWI. Status viser også korrelationen mellem kurvenes ugentlige afkast; den kræver mindst {{settings:risk.min_weeks}} uger. Se [Diversifikation og korrelation](laerebog/diversifikation#værdi-og-momentum-side-om-side).
 
 > **Bemærk:** Et par måneder siger næsten intet. Forskelle mellem strategier af denne slags kræver typisk flere år at skelne fra tilfældigheder.
 
 ## Porteføljevælgeren og ?pf=
 
-Siderne [Holdings & watchlist](/me), [Portfolio](/portfolio) og [Returns](/returns) viser som standard dine rigtige porteføljer. Vælgeren *Portfolio* har disse muligheder:
+Siderne [Holdings & watchlist](/me), [Portfolio](/portfolio), [Returns](/returns) og [Experiments](/experiments) læser valget af porteføljer fra `?pf=` i adressen. *Portfolio* viser kun dine konti (vælg én med kortene øverst), og *Experiments* viser en virtuel portefølje, når den er valgt. Vælgeren *Portfolio* på *Holdings & watchlist* har disse muligheder:
 
 | Valg | I adressen |
 |---|---|

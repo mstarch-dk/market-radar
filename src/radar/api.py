@@ -22,7 +22,7 @@ from .api_models import (
     RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
     PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
-    MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
+    FeePreset, MoveIn, MoveResult, Portfolio, PortfolioIn, SimRun, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
     AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn, SecContact, AbStartIn, AbTest,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
@@ -754,7 +754,33 @@ def check_transaction(body: TxIn, id: int | None = None) -> dict:
     blocking = {i["field"] for i in issues if i["level"] == "error"} & {"symbol", "type", "date"}
     trade = row["type"] in userstore.TRADE_TYPES
     return {"issues": issues, "effect": portfolio.effect(row, exclude_id=id) if trade and not blocking else None,
-            "price": pc}
+            "price": pc, "fee_estimate": _fee_estimate(row, pc) if trade and pc else None}
+
+
+def _fee_estimate(row: dict, pc: dict) -> dict | None:
+    """The commission the trade's portfolio schedule gives (None without a schedule or an exchange rate)."""
+    from . import fees
+
+    pid = row["portfolio_id"] or userstore.default_portfolio()
+    p = userstore.get_portfolio(pid) if pid else None
+    if not p or not p.get("fee_schedule"):
+        return None
+    quote = pc.get("currency")
+    quote_dkk = row["fx_rate"] or pc.get("fx")          # DKK per unit of price: yours, else Yahoo's that day
+    day = pd.Timestamp(row["date"])
+
+    def convert(amount: float, ccy: str) -> float | None:
+        if not quote_dkk:
+            return None
+        if ccy == "DKK":
+            return amount / quote_dkk
+        with _lock:
+            fx = universe.fx_to_dkk(market().closes, ccy)
+        fx = fx.dropna() if fx is not None else None
+        rate = fx.asof(day) if fx is not None and not fx.empty else None
+        return amount * float(rate) / quote_dkk if rate is not None and pd.notna(rate) else None
+
+    return fees.estimate(p["fee_schedule"], row["symbol"], row["quantity"], row["price"], quote, convert)
 
 
 @app.post("/api/portfolio/transactions", response_model=TxResult)
@@ -843,8 +869,11 @@ def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
         old = _portfolio_or_404(pid)
         if old["origin"] == "sim" and body.mode == "real":
             raise HTTPException(422, "A simulated portfolio stays virtual: its trades never happened.")
+    data = body.model_dump() | {"name": name}
+    if "fee_schedule" not in body.model_fields_set:      # an older client: keep the schedule as it is
+        data.pop("fee_schedule")
     try:
-        return userstore.get_portfolio(userstore.save_portfolio(body.model_dump() | {"name": name}, pid))
+        return userstore.get_portfolio(userstore.save_portfolio(data, pid))
     except (ValueError, sqlite3.IntegrityError) as e:
         raise HTTPException(422, str(e)) from e
 
@@ -876,6 +905,21 @@ def delete_portfolio(pid: int) -> dict:
         return userstore.delete_portfolio(pid)
     except ValueError as e:
         raise HTTPException(409, str(e)) from e
+
+
+@app.get("/api/portfolios/fee-presets", response_model=list[FeePreset])
+def list_fee_presets() -> list[dict]:
+    """Broker fee schedules copied from public price lists (dated): a starting point for a portfolio's own."""
+    from . import fees
+
+    return fees.presets()
+
+
+@app.get("/api/portfolios/{pid}/runs", response_model=list[SimRun])
+def list_sim_runs(pid: int) -> list[dict]:
+    """The runs that wrote a simulated portfolio's rows (empty for any other portfolio)."""
+    _portfolio_or_404(pid)
+    return userstore.sim_runs(pid)
 
 
 @app.get("/api/portfolios/tags", response_model=list[TagCount])

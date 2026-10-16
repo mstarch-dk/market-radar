@@ -48,6 +48,7 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 | **CFTC** | Commitments of Traders (futures positioning) | US government data, public domain. | Yes | Yes |
 | **SEC EDGAR** (XBRL company facts) | US companies' financial statements from their 10-K and 10-Q filings, with filing dates | US government data, public domain. SEC's [fair-access policy](https://www.sec.gov/os/accessing-edgar-data) asks automated clients for at most 10 requests a second and a User-Agent naming a contact, which you enter yourself (Data page). | Yes | Yes (no implied endorsement by SEC) |
 | **SKAT** positive list (you download it into `imports/`) | UCITS / positive-list flag | Danish public-sector data. | Yes | Yes |
+| **Saxo, Danske Bank** public price lists (copied by hand into `config/fee_presets.yaml`, dated, nothing downloaded) | Fee presets for estimating a trade's commission | A few published prices, restated as facts with their source. | Yes | Yes, with the source and date |
 
 **MSCI ACWI**: the radar uses the iShares MSCI ACWI ETF's prices (from Yahoo), not MSCI's index data. "MSCI"
 and "ACWI" are MSCI trademarks. Market Radar is not affiliated with or endorsed by MSCI, nor by any other
