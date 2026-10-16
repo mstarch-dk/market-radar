@@ -61,7 +61,7 @@ def test_openapi_schema_has_the_models(client):
             "MomentumView", "PositioningView", "CoverageView", "MeView", "WatchState"} <= set(schemas)
 
 
-DASHBOARD = ["regime", "rotation", "momentum", "positioning", "coverage"]
+DASHBOARD = ["regime", "rotation", "momentum", "quality", "positioning", "coverage"]
 
 
 @pytest.mark.parametrize("view", DASHBOARD)
@@ -80,6 +80,28 @@ def test_dashboard_views(built):
     us = next(g for g in built.get("/api/momentum").json()["regions"] if g["key"] == "us")
     assert us["rows"][0]["ticker"] == "S1"
     assert built.get("/api/ticker/S1").json()["context"]["regime"]["label"] == "Risk-on"
+
+
+def test_quality_view_profile_card_and_live_rows(built):
+    qus = next(g for g in built.get("/api/quality").json()["regions"] if g["key"] == "us")
+    assert qus["rows"][0]["ticker"] == "S1"
+    card = api_models.Profile.model_validate(built.get("/api/ticker/S1").json()).quality
+    assert card.status == "ok" and card.source == "Yahoo statements" and card.fund_set == "standard"
+    assert card.quality == qus["rows"][0]["quality"]
+    assert {m.key for m in card.metrics} >= {"fcf_margin", "roic", "fcf_yield", "ebit_ev"}
+    roic = next(m for m in card.metrics if m.key == "roic")
+    assert roic.basis == "sector" and roic.peers == 8        # S1-S5 and E1-E3: Technology, pooled over regions
+    assert built.get("/api/ticker/LEAD").json().get("quality") is None               # a fund: no card
+    rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
+    assert rows["S1"]["quality"] == card.quality and rows["S1"]["fund_source"] == "yahoo"
+
+
+def test_the_quality_view_wants_a_new_report_after_an_upgrade(built, monkeypatch):
+    d = dict(dashboard.load())
+    d.pop("quality")
+    monkeypatch.setattr(api, "_dashboard", lambda: d)
+    r = built.get("/api/quality")
+    assert r.status_code == 503 and "older version" in r.json()["detail"]
 
 
 def test_me_is_live(built):

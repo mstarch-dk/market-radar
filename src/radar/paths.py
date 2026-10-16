@@ -235,6 +235,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "factset.parquet",              # the source only looks 14 days back
         "putcall.parquet",              # the backfill reaches one year back
         "fundamentals/yahoo.parquet",   # Yahoo's statements: it shows ~4 years, what scrolls out is gone
+        "fundamentals/scores.parquet",  # weekly kvalitets- and værdiscore per stock
     ),
     "cache": (
         "prices.parquet", "prices_from.json", "fred.parquet", "cot.parquet", "oecd_cli.parquet", "ecb.parquet",

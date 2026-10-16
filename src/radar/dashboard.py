@@ -14,6 +14,7 @@ import pandas as pd
 
 from . import coverage, external, mine, sentiment, snapshot, universe, valuation
 from .config import settings, universe_config
+from .fundamentals import context as fcontext
 from .paths import REPORTS
 from .ingest import load_fred, load_prices, wide
 from .signals import gauges as gz
@@ -127,6 +128,58 @@ def with_valuation(rows: list[dict], ctx: valuation.Context, kind: str = "auto",
     return out
 
 
+def with_fundamentals(rows: list[dict], fctx: fcontext.Context) -> list[dict]:
+    """Add the kvalitetsscore and værdiscore fields to table rows (all None for a stock without statements)."""
+    return [r | _clean(fctx.stock(r.get("ticker") or r.get("symbol"))) for r in rows]
+
+
+def quality_section(fctx: fcontext.Context, groups: dict[str, list[str]], labels: dict[str, str],
+                    lead: pd.DataFrame, cfg: dict) -> tuple[dict, pd.DataFrame]:
+    """The Quality & value page: every scored stock per region with ranks by K+V, kvalitet and værdi, the names
+    new in (or gone from) the K+V top N since the last snapshot, and how many stocks have statements. Also the
+    rank table for the snapshot."""
+    top_n = cfg["fundamentals"]["top_n"]
+    prev_d, prev = snapshot.previous("qv", cfg["snapshot_min_gap_days"])
+    mom = dict(zip(lead["ticker"], lead["score"])) if not lead.empty else {}
+    table = fctx.table()
+    names = universe.names(sorted(table["ticker"])) if not table.empty else {}
+    regions, snap = [], []
+    for key, members in groups.items():
+        sub = table[table["region"] == key].copy() if not table.empty else pd.DataFrame()
+        rows = []
+        if not sub.empty:
+            for col, rk in (("qv", "rank_qv"), ("quality", "rank_q"), ("value", "rank_v")):
+                sub[rk] = sub[col].rank(ascending=False, method="first")
+            sub = sub.sort_values(["rank_qv", "rank_q"], na_position="last")
+            prev_top = (set(prev[(prev["group"] == key) & (prev["rank"] <= top_n)]["ticker"])
+                        if prev is not None else None)
+            for r in sub.itertuples():
+                t = r.ticker
+                top = pd.notna(r.rank_qv) and r.rank_qv <= top_n
+                rows.append({"ticker": t, "name": names.get(t, t), "region": key,
+                             "rank_qv": None if pd.isna(r.rank_qv) else int(r.rank_qv),
+                             "rank_q": None if pd.isna(r.rank_q) else int(r.rank_q),
+                             "rank_v": None if pd.isna(r.rank_v) else int(r.rank_v),
+                             "momentum": mom.get(t), "new": bool(top and prev_top is not None and t not in prev_top)}
+                            | fctx.row(t))
+            snap += [{"ticker": x["ticker"], "rank": x["rank_qv"], "score": x["qv"], "group": key}
+                     for x in rows if x["rank_qv"] is not None]
+            in_top = {x["ticker"] for x in rows if x["rank_qv"] is not None and x["rank_qv"] <= top_n}
+        else:
+            prev_top, in_top = None, set()
+        src = sub["fund_source"].value_counts().to_dict() if not sub.empty else {}
+        regions.append({
+            "key": key, "label": labels.get(key, key), "rows": _clean(rows),
+            "entrants": [x["ticker"] for x in rows if x["new"]],
+            "dropped": sorted(prev_top - in_top) if prev_top is not None else [],
+            "coverage": {"stocks": len(members), "quality": int(sub["quality"].notna().sum()) if not sub.empty else 0,
+                         "value": int(sub["value"].notna().sum()) if not sub.empty else 0,
+                         "edgar": int(src.get("edgar", 0)), "yahoo": int(src.get("yahoo", 0))},
+        })
+    view = {"prev": prev_d.isoformat() if prev_d else None, "top_n": top_n, "regions": regions}
+    return view, pd.DataFrame(snap, columns=["ticker", "rank", "score", "group"])
+
+
 # ---------------- compute ----------------
 
 ROTATION_KEYS = ("ticker", "name", "rank", "rank_change", "quadrant", "quadrant_local", "rel_r1m", "rel_r3m", "rel_r6m",
@@ -144,6 +197,8 @@ class Computed:
     me: list[dict]         # holdings table (summary.json; the API recomputes it live)
     rotation: pd.DataFrame  # for the rank snapshots
     leaders: pd.DataFrame
+    quality: pd.DataFrame   # K+V ranks per region (the "qv" snapshot)
+    fctx: fcontext.Context  # the scores, for the weekly score history
 
 
 def compute() -> Computed:
@@ -251,6 +306,12 @@ def compute() -> Computed:
     sec = universe.sectors(list(lead["ticker"]))
     lead["sector"] = lead["ticker"].map(sec["sector"])
     lead["industry"] = lead["ticker"].map(sec["industry"])
+    raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
+
+    # --- kvalitetsscore and værdiscore (stored statements; no network)
+    fctx = fcontext.Context(closes, raw_closes, asof)
+    quality, quality_snap = quality_section(fctx, groups, labels, lead, cfg)
+
     mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"])
     top_n = mc["top_n"]
     regions = []
@@ -260,22 +321,22 @@ def compute() -> Computed:
         top["new"] = [prev_top is not None and t not in prev_top for t in top["ticker"]]
         regions.append({
             "key": region, "label": labels.get(region, region),
-            "rows": with_valuation([{k: r.get(k) for k in MOMENTUM_KEYS}
-                                    | {"gauges": gz.gauges({"score": r.get("score"), "from_high": r.get("from_high"),
-                                                            "vol_surge": r.get("vol_surge")})}
-                                    for r in _records(top)], vctx, "stock"),
+            "rows": with_fundamentals(with_valuation([{k: r.get(k) for k in MOMENTUM_KEYS}
+                                                      | {"gauges": gz.gauges({"score": r.get("score"),
+                                                                              "from_high": r.get("from_high"),
+                                                                              "vol_surge": r.get("vol_surge")})}
+                                                      for r in _records(top)], vctx, "stock"), fctx),
             "entrants": [t for t, n in zip(top["ticker"], top["new"]) if n],
             "dropped": sorted(prev_top - set(top["ticker"])) if prev_top is not None else [],
             "clusters": _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"]),
         })
 
     # --- me (the API recomputes this live; summary.json needs it now)
-    raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
     rot_rows = _records(rot[["ticker", "ucits", "quadrant"]])
     own = prices.set_index("date").groupby("ticker")["close"]
-    me = with_valuation(mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes, raw_closes, lead,
-                                   rot_rows, overall["label"], cfg, sessions=lambda s: own.get_group(s).sort_index()),
-                        vctx)
+    me = with_fundamentals(with_valuation(mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes,
+                                                     raw_closes, lead, rot_rows, overall["label"], cfg,
+                                                     sessions=lambda s: own.get_group(s).sort_index()), vctx), fctx)
 
     # --- positioning & cycle (non-price data)
     cot = external.load_cot()
@@ -304,6 +365,7 @@ def compute() -> Computed:
         "rotation": {"prev": prev_d.isoformat() if prev_d else None, "tail_weeks": rc["tail"],
                      "positive_list_year": pl_year, "groups": rot_groups},
         "momentum": {"prev": mprev_d.isoformat() if mprev_d else None, "top_n": top_n, "regions": regions},
+        "quality": quality,
         "positioning": {"factset": fs_ctx,
                         "valuation": market_val | {"charts": _valuation_charts(mk)},
                         "revisions": vctx.breadth(),
@@ -316,7 +378,7 @@ def compute() -> Computed:
                         if not cot_tab.empty else []},
         "coverage": _clean(cov),
     }
-    return Computed(data, me, rot, lead)
+    return Computed(data, me, rot, lead, quality_snap, fctx)
 
 
 def _valuation_charts(mk: pd.DataFrame) -> list[dict]:

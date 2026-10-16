@@ -87,6 +87,8 @@ books:
           - {slug: relativ-vaerdiansaettelse, title: Relativ værdiansættelse}
           - {slug: cape-og-risikopraemie, title: "CAPE, risikopræmie og yield gap"}
           - {slug: estimatrevisioner, title: Estimatrevisioner}
+          - {slug: kvalitet-og-vaerdi, title: "Kvalitet og værdi: Graham, Buffett og Grantham"}
+          - {slug: kvalitetsscore, title: Radarens kvalitets- og værdiscore}
       - title: VI. Positionering og sentiment
         chapters:
           - {slug: cot, title: Futurespositionering (CFTC COT)}

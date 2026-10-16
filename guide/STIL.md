@@ -25,6 +25,11 @@ Denne fil er til den, der skriver eller vedligeholder bøgerne i `guide/`. Den v
 | Breadth | markedsbredde |
 | Credit spread, high yield | kreditspænd, high yield (HY) |
 | Momentum score | momentumscore |
+| Quality score / value score / Q+V | kvalitetsscore / værdiscore / K+V |
+| Free cash flow (FCF), FCF yield | frit cash flow (FCF), FCF yield |
+| Trailing twelve months (TTM) | de seneste 12 måneder (TTM) |
+| Shareholder yield | shareholder yield (udbytte + aktieopkøb − nyudstedelser, i forhold til markedsværdien) |
+| Moat | moat (voldgrav: det, der beskytter en forretning mod konkurrence) |
 | Trailing stop, take-profit | trailing stop (glidende stop), take-profit (kursmål) |
 | Time-weighted / money-weighted return | tidsvægtet afkast (TWR) / pengevægtet afkast (MWR) |
 | Positive list | positivlisten (SKATs liste over aktiebaserede investeringsselskaber) |

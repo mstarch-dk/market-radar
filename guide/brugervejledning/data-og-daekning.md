@@ -105,7 +105,7 @@ Afsnittet *What the radar doesn't see* lister radarens blinde vinkler, så et "r
 - Indtjeningsrevisioner: FactSet for S&P 500, ellers kun ændringer i Yahoos konsensus.
 - Ingen fondsstrømme, fund manager-undersøgelse, short interest eller insiderhandler; sentiment er kun amerikansk.
 - Makro og kredit er mest amerikansk; Europa ses gennem få serier.
-- Selskabernes regnskaber ud over Yahoos opsummering modelleres ikke.
+- Regnskaberne kommer fra SEC EDGAR (officielt, kun USA) og Yahoo (uofficielt, cirka fire år tilbage, halvårligt for mange europæiske selskaber); IFRS og US GAAP er ikke ens, engangsposter tages, som de er rapporteret, og selskabernes egne forventninger modelleres ikke.
 - Universet er et udsnit med overlevelsesbias.
 - Discover er stadig Yahoo-data med støj blandt små selskaber.
 - Nyheder og politik kommer kun ind via webresearch i `/market-brief`.
