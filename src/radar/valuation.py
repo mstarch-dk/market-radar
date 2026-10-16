@@ -13,7 +13,7 @@ from __future__ import annotations
 import io
 import math
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -58,6 +58,16 @@ def price_in(price: float | None, ccy: str | None, fin: str | None, fx: dict[str
     if base not in fx or fin not in fx or not fx[fin]:
         return None
     return price * scale * fx[base] / fx[fin]
+
+
+def _local_day(ts: float, zone: str | None) -> str:
+    """The day a Unix timestamp falls on at the exchange (an evening report in New York is the next morning in
+    Tokyo); UTC's day when the exchange's time zone isn't given or isn't known."""
+    t = pd.Timestamp(ts, unit="s", tz="UTC")
+    try:
+        return (t.tz_convert(zone) if zone else t).date().isoformat()
+    except Exception:  # an unknown zone name
+        return t.date().isoformat()
 
 
 def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float] = (1, 300),
@@ -116,7 +126,7 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
            "cross_ccy": bool(base and fin and base != fin), "price": px_trade,
            "eps_ttm": eps["ttm"], "eps_cy": eps["cy"], "eps_fy1": eps["fy1"],
            "pe_ttm": pe("ttm", px_trade), "pe_cy": pe_cy, "pe_fy1": pe_fy1, "pb": pb, "div_yield": dy,
-           "earnings_date": datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat() if ts else None,
+           "earnings_date": _local_day(ts, q.get("exchangeTimezoneName")) if ts else None,
            "market_cap": _num(q.get("marketCap"))}       # Yahoo's, in the trading currency (a check on ours)
     yahoo = _num(q.get("forwardPE"))
     if out["pe_fy1"] and yahoo and abs(yahoo / out["pe_fy1"] - 1) > 0.05:
@@ -133,7 +143,7 @@ def info_as_quote(symbol: str, info: dict) -> dict:
             "epsForward": info.get("forwardEps"), "bookValue": info.get("bookValue"),
             "trailingAnnualDividendYield": info.get("trailingAnnualDividendYield"),
             "earningsTimestamp": info.get("earningsTimestamp"), "forwardPE": info.get("forwardPE"),
-            "marketCap": info.get("marketCap")}
+            "exchangeTimezoneName": info.get("exchangeTimezoneName"), "marketCap": info.get("marketCap")}
 
 
 def _screen_codes() -> dict[str, dict]:

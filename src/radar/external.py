@@ -370,13 +370,16 @@ DETAIL_INFO_KEYS = (
 
 
 def _jsonable(v):
+    if v is pd.NA or v is pd.NaT:          # before the date check: NaT is a Timestamp and would become "NaT"
+        return None
+    if isinstance(v, np.datetime64):
+        v = pd.Timestamp(v)
+        return None if v is pd.NaT else v.isoformat()[:10]
     if isinstance(v, (pd.Timestamp, date)):
         return v.isoformat()[:10]
     if isinstance(v, np.generic):
         v = v.item()
     if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
-        return None
-    if v is pd.NA or v is pd.NaT:
         return None
     if isinstance(v, (list, tuple)):
         return [_jsonable(x) for x in v]

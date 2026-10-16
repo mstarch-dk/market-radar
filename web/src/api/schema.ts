@@ -2407,6 +2407,13 @@ export interface components {
             portfolio?: string | null;
             /** Rows Now */
             rows_now: number;
+            /**
+             * Rows Replaced
+             * @default 0
+             */
+            rows_replaced: number;
+            /** Backup */
+            backup?: string | null;
         };
         /** ImportResult */
         ImportResult: {

@@ -1463,6 +1463,8 @@ class ImportRecord(Strict):
     portfolio_id: int | None = None
     portfolio: str | None = None
     rows_now: int
+    rows_replaced: int = 0           # a snapshot import's replaced rows: it can't be undone, only restored
+    backup: str | None = None        # the database copy taken before it
 
 
 class Preset(Strict):

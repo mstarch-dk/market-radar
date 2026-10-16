@@ -30,7 +30,7 @@ def load_prices() -> pd.DataFrame:
 def _download(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
     """Yahoo daily bars from `start`, in batches; `progress(done, total)` is called after each batch."""
     net.install_yfinance()
-    frames = []
+    frames, unusable = [], []
     for i in range(0, len(tickers), BATCH):
         batch = tickers[i:i + BATCH]
         if progress:
@@ -44,10 +44,16 @@ def _download(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
         for t in batch:
             if t not in raw.columns.get_level_values(0):
                 continue
+            if not {"Close", "Adj Close"} <= set(raw[t].columns):
+                unusable.append(t)        # skipped (reported as missing); the others still arrive
+                continue
             sub = raw[t].dropna(subset=["Close", "Adj Close"])
             if sub.empty:
                 continue
             frames.append(_adjust(sub.reset_index(), t))
+    if unusable and not frames:   # no ticker came with both closes: Yahoo's or yfinance's format changed
+        raise ValueError(f"no Close / Adj Close columns in Yahoo's answer ({', '.join(unusable[:5])}…): "
+                         "has yfinance changed its download format?")
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=COLUMNS)
 
 
