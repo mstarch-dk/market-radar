@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from radar import sentiment, valuation
+from radar import external, sentiment, valuation
 from radar.external import parse_ecb
 from radar.signals import regime
 from radar.signals import valuation as sv
@@ -279,3 +279,24 @@ def test_lookups_count_what_failed(monkeypatch):
     rows = {}
     n, failed = valuation._lookups(["A.CO", "B.CO"], {"DKK": 1.0}, (1, 300), rows)
     assert n == 1 and failed == ["B.CO"] and "A.CO" in rows
+
+
+# ---------------- ECB: the frequency from FREQ; an empty series isn't stored (hardening 1.5) ----------------
+
+def test_ecb_monthly_series_is_read_by_its_freq_column():
+    text = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\nFM.M.X,M,2026-08,2.1\nFM.M.X,M,2026-09,2.0\n"
+    s = external.parse_ecb(text)
+    assert list(s.index) == [pd.Timestamp("2026-08-01"), pd.Timestamp("2026-09-01")]
+
+
+def test_ecb_series_without_values_is_refused_before_anything_is_written(tmp_data, monkeypatch):
+    from fakes import Resp, serve
+    (key, (sid, _label)), = list(external._cfg().get("ecb", {}).items())[:1]
+    good = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\n" + "".join(f"{sid},B,2026-10-{d:02d},3.{d}\n" for d in range(1, 15))
+    serve(monkeypatch, {"ecb": Resp(text=good)})
+    external.update_ecb()
+    before = external.ECB_FILE.read_bytes()
+    serve(monkeypatch, {"ecb": Resp(text=f"KEY,FREQ,TIME_PERIOD,OBS_VALUE\n{sid},B,2026-10-15,\n")})
+    with pytest.raises(ValueError):
+        external.update_ecb()
+    assert external.ECB_FILE.read_bytes() == before

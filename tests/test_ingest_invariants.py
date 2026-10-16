@@ -96,7 +96,6 @@ class Source:
 class Fred(Source):
     file = ingest.FRED_FILE
     measure = {"key": None, "date": None}
-    gaps = {"short": "FRED replaces each series wholesale (plan 1.5)"}
     modes = ("error", "empty", "short")
 
     def good(self, mp):
@@ -133,7 +132,6 @@ class Oecd(Source):
 class Ecb(Source):
     file = external.ECB_FILE
     measure = {"key": None, "date": None}
-    gaps = {"short": "ECB replaces wholesale (plan 1.5)"}
     modes = ("error", "empty", "short")
 
     def series(self):
@@ -158,7 +156,6 @@ class Ecb(Source):
 class Aaii(Source):
     file = sentiment.AAII_FILE
     measure = {"key": None, "date": "date"}
-    gaps = {"short": "AAII replaces wholesale (plan 1.5)"}
     modes = ("error", "empty", "short")
 
     def good(self, mp):
@@ -174,7 +171,6 @@ class Aaii(Source):
 class Cape(Source):
     file = valuation.MARKET_FILE
     measure = {"key": "series", "date": "date"}
-    gaps = {"short": "CAPE replaces its series wholesale (plan 1.5)"}
     modes = ("error", "empty", "short")
 
     def good(self, mp):
@@ -190,7 +186,6 @@ class Cape(Source):
 
 
 class Erp(Cape):
-    gaps = {"short": "ERP replaces its series wholesale (plan 1.5)"}
 
     def bad(self, mp, mode):
         answer = {"error": Resp(500), "empty": Resp(content=b""), "short": Resp(content=damodaran_xlsx(trim_end=6))}[mode]
@@ -262,8 +257,6 @@ class Prices(Source):
 class DiscoveryPrices(Source):
     file = scan.PRICES_FILE
     measure = {"key": "ticker", "date": "date"}
-    gaps = {"short": "discovery prices are replaced when half the names answer (plan 1.6)",
-            "missing": "discovery prices are replaced when half the names answer (plan 1.6)"}
     NAMES = [f"N{i}" for i in range(10)]
 
     def _serve(self, mp, names):

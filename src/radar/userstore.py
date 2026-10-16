@@ -859,21 +859,25 @@ def _write_children(con, view_id: int, v: dict) -> None:
 
 def save_view(v: dict, view_id: int | None = None) -> int:
     """Add a view, or replace one (statement, fields, exposures and indicators). Returns its id."""
+    with closing(_connect()) as con, con:
+        return _save_view(con, v, view_id)
+
+
+def _save_view(con, v: dict, view_id: int | None = None) -> int:
     now = _now()
     vals = {k: v.get(k) for k in VIEW_FIELDS}
     vals["status"] = vals["status"] or "active"
     vals["conviction"] = int(vals["conviction"] or 3)
     vals["horizon"] = vals["horizon"] or "12m"
-    with closing(_connect()) as con, con:
-        if view_id is None:
-            cur = con.execute(f"INSERT INTO views ({', '.join(VIEW_FIELDS)}, created_at, updated_at) "
-                              f"VALUES ({', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
-                              (*vals.values(), v.get("created_at") or now, now))
-            view_id = cur.lastrowid
-        else:
-            con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
-                        (*vals.values(), now, view_id))
-        _write_children(con, view_id, v)
+    if view_id is None:
+        cur = con.execute(f"INSERT INTO views ({', '.join(VIEW_FIELDS)}, created_at, updated_at) "
+                          f"VALUES ({', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
+                          (*vals.values(), v.get("created_at") or now, now))
+        view_id = cur.lastrowid
+    else:
+        con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
+                    (*vals.values(), now, view_id))
+    _write_children(con, view_id, v)
     return view_id
 
 
@@ -909,10 +913,12 @@ def export_views_json() -> str:
 
 
 def import_views_json(text: str) -> int:
-    """Replace all views with an exported set (restoring a holdings bundle). Returns the number of views."""
+    """Replace all views with an exported set (restoring a holdings bundle). Returns the number of views.
+    All or nothing: one transaction, with a copy of the database taken first."""
     rows = json.loads(text)
+    backup("before-views-import")
     with closing(_connect()) as con, con:
         con.execute("DELETE FROM views")
-    for v in rows:
-        save_view(v)
+        for v in rows:
+            _save_view(con, v)
     return len(rows)

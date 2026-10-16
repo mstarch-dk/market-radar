@@ -182,10 +182,13 @@ def parse_ecb(text: str) -> pd.Series:
         raise ValueError("no TIME_PERIOD / OBS_VALUE in the ECB's answer: has the format changed?")
     if csv["KEY"].nunique() > 1:
         raise ValueError(f"{csv['KEY'].nunique()} series in one answer: the key matches more than one series")
+    freq = str(csv["FREQ"].iloc[0]) if "FREQ" in csv else ("D" if len(str(csv["TIME_PERIOD"].iloc[0])) == 10 else "M")
     s = pd.Series(pd.to_numeric(csv["OBS_VALUE"], errors="coerce").values,
-                  index=pd.PeriodIndex(csv["TIME_PERIOD"], freq="D").to_timestamp()
-                  if len(str(csv["TIME_PERIOD"].iloc[0])) == 10 else pd.PeriodIndex(csv["TIME_PERIOD"], freq="M").to_timestamp())
-    return s.dropna().sort_index()
+                  index=pd.PeriodIndex(csv["TIME_PERIOD"], freq="M" if freq == "M" else "D").to_timestamp())
+    s = s.dropna().sort_index()
+    if s.empty:
+        raise ValueError("the ECB's answer has no values: kept the stored series")
+    return s
 
 
 def update_ecb(today: date | None = None) -> str:
@@ -197,7 +200,9 @@ def update_ecb(today: date | None = None) -> str:
         resp.raise_for_status()
         out[key] = parse_ecb(resp.text)
     df = pd.DataFrame(out).sort_index()
-    write_parquet(df, ECB_FILE)
+    # a six-year window that rolls with today: the start may move later, the end may not move back
+    guard.replace(ECB_FILE, load_ecb(), df, what="ECB", key=None, date=None, expected_keys=list(series),
+                  start_tol=timedelta(days=62), row_tol=0.05)
     return ", ".join(f"{k} {s.index[-1]:%d %b}" for k, s in out.items())
 
 

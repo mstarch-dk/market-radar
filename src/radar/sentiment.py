@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from . import net
+from . import guard, net
 from .config import settings, write_parquet
 from .paths import CACHE, HISTORY
 
@@ -116,6 +116,6 @@ def update_aaii() -> str:
     resp = net.get(AAII_URL, timeout=60)
     resp.raise_for_status()
     df = parse_aaii(resp.content)
-    write_parquet(df, AAII_FILE, index=False)
+    guard.replace(AAII_FILE, load_aaii(), df, what="AAII", key=None, date="date", row_tol=0.01)
     last = df.iloc[-1]
     return f"{len(df):,} weeks; {last['date']:%d %b}: bull {last['bullish']:.0%}, bear {last['bearish']:.0%}"

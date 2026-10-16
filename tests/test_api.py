@@ -130,8 +130,8 @@ def test_regime_vote_switches(client):
     from radar import valuation
 
     months = pd.date_range(end=world.IDX[-1], periods=440, freq="MS")     # fresh as of the world's last day
-    valuation._market_merge("cape", pd.Series(range(10, 450), index=months, dtype=float))        # last = highest
-    valuation._market_merge("erp", pd.Series([0.08 - i * 0.0001 for i in range(440)], index=months))  # last = lowest
+    valuation._market_merge({"cape": pd.Series(range(10, 450), index=months, dtype=float)})      # last = highest
+    valuation._market_merge({"erp": pd.Series([0.08 - i * 0.0001 for i in range(440)], index=months)})  # last = lowest
     report.build()
     before = client.get("/api/regime").json()
     assert {v["group"]: v["on"] for v in before["votes"]} == {"credit_eu": True, "valuation": False}
