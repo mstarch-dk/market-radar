@@ -339,6 +339,33 @@ def _cash_row(r, i, get, kind, ident, sym, isin, name, num, p) -> dict:
     return row
 
 
+# ---------------- the file's currency against the listing's ----------------
+
+def _ccy(c: str | None) -> str | None:
+    """A currency code for comparing; pence (GBp, GBX) and pounds count as one (the ×100 price check tells them
+    apart)."""
+    if not c or not str(c).strip():
+        return None
+    c = str(c).strip()
+    return "GBP" if c.upper() in ("GBP", "GBX") or c == "GBp" else c.upper()
+
+
+def currency_issues(file_ccy: str | None, quote_ccy: str | None, symbol: str, fee: float | None) -> list[dict]:
+    """Warnings when the file says a trade was in another currency than the listing quotes in: prices are stored
+    per share in the listing's currency, so a price (and a fee) in another currency would be read wrongly."""
+    f, q = _ccy(file_ccy), _ccy(quote_ccy)
+    if not f or not q or f == q:
+        return []
+    out = [{"level": "warning", "field": "price",
+            "message": f"The file says {f}, but {symbol} trades in {quote_ccy}: the price must be in {quote_ccy} "
+                       f"(convert it, or choose the listing that trades in {f})."}]
+    if fee:
+        out.append({"level": "warning", "field": "fee",
+                    "message": f"The fee is stored in {quote_ccy}, the listing's currency. If it was charged in {f}, "
+                               "convert it."})
+    return out
+
+
 # ---------------- matching instruments to Yahoo symbols ----------------
 
 def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]], market_has) -> dict[str, dict]:
@@ -448,6 +475,10 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
         if tx["symbol"]:
             market_has(tx["symbol"])
         r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
+        if r["type"] in ("BUY", "SELL") and r.get("currency") and tx["symbol"]:
+            from .. import universe
+            quote = universe.currencies([tx["symbol"]]).get(tx["symbol"])
+            r["issues"] += currency_issues(r["currency"], quote, tx["symbol"], r["fee"])
         for field, value in r.get("ambiguous") or []:
             dot, comma = parse_number(value, "."), parse_number(value, ",")
             r["issues"].append({"level": "warning", "field": {"cash_amount": "amount"}.get(field, field),

@@ -188,3 +188,28 @@ def test_a_column_without_evidence_follows_the_rest_of_the_file():
     df = importers.read_table("\n".join(rows).encode())
     out, _ = importers.normalize(df, importers.map_columns(list(df.columns), importers.GENERIC))
     assert [r["quantity"] for r in out] == [10, 1000] and not any(r["ambiguous"] for r in out)
+
+
+# ---------------- the file's currency against the listing's (hardening 3.3) ----------------
+
+@pytest.mark.parametrize("file, quote, fee, fields", [
+    ("USD", "USD", 0, []),
+    ("usd", "USD", 5, []),
+    ("DKK", "USD", 0, ["price"]),
+    ("DKK", "USD", 19, ["price", "fee"]),
+    ("GBP", "GBp", 0, []),          # pounds vs pence is the ×100 price check's job, not a currency mismatch
+    ("GBX", "GBp", 0, []),
+    ("", "USD", 0, []),
+    ("USD", None, 0, []),           # the listing's currency unknown: nothing to compare
+])
+def test_a_price_in_another_currency_than_the_listing_is_flagged(file, quote, fee, fields):
+    issues = importers.currency_issues(file, quote, "S4", fee)
+    assert [i["field"] for i in issues] == fields and all(i["level"] == "warning" for i in issues)
+
+
+def test_the_preview_flags_a_currency_mismatch(client):
+    rows = ["Id\tHandelsdag\tDepot\tTransaktionstype\tVærdipapirer\tISIN\tAntal\tKurs\tSamlede afgifter\tValuta",
+            f"901\t{D1:%Y-%m-%d}\tAktiesparekonto\tKØBT\tSome Corp\tUS0000000004\t5\t{_dk(P1)}\t19\tDKK"]
+    pv = _preview(client, "\n".join(rows).encode("utf-16"), symbols=json.dumps({"US0000000004": "S4"}))
+    fields = {i["field"] for i in pv["rows"][0]["issues"] if "trades in USD" in i["message"] or "fee" in i["message"]}
+    assert {"price", "fee"} <= fields

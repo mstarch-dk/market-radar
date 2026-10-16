@@ -151,3 +151,21 @@ def test_isin_lookups_stop_when_yahoo_keeps_refusing(monkeypatch):
     assert len(calls) == 3 and out.empty           # nothing cached: all are tried again next scan
     assert sources.throttled(RuntimeError("HTTP Error 401: Invalid Crumb"))
     assert not sources.throttled(ValueError("no Emittententicker header"))
+
+
+def test_an_unresolved_isin_is_searched_again_after_a_while():
+    import pandas as pd
+    from datetime import date
+    from radar.discovery import sources
+    cached = pd.DataFrame([{"isin": "IE0000000001", "symbol": "", "exchange": "", "yahoo_name": "", "quote_type": "",
+                            "searched": "2026-06-01"},
+                           {"isin": "IE0000000002", "symbol": "", "exchange": "", "yahoo_name": "", "quote_type": "",
+                            "searched": "2026-10-01"}])
+    asked = []
+    found = lambda i: asked.append(i) or [{"symbol": "XYZ.DE", "quoteType": "ETF", "exchange": "GER"}]  # noqa: E731
+    out = sources.map_isins(["IE0000000001", "IE0000000002"], cached, ["GER"], search=found,
+                            today=date(2026, 10, 15))
+    assert asked == ["IE0000000001"]                       # 136 days since the last try; the other is recent
+    row = out[out["isin"] == "IE0000000001"].iloc[-1]
+    assert row["symbol"] == "XYZ.DE" and row["searched"] == "2026-10-15"
+    assert (out["isin"] == "IE0000000001").sum() == 1      # replaced, not duplicated
