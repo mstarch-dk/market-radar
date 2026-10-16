@@ -24,7 +24,7 @@ from .api_models import (
     PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
-    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn, SecContact,
+    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn, SecContact, AbStartIn, AbTest,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
     GuideChapter, GuideHit, GuideTree, NotebookDocument, NotebookListing,
     HomeStatus, LegacyFound, SetupIn, SetupResult,
@@ -902,6 +902,32 @@ def set_default(pid: int) -> list[dict]:
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     return userstore.portfolios()
+
+
+@app.get("/api/abtest", response_model=AbTest)
+def get_abtest() -> dict:
+    """The forward A/B test: kvalitet+værdi, momentum and 50/50 against ACWI from their first purchase."""
+    from . import abtest
+
+    with _lock:
+        return abtest.view(market())
+
+
+@app.post("/api/abtest", response_model=AbTest)
+def start_abtest(body: AbStartIn | None = None) -> dict:
+    """Start the A/B test with this month's picks (409 when it is already running)."""
+    from . import abtest
+
+    b = body or AbStartIn()
+    with _lock:
+        m = market()
+        if abtest.portfolios():
+            raise HTTPException(409, "The A/B test is already running.")
+        try:
+            abtest.create(m, b.capital, b.n, b.max_per_sector, b.value_score)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        return abtest.view(m)
 
 
 @app.get("/api/portfolios/compare", response_model=Comparison)

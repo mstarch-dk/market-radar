@@ -224,6 +224,17 @@ uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name t
 uv run radar sim picks --rerun tag:picks-live
 ```
 
+### A/B-test: kvalitet og værdi mod momentum
+
+`radar abtest` kører en test fremad i tid: en kvalitet+værdi-kurv, en momentumkurv og en 50/50-blanding, med nye lister én gang om måneden. Se [A/B-test: kvalitet og værdi mod momentum](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum).
+
+```
+uv run radar abtest start                    # tre virtuelle porteføljer med tagget ab-qvm
+uv run radar abtest start --n 20 --score value
+uv run radar abtest status                   # afkast mod ACWI, korrelation, næste liste
+uv run radar abtest refresh                  # det samme, som hver rapport gør
+```
+
 ## Datamappe, backup og eksport
 
 | Kommando | Gør |

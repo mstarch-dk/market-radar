@@ -985,6 +985,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/abtest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Abtest
+         * @description The forward A/B test: kvalitet+værdi, momentum and 50/50 against ACWI from their first purchase.
+         */
+        get: operations["get_abtest_api_abtest_get"];
+        put?: never;
+        /**
+         * Start Abtest
+         * @description Start the A/B test with this month's picks (409 when it is already running).
+         */
+        post: operations["start_abtest_api_abtest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolios/compare": {
         parameters: {
             query?: never;
@@ -1283,6 +1307,78 @@ export interface components {
             /** Spread */
             spread: number;
         };
+        /** AbPick */
+        AbPick: {
+            /** Ticker */
+            ticker: string;
+            /** Weight */
+            weight: number;
+            /** Score */
+            score?: number | null;
+        };
+        /** AbPortfolio */
+        AbPortfolio: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ab-qv" | "ab-momentum" | "ab-blend";
+            /** Label */
+            label: string;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** AbRebalance */
+        AbRebalance: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ab-qv" | "ab-momentum" | "ab-blend";
+            /** Label */
+            label: string;
+            /** Date */
+            date: string;
+            /** Picks */
+            picks: components["schemas"]["AbPick"][];
+            /** Turnover */
+            turnover: number;
+        };
+        /** AbStartIn */
+        AbStartIn: {
+            /** Capital */
+            capital?: number | null;
+            /** N */
+            n?: number | null;
+            /** Max Per Sector */
+            max_per_sector?: number | null;
+            /** Value Score */
+            value_score?: ("qv" | "value") | null;
+        };
+        /**
+         * AbTest
+         * @description The forward A/B test (abtest.py): three virtual baskets from their start on, against ACWI.
+         */
+        AbTest: {
+            /** Running */
+            running: boolean;
+            /** Portfolios */
+            portfolios: components["schemas"]["AbPortfolio"][];
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            } | null;
+            comparison?: components["schemas"]["Comparison"] | null;
+            correlation?: components["schemas"]["Correlation"] | null;
+            /** Rebalances */
+            rebalances: components["schemas"]["AbRebalance"][];
+            /** Next Due */
+            next_due?: string | null;
+            /** Notes */
+            notes: string[];
+        };
         /** AlignCompact */
         AlignCompact: {
             /**
@@ -1578,6 +1674,15 @@ export interface components {
              * @default []
              */
             watchouts: components["schemas"]["Watchout"][];
+        };
+        /** Correlation */
+        Correlation: {
+            /** Symbols */
+            symbols: string[];
+            /** Weeks */
+            weeks: number;
+            /** Matrix */
+            matrix: (number | null)[][];
         };
         /** CotRow */
         CotRow: {
@@ -6808,6 +6913,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Portfolio"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_abtest_api_abtest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbTest"];
+                };
+            };
+        };
+    };
+    start_abtest_api_abtest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AbStartIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AbTest"];
                 };
             };
             /** @description Validation Error */

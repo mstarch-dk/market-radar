@@ -76,6 +76,12 @@ backtest:                  # `radar sim exits` (backtest/): the stop/take-profit
   study_min_names: 30      # a formation date needs at least this many ranked names with a forward return
   random_baskets: 1000     # `radar sim picks`: random baskets of the same size and caps drawn for the percentile
 
+abtest:                    # src/radar/abtest.py: the forward A/B test (kvalitet+værdi vs momentum vs 50/50), from its start on
+  n: 15                    # names per basket, equal weights, picked again once a month
+  max_per_sector: 3        # at most this many from one sector in a basket
+  capital: 100000          # DKK each basket starts with (virtual)
+  value_score: qv          # the value basket ranks on qv (kvalitet + værdi) or value (værdiscore alone)
+
 risk:                      # signals/risk.py: weekly returns in DKK
   windows: {1y: 52, 3y: 156}
   min_weeks: 26            # fewer weeks: no statistic (null), never a guess
