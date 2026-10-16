@@ -57,7 +57,8 @@ def screen_exchange(code: str, min_cap: float = 5e7, page: int = 250, limit: int
         quotes = res.get("quotes", [])
         out += quotes
         offset += page
-        if len(quotes) < page or offset >= res.get("total", 0):
+        total = res.get("total")              # missing: keep paging until a page comes back short
+        if len(quotes) < page or (total is not None and offset >= total):
             break
     return out
 

@@ -1068,7 +1068,10 @@ def undo_import(import_id: int) -> int:
     """Remove every trade an import added (a backup of the database is taken first)."""
     if not any(i["id"] == import_id for i in userstore.imports()):
         raise HTTPException(404, f"No import {import_id}.")
-    return userstore.undo_import(import_id)
+    try:
+        return userstore.undo_import(import_id)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
 
 
 if WEB_DIST.exists():

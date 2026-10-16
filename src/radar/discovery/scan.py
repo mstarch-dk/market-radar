@@ -36,20 +36,26 @@ UNIVERSE_COLS = ["ticker", "name", "market", "kind", "exchange", "country", "cur
 
 # ---------------- FX ----------------
 
+FX_NEEDED = {"EUR", "USD", "GBP", "SEK", "NOK", "CHF"}   # the discovery markets' currencies
+
+
 def fx_rates() -> dict[str, float]:
-    """Latest DKK rate per currency (DKK = 1): from the radar's own price store when it is recent, else Yahoo.
-    Raises if neither has rates."""
+    """Latest DKK rate per currency (DKK = 1): from the radar's own price store when it is recent, else Yahoo. A
+    needed rate Yahoo doesn't return comes from the store at any age (a size filter doesn't mind a few weeks'
+    drift); one missing from both raises, rather than leaving a whole market without market caps."""
     yf = net.yf()
 
     stored = ingest.load_prices()
+    older: dict[str, float] = {}
     if not stored.empty:
         fx = stored[stored["ticker"].isin(universe.FX_TICKERS)].copy()
         fx["date"] = pd.to_datetime(fx["date"])
         last = fx.sort_values("date").groupby("ticker").last()
         recent = last[last["date"] >= pd.Timestamp.today().normalize() - pd.Timedelta(days=7)]
         out = universe.dkk_rates(recent["close"].astype(float).to_dict())
-        if {"EUR", "USD", "GBP", "SEK", "NOK", "CHF"} <= set(out):   # a rate still missing (e.g. a new
-            return out                                                    # currency) leaves those caps unknown
+        if FX_NEEDED <= set(out):   # a rate still missing (e.g. a new currency) leaves those caps unknown
+            return out
+        older = universe.dkk_rates(last["close"].astype(float).to_dict())
     raw = sources.retry(lambda: yf.download(universe.FX_TICKERS, period="10d", auto_adjust=False,
                                             progress=False, group_by="ticker"))
     last = {}
@@ -61,8 +67,13 @@ def fx_rates() -> dict[str, float]:
         if len(s):
             last[t] = float(s.iloc[-1])
     out = universe.dkk_rates(last)
-    if len(out) < 4:
+    if len(out) < 4 and not older:
         raise RuntimeError("no FX rates from Yahoo")
+    out = {c: r for c, r in older.items() if c not in out} | out
+    missing = sorted(FX_NEEDED - set(out))
+    if missing:
+        raise RuntimeError(f"no DKK rate for {', '.join(missing)} from Yahoo or the stored prices: "
+                           "those markets' caps would be unknown")
     return out
 
 
