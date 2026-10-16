@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, ingest, performance, profile, simulate, userstore
+from radar import api, dashboard, fees, ingest, performance, profile, simulate, userstore
 from world import IDX, N
 
 FX = 6.5
@@ -54,6 +54,33 @@ def test_a_fork_starts_level_with_its_source(market):
     assert lines["Main"][-1] == pytest.approx(100 * c1(END) / c1(150))
     with pytest.raises(ValueError, match="already"):
         simulate.fork(src, "Main, copy", at, market)
+
+
+
+def test_a_fork_takes_over_its_sources_fee_schedule_and_records_the_fee_model(market):
+    danske = next(x for x in fees.presets() if x["id"] == "danske-online")["schedule"]
+    acct = userstore.save_portfolio({"name": "Danske", "fee_schedule": danske})
+    plain = userstore.save_portfolio({"name": "Plain"})
+    for pid in (acct, plain):
+        userstore.add_tx({"symbol": "S1", "date": IDX[50].date().isoformat(), "type": "BUY", "quantity": 10,
+                          "price": c1(50), "portfolio_id": pid})
+    at = IDX[150].date().isoformat()
+    f = userstore.get_portfolio(simulate.fork(acct, "Danske, copy", at, market))
+    assert f["fee_schedule"] == danske
+    assert f["params"]["fee_model"] | {"schedule": None} == {
+        "kind": "schedule", "portfolio_id": acct, "portfolio": "Danske", "preset": None, "as_of": None,
+        "fx_pct": 0.30, "schedule": None, "fallback_bps": 10.0}
+    rows = userstore.transactions(portfolios=[f["id"]])
+    assert [r["fee"] for r in rows if r["type"] == "BUY"] == [0.0]          # the copy itself is no trade
+    again = userstore.get_portfolio(simulate.fork(f["id"], "Copy of a copy", at, market))
+    assert again["fee_schedule"] == danske and again["params"]["fee_model"]["portfolio"] == "Danske, copy"
+    bare = userstore.get_portfolio(simulate.fork(plain, "Plain, copy", at, market))
+    assert bare["fee_schedule"] is None and bare["params"]["fee_model"] == {"kind": "bps", "bps": 10.0}
+    # a simulated trade for the fork pays the source's broker: 0.20% of ~1,500 DKK < Danske's 29 DKK minimum,
+    # plus the 0.30% FX surcharge on a USD trade
+    value = 10 * c1(150)
+    t = fees.SimFees.for_portfolio(f, 10).terms("S1", "USD", lambda a, c: a / FX)
+    assert t.fee(value) == pytest.approx(29 / FX + value * 0.003)
 
 
 def test_a_run_is_checked_stored_once_and_rerun_in_place(market):

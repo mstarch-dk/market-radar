@@ -45,7 +45,20 @@ Simuleringen følger reglen, som den står i `config/settings.yaml`. Med standar
 - **Handel**: med `fill: {{settings:backtest.fill}}` sælges der til næste handelsdags handlede lukkekurs; med `same` til samme dags. Ingen handel sker til en kurs, der ikke var kendt, da beslutningen blev taget.
 - **Hvilke beholdninger**: kun dem, radaren giver niveauer i dag, altså aktier og sektor- og temafonde. Brede indeksfonde beholdes som i den rigtige portefølje.
 - **Pengene efter et salg** står i {{settings:backtest.park}}, indtil dit næste køb skal betales. Et køb betales først af kontanter, så af de parkerede andele og først derefter af nye penge.
-- **Kurtage**: hvert af reglens salg og hver handel med de parkerede penge koster {{settings:backtest.fee_bps}} basispoint af handlens værdi (kurtage og valutaspread). Dine egne handler beholder de gebyrer, de havde.
+- **Kurtage**: hvert af reglens salg og hver handel med de parkerede penge betaler kurtage efter kontoens kurtageskema (se nedenfor). Dine egne handler beholder de gebyrer, de havde.
+
+### Kurtagen i simuleringen
+
+Har den rigtige konto et kurtageskema (*fees: …* under fanen *Accounts*, se [Kurtage-estimatet](brugervejledning/portefolje#kurtage-estimatet)), betaler simuleringen det, kontoens mægler ville tage:
+
+- procentsatsen for handlens marked, med mindste- og maksimalkurtagen omregnet til handlens valuta med dagens kurs;
+- plus mæglerens vekselgebyr (*Currency exchange surcharge*) på handler i en anden valuta end kroner. Simuleringen handler til Yahoos midtkurs, så gebyret er ikke allerede med i kursen, som det er i dine egne rækker.
+
+Uden et skema koster hver handel {{settings:backtest.fee_bps}} basispoint af værdien (`backtest.fee_bps`, kurtage og valutaspread). Det samme gælder en enkelt handel, skemaet ikke kan prissætte: et marked uden regel og uden en regel for *Other markets*, eller ingen valutakurs til at omregne mindstekurtagen. Den handel bliver aldrig gratis, og rapporten tæller den.
+
+En mindstekurtage gør små handler dyre. Dækker pengene fra et salg ikke kurtagen på købet af parkeringsfonden (eller et genkøb), købes der ikke: pengene står som kontanter, og rapporten siger det (*not parked*, *re-entry skipped*). Beholdningerne ved `--start` kopieres uden kurtage, som i en fork.
+
+Hvilken kurtage en kørsel brugte, står i kørslens parametre (`fee_model`): `schedule` med kontoens navn, skabelonen og dens dato og de handler, der faldt tilbage på `fee_bps`, eller `bps` med satsen. Tallet ændrer sig, når du retter skemaet; kør `radar sim exits` igen bagefter.
 
 ### Det, radaren vidste på dagen
 
@@ -95,5 +108,5 @@ Varianten får sine egne simulerede porteføljer, fx *ASK · exits rules k5* med
 - **Aktieuniverset er dagens liste.** Aktier, der er gået ud af det, mangler i momentumscoren (overlevelsesbias).
 - **Makrodata er dagens version.** FRED og OECD reviderer tal, og simuleringen bruger de reviderede.
 - **Afstemningen bruger dine nuværende valg** af grupper i regimet.
-- **Ingen skat**, og kurtagen er et fast skøn ({{settings:backtest.fee_bps}} basispoint), ikke din banks prisliste. ACWI står ikke på positivlisten, så parkeringen ville ikke være mulig på en aktiesparekonto som den er. Sæt `backtest.park` til en UCITS-fond på positivlisten, hvis det skal være realistisk.
+- **Ingen skat**, og kurtagen er aldrig bedre end skemaet: uden et kurtageskema på kontoen er den et fast skøn ({{settings:backtest.fee_bps}} basispoint), og skabelonerne er mæglernes prislister på en bestemt dato. Skatter som fransk FTT og britisk stempelafgift er ikke med. ACWI står ikke på positivlisten, så parkeringen ville ikke være mulig på en aktiesparekonto som den er. Sæt `backtest.park` til en UCITS-fond på positivlisten, hvis det skal være realistisk.
 - **Reglen er ikke tunet til dine handler.** Et godt eller dårligt resultat på få handler siger mere om perioden end om reglen.

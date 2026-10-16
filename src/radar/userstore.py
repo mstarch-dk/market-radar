@@ -729,6 +729,8 @@ def create_with_rows(p: dict, rows: list[dict], source: str) -> int:
     now = _now()
     vals = {k: p.get(k) for k in (*PORTFOLIO_FIELDS, "origin", "parent_id", "forked_at", "strategy") if p.get(k) is not None}
     vals["params"] = json.dumps(p["params"]) if p.get("params") is not None else None
+    if p.get("fee_schedule"):
+        vals["fee_schedule"] = json.dumps(p["fee_schedule"])
     with closing(_connect()) as con, con:
         cols = list(vals) + ["created_at", "updated_at"]
         pid = con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
