@@ -1271,6 +1271,52 @@ class Comparison(Strict):
     chart: LineChart
 
 
+class AbPortfolio(Strict):
+    kind: Literal["ab-qv", "ab-momentum", "ab-blend"]
+    label: str
+    id: int
+    name: str
+
+
+class AbPick(Strict):
+    ticker: str
+    weight: float
+    score: Num = None                      # the basket's score on the day it was picked (None in the blend)
+
+
+class AbRebalance(Strict):
+    kind: Literal["ab-qv", "ab-momentum", "ab-blend"]
+    label: str
+    date: str                              # the day the picks were recorded (bought at the next session)
+    picks: list[AbPick]
+    turnover: float                        # share of the basket traded (0–1)
+
+
+class Correlation(Strict):
+    symbols: list[str]
+    weeks: int
+    matrix: list[list[Num]]                # None where a pair has too few weeks
+
+
+class AbTest(Strict):
+    """The forward A/B test (abtest.py): three virtual baskets from their start on, against ACWI."""
+    running: bool
+    portfolios: list[AbPortfolio]
+    params: dict[str, Any] | None = None
+    comparison: Comparison | None = None
+    correlation: Correlation | None = None
+    rebalances: list[AbRebalance]
+    next_due: str | None = None
+    notes: list[str]
+
+
+class AbStartIn(Strict):
+    capital: float | None = None
+    n: int | None = None
+    max_per_sector: int | None = None
+    value_score: Literal["qv", "value"] | None = None
+
+
 # ---------------- portfolio editor ----------------
 
 TxType = Literal["BUY", "SELL", "DEPOSIT", "WITHDRAW", "DIVIDEND", "FEE", "INTEREST"]

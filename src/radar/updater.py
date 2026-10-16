@@ -116,7 +116,23 @@ def build_report(log: Log = print) -> dict:
     res = report.build()
     log(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}"
         + (f"; without the last session: {res['behind']}" if res.get("behind") else ""))
+    _abtest(log)
     return res
+
+
+def _abtest(log: Log) -> None:
+    """The forward A/B test, when one is running: this month's picks (once a month) and the replayed portfolios.
+    A failure is logged and never stops the report."""
+    from . import abtest, profile
+
+    if not abtest.portfolios():
+        return
+    try:
+        with ops.context(source="abtest"):
+            abtest.refresh(profile.Market.load(), log=log)
+    except Exception as e:  # noqa: BLE001
+        log(f"A/B test: FAILED ({type(e).__name__}: {e}); the portfolios keep their last run.")
+        ops.event("error", "job", f"abtest: {type(e).__name__}: {e}", source="abtest", exc=e)
 
 
 # ---------------- background job for the web app ----------------

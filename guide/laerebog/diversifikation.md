@@ -117,6 +117,10 @@ For en fond viser tickerprofilen kortet *Fund look-through* med fondens største
 
 Radaren beregner ikke en samlet look-through-eksponering for hele porteføljen, ingen diversifikationsratio og intet effektivt antal positioner. Det må du regne selv, fx som i eksemplet nedenfor.
 
+### Værdi og momentum side om side
+
+Asness, Moskowitz og Pedersen (2013) fandt, at værdi- og momentumstrategier er negativt korrelerede, omkring −0,5, i mange markeder: når den ene halter, klarer den anden sig ofte godt. Radarens [A/B-test](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum) undersøger det fremad i tid med tre virtuelle kurve (kvalitet+værdi, momentum og 50/50) og viser korrelationen mellem deres ugentlige afkast i DKK, når der er mindst {{settings:risk.min_weeks}} uger. Den viser også, om blandingen svinger mindre end hver kurv alene. Begge kurve er lange aktiekurve, så de vil være positivt korrelerede med markedet og med hinanden. Spørgsmålet er, hvor meget mindre end 1 korrelationen er.
+
 ## Regneeksempel
 
 ### To aktiver
@@ -175,3 +179,4 @@ Din reelle eksponering mod den ene aktie er 14,4 %, ikke de 10 %, du ser i overs
 - François Longin og Bruno Solnik, "Extreme Correlation of International Equity Markets", *Journal of Finance* 56(2), 2001.
 - Andrew Ang og Joseph Chen, "Asymmetric Correlations of Equity Portfolios", *Journal of Financial Economics* 63(3), 2002.
 - Yves Choueifaty og Yves Coignard, "Toward Maximum Diversification", *Journal of Portfolio Management* 35(1), 2008.
+- Clifford Asness, Tobias Moskowitz og Lasse Heje Pedersen, "Value and Momentum Everywhere", *Journal of Finance* 68(3), 2013.

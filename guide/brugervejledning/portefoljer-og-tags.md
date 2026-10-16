@@ -79,6 +79,22 @@ På kommandolinjen: `uv run radar portfolios fork ASK "ASK test" --date 2026-06-
 
 `uv run radar sim exits` laver to virtuelle porteføljer pr. rigtig portefølje, fx *ASK · exits overlay* og *ASK · exits rules*. De afspiller dine handler med radarens stop og take-profit fulgt og har tagget `exits-overlay` eller `exits-rules`. En ny kørsel erstatter den forrige. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
 
+## A/B-test: kvalitet og værdi mod momentum
+
+Radaren kan køre en test fremad i tid af sine to scorer mod hinanden. `uv run radar abtest start` laver tre virtuelle porteføljer med tagget `ab-qvm`:
+
+- *A/B · Kvalitet+værdi*: de {{settings:abtest.n}} aktier med den højeste K+V (gennemsnittet af [kvalitets- og værdiscoren](laerebog/kvalitetsscore); med `abtest.value_score: value` kun værdiscoren).
+- *A/B · Momentum*: de {{settings:abtest.n}} med den højeste [momentumscore](laerebog/momentumscore), rangeret på tværs af alle fire regioner på én gang.
+- *A/B · 50/50*: begge lister med halv vægt hver. En aktie på begge lister får begge halvdele.
+
+Hver kurv har lige vægte, højst {{settings:abtest.max_per_sector}} aktier fra samme sektor og starter med {{settings:abtest.capital}} kr. (virtuelt). Kun aktier med en kurs og en DKK-kurs kan købes.
+
+**Én gang om måneden.** Den første rapport i hver kalendermåned (efter *Update data* eller `uv run radar run`) gemmer nye lister ud fra den dags scorer. Næste handelsdag handles alle tre porteføljer til de nye vægte til dagens lukkekurser, og hver handel koster {{settings:backtest.fee_bps}} basispoint (`backtest.fee_bps`). En gemt liste ændres aldrig bagefter, så testen kan ikke se frem eller justeres i bakspejlet. Det er den rene test, som backtests på fortiden ikke kan give.
+
+**Følg den** med `uv run radar abtest status`, eller på siden [Afkast](/returns) med tagget `ab-qvm`, mod ACWI. Status viser også korrelationen mellem kurvenes ugentlige afkast; den kræver mindst {{settings:risk.min_weeks}} uger. Se [Diversifikation og korrelation](laerebog/diversifikation#værdi-og-momentum-side-om-side).
+
+> **Bemærk:** Et par måneder siger næsten intet. Forskelle mellem strategier af denne slags kræver typisk flere år at skelne fra tilfældigheder.
+
 ## Porteføljevælgeren og ?pf=
 
 Siderne [Holdings & watchlist](/me), [Portfolio](/portfolio) og [Returns](/returns) viser som standard dine rigtige porteføljer. Vælgeren *Portfolio* har disse muligheder:
