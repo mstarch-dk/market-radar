@@ -105,6 +105,10 @@ be steered by memory of which names went on to rally, even without meaning to. S
 5. **The study.**
    - If `reports/score-study.json` is under 35 days old, read it.
    - Otherwise run `uv run radar study score --no-regime` (a few minutes) and read the file.
+   - Put the basket and the study next to the decades: `reports/longrun-study.json` (`radar study longrun`):
+     the score's IC on US industries since 1926 and since 2008 (the holdout), `base_rates` for the momentum and
+     value factors (how often a 6- or 12-month window lost) and `survivorship` (how much today's universe flatters
+     the study). One basket beating ACWI over a few months is well inside those base rates either way.
    - Take, for 3 and 6 months: the score's `ic_mean` with `ic_t`, `ic_pos`, `spread` with `spread_t`,
      `top_excess`, `top_dkk` against `acwi_dkk`, and the holdout IC.
    - Add any variant whose verdict is a candidate improvement.

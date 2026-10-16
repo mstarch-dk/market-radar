@@ -6,7 +6,10 @@ factors built by researchers from every listed stock at the time, so they hold n
   or annual); returns in percent, -99.99 / -999 for missing.
 - **JKP Global Factor Data** (Jensen, Kelly & Pedersen, jkpfactors.com, CC BY-NC 4.0): market returns per country
   (USA since 1926, developed markets since 1986) and 13 factor themes per region. Long CSVs, returns as decimals,
-  in USD and **in excess of the US one-month T-bill** (French's RF, added back by `total`).
+  in USD and **in excess of the US one-month T-bill** (French's RF, added back by `total`). Also its long-only
+  portfolios: the stocks of a region in terciles by one characteristic (12-1-month return, FCF yield, …), the
+  stock-level evidence the proposals' long-run prior is built from (key "jkp_pf:<region>:<characteristic>",
+  series "1" (low) to "3" (high)).
 
 Everything is stored long in one file (key = "<source>:<dataset>", series, date = month-end, ret as a decimal);
 `panel` gives one dataset wide. A dataset is downloaded again when its copy is older than `factors.max_age_days`
@@ -30,6 +33,8 @@ from .paths import CACHE
 FACTORS_FILE = CACHE / "factors" / "returns.parquet"
 FRENCH_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/{file}.zip"
 JKP_URL = "https://jkpfactors-data.s3.amazonaws.com/public/%5B{region}%5D_%5B{theme}%5D_%5Bmonthly%5D_%5B{weighting}%5D.zip"
+JKP_PF_URL = ("https://jkpfactors-data.s3.amazonaws.com/public/portfolios/"
+              "%5B{region}%5D_%5B{characteristic}%5D_%5Bmonthly%5D_%5B{weighting}%5D.zip")
 COLUMNS = ["key", "series", "date", "ret", "fetched"]
 FRENCH_MISSING = -99.99                 # this or below (-999) marks a missing value
 
@@ -117,7 +122,8 @@ def parse_jkp(blob: bytes, series_col: str = "location", name: str | None = None
     df = csv.pivot(index="date", columns=series_col, values="ret").sort_index()
     if df.empty or df.notna().sum().sum() == 0:
         raise ValueError(f"no returns in {names[0]}: has the format changed?")
-    df.columns = [str(c) for c in df.columns]
+    # portfolio numbers arrive as floats (1.0, 2.0, 3.0): stored as "1", "2", "3"
+    df.columns = [str(int(c)) if series_col == "pf" else str(c) for c in df.columns]
     return df
 
 
@@ -138,6 +144,11 @@ def datasets() -> dict[str, dict]:
         out[f"french:{name}"] = {"source": "french", **({"file": spec} if isinstance(spec, str) else spec)}
     for name, spec in (cfg.get("jkp") or {}).items():
         out[f"jkp:{name}"] = {"source": "jkp", **spec}
+    pf = cfg.get("jkp_portfolios") or {}
+    for region in pf.get("regions") or []:
+        for ch in pf.get("characteristics") or []:
+            out[f"jkp_pf:{region}:{ch}"] = {"source": "jkp_pf", "region": region, "characteristic": ch,
+                                            "weighting": pf.get("weighting", "vw_cap")}
     return out
 
 
@@ -146,6 +157,10 @@ def _fetch(spec: dict) -> pd.DataFrame:
         resp = net.get(FRENCH_URL.format(file=spec["file"]), timeout=120)
         resp.raise_for_status()
         return parse_french(resp.content, spec.get("block"))
+    if spec["source"] == "jkp_pf":
+        resp = net.get(JKP_PF_URL.format(**{k: spec[k] for k in ("region", "characteristic", "weighting")}), timeout=120)
+        resp.raise_for_status()
+        return parse_jkp(resp.content, "pf")
     resp = net.get(JKP_URL.format(region=spec["region"], theme=spec["theme"], weighting=spec["weighting"]), timeout=120)
     resp.raise_for_status()
     return parse_jkp(resp.content, spec.get("series", "location"), spec.get("name"))

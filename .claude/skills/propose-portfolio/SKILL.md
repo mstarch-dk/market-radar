@@ -18,9 +18,10 @@ buy or sell; say so in the memo.
 **The method in one paragraph.** The engine (`radar propose`) does the numbers; you add judgment within limits.
 The rule picks a basket by the proposal score (the tilt's pre-registered weights on the momentum score and K+V
 percentiles, less penalties for volatility, a one-month spike and correlation with the portfolio) under caps on
-the portfolio *after* the addition. The **expected excess over ACWI comes only from the rule study** (`radar study
-propose`: the same rule at every past month-end), never from the picks' own past returns, which were chosen for
-being high. Risk comes from three drawdown lenses. **ACWI is the null**: the decision rule proposes stocks only when
+the portfolio *after* the addition. The **expected excess over ACWI comes from the rule study** (`radar study
+propose`: the same rule at every past month-end), cut by the survivorship haircut and **shrunk toward the
+long-run prior** (JKP's survivorship-free tercile portfolios of the same characteristics since 2008, in today's
+ACWI trend), never from the picks' own past returns, which were chosen for being high. Risk comes from three drawdown lenses. **ACWI is the null**: the decision rule proposes stocks only when
 the modelled edge after costs clears `propose.min_edge`, the holdout agrees, and the bad-case drawdown is within
 the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, answer.
 
@@ -31,14 +32,21 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
   ACWI weights, holdings without a price), `exposure_now` (weights and active weights vs ACWI by sector, region,
   currency), `gates.excluded` (reason → tickers), `shortlist` (score parts: `c_momentum`, `c_qv`, `pen_vol`,
   `pen_stretch`, `pen_corr`, `corr_book`; `in_rule_basket`, `passed_over` with why), `rule_basket` (picks, sizing,
-  filler), `study` (the rule study for this tilt and size: `drift_gross`, `basis`, `stale`, `us_only`), `ask`
-  (aktiesparekonto notes) and **`draft_picks`**: the rule basket as a picks file with the standard exits.
+  filler), `study` (the rule study for this tilt and size: `drift_gross`, `basis`, `stale`, `us_only`; see the
+  model fields below), `trend` (ACWI vs its 10-month average), `ask` (aktiesparekonto notes) and
+  **`draft_picks`**: the rule basket as a picks file with the standard exits.
 - **`evaluate`**: `constraints` (each `ok` with detail), `size` (quantity, value, fee, spread and round-trip cost per
   name; `leftover_dkk`), `filler`, `exposure.before/after/basket`, `factors` (loadings on ACWI and MTUM/VLUE/QUAL/USMV
   tilts, with t), `risk.basket/before/after` (vol, beta, tracking error, diversification ratio, risk contributions),
-  `model` (`drift_gross` from the study, `cost_pct`, `drift_net`, `bootstrap` with `excess` p10/median/p90,
+  `model` (`drift_gross`, `cost_pct`, `drift_net`, `bootstrap` with `excess` p10/median/p90,
   `p_beat`, `max_dd`), `drawdown` (`expected`, `bad_case`, `lenses`), `stress` (per window: coverage, return, max
-  DD, ACWI's), `alternatives` (A0–A6, same metrics), `decision` (`verdict`, `why`, `checks`, `unchecked`).
+  DD, ACWI's), `alternatives` (A0–A6, same metrics), `decision` (`verdict`, `why`, `checks`, `unchecked`),
+  `untested_kv` (picks outside the US in a K+V tilt: the rule study never tested them).
+- **The drift, step by step** (`model.study[H]`): `drift_gross_raw` (the study's mean) → `haircut.used` (the
+  configured haircut, or the long-run study's survivorship gauge when larger; `haircut.basis`) → `drift_short` →
+  shrunk toward `prior.mean` (`prior.basis`: region, trend, independent periods; `prior.regions`: developed,
+  ex-US and US side by side) with weight `w_short` on the study → `drift_gross`. A small `w_short` means the
+  study is too noisy to move far from the decades of evidence; say so.
 - **Statistics to respect**: the study's `effective_n` (dates ÷ horizon) is the number of roughly independent
   periods; `t` is Newey-West. An excess with |t| < 2 or a holdout of the opposite sign is weak evidence. Value and
   mix tilts are tested on US stocks only (`us_only`).
@@ -57,8 +65,8 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
 3. **Ask once** (one AskUserQuestion call), only for what the arguments and `notes/investor.md` don't settle:
    - **Tilt**: Momentum / Value (K+V) / Mix. In each option's description quote the rule study's evidence for that
      tilt at the default size and horizon: the mean excess with its t, the holdout's sign, and the figure for
-     today's regime when it has enough dates (e.g. "momentum: +3 % per 6 months, t 1.4, holdout positive; weaker
-     in Risk-off"). Don't recommend the tilt that looked best in the study: that is snooping; the user chooses.
+     today's regime when it has enough dates, then the long-run prior and the shrunk drift (e.g. "momentum: study
+     +3 % per 6 months, t 1.4, holdout positive; long run +1 % (developed, uptrend); model +1.5 %"). Don't recommend the tilt that looked best in the study: that is snooping; the user chooses.
    - **Mode**: conviction (best scores) or fill-gaps (prefer sectors the portfolio is underweight vs ACWI).
    - **Horizon**: 3 or 6 months (default from `investor.md`, else 6).
    - **Number of names**: default amount ÷ min ticket (capped at `max_names`); mention that the frontier (A3)
@@ -92,7 +100,8 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
 
 7. **Red team.** Launch a general-purpose subagent with the evaluation JSON and the picks' `why`: "Argue the
    strongest case against this basket and for the best alternative in `alternatives` (usually A0, ACWI). Use only
-   the numbers given plus at most three web searches. List the three facts that would most change the verdict."
+   the numbers given, the long-run base rates in `reports/longrun-study.json` (`base_rates`, `priors`,
+   `survivorship`), plus at most three web searches. List the three facts that would most change the verdict."
    Put its answer, condensed, in the memo, with your response to each point.
 
 8. **Write the memo** (template below), then reply with the summary table, the alternatives table and the link.
@@ -139,8 +148,11 @@ Total round-trip cost <x DKK, y %>; fee model <schedule or flat bp>.
 Factor loadings of the basket (MTUM/VLUE/QUAL/USMV, with t): …
 
 ## Modelled return and risk vs ACWI (<H> months)
-- Excess over ACWI after costs: <drift_net> (from the rule study: <basis>, n <n_used>, eff. N <…>, t <…>, holdout
-  <…>; survivorship haircut <…>; gross <drift_gross_raw>). Band (bootstrap) <p10> to <p90>; P(beat ACWI) <…>.
+- Excess over ACWI after costs: <drift_net>. Rule study: <drift_gross_raw> gross (<basis>, n <n_used>, eff. N <…>,
+  t <…>, holdout <…>) → <drift_short> after a <haircut.used> survivorship haircut (<haircut.basis>) → <drift_gross>
+  shrunk toward the long-run prior <prior.mean> (<prior.basis>; ex US <…>, US <…>), weight on the study <w_short>.
+  Band (bootstrap) <p10> to <p90>; P(beat ACWI) <…>.
+- Untested: <untested_kv, or "none">.
 - **Expected max drawdown <expected>; bad case <bad_case>.** Lenses: study <median/p10>, bootstrap <median/p10>,
   stress windows: <table: window, coverage, basket, ACWI>. Realised 1y / 3y drawdown of today's weights: <…>.
 
@@ -173,7 +185,8 @@ costs tax too; an after-tax illustration of the modelled median>
 
 ## Ground rules
 - Missing is n/a; never fill in a number the JSON doesn't have.
-- The drift comes only from the rule study. The bootstrap and stress windows describe risk, not a forecast;
+- The drift comes from the rule study shrunk toward the long-run prior, never from the picks' own past. The
+  bootstrap and stress windows describe risk, not a forecast;
   ACWI's drift in the bootstrap is an assumption (`propose.acwi_drift_annual`): say so.
 - Freeze before evaluating; at most `max_swaps` swaps, each with a reason; one repair pass for a failed constraint.
 - Say plainly when the verdict is A0, and don't argue the user out of it.
