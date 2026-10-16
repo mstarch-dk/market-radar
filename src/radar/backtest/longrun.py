@@ -39,11 +39,12 @@ import pandas as pd
 from .. import factors, ingest
 from ..config import settings, write_text
 from ..paths import REPORTS
-from .study import QUANTILES, _diff_t, _json, _mean, _verdict, cross_section, nw_t, pct, summarize
+from ..model.score import COMPONENTS, weighted_pct
+from ..model.score import mean_pct as pct
+from .study import QUANTILES, _diff_t, _json, _mean, _verdict, cross_section, nw_t, summarize
 
 REPORT_FILE = "longrun-study.json"
 BASELINE = "score"
-COMPONENTS = ("r12_1", "r6m", "r3m")
 
 
 def _cfg() -> dict:
@@ -69,11 +70,7 @@ def components(r: pd.DataFrame) -> dict[str, pd.DataFrame]:
             "r12": window(r, 12), "r6_1": window(r, 5, 1), "r3_1": window(r, 2, 1)}
 
 
-def wpct(df: pd.DataFrame, weights: dict[str, float]) -> pd.Series:
-    """Weighted mean percentile (0-100) of the columns, as study.pct; missing if any column is missing."""
-    cols = {c: (df[c].rank(method="min") - 1) / df[c].notna().sum() for c in weights}
-    tot = sum(weights.values())
-    return sum(cols[c] * w for c, w in weights.items()) / tot * 100
+wpct = weighted_pct
 
 
 # ---------------- variants ----------------

@@ -78,6 +78,17 @@ Your data now lives apart from the program, so a new version never touches it.
   2008, in today's ACWI trend when that split has enough periods; ex US and US shown beside it. `evaluate` flags
   K+V picks outside the US (`untested_kv`). The skills (`/propose-portfolio`, `/hindsight`, `/compare`) quote
   the long-run evidence. The prior is model, not rule: it doesn't make `propose-study.json` stale.
+- **One kernel for the app and the studies** (`src/radar/model/`): the momentum score's percentile rule
+  (`model/score.py`), the point-in-time panels and the ranked universe (`model/panels.py`), the caps
+  (`model/select.py`) and the trend exit (`model/paths.py`) are defined once. My holdings, profiles, the Momentum
+  and Discover pages, the regime, the A/B test, the proposals and every study call them, so what the studies
+  test is what the app shows. `radar run`, the API, the A/B test and live proposals no longer import
+  `radar.backtest`.
+  - The momentum score is the share of names strictly below everywhere (was pandas' `rank(pct=True)` on the
+    Momentum and Discover pages, the regime and the A/B test): the same order, but a region's strongest name
+    now gets 100 x (N-1)/N and its weakest 0 (on a 40-name list about 2.5 points lower than before). A stock
+    alone in its Discover market has no score.
+  - The trend exit in `radar propose review` never triggers on the buy day, as in `radar study propose`.
 - **Ten years of prices** (`history_years: 10`, was 6): `radar study score` gets about twice the month-ends and
   the 2020 Covid crash. The first update after upgrading downloads every price history again.
 - **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a

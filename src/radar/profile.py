@@ -18,7 +18,8 @@ import pandas as pd
 from . import dashboard, external, ingest, mine, universe
 from .config import settings, universe_config
 from .paths import PRICES_FILE
-from .mine import _fx_to_dkk, _pct_vs
+from .mine import _fx_to_dkk
+from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
 
@@ -345,7 +346,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
         r = in_group.iloc[0]
         score, rank, basis = r["score"], int(r["rank"]) if pd.notna(r["rank"]) else None, "rank in its stock group"
     else:
-        score, rank = _pct_vs(pool, pd.Series(m)), None
+        score, rank = score_vs(pool, pd.Series(m)), None
         basis = f"percentile against the {pool['region'].iloc[0] if len(pool) else region} stock group (not a member)"
     mom = _section(OK, "radar (prices)", last_date, **{k: v for k, v in m.items() if k != "ticker"},
                    score=score, rank=rank, group_size=int(len(pool)), score_basis=basis,

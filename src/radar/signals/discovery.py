@@ -16,7 +16,8 @@ def scores(closes: pd.DataFrame, volumes: pd.DataFrame, tickers: list[str], min_
     c = closes.iloc[:len(closes) - back] if back else closes
     v = volumes.iloc[:len(volumes) - back] if back else volumes
     m = momentum.metrics(c, v, tickers, min_history)
-    m["score"] = momentum.score(m)
+    s = momentum.score(m)
+    m["score"] = s if s.notna().sum() >= 2 else s * np.nan     # alone in its market: no peers to rank against
     return m.set_index("ticker")
 
 

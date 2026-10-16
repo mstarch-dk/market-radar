@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from . import external, universe
+from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
 
@@ -14,16 +15,6 @@ METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma2
 POSITION_KEYS = ("quantity", "avg_price", "first_trade", "last_sell_date", "last_sell_price")
 RS_HIGH_DAYS = 5      # flag: the RS line against ACWI (both in DKK) made a new 52-week high within this many sessions
 CROSS_DAYS = 20       # flag: the 50-day average crossed the 200-day within this many sessions
-
-
-def _pct_vs(dist: pd.DataFrame, row: pd.Series) -> float | None:
-    vals = []
-    for col in ("r12_1", "r6m", "r3m"):
-        d = dist[col].dropna()
-        if pd.isna(row[col]) or d.empty:
-            return None
-        vals.append((d < row[col]).mean())
-    return round(100 * sum(vals) / len(vals), 1)
 
 
 _fx_to_dkk = universe.fx_to_dkk
@@ -76,7 +67,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     b = closes[bench].dropna()
     rel3 = b.iloc[-1] / b.iloc[-64] - 1
     df["rel_r3m"] = df["r3m"] - rel3
-    df["score"] = [_pct_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
+    df["score"] = [score_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
 
     ccy = universe.currencies([*df["symbol"], bench])
     bench_dkk = (b * _fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()

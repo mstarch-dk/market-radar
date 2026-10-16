@@ -55,9 +55,9 @@ def test_score_is_mean_percentile_and_nan_without_full_history():
     assert pd.isna(lead.loc["D", "score"])                              # no 12-1 return: not ranked as a leader
     assert lead.loc["A", "score"] > lead.loc["B", "score"] > lead.loc["C", "score"]
     assert lead.loc["A", "rank"] == 1 and lead.loc["C", "rank"] == 3
-    # D has no 12-1 return but its faster 6m/3m returns still count in those rankings, so A is 1st of 3
-    # on 12-1 and 3rd of 4 on 6m and 3m
-    assert lead.loc["A", "score"] == pytest.approx(round((1 + 0.75 + 0.75) / 3 * 100, 1))
+    # D has no 12-1 return but its faster 6m/3m returns still count in those rankings, so A has 2 of 3 names
+    # strictly below it on 12-1 and 2 of 4 on 6m and 3m (model.score: the share strictly below)
+    assert lead.loc["A", "score"] == pytest.approx(round((2 / 3 + 2 / 4 + 2 / 4) / 3 * 100, 1))
 
 
 def test_ranks_are_per_region():

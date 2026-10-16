@@ -24,7 +24,7 @@ from datetime import date
 import pandas as pd
 
 from . import performance, simulate, universe, userstore
-from .backtest.picks import _capped
+from .model.select import capped
 from .config import settings
 
 TAG = "ab-qvm"
@@ -83,7 +83,7 @@ def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
 
 def picks(ranked: pd.DataFrame, n: int, max_per_sector: int | None) -> list[dict]:
     """The top `n` under the sector cap, equal weights."""
-    chosen = _capped(list(ranked.itertuples(index=False)), n, max_per_sector, None)
+    chosen = capped(list(ranked.itertuples(index=False)), n, max_per_sector, None)
     return [{"ticker": r.ticker, "weight": 1 / len(chosen), "score": round(float(r.score), 1)} for r in chosen]
 
 

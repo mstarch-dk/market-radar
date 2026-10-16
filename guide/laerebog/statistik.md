@@ -126,7 +126,7 @@ To steder er dagens værdi med i historikken, så den kun tæller i nævneren: e
 
 ### Rang inden for en gruppe
 
-Momentumscoren bruger pandas' `rank(pct=True)`: rang divideret med antallet af værdier i gruppen, hvor lige store værdier får gennemsnitsrangen. Den højeste får 1 (100), den laveste $1/n$. Holdings, der sammenlignes med hele aktieuniverset, bruger derimod andelen strengt under. Forskellen forklares med tal i [Radarens momentumscore](laerebog/momentumscore).
+Momentumscoren bruger andelen strengt under inden for gruppen (regionen, eller hele universet for dine beholdninger): den laveste får 0, den højeste $(n-1)/n$, og lige store værdier får samme percentil. Den samme regel bruges overalt, også i testene af scoren. Tal i [Radarens momentumscore](laerebog/momentumscore).
 
 ### Regression med standardfejl
 
@@ -166,7 +166,7 @@ Fire aktier har 3-måneders afkast på 3 %, 7 %, 7 % og 10 %:
 | 7 % | 2,5 | 0,625 | 0,25 |
 | 10 % | 4 | 1,00 | 0,75 |
 
-De to metoder rangerer ens, men niveauet er forskudt.
+De to metoder rangerer ens, men niveauet er forskudt. Radaren bruger andelen strengt under; `rank(pct=True)` står kun til sammenligning.
 
 ### Regression
 
