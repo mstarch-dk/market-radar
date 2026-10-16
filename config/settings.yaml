@@ -109,7 +109,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     - "Earnings revisions: FactSet for the S&P 500; elsewhere only changes in Yahoo's consensus between snapshots (names that report in another currency than they trade in are left out, as Yahoo converts their estimates at today's rate)."
     - "Flows and sentiment: no fund flows, fund manager survey, short interest or insider activity. Sentiment is the AAII survey and CBOE put/call ratios, both US-centred."
     - "Macro and credit are mostly US (FRED). Europe is seen through the euro high-yield spread, the euro-area 10Y yield (ECB), the OECD leading indicator and price trends; no euro-area inflation (the official series stops at Dec 2025 in the free sources)."
-    - "Company fundamentals beyond Yahoo's summary (margins, balance sheets, guidance) are not modelled."
+    - "Company fundamentals come from financial statements: SEC EDGAR (official, US only) and Yahoo (unofficial, about four years deep, half-yearly for many European companies). IFRS and US GAAP differ (leases, R&D), one-off items are taken as reported, and guidance is not modelled."
     - "The universe is a sample: US = today's S&P 500, so breadth history has survivorship bias; Europe, Nordic and Asia are curated lists."
     - "Discover widens the search (Nordic and European listings from Yahoo's screener, the STOXX 600, positive-list ETFs), but it is still Yahoo data: small caps are noisier, thinly traded names can jump, and today's list has no delisted names."
     - "News, events and policy only enter through the web research in /market-brief."
@@ -172,6 +172,41 @@ fundamentals:              # src/radar/fundamentals/: financial statements (SEC 
     max_per_run: 150       # stocks per update (8 requests each)
     min_ok_share: 0.5      # fewer answering stocks than this share makes the step fail (what worked is kept)
     assumed_lag_days: {quarterly: 45, annual: 75}   # a first fetch's values: assumed public this long after the period end
+  # the kvalitetsscore and værdiscore (signals/fundamentals.py, fundamentals/context.py)
+  top_n: 20                # names per region on the Quality & value page
+  min_sector_peers: 8      # a metric is ranked within the sector (all regions pooled) when this many peers have it, else in the whole set
+  financial_industries: [Banks - Diversified, Banks - Regional, Insurance - Life, Insurance - Property & Casualty,
+                         Insurance - Diversified, Insurance - Reinsurance, Insurance - Specialty, Mortgage Finance]
+  ttm_max_age_days: 200    # a last-twelve-months figure (or balance) ending longer ago than this is left out
+  annual_max_age_days: 460 # the latest fiscal year must end within this for the stability metrics
+  stability_years: 5       # fiscal years behind margin spread, revenue steadiness and ROE spread ...
+  min_fy_points: 4         # ... of which at least this many
+  ey_history_years: 5      # EBIT/EV (E/P) against the company's own fiscal year-ends this far back ...
+  ey_history_min_points: 4 # ... with at least this many points, today included
+  interest_cover_cap: 100  # EBIT / interest above this counts as this (and next to no debt as the cap)
+  shares_low: 0.7          # reported shares outside shares_low–shares_high times diluted shares: diluted shares are used
+  shares_high: 1.3
+  mcap_check: 0.25         # our market value further than this from Yahoo's: Yahoo's is used (noted)
+  ranges:                  # a metric outside its range is a unit or data error: left out, with a note
+    fcf_margin: [-2, 1]
+    roic: [-1, 2]
+    nd_ebitda: [-20, 20]
+    fcf_yield: [-0.5, 0.5]
+    ebit_ev: [-1, 1]
+    shareholder_yield: [-0.5, 0.5]
+    roe: [-1, 1]
+  quality:
+    weights: {profitability: 0.35, durability: 0.25, balance: 0.25, record: 0.15}
+    min_pillars: 3         # a kvalitetsscore needs this many of the four pillars ...
+    required: [profitability]   # ... including these
+  value:
+    weights: {fcf_yield: 0.3, ebit_ev: 0.3, shareholder_yield: 0.2, ey_vs_history: 0.2}
+    min_components: 3      # a værdiscore needs this many of its four metrics ...
+    required_any: [fcf_yield, ebit_ev]   # ... one of these among them
+  financial_value:         # banks and insurers
+    weights: {bp: 0.3, ep: 0.3, shareholder_yield: 0.2, ep_vs_history: 0.2}
+    min_components: 3
+    required_any: [bp, ep]
 
 sentiment:                 # src/radar/sentiment.py
   putcall_backfill_days: 365
@@ -231,6 +266,18 @@ gauges:                    # graded readings (signals/gauges.py): colour by clos
     scale: diverging
     anchors: [[0, -1], [25, -0.5], [40, 0], [60, 0], [80, 0.6], [95, 1]]
     labels: [[25, weak], [40, below average], [60, average], [80, strong], [null, leader]]
+    ticks: [40, 60, 80]
+    range: [0, 100]
+  quality_score:           # kvalitetsscore (signals/fundamentals.py), a mean of percentiles like the momentum score
+    scale: diverging
+    anchors: [[0, -1], [25, -0.5], [40, 0], [60, 0], [80, 0.6], [95, 1]]
+    labels: [[25, weak], [40, below average], [60, average], [80, strong], [null, top quality]]
+    ticks: [40, 60, 80]
+    range: [0, 100]
+  value_score:             # værdiscore: high = cheap against peers
+    scale: diverging
+    anchors: [[0, -1], [25, -0.5], [40, 0], [60, 0], [80, 0.6], [95, 1]]
+    labels: [[25, expensive], [40, above peers], [60, in line], [80, cheap], [null, very cheap]]
     ticks: [40, 60, 80]
     range: [0, 100]
   stop_dist:               # stop vs price (negative = stop below the price)

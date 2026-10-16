@@ -110,6 +110,8 @@ Appen kan kun nås fra din egen computer. Kører den allerede, siger `serve` det
 
 `radar info` skriver alt, hvad radaren ved om et navn, som JSON. Følger radaren ikke navnet, hentes kurserne først.
 
+For en aktie med gemte regnskaber er kvalitets- og værdiscoren med i afsnittet `quality`, med hvert nøgletal og dets percentil blandt sammenlignelige aktier. Se [Radarens kvalitets- og værdiscore](laerebog/kvalitetsscore).
+
 ```
 uv run radar info NOVO-B.CO
 uv run radar info NOVO-B.CO --refresh        # hent Yahoos nøgletal og estimater på ny

@@ -26,7 +26,7 @@ ETFS_FILE = HISTORY / "valuation" / "etfs.parquet"
 MARKET_FILE = CACHE / "valuation" / "market.parquet"        # each series replaced from its source: cache
 
 STOCK_COLS = ["date", "ticker", "quote_type", "currency", "financial_currency", "cross_ccy", "price", "eps_ttm", "eps_cy",
-              "eps_fy1", "pe_ttm", "pe_cy", "pe_fy1", "pb", "div_yield", "earnings_date", "note"]
+              "eps_fy1", "pe_ttm", "pe_cy", "pe_fy1", "pb", "div_yield", "earnings_date", "market_cap", "note"]
 ETF_COLS = ["date", "ticker", "pe", "pb", "ps", "pcf", "note"]
 
 
@@ -126,7 +126,8 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
            "cross_ccy": bool(base and fin and base != fin), "price": px_trade,
            "eps_ttm": eps["ttm"], "eps_cy": eps["cy"], "eps_fy1": eps["fy1"],
            "pe_ttm": pe("ttm", px_trade), "pe_cy": pe_cy, "pe_fy1": pe_fy1, "pb": pb, "div_yield": dy,
-           "earnings_date": _local_day(ts, q.get("exchangeTimezoneName")) if ts else None}
+           "earnings_date": _local_day(ts, q.get("exchangeTimezoneName")) if ts else None,
+           "market_cap": _num(q.get("marketCap"))}       # Yahoo's, in the trading currency (a check on ours)
     yahoo = _num(q.get("forwardPE"))
     if out["pe_fy1"] and yahoo and abs(yahoo / out["pe_fy1"] - 1) > 0.05:
         notes.append(f"Yahoo's own forward P/E is {yahoo:.1f}")
@@ -142,7 +143,7 @@ def info_as_quote(symbol: str, info: dict) -> dict:
             "epsForward": info.get("forwardEps"), "bookValue": info.get("bookValue"),
             "trailingAnnualDividendYield": info.get("trailingAnnualDividendYield"),
             "earningsTimestamp": info.get("earningsTimestamp"), "forwardPE": info.get("forwardPE"),
-            "exchangeTimezoneName": info.get("exchangeTimezoneName")}
+            "exchangeTimezoneName": info.get("exchangeTimezoneName"), "marketCap": info.get("marketCap")}
 
 
 def _screen_codes() -> dict[str, dict]:

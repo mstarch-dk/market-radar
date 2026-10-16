@@ -339,6 +339,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Quality
+         * @description Kvalitetsscore and værdiscore per region, from the last `radar run`.
+         */
+        get: operations["get_quality_api_quality_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/positioning": {
         parameters: {
             query?: never;
@@ -1993,6 +2013,34 @@ export interface components {
              */
             tags: string[];
         };
+        /** FundMetric */
+        FundMetric: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value?: number | null;
+            /** Pct */
+            pct?: number | null;
+            /** Basis */
+            basis?: ("sector" | "universe") | null;
+            /** Peers */
+            peers?: number | null;
+            /** Pillar */
+            pillar: string;
+        };
+        /** FundYear */
+        FundYear: {
+            /** Year */
+            year: string;
+            /** Revenue */
+            revenue?: number | null;
+            /** Gross Margin */
+            gross_margin?: number | null;
+            /** Fcf Margin */
+            fcf_margin?: number | null;
+        };
         /** Fundamentals */
         Fundamentals: {
             /**
@@ -2702,6 +2750,35 @@ export interface components {
         };
         /** MomentumRow */
         MomentumRow: {
+            /** Quality */
+            quality?: number | null;
+            /** Value */
+            value?: number | null;
+            /** Qv */
+            qv?: number | null;
+            /** Q N */
+            q_n?: number | null;
+            /** V N */
+            v_n?: number | null;
+            /** Fund Set */
+            fund_set?: ("standard" | "financial") | null;
+            /** Fund Source */
+            fund_source?: ("edgar" | "yahoo") | null;
+            /** Fund Period End */
+            fund_period_end?: string | null;
+            /** Fcf Yield */
+            fcf_yield?: number | null;
+            /** Ev Ebit */
+            ev_ebit?: number | null;
+            /** Roic */
+            roic?: number | null;
+            /**
+             * Fund Gauges
+             * @default {}
+             */
+            fund_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
             /** Pe Fy1 */
             pe_fy1?: number | null;
             /** Pe Cy */
@@ -2847,6 +2924,35 @@ export interface components {
         };
         /** MyRow */
         MyRow: {
+            /** Quality */
+            quality?: number | null;
+            /** Value */
+            value?: number | null;
+            /** Qv */
+            qv?: number | null;
+            /** Q N */
+            q_n?: number | null;
+            /** V N */
+            v_n?: number | null;
+            /** Fund Set */
+            fund_set?: ("standard" | "financial") | null;
+            /** Fund Source */
+            fund_source?: ("edgar" | "yahoo") | null;
+            /** Fund Period End */
+            fund_period_end?: string | null;
+            /** Fcf Yield */
+            fcf_yield?: number | null;
+            /** Ev Ebit */
+            ev_ebit?: number | null;
+            /** Roic */
+            roic?: number | null;
+            /**
+             * Fund Gauges
+             * @default {}
+             */
+            fund_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
             /** Pe */
             pe?: number | null;
             /** Pe Vs Acwi */
@@ -3615,6 +3721,7 @@ export interface components {
             risk?: components["schemas"]["Risk"] | null;
             analyst: components["schemas"]["Analyst"];
             fundamentals: components["schemas"]["Fundamentals"];
+            quality?: components["schemas"]["QualityCard"] | null;
             etf?: components["schemas"]["Etf"] | null;
             peers: components["schemas"]["Peers"];
             context: components["schemas"]["Context"];
@@ -3637,6 +3744,210 @@ export interface components {
             /** Days */
             days: number;
             gauge?: components["schemas"]["Gauge"] | null;
+        };
+        /**
+         * QualityCard
+         * @description The ticker page's kvalitetsscore and værdiscore: scores, every metric with its percentile, the years.
+         */
+        QualityCard: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "stale" | "missing";
+            /** Source */
+            source: string;
+            /** Asof */
+            asof?: string | null;
+            /** Quality */
+            quality?: number | null;
+            /** Value */
+            value?: number | null;
+            /** Qv */
+            qv?: number | null;
+            /** Q N */
+            q_n?: number | null;
+            /** V N */
+            v_n?: number | null;
+            /** Fund Set */
+            fund_set?: ("standard" | "financial") | null;
+            /** Fund Source */
+            fund_source?: ("edgar" | "yahoo") | null;
+            /** Period End */
+            period_end?: string | null;
+            /** Filed */
+            filed?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Ttm Basis */
+            ttm_basis?: string | null;
+            /** Ev Ebit */
+            ev_ebit?: number | null;
+            /** Market Cap */
+            market_cap?: number | null;
+            /**
+             * Pillars
+             * @default {}
+             */
+            pillars: {
+                [key: string]: number | null;
+            };
+            /**
+             * Metrics
+             * @default []
+             */
+            metrics: components["schemas"]["FundMetric"][];
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["FundYear"][];
+            /**
+             * Notes
+             * @default []
+             */
+            notes: string[];
+            /**
+             * Gauges
+             * @default {}
+             */
+            gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+        };
+        /** QualityCoverage */
+        QualityCoverage: {
+            /** Stocks */
+            stocks: number;
+            /** Quality */
+            quality: number;
+            /** Value */
+            value: number;
+            /** Edgar */
+            edgar: number;
+            /** Yahoo */
+            yahoo: number;
+        };
+        /** QualityRegion */
+        QualityRegion: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Rows */
+            rows: components["schemas"]["QualityRow"][];
+            /** Entrants */
+            entrants: string[];
+            /** Dropped */
+            dropped: string[];
+            coverage: components["schemas"]["QualityCoverage"];
+        };
+        /**
+         * QualityRow
+         * @description One stock on the Quality & value page: its scores, ranks within the region, pillars and headline metrics.
+         */
+        QualityRow: {
+            /** Quality */
+            quality?: number | null;
+            /** Value */
+            value?: number | null;
+            /** Qv */
+            qv?: number | null;
+            /** Q N */
+            q_n?: number | null;
+            /** V N */
+            v_n?: number | null;
+            /** Fund Set */
+            fund_set?: ("standard" | "financial") | null;
+            /** Fund Source */
+            fund_source?: ("edgar" | "yahoo") | null;
+            /** Fund Period End */
+            fund_period_end?: string | null;
+            /** Fcf Yield */
+            fcf_yield?: number | null;
+            /** Ev Ebit */
+            ev_ebit?: number | null;
+            /** Roic */
+            roic?: number | null;
+            /**
+             * Fund Gauges
+             * @default {}
+             */
+            fund_gauges: {
+                [key: string]: components["schemas"]["Gauge"];
+            };
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name?: string | null;
+            /** Sector */
+            sector?: string | null;
+            /** Industry */
+            industry?: string | null;
+            /** Region */
+            region: string;
+            /** Rank Qv */
+            rank_qv?: number | null;
+            /** Rank Q */
+            rank_q?: number | null;
+            /** Rank V */
+            rank_v?: number | null;
+            /** Fcf Margin */
+            fcf_margin?: number | null;
+            /** Gm Stability */
+            gm_stability?: number | null;
+            /** Rev Stability */
+            rev_stability?: number | null;
+            /** Rev Cagr */
+            rev_cagr?: number | null;
+            /** Nd Ebitda */
+            nd_ebitda?: number | null;
+            /** Interest Cover */
+            interest_cover?: number | null;
+            /** Div Years */
+            div_years?: number | null;
+            /** Shareholder Yield */
+            shareholder_yield?: number | null;
+            /** Ey Vs History */
+            ey_vs_history?: number | null;
+            /** Roe */
+            roe?: number | null;
+            /** Pb */
+            pb?: number | null;
+            /** Q Profitability */
+            q_profitability?: number | null;
+            /** Q Durability */
+            q_durability?: number | null;
+            /** Q Balance */
+            q_balance?: number | null;
+            /** Q Record */
+            q_record?: number | null;
+            /** Momentum */
+            momentum?: number | null;
+            /** New */
+            new: boolean;
+            /**
+             * Notes
+             * @default []
+             */
+            notes: string[];
+        };
+        /** QualityView */
+        QualityView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Age Days */
+            age_days: number;
+            /** Stale */
+            stale: boolean;
+            /** Prev */
+            prev?: string | null;
+            /** Top N */
+            top_n: number;
+            /** Regions */
+            regions: components["schemas"]["QualityRegion"][];
         };
         /** RateLatest */
         RateLatest: {
@@ -5273,6 +5584,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MomentumView"];
+                };
+            };
+        };
+    };
+    get_quality_api_quality_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityView"];
                 };
             };
         };

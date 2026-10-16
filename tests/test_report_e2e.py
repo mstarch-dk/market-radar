@@ -36,7 +36,8 @@ def test_summary_schema(summary):
     assert set(summary) - {"_res", "_dash"} == {
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
-        "earnings_factset", "stale_tickers", "behind_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment"}
+        "earnings_factset", "stale_tickers", "behind_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment",
+        "quality_top10", "quality_new_entrants", "quality_coverage"}
     assert summary["asof"] == IDX[-1].date().isoformat()
 
 
@@ -111,6 +112,29 @@ def test_dashboard_matches_the_api_models(summary):
     m.MomentumView.model_validate(head | d["momentum"])
     m.PositioningView.model_validate(head | d["positioning"])
     m.CoverageView.model_validate(head | d["coverage"])
+    m.QualityView.model_validate(head | d["quality"])
+
+
+def test_quality_and_value_scores(summary):
+    """The world's statements reach the Quality & value section: the best business ranks first in its region,
+    the bank is scored on the financial set, and momentum rows and holdings carry the scores."""
+    d = summary["_dash"]
+    us = next(r for r in d["quality"]["regions"] if r["key"] == "us")
+    assert us["coverage"] == {"stocks": 6, "quality": 5, "value": 5, "edgar": 0, "yahoo": 6}
+    by = {r["ticker"]: r for r in us["rows"]}
+    assert us["rows"][0]["ticker"] == "S1" and by["S1"]["rank_q"] == 1
+    assert by["S1"]["quality"] > by["S5"]["quality"]
+    # the world's only bank: measured on the financial set, but with no other bank to rank it against, no score
+    assert by["S6"]["fund_set"] == "financial" and by["S6"]["fcf_yield"] is None and by["S6"]["roe"] > 0
+    assert by["S6"]["quality"] is None and by["S6"]["q_n"] == 0 and by["S6"]["rank_qv"] is None
+    # ~14 months of prices: no complete calendar year for the dividend record, so three pillars, not four
+    assert by["S1"]["momentum"] is not None and by["S1"]["q_n"] == 3 and by["S1"]["q_record"] is None
+    mom = next(r for r in d["momentum"]["regions"] if r["key"] == "us")["rows"]
+    assert all("quality" in r for r in mom)
+    s1 = next(r for r in summary["me"] if r["symbol"] == "S1")
+    assert s1["quality"] == by["S1"]["quality"]
+    assert summary["quality_top10"]["us"][0]["ticker"] == "S1"
+    assert summary["quality_coverage"]["europe"]["quality"] == 3
 
 
 def test_dashboard_charts_and_rotation_graph(summary):

@@ -52,6 +52,23 @@ class FundValuation(Strict):
     val_gauges: dict[str, Gauge] = {}
 
 
+class StockFundamentals(Strict):
+    """A stock's kvalitetsscore and værdiscore (signals/fundamentals.py), 0–100 among its sector's peers, with
+    how many of the four quality pillars and four value metrics they rest on (None: too few to score)."""
+    quality: Num = None
+    value: Num = None
+    qv: Num = None                         # the mean of the two, only when both exist
+    q_n: int | None = None
+    v_n: int | None = None
+    fund_set: Literal["standard", "financial"] | None = None
+    fund_source: Literal["edgar", "yahoo"] | None = None
+    fund_period_end: str | None = None
+    fcf_yield: Num = None
+    ev_ebit: Num = None
+    roic: Num = None
+    fund_gauges: dict[str, Gauge] = {}
+
+
 class Watchout(Strict):
     key: str
     label: str
@@ -346,6 +363,45 @@ class Fundamentals(Section):
     snapshot: ValuationSnapshot | None = None
 
 
+class FundMetric(Strict):
+    key: str
+    label: str
+    value: Num = None
+    pct: Num = None                        # percentile among the peers (0–100, higher = better for the score)
+    basis: Literal["sector", "universe"] | None = None
+    peers: int | None = None
+    pillar: str                            # profitability | durability | balance | record | value
+
+
+class FundYear(Strict):
+    year: str                              # the fiscal year's end
+    revenue: Num = None
+    gross_margin: Num = None
+    fcf_margin: Num = None
+
+
+class QualityCard(Section):
+    """The ticker page's kvalitetsscore and værdiscore: scores, every metric with its percentile, the years."""
+    quality: Num = None
+    value: Num = None
+    qv: Num = None
+    q_n: int | None = None
+    v_n: int | None = None
+    fund_set: Literal["standard", "financial"] | None = None
+    fund_source: Literal["edgar", "yahoo"] | None = None
+    period_end: str | None = None          # the latest period the figures reach
+    filed: str | None = None               # EDGAR: the latest filing date
+    currency: str | None = None            # the reporting currency of the figures
+    ttm_basis: str | None = None           # how the last twelve months were built (fy, ytd, 4q, yahoo_ttm)
+    ev_ebit: Num = None
+    market_cap: Num = None                 # in the reporting currency
+    pillars: dict[str, Num] = {}
+    metrics: list[FundMetric] = []
+    history: list[FundYear] = []
+    notes: list[str] = []
+    gauges: dict[str, Gauge] = {}
+
+
 class Holding(Strict):
     symbol: str
     name: str | None = None
@@ -419,6 +475,7 @@ class Profile(Strict):
     risk: Risk | None = None
     analyst: Analyst
     fundamentals: Fundamentals
+    quality: QualityCard | None = None     # stocks only; status "missing" without stored statements
     etf: Etf | None = None
     peers: Peers
     context: Context
@@ -641,7 +698,7 @@ class RotationView(Snapshot):
     groups: list[RotationGroup]
 
 
-class MomentumRow(StockValuation):
+class MomentumRow(StockValuation, StockFundamentals):
     ticker: str
     name: str | None = None
     sector: str | None = None
@@ -681,6 +738,59 @@ class MomentumView(Snapshot):
     prev: str | None = None
     top_n: int
     regions: list[MomentumRegion]
+
+
+class QualityRow(StockFundamentals):
+    """One stock on the Quality & value page: its scores, ranks within the region, pillars and headline metrics."""
+    ticker: str
+    name: str | None = None
+    sector: str | None = None
+    industry: str | None = None
+    region: str
+    rank_qv: int | None = None
+    rank_q: int | None = None
+    rank_v: int | None = None
+    fcf_margin: Num = None
+    gm_stability: Num = None
+    rev_stability: Num = None
+    rev_cagr: Num = None
+    nd_ebitda: Num = None
+    interest_cover: Num = None
+    div_years: int | None = None
+    shareholder_yield: Num = None
+    ey_vs_history: Num = None
+    roe: Num = None
+    pb: Num = None
+    q_profitability: Num = None
+    q_durability: Num = None
+    q_balance: Num = None
+    q_record: Num = None
+    momentum: Num = None                   # the momentum score in its region, for reading the two together
+    new: bool
+    notes: list[str] = []
+
+
+class QualityCoverage(Strict):
+    stocks: int                            # in the region's list
+    quality: int                           # with a kvalitetsscore
+    value: int
+    edgar: int                             # scored from SEC EDGAR / from Yahoo
+    yahoo: int
+
+
+class QualityRegion(Strict):
+    key: str
+    label: str
+    rows: list[QualityRow]                 # every stock with statements, best K+V first
+    entrants: list[str]
+    dropped: list[str]
+    coverage: QualityCoverage
+
+
+class QualityView(Snapshot):
+    prev: str | None = None
+    top_n: int
+    regions: list[QualityRegion]
 
 
 class DiscoveryRow(StockValuation, FundValuation):
@@ -957,7 +1067,7 @@ class MyLevels(Strict):
     analyst: MyAnalyst | None = None
 
 
-class MyRow(StockValuation, FundValuation):
+class MyRow(StockValuation, FundValuation, StockFundamentals):
     symbol: str
     name: str | None = None
     status: MyStatus

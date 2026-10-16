@@ -242,6 +242,14 @@ def _section(status: str, source: str, asof=None, **data) -> dict:
     return {"status": status, "source": source, "asof": asof, **data}
 
 
+def quality_card(ticker: str, market: Market) -> dict | None:
+    """The stock's kvalitetsscore and værdiscore card, from the scores of every tracked stock (built once per
+    price store and statement update)."""
+    from .fundamentals import context as fcontext
+
+    return fcontext.context(market.closes, market.raw_closes(), market.mtime).card(ticker)
+
+
 # ---------------- the profile ----------------
 
 def build(ticker: str, market: Market | None = None, refresh: bool = False, anonymous: bool = False) -> dict:
@@ -408,6 +416,16 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     fundamentals = _section((raw_status if any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency")) else MISSING),
                             "Yahoo Finance", detail_asof, **fund, beta_radar=beta, snapshot=_valuation_snapshot(ticker))
 
+    # --- kvalitetsscore and værdiscore (stored statements)
+    quality = None
+    if not is_fund and not etf_cfg:
+        card = quality_card(ticker, market)
+        quality = (_section(OK, "SEC EDGAR" if card["fund_source"] == "edgar" else "Yahoo statements",
+                            card["period_end"], **card) if card else
+                   _section(MISSING, "statements", None, notes=[
+                       "No financial statements stored for this stock: the radar fetches them for the stocks it "
+                       "tracks (its lists, your holdings and watchlist), a few each update."]))
+
     # --- ETF look-through
     etf = None
     if look is not None:
@@ -443,7 +461,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
                              skip=set() if status == "holding" else {"stop_dist", "tp_dist"})
     out = {"symbol": ticker, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "identity": identity, "price": price, "momentum": mom, "technicals": tech, "levels": lvl, "risk": risk_sec,
-           "analyst": analyst, "fundamentals": fundamentals, "etf": etf, "peers": peer_sec,
+           "analyst": analyst, "fundamentals": fundamentals, "quality": quality, "etf": etf, "peers": peer_sec,
            "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {},
                        "watchouts": watchouts}}
     if not anonymous:   # your market views are personal, like your positions
@@ -556,6 +574,12 @@ COMPARE_METRICS = [
     ("Return on equity", "fundamentals.return_on_equity", "higher"),
     ("Debt/equity", "fundamentals.debt_to_equity", "lower"),
     ("Dividend yield", "fundamentals.dividend_yield", None),
+    ("Kvalitetsscore", "quality.quality", "higher"),
+    ("Værdiscore", "quality.value", "higher"),
+    ("FCF yield", "derived.fcf_yield", "higher"),
+    ("ROIC", "derived.roic", "higher"),
+    ("EV/EBIT", "quality.ev_ebit", "lower"),
+    ("Shareholder yield", "derived.shareholder_yield", "higher"),
     ("Analyst upside", "analyst.upside", "higher"),
     ("Analyst target change 30d", "analyst.target_change", "higher"),
     ("EPS estimate change 30d (this year)", "analyst.eps.0y.chg_30d", "higher"),
@@ -588,6 +612,9 @@ def _derived(p: dict) -> dict:
         e = next((x for x in p["analyst"]["eps"] if x["period"] == period), None)
         ok = e and e.get("eps") and e["eps"] > 0 and (e.get("currency") or ccy) == ccy
         out[key] = price / e["eps"] if ok else None
+    metrics = {m["key"]: m.get("value") for m in ((p.get("quality") or {}).get("metrics") or [])}
+    for key in ("fcf_yield", "roic", "shareholder_yield"):
+        out[key] = metrics.get(key)
     return out
 
 

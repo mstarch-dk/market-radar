@@ -7,15 +7,19 @@ from datetime import date
 
 from . import dashboard, snapshot
 from .config import write_text
+from .fundamentals import context as fcontext
 from .paths import REPORTS
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
                     "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
 SUMMARY_MOMENTUM = ("ticker", "name", "sector", "industry", "score", "r3m", "r6m", "from_high", "new", "pe_fy1",
-                    "pe_vs_sector", "eps_rev_4w", "eps_rev_12w")
+                    "pe_vs_sector", "eps_rev_4w", "eps_rev_12w", "quality", "value", "qv")
 SUMMARY_ME = ("symbol", "name", "status", "score", "r1m", "r3m", "rel_r3m", "from_high", "since_buy", "bench_since_buy",
               "last_sell_date", "since_sell", "flags", "pe_fy1", "pe_cy", "pe_vs_sector", "eps_rev_4w", "eps_rev_12w",
-              "earnings_date", "pe", "pe_vs_acwi")
+              "earnings_date", "pe", "pe_vs_acwi", "quality", "value", "qv")
+SUMMARY_QUALITY = ("ticker", "name", "sector", "fund_set", "fund_source", "quality", "value", "qv", "q_n", "v_n",
+                   "fcf_yield", "roic", "ev_ebit", "shareholder_yield", "div_years", "momentum", "fund_period_end",
+                   "new")
 SUMMARY_SOURCES = ("key", "name", "provider", "coverage", "asof", "age_days", "status", "error")
 
 
@@ -28,6 +32,7 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
     """The compact digest the skills read. Its keys are a contract: change them only together with the skills."""
     cov = d["coverage"]
     mom = d["momentum"]["regions"]
+    qual = (d.get("quality") or {}).get("regions", [])
     return {
         "asof": d["asof"], "regime": d["regime"]["overall"],
         "indicators": [_plain(i) for i in d["regime"]["indicators"]],
@@ -38,6 +43,11 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
         "me": [{k: x.get(k) for k in SUMMARY_ME} for x in me],
         "portfolios": portfolios or [],     # your real portfolios' returns over time vs ACWI (performance.summary)
         "momentum_clusters": {r["key"]: r["clusters"] for r in mom},
+        # kvalitetsscore and værdiscore (financial statements): the top 10 by K+V per region, and the new ones
+        "quality_top10": {r["key"]: [{k: x.get(k) for k in SUMMARY_QUALITY} for x in r["rows"]
+                                     if x.get("rank_qv") is not None][:10] for r in qual},
+        "quality_new_entrants": {r["key"]: r["entrants"] for r in qual},
+        "quality_coverage": {r["key"]: r["coverage"] for r in qual},
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
@@ -84,5 +94,8 @@ def build() -> dict:
     today = date.today()
     snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), today)
     snapshot.save("momentum", c.leaders, today)
+    if not c.quality.empty:
+        snapshot.save("qv", c.quality, today)
+    fcontext.save_week(c.fctx, today)
     return {"dashboard": str(out), "asof": d["asof"], "regime": d["regime"]["overall"]["label"],
             "stale": len(d["coverage"]["stale_tickers"]), "behind": len(d["coverage"].get("behind_tickers", []))}

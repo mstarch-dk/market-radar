@@ -18,7 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 from . import dashboard, home, mine, net, ops, paths, portfolio, profile, tickers, universe, updater, userstore, valuation
 from .api_models import (
-    AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, RegimeView, RotationView, SearchHit,
+    AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, QualityView, RegimeView,
+    RotationView, SearchHit,
     Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
     PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
@@ -410,6 +411,15 @@ def get_momentum() -> dict:
     return _view("momentum")
 
 
+@app.get("/api/quality", response_model=QualityView)
+def get_quality() -> dict:
+    """Kvalitetsscore and værdiscore per region, from the last `radar run`."""
+    if "quality" not in _dashboard():
+        raise HTTPException(503, "The last report was built by an older version: update the data (or run "
+                                 "`uv run radar report`) to score the stocks.")
+    return _view("quality")
+
+
 @app.get("/api/positioning", response_model=PositioningView)
 def get_positioning() -> dict:
     return _view("positioning")
@@ -595,7 +605,10 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
                           settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
         asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
-    rows = dashboard.with_valuation(rows, valuation.context())
+        from .fundamentals import context as fcontext
+
+        fctx = fcontext.context(m.closes, m.raw_closes(), m.mtime)
+    rows = dashboard.with_fundamentals(dashboard.with_valuation(rows, valuation.context()), fctx)
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}
 

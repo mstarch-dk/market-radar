@@ -112,112 +112,138 @@ def kind(start, end) -> str | None:
     return next((k for k, lo, hi in KINDS if lo <= days <= hi), None)
 
 
-def _rows(facts: pd.DataFrame, item: str, known_by) -> pd.DataFrame:
-    d = facts[facts["item"] == item]
-    return as_known(d, known_by)
+@dataclass(frozen=True)
+class Row:
+    start: pd.Timestamp | None
+    end: pd.Timestamp
+    value: float
+    fp: str | None
+    form: str | None
+    tag: str | None
+    currency: str | None
+    known: pd.Timestamp | None
+    kind: str | None              # Q, H, 9M, FY for an EDGAR flow; None otherwise
 
 
-def _val(r, basis: str, value: float | None = None) -> Value:
-    return Value(float(r["value"] if value is None else value), pd.Timestamp(r["end"]), basis,
-                 r.get("tag"), r.get("currency"), r.get("known"))
+class View:
+    """One ticker's facts as known on a day, resolved once and split by item (rows sorted by period end): the
+    period arithmetic below runs on plain rows, so scoring hundreds of stocks stays quick."""
+
+    def __init__(self, facts: pd.DataFrame, known_by=None, resolved: bool = False):
+        d = facts if resolved else as_known(facts, known_by)     # resolved: as_known was already applied
+        self.source = d["source"].iloc[0] if len(d) else None
+        self.items: dict[str, list[Row]] = {}
+        if d.empty:
+            return
+        for r in d.sort_values(["end", "known"], kind="stable").itertuples(index=False):
+            start = None if pd.isna(r.start) else pd.Timestamp(r.start)
+            end = pd.Timestamp(r.end)
+            cur = r.currency if isinstance(r.currency, str) else None
+            self.items.setdefault(r.item, []).append(
+                Row(start, end, float(r.value), r.fp if isinstance(r.fp, str) else None,
+                    r.form if isinstance(r.form, str) else None, r.tag if isinstance(r.tag, str) else None, cur,
+                    None if pd.isna(r.known) else pd.Timestamp(r.known), kind(start, end) if start is not None else None))
+
+    def rows(self, item: str) -> list[Row]:
+        return self.items.get(item, [])
 
 
-def _near(s: pd.Series, day, days: int) -> pd.Series:
-    return (s - pd.Timestamp(day)).dt.days.abs() <= days
+def view(facts, known_by=None) -> View:
+    """`facts` as a View (a View is passed through; `known_by` then must be what it was built with)."""
+    return facts if isinstance(facts, View) else View(facts, known_by)
 
 
-def _edgar_ttm(d: pd.DataFrame) -> Value | None:
-    d = d.assign(kind=[kind(s, e) for s, e in zip(d["start"], d["end"])]).dropna(subset=["kind"])
-    if d.empty:
+def _val(r: Row, basis: str, value: float | None = None) -> Value:
+    return Value(r.value if value is None else float(value), r.end, basis, r.tag, r.currency, r.known)
+
+
+def _near(a: pd.Timestamp, b: pd.Timestamp, days: int) -> bool:
+    return abs((a - b).days) <= days
+
+
+def _edgar_ttm(rows: list[Row]) -> Value | None:
+    rows = [r for r in rows if r.kind]
+    if not rows:
         return None
-    fy = d[d["kind"] == "FY"]
-    year = timedelta(days=364)
-    for end in sorted(d["end"].unique(), reverse=True):        # the latest end that gives a TTM
-        at = d[d["end"] == end]
-        hit = at[at["kind"] == "FY"]
-        if not hit.empty:
-            return _val(hit.iloc[-1], "fy")
-        for _, ytd in at.sort_values("start").iterrows():          # earliest start = the longest year to date
-            prev_fy = fy[_near(fy["end"], ytd["start"] - timedelta(days=1), 7)]
-            if prev_fy.empty:
+    fy = [r for r in rows if r.kind == "FY"]
+    year, day = timedelta(days=364), timedelta(days=1)
+    for end in sorted({r.end for r in rows}, reverse=True):        # the latest end that gives a TTM
+        at = [r for r in rows if r.end == end]
+        hit = [r for r in at if r.kind == "FY"]
+        if hit:
+            return _val(hit[-1], "fy")
+        for ytd in sorted(at, key=lambda r: r.start):               # earliest start = the longest year to date
+            prev_fy = [r for r in fy if _near(r.end, ytd.start - day, 7)]
+            if not prev_fy:
                 continue                                           # not a year to date (a discrete quarter)
-            prior = d[(d["kind"] == ytd["kind"]) & _near(d["end"], ytd["end"] - year, 20)
-                      & _near(d["start"], ytd["start"] - year, 20)]
-            if prior.empty:
+            prior = [r for r in rows if r.kind == ytd.kind and _near(r.end, ytd.end - year, 20)
+                     and _near(r.start, ytd.start - year, 20)]
+            if not prior:
                 continue
-            p, f = prior.iloc[-1], prev_fy.iloc[-1]
-            return _val(ytd, "ytd", f["value"] + ytd["value"] - p["value"])
+            return _val(ytd, "ytd", prev_fy[-1].value + ytd.value - prior[-1].value)
     return None
 
 
-def _yahoo_ttm(d: pd.DataFrame) -> Value | None:
+def _yahoo_ttm(rows: list[Row]) -> Value | None:
     cands: list[tuple[pd.Timestamp, int, Value]] = []
-    q = d[d["fp"] == "Q"].sort_values("end").tail(4)
-    if len(q) == 4:
-        gaps = q["end"].diff().dt.days.dropna()
-        if gaps.between(80, 100).all():
-            cands.append((q["end"].iloc[-1], 0, _val(q.iloc[-1], "4q", q["value"].sum())))
-    t = d[d["fp"] == "TTM"].sort_values("end")
-    if not t.empty:
-        cands.append((t["end"].iloc[-1], 1, _val(t.iloc[-1], "yahoo_ttm")))
-    a = d[d["fp"] == "FY"].sort_values("end")
-    if not a.empty:
-        cands.append((a["end"].iloc[-1], 2, _val(a.iloc[-1], "fy")))
+    q = [r for r in rows if r.fp == "Q"][-4:]
+    if len(q) == 4 and all(80 <= (b.end - a.end).days <= 100 for a, b in zip(q, q[1:])):
+        cands.append((q[-1].end, 0, _val(q[-1], "4q", sum(r.value for r in q))))
+    t = [r for r in rows if r.fp == "TTM"]
+    if t:
+        cands.append((t[-1].end, 1, _val(t[-1], "yahoo_ttm")))
+    a = [r for r in rows if r.fp == "FY"]
+    if a:
+        cands.append((a[-1].end, 2, _val(a[-1], "fy")))
     if not cands:
         return None
     return min(cands, key=lambda c: (-c[0].value, c[1]))[2]     # the latest end; on a tie 4q, then Yahoo's, then FY
 
 
-def ttm(facts: pd.DataFrame, item: str, known_by=None) -> Value | None:
-    """The last twelve months of a flow item for one ticker's facts (one source), or None. A share count (the
-    period's weighted average) doesn't add up over quarters: its latest period's value is used instead."""
-    d = _rows(facts, item, known_by)
-    if d.empty:
+def ttm(facts, item: str, known_by=None) -> Value | None:
+    """The last twelve months of a flow item for one ticker's facts (one source; a frame or a View), or None. A
+    share count (the period's weighted average) doesn't add up over quarters: its latest period's value is used."""
+    v = view(facts, known_by)
+    rows = v.rows(item)
+    if not rows:
         return None
     if BY_KEY[item].unit == "shares":
-        length = (d["end"] - d["start"]).dt.days.fillna(d["fp"].map({"Q": 91, "TTM": 365, "FY": 365}).fillna(400))
-        r = d.assign(_len=length).sort_values(["end", "_len"], ascending=[False, True]).iloc[0]
-        return _val(r, "latest")
-    return _edgar_ttm(d) if d["source"].iloc[0] == "edgar" else _yahoo_ttm(d)
+        length = {"Q": 91, "TTM": 365, "FY": 365}
+
+        def days(r: Row) -> int:
+            return (r.end - r.start).days if r.start is not None else length.get(r.fp, 400)
+        return _val(min(rows, key=lambda r: (-r.end.value, days(r))), "latest")
+    return _edgar_ttm(rows) if v.source == "edgar" else _yahoo_ttm(rows)
 
 
-def instant(facts: pd.DataFrame, item: str, known_by=None, on=None) -> Value | None:
+def instant(facts, item: str, known_by=None, on=None) -> Value | None:
     """The latest balance of an item (on or before `on`, when given), or None."""
-    d = _rows(facts, item, known_by)
-    if d.empty:
-        return None
-    if d["source"].iloc[0] == "edgar":
-        d = d[d["start"].isna()]
+    v = view(facts, known_by)
+    rows = v.rows(item)
+    if v.source == "edgar":
+        rows = [r for r in rows if r.start is None]
     if on is not None:
-        d = d[d["end"] <= pd.Timestamp(on)]
-    if d.empty:
-        return None
-    r = d.sort_values(["end", "known"]).iloc[-1]
-    return _val(r, "instant")
+        on = pd.Timestamp(on)
+        rows = [r for r in rows if r.end <= on]
+    return _val(rows[-1], "instant") if rows else None       # rows are sorted by end, then known
 
 
-def annual(facts: pd.DataFrame, item: str, known_by=None) -> pd.Series:
+def annual(facts, item: str, known_by=None) -> pd.Series:
     """Fiscal-year values by year end (flows: the year's amount; balances: the year-end balance), oldest first."""
-    d = _rows(facts, item, known_by)
-    if d.empty:
-        return pd.Series(dtype="float64")
-    if d["source"].iloc[0] == "edgar":
-        flows = d["start"].notna()
-        is_year = pd.Series([kind(s, e) == "FY" for s, e in zip(d["start"], d["end"])], index=d.index)
-        d = d[(flows & is_year)
-              | (~flows & (d["fp"] == "FY") & d["form"].astype(str).str.startswith(("10-K", "20-F", "40-F")))]
+    v = view(facts, known_by)
+    if v.source == "edgar":
+        rows = [r for r in v.rows(item) if r.kind == "FY" or (r.start is None and r.fp == "FY" and r.form
+                                                              and r.form.startswith(("10-K", "20-F", "40-F")))]
     else:
-        d = d[d["fp"] == "FY"]
-    if d.empty:
+        rows = [r for r in v.rows(item) if r.fp == "FY"]
+    if not rows:
         return pd.Series(dtype="float64")
-    s = d.sort_values(["end", "known"]).drop_duplicates("end", keep="last").set_index("end")["value"]
-    return s.astype("float64")
+    last = {r.end: r.value for r in rows}                       # sorted by end, then known: the latest version wins
+    return pd.Series(last, dtype="float64").sort_index()
 
 
-def latest_end(facts: pd.DataFrame, known_by=None) -> pd.Timestamp | None:
+def latest_end(facts, known_by=None) -> pd.Timestamp | None:
     """The latest period end a ticker's facts reach (revenue, else any item)."""
-    d = as_known(facts, known_by)
-    if d.empty:
-        return None
-    rev = d[d["item"] == "revenue"]
-    return pd.Timestamp((rev if not rev.empty else d)["end"].max())
+    v = view(facts, known_by)
+    rows = v.rows("revenue") or [r for rs in v.items.values() for r in rs]
+    return max(r.end for r in rows) if rows else None
