@@ -128,7 +128,7 @@ Det er den slags måned, der i den akademiske litteratur kan æde flere års mom
 - **Effekten er svagere end i de første studier.** Mange investorer kender den nu, og præmien har været mindre og mere svingende i nyere tid. Gennemsnit fra forskning er ikke et forventet afkast for dig.
 - **Koncentration.** Momentumlister samler sig ofte i få brancher eller temaer. Det øger risikoen, fordi aktierne bevæger sig sammen.
 - **Omsætning og skat.** At følge en momentumliste tæt giver mange handler. Overvej omkostninger og skat for den konto, du handler på.
-- **Survivorship i tests.** Mange backtests bruger dagens aktieliste. Radarens eget univers (dagens S&P 500) har samme problem, hvis man bruger det bagud.
+- **Survivorship i tests.** Mange backtests bruger dagens aktieliste. Radarens eget univers (dagens S&P 500) har samme problem, hvis man bruger det bagud. `radar study longrun` tester derfor scorens regel på brancher siden 1926 og lande siden 1986, bygget af alle noterede aktier, og viser momentumfaktorens basisrater: hvor ofte den har tabt over 6 og 12 måneder, og hvor dybe og lange dens krak har været. Se [Testen over årtier](brugervejledning/scoretest#testen-over-årtier).
 
 ## Videre læsning
 

@@ -62,6 +62,16 @@ Your data now lives apart from the program, so a new version never touches it.
   `settings.yaml`), the market pages show a *Rebuild the readings* banner (also on the Data page; `POST
   /api/report`). A dashboard built by an older version is rebuilt when the app starts, instead of answering 503.
   One build at a time across the app and a terminal (`report.lock`).
+- **The score's rule over decades** (`radar study longrun`, `backtest/longrun.py`, `factors.py`): the momentum
+  score's rule on long monthly histories without survivorship bias: 49 US industries since 1926 (Kenneth R. French
+  Data Library) and 23 developed-market countries since 1986 (JKP Global Factor Data), with the variants of
+  lookbacks and weights judged by `radar study score`'s rule, splits by decade, market trend and US recession,
+  the base rates of the momentum, value and quality factors (losing windows, drawdowns, the last ten years) and a
+  rough gauge of `radar study score`'s survivorship bias against `propose.survivorship_haircut`
+  (`reports/longrun-study.json`). The histories are fetched monthly in `radar update` (`factors/returns.parquet`
+  in the cache; `factors` in settings.yaml); FRED adds `DEXDNUS` and `USREC` (`macro.fred_study`).
+- **Ten years of prices** (`history_years: 10`, was 6): `radar study score` gets about twice the month-ends and
+  the 2020 Covid crash. The first update after upgrading downloads every price history again.
 - **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a
   fee-aware basket of new stocks for one portfolio (momentum, value or a mix; at least
   `propose.min_ticket_dkk` per name), picked by a pre-registered proposal score under caps on the portfolio after

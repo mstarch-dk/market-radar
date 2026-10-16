@@ -195,6 +195,9 @@ macro:
   fred_views:               # only read by the market-views evidence check (not the regime; slower cadence is fine)
     ECBDFR: ECB deposit facility rate
     IRLTLT01EZM156N: Euro area 10Y government yield (monthly)
+  fred_study:               # only read by `radar study longrun` (long histories; never the regime)
+    DEXDNUS: DKK per USD (daily, from 1971)
+    USREC: US recession months (NBER)
 
 # Non-price data (src/radar/external.py), all free and keyless.
 external:

@@ -21,7 +21,7 @@ _log_lock = threading.Lock()  # the update and the discovery scan can record at 
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
 NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
-              "fundamentals_edgar", "fundamentals_yahoo"}
+              "fundamentals_edgar", "fundamentals_yahoo", "factors"}
 
 # key -> display name, provider, official source?, cadence, what it feeds
 SOURCES = {
@@ -59,6 +59,8 @@ SOURCES = {
                            "per company, as reports come out", "Statement facts (radar fundamentals)"),
     "fundamentals_yahoo": ("Financial statements", "Yahoo Finance via yfinance", False,
                            "per company, as reports come out", "Statement facts (radar fundamentals)"),
+    "factors": ("Long factor and industry histories", "Kenneth R. French Data Library; JKP Global Factor Data", True,
+                "monthly re-fetch", "The long-history score test (radar study longrun)"),
 }
 
 
@@ -245,6 +247,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     rows += _discovery_rows(today, max_age, log)
     rows += _valuation_rows(ref, max_age, log, stock_tickers)
     rows += _fundamentals_rows(ref, max_age, log, stock_tickers)
+    rows += _factors_rows(ref, max_age, log)
 
     reg = regime_counts(indicators)
     dated = [r for r in rows if r["age_days"] is not None and r["status"] in (OK, STALE) and r["key"] != "prices"
@@ -332,6 +335,19 @@ def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[
         rows.append(_row(key, d["fetched"].max() if not d.empty else None, ref, max_age.get(key),
                          f"{len(good)} of {len(names)} {label}", detail, log))
     return rows
+
+
+def _factors_rows(ref: date, max_age: dict, log: dict) -> list[dict]:
+    """The long histories: when they were fetched (the sources themselves lag months: French about two, JKP up to a
+    year), and the last month in each."""
+    from . import factors
+
+    d = factors.load()
+    last = factors.asof(d)
+    want = factors.datasets()
+    detail = ", ".join(f"{k} to {m}" for k, m in last.items()) if last else "not fetched yet"
+    return [_row("factors", d["fetched"].max() if not d.empty else None, ref, max_age.get("factors"),
+                 f"{len(set(last) & set(want))} of {len(want)} datasets", detail, log)]
 
 
 def regime_counts(indicators: list[dict]) -> dict:

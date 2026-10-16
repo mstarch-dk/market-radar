@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 from typing import Callable
 
-from . import coverage, external, ingest, locks, ops, report, sentiment, universe, valuation
+from . import coverage, external, factors, ingest, locks, ops, report, sentiment, universe, valuation
 from .fundamentals import edgar, yahoo
 from .config import settings
 from .paths import CACHE
@@ -72,7 +72,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
         return msg
 
     def fred():
-        series = list(universe.macro_fred()) + list(universe.macro_fred_views())
+        series = list(universe.macro_fred()) + list(universe.macro_fred_views()) + list(universe.macro_fred_study())
         failed = ingest.update_fred(series)
         if failed:
             raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
@@ -106,6 +106,7 @@ def update_external(log: Log = print) -> None:
         "erp": ("Equity risk premium (Damodaran)", valuation.update_erp),
         "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
+        "factors": ("Long factor histories (French, JKP; monthly)", factors.update_factors),
         "valuation_etfs": ("ETF valuation (Yahoo fund data)", valuation.update_etfs),
         "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)", valuation.update_stocks),
         # after the valuation snapshot: it names each stock's reporting currency and next earnings date

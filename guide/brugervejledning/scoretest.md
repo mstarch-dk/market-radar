@@ -1,10 +1,11 @@
 # Test momentumscoren på historikken
 
-Hvor god er [momentumscoren](laerebog/momentumscore) egentlig til at finde aktier, der klarer sig godt bagefter? Radaren har tre værktøjer til at svare:
+Hvor god er [momentumscoren](laerebog/momentumscore) egentlig til at finde aktier, der klarer sig godt bagefter? Radaren har fire værktøjer til at svare:
 
 | Værktøj | Spørgsmål | Hvor stærkt er svaret? |
 |---|---|---|
-| `radar study score` | Hvordan klarede de bedst placerede aktier sig de følgende måneder, hver måned i fem år? | Bevis (med forbehold) |
+| `radar study score` | Hvordan klarede de bedst placerede aktier sig de følgende måneder, hver måned, så langt kurshistorikken rækker ({{settings:history_years}} år)? | Bevis (med forbehold) |
+| `radar study longrun` | Holder scorens regel over årtier, på brancher og lande uden survivorship bias? | Bevis for reglen, ikke for de enkelte aktier |
 | `radar sim picks` og `/hindsight` | Hvad var der sket med en kurv valgt for 1, 3, 6 eller 12 måneder siden? | Et eksempel, til inspiration |
 | Papirsporet (`picks-live`) | Hvordan klarer en kurv valgt i dag sig fremover? | Det eneste svar helt uden bagklogskab, men det tager tid |
 
@@ -48,6 +49,38 @@ Den bruger kun amerikanske aktier med regnskaber fra SEC EDGAR, fordi det er den
 Rapporten hedder `score-study-qv.json` (eller `-quality`, `-value`) og har samme tabeller. Varianterne er de fire kvalitetssøjler hver for sig, de enkelte nøgletal (ROIC, FCF-margin, FCF yield, EBIT/EV, shareholder yield, EBIT/EV mod egen historik), gross profitability (Novy-Marx), Greenblatts magic formula, K+V blandet 1:1 med momentum og momentumscoren selv på de samme aktier. Under tabellerne står rangkorrelationen med momentumscoren: ligger den nær 0 eller under, vælger de to scorer forskellige aktier, og det er den spredning, en portefølje kan få ud af at bruge begge.
 
 > **Bemærk:** Regnskaberne bevæger sig langsomt, og kurshistorikken er kort ({{settings:history_years}} år), så testen bygger på få uafhængige perioder. Dagens S&P 500 er universet, og sektorerne er dagens. Den rene test er [A/B-testen](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum), som kører fremad i tid.
+
+## Testen over årtier
+
+```
+uv run radar study longrun                       # begge paneler, 1, 3, 6 og 12 måneder (et halvt minuts tid pr. panel)
+uv run radar study longrun --panel countries --horizons 6
+uv run radar study longrun --fetch               # hent de lange serier først (det gør radar update også, en gang om måneden)
+```
+
+`radar study score` bygger på få år og på dagens aktier. Det er for lidt til at sige, om scorens vægte er de rigtige, og aktier, der er røget ud, mangler. `radar study longrun` stiller derfor det samme spørgsmål til lange månedsserier, som forskere har bygget af alle de aktier, der var noteret på hvert tidspunkt, så de ikke har survivorship bias:
+
+| Panel | Hvad scoren rangerer | Fra | Kilde |
+|---|---|---|---|
+| *french49* | 49 amerikanske brancher, værdivægtet | 1926 | Kenneth R. French Data Library |
+| *countries* | 23 udviklede aktiemarkeder, værdivægtet, i USD | 1986 | JKP Global Factor Data |
+
+Scoren regnes præcis som i appen, bare på måneder: gennemsnittet af percentilerne for 12-1-, 6- og 3-måneders afkast. Varianterne ændrer delene og vægtene (hver del for sig, 12 måneder med den seneste måned, den seneste måned sprunget over, uden 3-måneders delen, vægtene 2:1:1 og 1:1:2). Dommen er den samme som i `radar study score`: en variant er kun en mulig forbedring, når den er bedre både før og i holdout-perioden (fra {{settings:longrun.holdout_from}}), med et t-tal over 2 i holdout-perioden.
+
+Tabellerne har de samme kolonner som `radar study score` plus:
+
+- **eff N**: antallet af uafhængige perioder (datoer divideret med horisonten). Med 6 måneders horisont over 99 år er det omkring 200, mod omkring 15 i `radar study score`.
+- **vs mkt**: top N mod panelets marked (det amerikanske marked eller JKP's verdensmarked) i stedet for gennemsnittet af panelet.
+
+Under tabellerne står scorens IC pr. årti, i op- og nedtrend (markedet over eller under sit {{settings:longrun.regime_months}}-måneders gennemsnit) og i og uden for amerikanske recessioner.
+
+Derefter følger **basisrater** for momentum, værdi og kvalitet som lang-kort-faktorer: afkast og t-tal over hele historikken og de seneste 10 år, hvor ofte et 6- og et 12-måneders vindue tabte, det største fald og hvor længe det tog at komme tilbage. Det er de tal, en tilt mod momentum eller værdi bør måles mod, når de korte tests ser lovende ud.
+
+Til sidst en grov **måling af survivorship bias**: den bedste femtedels merafkast i `radar study score` (dagens univers) ved siden af det samme for alle amerikanske aktier uden survivorship bias i de samme måneder (Frenchs momentumdeciler), og den nedskrivning, forskellen svarer til, mod den faste nedskrivning på {{settings:propose.survivorship_haircut|pct}} i porteføljeforslagene.
+
+Rapporten hedder `longrun-study.json` i cache-mappens `reports/`.
+
+> **Bemærk:** Det er brancher og lande, ikke aktier. Det, der kan overføres, er reglen (vinduer og vægte), basisraterne og ideen om rotation, ikke et tal for en aktiekurv: enkeltaktier svinger mere, og deres momentum er stærkere og krakker hårdere. JKP-serierne opdateres omkring en gang om året og slutter derfor tidligere end Frenchs. Kilderne står i [Datakilder og licenser](brugervejledning/datalicenser).
 
 ## Varianter af stopreglen
 

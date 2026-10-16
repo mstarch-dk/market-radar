@@ -1,4 +1,4 @@
-history_years: 6          # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
+history_years: 10         # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
 constituents_max_age_days: 30
 
 rotation:
@@ -171,6 +171,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     aaii: 14               # AAII weekly sentiment survey
     fundamentals_edgar: 45 # financial statements (SEC EDGAR): fetched per company as new reports come out
     fundamentals_yahoo: 45 # financial statements (Yahoo)
+    factors: 45            # French and JKP histories: their age is since the last download (the data itself lags months)
   blind_spots:             # what the radar does not see; shown on the page and in summary.json
     - "Valuation comes from Yahoo's consensus estimates (unofficial, weekly snapshots) and, for the US market, Shiller's CAPE and Damodaran's risk premium. Its own history for stocks and ETFs only starts with the first snapshot, so percentiles and revisions take weeks to appear."
     - "Earnings revisions: FactSet for the S&P 500; elsewhere only changes in Yahoo's consensus between snapshots (names that report in another currency than they trade in are left out, as Yahoo converts their estimates at today's rate)."
@@ -201,11 +202,63 @@ network:                   # src/radar/net.py: every external request is paced p
     "www.aaii.com": {rate: 0.5, burst: 1, concurrency: 1}
     "api.github.com": {rate: 0.2, burst: 1, concurrency: 1}              # the opt-in check for a new version
     "*.sec.gov": {rate: 5, burst: 5, concurrency: 2, budget: 3000}        # SEC EDGAR; SEC's fair-access limit is 10/s
+    "mba.tuck.dartmouth.edu": {rate: 0.5, burst: 2, concurrency: 1}       # Kenneth R. French Data Library
+    "jkpfactors-data.s3.amazonaws.com": {rate: 1, burst: 2, concurrency: 1}  # JKP Global Factor Data
   cooldown:                # pause a host that keeps answering 429 (shared by the app and the CLI through ops.db)
     trip: 3                # this many 429s ...
     window_min: 10         # ... within this many minutes
     cooldown_min: 15       # first pause; doubles for each repeat within a day
     max_cooldown_min: 120
+
+factors:                   # src/radar/factors.py: long monthly histories for `radar study longrun` (no survivorship bias)
+  max_age_days: 30         # a dataset is downloaded again when its copy is older than this (the sources update monthly)
+  french:                  # Kenneth R. French Data Library: name -> ZIP file (and the block, when not the first)
+    ind49: {file: 49_Industry_Portfolios_CSV, block: Average Value Weighted Returns -- Monthly}   # US, 1926-
+    mom10_us: {file: 10_Portfolios_Prior_12_2_CSV, block: Average Equal Weighted Returns -- Monthly}  # momentum deciles
+    ff3_us: F-F_Research_Data_Factors_CSV     # Mkt-RF, SMB, HML, RF (the T-bill), US, 1926-
+    mom_us: F-F_Momentum_Factor_CSV           # Mom (UMD), US, 1927-
+    ff3_dev: Developed_3_Factors_CSV          # developed markets, 1990-
+    mom_dev: Developed_Mom_Factor_CSV
+    ff3_eu: Europe_3_Factors_CSV
+    mom_eu: Europe_Mom_Factor_CSV
+  jkp:                     # JKP Global Factor Data (CC BY-NC 4.0): USD returns in excess of the US T-bill
+    mkt_countries: {region: all_countries, theme: mkt, weighting: vw}            # market return per country
+    mkt_world: {region: world, theme: mkt, weighting: vw}
+    themes_developed: {region: developed, theme: all_themes, weighting: vw_cap, series: name}  # 13 factor themes
+    themes_world_ex_us: {region: world_ex_us, theme: all_themes, weighting: vw_cap, series: name}
+    themes_usa: {region: usa, theme: all_themes, weighting: vw_cap, series: name}
+
+longrun:                   # src/radar/backtest/longrun.py: `radar study longrun` (pre-registered: set before the first run)
+  holdout_from: 2008-01-01 # formation months from this one on are the holdout (never tuned on)
+  horizons: [1, 3, 6, 12]  # months
+  regime_months: 10        # the market is "down" on a date when below its 10-month average
+  panels:                  # cross-sections the momentum score ranks: a dataset, its members, the market that sets the regime
+    french49:
+      label: US industries (Fama-French 49, value-weighted)
+      data: french:ind49
+      market: us
+      n_top: 10            # about the top quintile
+      min_names: 30
+    countries:
+      label: Developed-market countries (JKP, value-weighted, USD)
+      data: jkp:mkt_countries
+      excess: true         # JKP returns are over the T-bill: RF is added back
+      market: world
+      n_top: 5
+      min_names: 15
+      members: [aus, aut, bel, can, che, deu, dnk, esp, fin, fra, gbr, hkg, irl, isr, ita, jpn, nld, nor, nzl, prt, sgp, swe, usa]
+  factors:                 # long-short factor returns for the base rates: label -> [dataset, series]
+    "Momentum, US (Fama-French UMD)": [french:mom_us, Mom]
+    "Momentum, developed (Fama-French WML)": [french:mom_dev, WML]
+    "Momentum, Europe (Fama-French WML)": [french:mom_eu, WML]
+    "Momentum theme, developed (JKP)": [jkp:themes_developed, momentum]
+    "Momentum theme, world ex US (JKP)": [jkp:themes_world_ex_us, momentum]
+    "Value, US (Fama-French HML)": [french:ff3_us, HML]
+    "Value, developed (Fama-French HML)": [french:ff3_dev, HML]
+    "Value, Europe (Fama-French HML)": [french:ff3_eu, HML]
+    "Value theme, developed (JKP)": [jkp:themes_developed, value]
+    "Value theme, world ex US (JKP)": [jkp:themes_world_ex_us, value]
+    "Quality theme, developed (JKP)": [jkp:themes_developed, quality]
 
 updates:                   # src/radar/updates.py: the check for a new version (off until switched on in the app)
   repo: null               # the public repo's "owner/name" on GitHub; without it there is nothing to check

@@ -33,9 +33,11 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **AAII** Sentiment Survey | Sentiment | Ja | **Nej.** Ophavsret hos AAII |
 | **Cboe**, put/call-forhold | Sentiment | Ja | **Nej.** Cboes markedsdata |
 | **FRED**, serier fra tredjeparter (fx `BAMLH0A0HYM2`, ICE BofA high yield-spænd) | Kreditspænd | Ja | **Nej.** Ophavsret hos seriens ejer; ICE begrænser videregivelse |
-| **FRED**, amerikanske offentlige serier (fx `DGS10`, `T10Y2Y`, `DGS3MO`) | Renter, rentekurve, dollar | Ja | Som regel ja, med kildeangivelse |
+| **FRED**, amerikanske offentlige serier (fx `DGS10`, `T10Y2Y`, `DGS3MO`, `DEXDNUS`, `USREC`) | Renter, rentekurve, dollar; dollarkursen i kroner siden 1971 og amerikanske recessionsmåneder (NBER's datering) til testen over årtier | Ja | Som regel ja, med kildeangivelse |
 | **multpl.com** | Shiller CAPE | Ja | Uklart: spørg, eller beregn CAPE selv |
 | **Aswath Damodaran** (NYU Stern) | Implicit risikopræmie | Ja | Ja, med kildeangivelse |
+| **Kenneth R. French Data Library** (Dartmouth) | Lange månedsserier til `radar study longrun`: amerikanske brancheporteføljer (49 brancher) og momentumdeciler, Fama-French- og momentumfaktorerne (USA siden 1926, udviklede markeder og Europa siden 1990) | Ja | **Nej** (selve dataene). Frit delte forskningsdata med ophavsret hos Fama og French; henvis til biblioteket i stedet |
+| **JKP Global Factor Data** (Jensen, Kelly og Pedersen, jkpfactors.com) | Lange månedsserier til `radar study longrun`: markedsafkastet pr. land (udviklede markeder siden 1986) og faktortemaer (momentum, værdi, kvalitet) | Ja | Kun ikke-kommercielt og med kildeangivelse (CC BY-NC 4.0): Jensen, Kelly og Pedersen, "Is There a Replication Crisis in Finance?", *Journal of Finance*, 2023 |
 | **ECB Data Portal** | Euroområdets renter | Ja | Ja, med kildeangivelse |
 | **OECD** | Ledende indikatorer (CLI) | Ja | Ja, med kildeangivelse (CC BY 4.0) |
 | **CFTC** | Futurespositionering (COT) | Ja | Ja (offentligt amerikansk data) |
