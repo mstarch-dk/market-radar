@@ -25,4 +25,4 @@
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.
 - Pin method-sensitive numbers (e.g. RRG values) so a change to a method is deliberate.
-- Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs `uv run pytest -q` on Windows and Ubuntu, and the web tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.
+- Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs `uv run pytest -q` on Ubuntu (Windows is switched off for now: add `windows-latest` back to the matrix to test file replacing and locking there), and the web tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.

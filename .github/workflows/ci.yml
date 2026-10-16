@@ -1,7 +1,8 @@
 name: CI
 
 # Every pull request and every push to main: the tests (offline: tests/conftest.py refuses network access), the
-# guide's checks, and the web app. Windows too, because file replacing and locking behave differently there.
+# guide's checks, and the web app. Ubuntu only for now: Windows (where file replacing and locking behave
+# differently) took several times as long; add windows-latest back to the matrix to test there again.
 on:
   push:
     branches: [main]
@@ -19,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
