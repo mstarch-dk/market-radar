@@ -35,7 +35,7 @@ Er der endnu ikke valgt en datamappe, mangler den, eller er dataene skrevet af e
 |---|---|
 | `radar run` | Henter nye data og bygger rapporten. Det samme som *Update data* i appen |
 | `radar update` | Kun den første halvdel: henter kurser, makroserier og de øvrige kilder |
-| `radar report` | Kun den anden halvdel: bygger `dashboard.json` og `summary.json` i cache-mappens `reports/` fra de data, der er |
+| `radar report` | Kun den anden halvdel: bygger `dashboard.json` og `summary.json` i cache-mappens `reports/` fra de data, der er. Det samme som *Rebuild the readings* i appen |
 | `radar discover` | Den separate Discover-scanning (nordiske og europæiske aktier, S&P 500, ETF'er fra positivlisten) |
 | `radar doctor` | Sundhedstjekket |
 | `radar ops` | Driftsloggen: forespørgsler, fejl og pauser |
@@ -53,6 +53,8 @@ uv run radar report                          # kun rapporten
 ```
 
 Listen over S&P 500-aktier hentes ellers igen, når den er ældre end {{settings:constituents_max_age_days}} dage.
+
+Der kører kun én `radar report` ad gangen, også på tværs af appen og terminalen. Bygger appen allerede rapporten, stopper `radar report` med beskeden *the readings are already being built*. Se [Byg aflæsningerne igen](brugervejledning/data-og-opdatering#byg-aflæsningerne-igen).
 
 ### radar discover
 

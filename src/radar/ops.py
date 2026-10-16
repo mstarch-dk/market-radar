@@ -265,7 +265,7 @@ def prune() -> None:
         log.warning("ops prune skipped (%s: %s)", type(e).__name__, e)
 
 
-SERVER_KINDS = ("update", "discover")   # the jobs the server runs; CLI runs (cli_*) are other processes
+SERVER_KINDS = ("update", "discover", "report")   # the jobs the server runs; CLI runs (cli_*) are other processes
 
 
 def mark_interrupted() -> None:

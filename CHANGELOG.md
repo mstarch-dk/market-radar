@@ -57,6 +57,11 @@ Your data now lives apart from the program, so a new version never touches it.
     - `/compare` adds the scores to its rubric.
     - `/market-brief` covers the K+V leaders, their overlap with momentum and the A/B test.
     - `/hindsight` can pick a K+V basket (`radar sim picks-candidates --fund`).
+- **Rebuild the readings without downloading.** `dashboard.json` records the files it was built from and its
+  format. When one has changed since (a terminal `radar update` without `report`, a fundamentals run, an edited
+  `settings.yaml`), the market pages show a *Rebuild the readings* banner (also on the Data page; `POST
+  /api/report`). A dashboard built by an older version is rebuilt when the app starts, instead of answering 503.
+  One build at a time across the app and a terminal (`report.lock`).
 - Linux start script `start-market-radar.sh`.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the

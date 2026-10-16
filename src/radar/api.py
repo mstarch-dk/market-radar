@@ -54,9 +54,23 @@ def _open_home() -> None:
     ops.prune()
 
 
+def _rebuild_if_older() -> None:
+    """A dashboard built by a version with an older shape is rebuilt at start (no downloads, about half a
+    minute), so a new section doesn't answer 503 until the next update."""
+    if _gate[0] != "ok":
+        return
+    try:
+        d = dashboard.load()
+        if d is not None and (o := dashboard.outdated(d)) and o["reason"] == "format":
+            updater.REPORT_JOB.start()
+    except Exception as e:                       # an unreadable dashboard: the pages say so; the app still starts
+        ops.event("error", "job", f"report check: {type(e).__name__}: {e}", source="report", exc=e)
+
+
 @asynccontextmanager
 async def _lifespan(_app):
     _open_home()
+    _rebuild_if_older()
     yield
 
 
@@ -354,7 +368,17 @@ def _view(key: str) -> dict:
     d = _dashboard()
     age = (date.today() - date.fromisoformat(d["asof"])).days
     limit = settings()["coverage"]["max_age"]["prices"]
-    return {"asof": d["asof"], "generated": d["generated"], "age_days": age, "stale": age > limit, **d[key]}
+    return {"asof": d["asof"], "generated": d["generated"], "age_days": age, "stale": age > limit,
+            "outdated": _outdated(d), **d[key]}
+
+
+def _outdated(d: dict) -> dict | None:
+    """Whether the readings are behind the data on disk, and whether a rebuild is running. While the update job
+    runs they are behind by design: it rebuilds them when it finishes."""
+    if updater.JOB.state["status"] == "running":
+        return None
+    o = dashboard.outdated(d)
+    return o | {"rebuilding": updater.REPORT_JOB.state["status"] == "running"} if o else None
 
 
 @app.get("/api/regime", response_model=RegimeView)
@@ -415,8 +439,10 @@ def get_momentum() -> dict:
 def get_quality() -> dict:
     """Kvalitetsscore and værdiscore per region, from the last `radar run`."""
     if "quality" not in _dashboard():
-        raise HTTPException(503, "The last report was built by an older version: update the data (or run "
-                                 "`uv run radar report`) to score the stocks.")
+        raise HTTPException(503, "The readings are being rebuilt for this version: reload in a minute."
+                            if updater.REPORT_JOB.state["status"] == "running" else
+                            "The last report was built by an older version: rebuild the readings on the Data page "
+                            "(or run `uv run radar report`) to score the stocks.")
     return _view("quality")
 
 
@@ -669,6 +695,24 @@ def start_update() -> dict:
     if not updater.JOB.start():
         raise HTTPException(409, "An update is already running.")
     return updater.JOB.state
+
+
+@app.get("/api/report", response_model=UpdateStatus)
+def report_status() -> dict:
+    """The rebuild of the readings started from the app (no downloads)."""
+    return updater.REPORT_JOB.state
+
+
+@app.post("/api/report", response_model=UpdateStatus)
+def start_report() -> dict:
+    """Rebuild dashboard.json and summary.json from the data already downloaded, in the background. 409 while an
+    update (which rebuilds them itself when it finishes) or another rebuild runs; a build in a terminal makes
+    the job stop with its message."""
+    if updater.JOB.state["status"] == "running":
+        raise HTTPException(409, "An update is running: it rebuilds the readings when it finishes.")
+    if not updater.REPORT_JOB.start():
+        raise HTTPException(409, "The readings are already being rebuilt.")
+    return updater.REPORT_JOB.state
 
 
 MAX_IMPORT_BYTES = 5_000_000

@@ -3,12 +3,14 @@ import { useEffect, useRef } from "react";
 import { api } from "../api/client";
 
 const JOBS = {
-  daily: { key: "update", status: api.updateStatus, start: api.startUpdate, unit: "tickers" },
-  discover: { key: "discover-scan", status: api.discoverStatus, start: api.startDiscover, unit: "" },
+  daily: { key: "update", status: api.updateStatus, start: api.startUpdate, unit: "tickers", busy: "Updating…", done: "Updated", stopped: "Update stopped" },
+  discover: { key: "discover-scan", status: api.discoverStatus, start: api.startDiscover, unit: "", busy: "Updating…", done: "Updated", stopped: "Update stopped" },
+  // the readings rebuilt from the data already downloaded (no downloads; about half a minute)
+  report: { key: "report", status: api.reportStatus, start: api.startReport, unit: "", busy: "Rebuilding…", done: "Rebuilt", stopped: "Rebuild stopped" },
 } as const;
 
 /** "Update data" from the app: starts the same refresh as `uv run radar run` (or, with `job="discover"`, the
- *  discovery scan) and shows its progress, so nobody needs a terminal. When it finishes, every page reloads its
+ *  discovery scan; with `job="report"`, `uv run radar report`) and shows its progress, so nobody needs a terminal. When it finishes, every page reloads its
  *  data. */
 export function UpdatePanel({ compact, label = "Update data", job = "daily" }: {
   compact?: boolean; label?: string; job?: keyof typeof JOBS;
@@ -36,7 +38,7 @@ export function UpdatePanel({ compact, label = "Update data", job = "daily" }: {
     <div className={`update-panel ${compact ? "compact" : "card"}`}>
       <div className="up-row">
         <button type="button" className="btn primary" disabled={running || start.isPending} onClick={() => start.mutate()}>
-          {running ? "Updating…" : label}
+          {running ? j.busy : label}
         </button>
         {running && (
           <span className="small muted">
@@ -44,8 +46,8 @@ export function UpdatePanel({ compact, label = "Update data", job = "daily" }: {
             {" "}You can keep using the app; pages refresh when it's done.
           </span>
         )}
-        {!running && s?.status === "done" && <span className="small pos">Updated {s.finished?.replace("T", " ").slice(0, 16)}.</span>}
-        {!running && s?.status === "failed" && <span className="small neg">Update stopped: {s.error}</span>}
+        {!running && s?.status === "done" && <span className="small pos">{j.done} {s.finished?.replace("T", " ").slice(0, 16)}.</span>}
+        {!running && s?.status === "failed" && <span className="small neg">{j.stopped}: {s.error}</span>}
         {start.isError && <span className="small neg">{start.error.message}</span>}
       </div>
       {running && pct !== null && <div className="up-bar"><div style={{ width: `${pct}%` }} /></div>}

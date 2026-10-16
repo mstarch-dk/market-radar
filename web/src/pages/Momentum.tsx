@@ -50,7 +50,7 @@ export function Momentum() {
     <Loaded q={q} title="Momentum leaders">
       {(d) => (
         <>
-          <PageHead title="Momentum leaders" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
+          <PageHead title="Momentum leaders" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated}>
             The score (0–100) is the average percentile, within each region, of 12-1-month, 6-month and 3-month returns.
             &ldquo;Trend&rdquo; means price above the 200-day average and the 50-day above the 200-day. <span className="new">NEW</span>{" "}
             marks entries that weren&apos;t in the top {d.top_n} at the snapshot from {d.prev ? date(d.prev) : "– (no earlier snapshot yet)"}.

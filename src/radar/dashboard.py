@@ -13,15 +13,19 @@ import numpy as np
 import pandas as pd
 
 from . import coverage, external, mine, sentiment, snapshot, universe, valuation
-from .config import settings, universe_config
+from .config import CONFIG, settings, universe_config
 from .fundamentals import context as fcontext
-from .paths import REPORTS
+from .fundamentals import store as fstore
+from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .ingest import load_fred, load_prices, wide
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation
 from .signals import valuation as sv
 
 FILE_NAME = "dashboard.json"
+# dashboard.json's shape: bump it when a section is added or changed, so the app rebuilds an older one at start
+# (a no-network build) instead of answering 503 until the next update
+FORMAT = 1
 
 
 # ---------------- helpers ----------------
@@ -203,6 +207,7 @@ class Computed:
 
 def compute() -> Computed:
     """Every market-wide reading from local data. Reads earlier snapshots but doesn't write any."""
+    seen = inputs()   # before reading: a file written during the build then shows as newer than it
     cfg = settings()
     ucfg = universe_config()
     bench = universe.benchmark()
@@ -358,7 +363,8 @@ def compute() -> Computed:
         sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else [],
         sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)
 
-    head = {"generated": datetime.now().isoformat(timespec="seconds"), "asof": asof.isoformat()}
+    head = {"generated": datetime.now().isoformat(timespec="seconds"), "asof": asof.isoformat(),
+            "build": {"format": FORMAT, "inputs": seen}}
     data = head | {
         "regime": {"overall": overall, "indicators": _clean(inds), "charts": charts,
                    "coverage": {"regime": cov["regime"], "oldest": cov["oldest"], "failing": cov["failing"]}},
@@ -407,6 +413,42 @@ def _rates(fred: pd.DataFrame) -> dict:
               for k, v in series.items() if len(v.dropna())}
     chart = line_chart(series, "10-year yields: US, euro area (AAA), US real and breakeven (%)", 2) if series else None
     return {"latest": latest, "chart": chart}
+
+
+# ---------------- what a build read, and whether it is behind ----------------
+
+def _input_files() -> dict:
+    """The files compute() reads, by name. The snapshots and the score history it writes itself are left out,
+    and so are the user's own edits (watchlist, portfolios, votes): the API applies those live."""
+    return {"prices": PRICES_FILE, "fred": FRED_FILE, "cot": external.COT_FILE, "oecd_cli": external.CLI_FILE,
+            "ecb": external.ECB_FILE, "factset": external.FACTSET_FILE, "analyst": external.ANALYST_FILE,
+            "valuation_stocks": valuation.STOCKS_FILE, "valuation_etfs": valuation.ETFS_FILE,
+            "valuation_market": valuation.MARKET_FILE, "aaii": sentiment.AAII_FILE, "putcall": sentiment.PUTCALL_FILE,
+            "fundamentals_edgar": fstore.EDGAR_FILE, "fundamentals_yahoo": fstore.YAHOO_FILE,
+            "settings": CONFIG / "settings.yaml", "universe": CONFIG / "universe.yaml"}
+
+
+def inputs() -> dict[str, float | None]:
+    """Each input's mtime (None: the file doesn't exist)."""
+    out = {}
+    for name, f in _input_files().items():
+        try:
+            out[name] = f.stat().st_mtime
+        except FileNotFoundError:
+            out[name] = None
+    return out
+
+
+def outdated(d: dict) -> dict | None:
+    """Why a built dashboard is behind, or None: `format` when it was built by code with an older shape (or
+    before builds were recorded), `inputs` when a file it read has changed since (a terminal `radar update`
+    without a report, a fundamentals run, an edited settings.yaml). Rebuilding needs no downloads."""
+    build = d.get("build")
+    if not build or build.get("format", 0) < FORMAT:
+        return {"reason": "format", "changed": []}
+    stored = build.get("inputs") or {}
+    changed = sorted(k for k, v in inputs().items() if stored.get(k) != v)
+    return {"reason": "inputs", "changed": changed} if changed else None
 
 
 # ---------------- reading the stored snapshot ----------------

@@ -17,6 +17,8 @@ from .paths import CACHE
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
 BUSY = "an update is already running (in the app or in a terminal): wait for it to finish"
+REPORT_LOCK = CACHE / "report.lock"   # one report build at a time: it saves the rank snapshots and runs the A/B test
+REPORT_BUSY = "the readings are already being built (in the app or in a terminal): wait for it to finish"
 
 Log = Callable[[str], None]
 
@@ -112,7 +114,15 @@ def update_external(log: Log = print) -> None:
     }, log)
 
 
-def build_report(log: Log = print) -> dict:
+def build_report(log: Log = print, wait: float = 600) -> dict:
+    """Build dashboard.json and summary.json from the local data (no downloads), one build at a time. After an
+    update it waits for a build already running (`wait` seconds); a build on its own (`radar report`, the app's
+    *Rebuild* button) passes 0 and is refused with `locks.Busy`."""
+    with locks.file_lock(REPORT_LOCK, timeout=wait, what=REPORT_BUSY):
+        return _build_report(log)
+
+
+def _build_report(log: Log) -> dict:
     res = report.build()
     log(f"Regime: {res['regime']} (data as of {res['asof']}). Stale tickers: {res['stale']}"
         + (f"; without the last session: {res['behind']}" if res.get("behind") else ""))
@@ -204,5 +214,16 @@ def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
     scan.run(log, progress)
 
 
+def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
+    """The readings rebuilt from the data already downloaded: after an upgrade, an edited settings.yaml or a
+    terminal update without a report. The config files are read again, as a new `radar report` would."""
+    from .config import settings as _settings, universe_config
+
+    _settings.cache_clear()
+    universe_config.cache_clear()
+    build_report(log, wait=0)
+
+
 JOB = UpdateJob()
 DISCOVER_JOB = UpdateJob(_discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
+REPORT_JOB = UpdateJob(_rebuild, "Building the readings", "report")  # no downloads (the Rebuild button)

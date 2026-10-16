@@ -249,10 +249,12 @@ def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S
 
 @app.command(name="report")
 def build_report():
-    """Build reports/dashboard.json (the web app's data) and reports/summary.json."""
+    """Build reports/dashboard.json (the web app's data) and reports/summary.json from the data already
+    downloaded. Refused while another build runs (in the app or a terminal)."""
     from . import updater
 
-    res = updater.build_report(typer.echo)
+    with _job("cli_report") as log:
+        res = updater.build_report(log, wait=0)
     typer.echo(f"{res['dashboard']} – view it with `uv run radar serve --open`")
 
 
