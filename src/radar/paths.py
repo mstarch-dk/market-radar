@@ -246,6 +246,6 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "fundamentals/yahoo_log.csv",
         "*.lock",                       # locks.file_lock: one writer at a time, next to the file it guards
     ),
-    "reports": ("dashboard.json", "summary.json", "discovery.json", "score-study.json", "exit-study.json",
+    "reports": ("dashboard.json", "summary.json", "discovery.json", "score-study.json", "score-study-*.json", "exit-study.json",
                 "redeploy-study.json", "sim-exits.json", "sim-exits-*.json", "sim-picks/"),
 }

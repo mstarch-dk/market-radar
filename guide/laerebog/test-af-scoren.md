@@ -60,6 +60,16 @@ Prøver man ti varianter af scoren, vil én af dem næsten altid se bedre ud, og
 - **Dom**: en variant er en *candidate improvement*, når dens gennemsnitlige IC er højere end scorens både før og i holdout-perioden, holdout-IC'ens t-tal er over 2, og forskellen til scoren i holdout-perioden selv har et t-tal over 2. Ellers står der fx *better in-sample only (likely chance)*. Rapporten siger, hvor mange varianter der er prøvet.
 - **Stopreglen over mange datoer** (`--exits 6`): hver dags 15 bedste aktier beholdt i 6 måneder mod de samme køb med reglen fulgt (begge halvdele, kun stop, kun take-profit), med kurtage på {{settings:backtest.fee_bps}} basispoint pr. handel.
 
+### Kvalitets- og værdiscoren
+
+`--signal quality`, `value` eller `qv` tester [kvalitets- og værdiscoren](laerebog/kvalitetsscore) med de samme datoer, horisonter, statistikker og domme, med scoren selv som basislinje:
+
+- **Universet** er de amerikanske aktier med regnskaber fra SEC EDGAR. Andre regioner har ingen datoer for, hvornår tallene blev kendt.
+- **Som på datoen**: et tal tæller fra dagen efter sin indleveringsdato plus {{settings:backtest.fundamentals_lag_days}} dag (`backtest.fundamentals_lag_days`). Den seneste version kendt på datoen bruges, så en rettelse indleveret senere ikke ændrer fortiden. Markedsværdien er aktieantallet kendt på datoen gange datoens kurs. Scorerne regnes af appens egen kode, med ét fravalg: tjekket mod Yahoos markedsværdi springes over, fordi Yahoos tal er dagens.
+- **Sammenlignelige aktier** er de amerikanske. Appen samler alle regioner, så percentilerne er ikke helt de samme som på siden *Quality & value*.
+- **Varianter**: de fire søjler, de enkelte nøgletal, gross profitability (bruttoavance / aktiver; Novy-Marx), magic formula (gennemsnittet af percentilerne for ROIC og EBIT/EV; Greenblatt), K+V og momentum 1:1, og momentumscoren rangeret blandt de samme aktier.
+- **Korrelation med momentum**: for hver dato rangkorrelationen mellem basislinjen og momentumscoren. Historisk har værdi og momentum været negativt korrelerede (Asness, Moskowitz og Pedersen), og det er grunden til at bruge begge.
+
 En ændring af scoren i appen er en separat beslutning: en post i journalen og en ændring af indstillinger og vejledning. Testen ændrer aldrig noget selv.
 
 ## Regneeksempel
@@ -91,12 +101,14 @@ Sig, at scoren over 54 datoer har en gennemsnitlig IC på 0,06 med et Newey-West
 - **Samme IC, anden top.** To varianter kan rangere hele universet lige godt og alligevel vælge vidt forskellige 15 bedste. *resid* og *fip* vælger roligere aktier, så deres top giver typisk mindre afkast end scorens, selv når IC'en er den samme. Se både IC og *top N*.
 - **Toppen er skæv.** Gennemsnittet for de 15 bedste kan bæres af én eller to aktier, der steg meget. Andelen, der slog gennemsnitsaktien (*hit*), siger mere om, hvor bredt det virker.
 - **Ingen skat.** Afkastene er før skat; kurtage er kun med i testen af stopreglen.
+- **Regnskaber bevæger sig langsomt.** Kvalitets- og værdiscoren skifter mest, når et nyt regnskab kommer, så nabomåneder deler det meste af deres information, og testen har endnu færre uafhængige perioder end momentum. Sektorerne og bank/forsikring-sættet er dagens.
 - **Én kurv er ikke et bevis.** En [hindsight-kurv](brugervejledning/scoretest#hindsight-kurve-med-claude) viser et eksempel. Testen over alle måneder er beviset, og selv den er kun så god som dataene.
 
 ## Videre læsning
 
 - Richard C. Grinold og Ronald N. Kahn: *Active Portfolio Management*, 2. udgave, 1999 (informationskoefficienten).
 - Whitney K. Newey og Kenneth D. West: "A Simple, Positive Semi-Definite, Heteroskedasticity and Autocorrelation Consistent Covariance Matrix", *Econometrica*, 55(3), 1987.
+- Clifford S. Asness, Tobias J. Moskowitz og Lasse Heje Pedersen: "Value and Momentum Everywhere", *Journal of Finance*, 68(3), 2013.
 - Kent Daniel og Tobias J. Moskowitz: "Momentum Crashes", *Journal of Financial Economics*, 122(2), 2016.
 - David Blitz, Joop Huij og Martin Martens: "Residual Momentum", *Journal of Empirical Finance*, 18(3), 2011.
 - Zhi Da, Umit G. Gurun og Mitch Warachka: "Frog in the Pan: Continuous Information and Momentum", *Review of Financial Studies*, 27(7), 2014.

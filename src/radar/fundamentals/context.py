@@ -46,10 +46,12 @@ def _fin_currency(facts: pd.DataFrame, fallback: str | None) -> str | None:
 
 
 class Context:
-    """Scores for every tracked stock, built once per report or request."""
+    """Scores for every tracked stock, built once per report or request. `pit=True` (backtest/fund.py) scores as
+    of `asof` from the facts and prices given only: Yahoo's latest snapshot (quote currency, market value check) is
+    today's, so it is left out."""
 
     def __init__(self, closes: pd.DataFrame, raw: pd.DataFrame | None, asof=None, edgar: pd.DataFrame | None = None,
-                 yahoo: pd.DataFrame | None = None, tickers: list[str] | None = None):
+                 yahoo: pd.DataFrame | None = None, tickers: list[str] | None = None, pit: bool = False):
         cfg = self.cfg = _cfg()
         self.asof = pd.Timestamp(asof) if asof is not None else pd.Timestamp(closes.dropna(how="all").index[-1])
         e = store.as_known(store.load_edgar() if edgar is None else edgar)     # resolved once for every ticker
@@ -58,7 +60,7 @@ class Context:
         by_y = {t: g for t, g in y.groupby("ticker")} if not y.empty else {}
         self.groups = {t: g for g, ts in universe.stock_groups(offline=True).items() for t in ts}
         names = tickers if tickers is not None else sorted(set(self.groups) | set(valuation.tracked_stocks()))
-        snap = valuation.latest(valuation.load_stocks())
+        snap = valuation.latest(valuation.load_stocks()) if not pit else pd.DataFrame()
         sec = _csv("sectors.csv", ["ticker", "sector", "industry"]).set_index("ticker")
         cur = dict(_csv("currencies.csv", ["ticker", "currency"]).values)
         fin_ind = cfg["financial_industries"]

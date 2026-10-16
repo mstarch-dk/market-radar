@@ -33,6 +33,22 @@ Med `--exits 6` følger stopreglen: hver dags 15 bedste beholdt i 6 måneder mod
 
 Metoden og forbeholdene står i [Test af momentumscoren](laerebog/test-af-scoren). Den vigtigste: universet er dagens, så aktier, der er røget ud, mangler, og det får momentum til at se bedre ud.
 
+### Kvalitet og værdi
+
+Den samme test kan køres på [kvalitets- og værdiscoren](laerebog/kvalitetsscore) i stedet for momentum:
+
+```
+uv run radar study score --signal qv        # K+V
+uv run radar study score --signal quality   # kvalitetsscoren
+uv run radar study score --signal value     # værdiscoren
+```
+
+Den bruger kun amerikanske aktier med regnskaber fra SEC EDGAR, fordi det er den eneste kilde, der fortæller, hvornår hvert tal blev offentliggjort. På hver månedsafslutning regnes scorerne med appens egen kode af de tal, der var indleveret senest {{settings:backtest.fundamentals_lag_days}} dag før, og kurserne indtil da. En senere rettelse af et regnskab ændrer ikke en tidligere dato. Hent regnskaberne først med `uv run radar fundamentals update --source edgar --all` (kræver en kontakt-e-mail til SEC; se [Regnskaber](brugervejledning/data-og-daekning#regnskaber)). Testen tager 10–15 minutter.
+
+Rapporten hedder `score-study-qv.json` (eller `-quality`, `-value`) og har samme tabeller. Varianterne er de fire kvalitetssøjler hver for sig, de enkelte nøgletal (ROIC, FCF-margin, FCF yield, EBIT/EV, shareholder yield, EBIT/EV mod egen historik), gross profitability (Novy-Marx), Greenblatts magic formula, K+V blandet 1:1 med momentum og momentumscoren selv på de samme aktier. Under tabellerne står rangkorrelationen med momentumscoren: ligger den nær 0 eller under, vælger de to scorer forskellige aktier, og det er den spredning, en portefølje kan få ud af at bruge begge.
+
+> **Bemærk:** Regnskaberne bevæger sig langsomt, og kurshistorikken er kort ({{settings:history_years}} år), så testen bygger på få uafhængige perioder. Dagens S&P 500 er universet, og sektorerne er dagens. Den rene test er [A/B-testen](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum), som kører fremad i tid.
+
 ## Varianter af stopreglen
 
 ```

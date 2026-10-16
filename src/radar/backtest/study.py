@@ -28,6 +28,11 @@ reports/score-study.json.
   without a month-end rotation out of names that fell outside a rank buffer, judged on return and risk-adjusted
   return (Sharpe and Sortino over the ECB deposit rate, Calmar, information ratio against ACWI).
 
+- **Other signals** (`signal=`, SIGNALS): the kvalitetsscore, værdiscore and K+V on US stocks from SEC EDGAR
+  (backtest/fund.py: the live scoring code on the facts known by D), with their pillars, single metrics and a few
+  published combinations as variants, the same statistics and verdict rule, their own report file
+  (`score-study-<signal>.json`), and each date's rank correlation with the momentum score.
+
 What it can't fix: the universe is today's (S&P 500 constituents and curated lists), so names that left it are
 missing; that flatters momentum, whose winners are the ones that get added. Sectors are today's (the
 sector-neutral variant says so). Adjusted prices are rewritten after each dividend, which moves levels but
@@ -67,6 +72,7 @@ class Panels:
     sessions: pd.DatetimeIndex                   # benchmark calendar
     bench_dkk: pd.Series
     volumes: pd.DataFrame | None = None          # traded volume (gaps forward-filled, as ingest.wide)
+    fund: object | None = None                   # backtest.fund.FundPIT, for the fundamentals signals
 
 
 def panels(market, tickers: list[str] | None = None) -> Panels:
@@ -242,6 +248,87 @@ VARIANTS = [
 BY_KEY = {v.key: v for v in VARIANTS}
 
 
+# ---------------- the fundamentals signals (backtest/fund.py) ----------------
+
+def _f(key: str):
+    return lambda p, d: p.fund.col(d, key)
+
+
+def _mom_on(p, day) -> pd.Series:
+    """The momentum score ranked among the names with a K+V that day (so the two compare on the same names)."""
+    names = p.fund.col(day, "qv").dropna().index
+    return pct(_comp(p, day).reindex(names))
+
+
+def _magic(p, day):
+    t = p.fund.table(day)
+    return pct(t[["rank_roic", "rank_ebit_ev"]]) if {"rank_roic", "rank_ebit_ev"} <= set(t) else pd.Series(dtype=float)
+
+
+def _qvm(p, day):
+    return (p.fund.col(day, "qv") + _mom_on(p, day)) / 2
+
+
+FUND_VARIANTS = [
+    Variant("qv", "K+V (kvalitet + værdi), as on the Quality & value page", _f("qv")),
+    Variant("quality", "Kvalitetsscore", _f("quality")),
+    Variant("value", "Værdiscore", _f("value")),
+    Variant("q_profitability", "Pillar: profitability (FCF margin, ROIC)", _f("q_profitability")),
+    Variant("q_durability", "Pillar: durability (margin and revenue steadiness)", _f("q_durability")),
+    Variant("q_balance", "Pillar: balance sheet (net debt / EBITDA, interest cover)", _f("q_balance")),
+    Variant("q_record", "Pillar: dividend record", _f("q_record")),
+    Variant("roic", "ROIC alone", _f("rank_roic")),
+    Variant("fcf_margin", "FCF margin alone", _f("rank_fcf_margin")),
+    Variant("gross_prof", "Gross profitability (Novy-Marx)", _f("gross_prof"),
+            note="gross profit over total assets, the last twelve months"),
+    Variant("fcf_yield", "FCF yield alone", _f("rank_fcf_yield")),
+    Variant("ebit_ev", "EBIT / EV alone", _f("rank_ebit_ev")),
+    Variant("magic", "Magic formula (Greenblatt)", _magic, note="mean percentile of ROIC and EBIT / EV"),
+    Variant("shareholder_yield", "Shareholder yield alone", _f("rank_shareholder_yield")),
+    Variant("ey_vs_history", "EBIT / EV against its own history", _f("rank_ey_vs_history")),
+    Variant("qvm", "K+V blended 1:1 with momentum", _qvm, note="the mean of K+V and the momentum score on the same names"),
+    Variant("momentum", "Momentum score on the same names", _mom_on,
+            note="for reference: the production score ranked among the names with a K+V"),
+]
+
+FUND_CAVEATS = [
+    "US only: SEC EDGAR is the one source with filing dates, so other regions have no point-in-time statements. "
+    "Peers are the US names, where the app pools every region.",
+    "Survivorship: the universe is today's S&P 500, so companies that left it (often after a bad run, sometimes "
+    "after a takeover) are missing.",
+    "Sectors and industries are today's: the peer groups and the bank/insurer set aren't strictly as of D.",
+    "Facts count from their filing date plus backtest.fundamentals_lag_days; a restatement filed later doesn't "
+    "change an earlier date. Yahoo's market-value check is skipped (its figure is today's).",
+    "Monthly dates over a short price history: about five years of month-ends at history_years: 6, and statements "
+    "move slowly, so neighbouring months share most of their information. The t-statistics use Newey-West errors "
+    "for overlapping horizons, but the number of independent periods is small.",
+    "Several variants are tried: a few will look better by chance. Only one that also holds in the holdout counts.",
+    "The forward A/B test (radar abtest) is the clean out-of-sample test; this study is the look back.",
+]
+
+
+@dataclass(frozen=True)
+class Signal:
+    key: str
+    label: str
+    baseline: str
+    variants: tuple
+    report: str
+    caveats: tuple
+    fund: bool = False
+
+    @property
+    def by_key(self) -> dict:
+        return {v.key: v for v in self.variants}
+
+
+SIGNALS = {
+    "momentum": Signal("momentum", "Momentum score", BASELINE, tuple(VARIANTS), REPORT_FILE, ()),
+    **{k: Signal(k, lbl, k, tuple(FUND_VARIANTS), f"score-study-{k}.json", tuple(FUND_CAVEATS), fund=True)
+       for k, lbl in (("quality", "Kvalitetsscore"), ("value", "Værdiscore"), ("qv", "K+V"))},
+}
+
+
 # ---------------- statistics ----------------
 
 def nw_t(values, lag: int) -> float | None:
@@ -339,13 +426,20 @@ def forward(p: Panels, fi: int, h: int, dkk: bool = False) -> pd.Series | None:
 
 
 def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top: int = 15, exits: int | None = None,
-        seasoned: bool = False, since=None, with_regime: bool = True, log=lambda *_: None, p: Panels | None = None) -> dict:
+        seasoned: bool = False, since=None, with_regime: bool = True, log=lambda *_: None, p: Panels | None = None,
+        signal: str = "momentum") -> dict:
+    if signal not in SIGNALS:
+        raise ValueError(f"unknown signal {signal} (known: {', '.join(SIGNALS)})")
+    sig = SIGNALS[signal]
+    BY_KEY, BASELINE = sig.by_key, sig.baseline       # the module's momentum names, here per signal
+    if sig.fund and exits:
+        raise ValueError("the exit-rule test runs on the momentum score only")
     cfg = settings()
     bt = cfg.get("backtest") or {}
     min_names = int(bt.get("study_min_names", 30))
     fill = bt.get("fill", "next")
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
-    keys = variants or [v.key for v in VARIANTS]
+    keys = variants or [v.key for v in sig.variants]
     unknown = [k for k in keys if k not in BY_KEY]
     if unknown:
         raise ValueError(f"unknown variant(s): {', '.join(unknown)} (known: {', '.join(BY_KEY)})")
@@ -355,6 +449,14 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         if h not in HORIZONS:
             raise ValueError(f"horizons are months among {', '.join(map(str, HORIZONS))}")
     p = p or panels(market)
+    if sig.fund and p.fund is None:
+        from .fund import FundPIT
+
+        p.fund = FundPIT(market)
+        if not p.fund.names:
+            raise ValueError("no SEC EDGAR statements stored: run `radar fundamentals update --source edgar --all` first")
+        log(f"{len(p.fund.names)} US stocks with SEC EDGAR statements, the first known {p.fund.first_known:%Y-%m-%d}")
+        since = max(pd.Timestamp(since), p.fund.first_known) if since else p.fund.first_known
     log(f"{len(p.closes.columns)} stocks, {len(keys)} variants")
     ctx = None
     if with_regime or exits:
@@ -373,7 +475,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         listed = last.notna()
         if seasoned:
             listed &= p.m["history"].loc[day] >= 252
-        xs = {k: BY_KEY[k].fn(p, day).where(listed) for k in keys}
+        xs = {k: BY_KEY[k].fn(p, day).reindex(listed.index).where(listed) for k in keys}
         base = xs[BASELINE]
         if base.notna().sum() < min_names:
             continue
@@ -381,6 +483,10 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         rec = {"date": day.date().isoformat(), "fill": p.sessions[fi].date().isoformat(), "regime": rg,
                "ranked": int(base.notna().sum()), "no_price": int((~last.notna()).sum()),
                "no_score": int((last.notna() & base.isna()).sum()), "horizons": {}}
+        if sig.fund:
+            mom = _mom_on(p, day).reindex(base.index)
+            rc = base.rank().corr(mom.rank())
+            rec["momentum_corr"] = None if pd.isna(rc) else float(rc)
         for k in keys:
             x = xs[k].dropna()
             tops[k].append(set(x.sort_values(ascending=False).index[: max(len(x) // QUANTILES, 1)]))
@@ -435,6 +541,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
                             for k in keys if k != BASELINE}
 
     out = {
+        "signal": sig.key, "signal_label": sig.label,
         "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "asof": p.sessions[-1].date().isoformat(),
         "settings": {"n_top": n_top, "min_names": min_names, "fill": fill, "seasoned": seasoned,
                      "holdout_from": holdout.date().isoformat() if holdout is not None else None,
@@ -449,8 +556,14 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         "turnover": {k: turnover(tops[k]) for k in keys},
         "dates": dates_out,
         "exits": exit_study(market, p, ctx, dates_out, exits, n_top, log) if exits else None,
-        "caveats": CAVEATS,
+        "caveats": list(sig.caveats) if sig.fund else CAVEATS,
     }
+    if sig.fund:
+        mc = [d.get("momentum_corr") for d in dates_out]
+        out["universe"]["fund_names"] = len(p.fund.names)
+        out["momentum_corr"] = {"mean": _mean(mc), "dates": sum(v is not None for v in mc),
+                                "note": "rank correlation of the baseline with the momentum score per date: near 0 "
+                                        "or below means the two pick different stocks"}
     return out
 
 
@@ -610,7 +723,7 @@ def _value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -
 
 def write(rep: dict) -> None:
     REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / REPORT_FILE
+    f = REPORTS / SIGNALS[rep.get("signal", "momentum")].report
     write_text(f, json.dumps(rep, indent=1, default=_json))
 
 
