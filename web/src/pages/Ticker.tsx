@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api, type Profile } from "../api/client";
 import { PriceChart, type Level } from "../components/PriceChart";
+import { QualityCard } from "../components/QualityCard";
 import {
   AnalystCard, EtfCard, FundamentalsCard, Glance, LevelsCard, MomentumCard, PeersCard, RecentCard, Returns, RiskCard, TechnicalsCard, ViewsCard,
 } from "../components/sections";
@@ -145,6 +146,7 @@ export function Ticker() {
         <RiskCard p={p} />
         {isFund ? <EtfCard p={p} /> : <AnalystCard p={p} />}
         {isFund ? null : <FundamentalsCard p={p} />}
+        {isFund ? null : <QualityCard p={p} />}
         <PeersCard p={p} />
         <ViewsCard p={p} />
         <RecentCard p={p} />
@@ -156,7 +158,7 @@ export function Ticker() {
         )}
       </div>
       <div className="sources">
-        Sources: {[p.price, p.momentum, p.analyst, p.fundamentals, ...(p.etf ? [p.etf] : []), p.peers]
+        Sources: {[p.price, p.momentum, p.analyst, p.fundamentals, ...(p.etf ? [p.etf] : []), ...(p.quality ? [p.quality] : []), p.peers]
           .map((s) => `${s.source} (${s.status}${s.asof ? `, ${date(s.asof)}` : ""})`)
           .filter((v, i, a) => a.indexOf(v) === i).join(" · ")}.
         {Object.keys(p.context.errors).length > 0 && <> Yahoo errors: {Object.entries(p.context.errors).map(([k, v]) => `${k}: ${v}`).join("; ")}.</>}

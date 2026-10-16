@@ -20,6 +20,7 @@ books:
           - {slug: sektorrotation, title: Sektorrotation}
           - {slug: temaer-og-faktorer, title: Temaer og faktorer}
           - {slug: momentum, title: Momentum}
+          - {slug: kvalitet-og-vaerdi, title: Kvalitet og værdi}
           - {slug: discover, title: Discover}
           - {slug: positionering, title: Positionering og cyklus}
       - title: Dig og dine penge
@@ -117,6 +118,7 @@ page_links:
   /rotation: brugervejledning/sektorrotation
   /themes: brugervejledning/temaer-og-faktorer
   /momentum: brugervejledning/momentum
+  /quality: brugervejledning/kvalitet-og-vaerdi
   /discover: brugervejledning/discover
   /positioning: brugervejledning/positionering
   /me: brugervejledning/beholdninger
@@ -206,3 +208,25 @@ glossary_links:
   acwi_twr: laerebog/twr-og-mwr#acwi-med-samme-pengestrømme
   same_flows: laerebog/twr-og-mwr#acwi-med-samme-pengestrømme
   funding: laerebog/twr-og-mwr#finansiering-ledger-eller-implicit
+  quality: laerebog/kvalitetsscore#hvornår-der-er-en-score
+  value: laerebog/kvalitetsscore#hvornår-der-er-en-score
+  qv: laerebog/kvalitetsscore#fra-percentiler-til-score
+  q_n: laerebog/kvalitetsscore#hvornår-der-er-en-score
+  fund_pillars: laerebog/kvalitetsscore#nøgletallene
+  fund_source: laerebog/kvalitetsscore#data
+  fcf_yield: laerebog/kvalitetsscore#nøgletallene
+  ev_ebit: laerebog/kvalitetsscore#nøgletallene
+  roic: laerebog/kvalitetsscore#nøgletallene
+  fcf_margin: laerebog/kvalitetsscore#nøgletallene
+  gm_stability: laerebog/kvalitetsscore#nøgletallene
+  rev_stability: laerebog/kvalitetsscore#nøgletallene
+  rev_cagr: laerebog/kvalitetsscore#nøgletallene
+  nd_ebitda: laerebog/kvalitetsscore#nøgletallene
+  interest_cover: laerebog/kvalitetsscore#nøgletallene
+  div_years: laerebog/kvalitetsscore#nøgletallene
+  shareholder_yield: laerebog/kvalitet-og-vaerdi#penge-tilbage-til-ejerne
+  ey_vs_history: laerebog/kvalitetsscore#nøgletallene
+  roe: laerebog/kvalitetsscore#banker-og-forsikringsselskaber
+  pb: laerebog/kvalitetsscore#banker-og-forsikringsselskaber
+  ab_test: brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum
+  ab_corr: laerebog/diversifikation#værdi-og-momentum-side-om-side

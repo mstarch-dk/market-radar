@@ -23,7 +23,7 @@ Et afkast, der ikke kan regnes (manglende kurs eller valutakurs), står som –,
 
 | *Kind* | Hvor den kommer fra | Rækkerne |
 |---|---|---|
-| *A/B test* | `radar abtest start` | Skrives af testen hver måned; kan ikke rettes |
+| *A/B test* | *Start the A/B test* på siden [Quality & value](/quality#ab), eller `radar abtest start` | Skrives af testen hver måned; kan ikke rettes |
 | *Simulation* | `radar sim picks`, `/hindsight`, `radar sim exits` | Skrives af en kørsel; en ny kørsel erstatter dem |
 | *Fork* | *fork into an experiment* under *Accounts* på siden *Portfolio* | Dine egne: ret og tilføj som på en konto |
 | *Your own* | Oprettet nederst på denne side | Dine egne |

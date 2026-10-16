@@ -97,6 +97,12 @@ Risikostatistik på hele uger i DKK over 1 og 3 år (antallet af uger står i ov
 
 Øverst radarens ugentlige snapshot: P/E på næste års forventede indtjening, P/E mod sektorens median blandt navnets peers, ændringen i EPS-estimatet over 4 og 12 uger og P/E over de gemte uger. Revisioner kræver, at historikken er bygget op. Under det Yahoos profil: markedsværdi, P/E, PEG, EV/EBITDA, kurs/indre værdi, marginer, vækst, egenkapitalforrentning, gæld, udbytte, beta og short interest. Usandsynlige tal smides væk med en note. Se [Relativ værdiansættelse](laerebog/relativ-vaerdiansaettelse).
 
+### Quality & value (aktier)
+
+Kvalitets- og værdiscoren i stort, hver med hvor mange af de fire søjler eller værdinøgletal den bygger på, og K+V ved siden af. Derunder alle nøgletallene, ordnet efter søjle (lønsomhed, holdbarhed, balance, udbytterække, værdi), hvert med sin værdi og sin percentil blandt de sammenlignelige aktier. Ud for percentilen står, om den er regnet i sektoren (*sector*) eller blandt alle aktier (*all*), og hvor mange de er. Banker og forsikringsselskaber viser deres eget sæt (ROE, egenkapital / aktiver, bogført værdi / kurs).
+
+Under nøgletallene står de seneste regnskabsår med omsætning, bruttoavance og FCF-margin, og nederst kilden (SEC EDGAR eller Yahoo), perioden tallene når frem til, indleveringsdatoen (EDGAR), hvordan de seneste 12 måneder er bygget, og markedsværdien i regnskabsvalutaen. Mangler aktien regnskaber, står det i kortet. Se [Kvalitet og værdi](brugervejledning/kvalitet-og-vaerdi#kvalitet-og-værdi-andre-steder) og [Radarens kvalitets- og værdiscore](laerebog/kvalitetsscore).
+
 ### Fund look-through (ETF'er)
 
 For en fond vises i stedet omkostninger, fondsstørrelse, udbyder, positivliste-status med ISIN, en UCITS-version (hvis radaren kender en), fondens P/E mod ACWI, sektorfordeling og de største beholdninger. Ejer du en af de største beholdninger direkte, står der *you hold* ved den.

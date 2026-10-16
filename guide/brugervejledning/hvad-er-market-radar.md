@@ -42,6 +42,7 @@ Fanerne øverst i appen følger rækkefølgen ovenfor. Her er hvad hver side gø
 | *Sector rotation* | Amerikanske og europæiske sektorer samt regioner på en rotationsgraf (RRG) | [Sektorrotation](brugervejledning/sektorrotation) |
 | *Themes & factors* | Tema- og faktor-ETF'er med UCITS-alternativ og positivliste-status | [Temaer og faktorer](brugervejledning/temaer-og-faktorer) |
 | *Momentum* | De stærkeste aktier pr. region, nye navne og klynger | [Momentum](brugervejledning/momentum) |
+| *Quality & value* | Kvalitets- og værdiscoren fra regnskaberne pr. region, og A/B-testen mod momentum | [Kvalitet og værdi](brugervejledning/kvalitet-og-vaerdi) |
 | *Discover* | Et bredere net: nordiske og europæiske aktier og UCITS-ETF'er i et heatmap og en screener | [Discover](brugervejledning/discover) |
 | *Positioning & cycle* | Indtjeningsrevisioner, værdiansættelse, OECD-cyklus, renter, futurespositionering og sentiment | [Positionering og cyklus](brugervejledning/positionering) |
 | *Holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |

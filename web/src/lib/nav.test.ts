@@ -7,10 +7,10 @@ function memory() {
 }
 
 describe("navigation groups", () => {
-  it("puts every page in exactly one group, with at most six per group", () => {
+  it("puts every page in exactly one group, with at most seven per group", () => {
     const paths = ALL_PAGES.map((p) => p.path);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(NAV.every((g) => g.pages.length <= 6)).toBe(true);
+    expect(NAV.every((g) => g.pages.length <= 7)).toBe(true);
   });
 
   it("finds the group of a page, its sub-pages and ticker pages", () => {

@@ -27,6 +27,7 @@ Alle tre tabeller har de samme grundkolonner:
 | *From high* | Afstand til 52-ugers høj |
 | *Signals* | Én prik pr. graderet aflæsning: RSI, momentumscore, afstand til 52-ugers høj, stop, kursmål og afkast mod ACWI. Hold musen over for detaljer |
 | *P/E* | Aktier: P/E på næste års forventede indtjening; fonde: Yahoos P/E for fonden. Flere værdiansættelseskolonner kan slås til i tabellens værktøjslinje |
+| *Quality*, *Value* | Aktier: kvalitets- og værdiscoren 0–100 fra regnskaberne (en streg for fonde og aktier uden regnskabstal). *K+V*, *FCF yield*, *EV/EBIT*, *ROIC* og *Statements* kan slås til. Se [Kvalitet og værdi](brugervejledning/kvalitet-og-vaerdi) |
 | *Flags* | Regelbaserede mærker (se nedenfor) |
 
 *Trend* (50-dages over et stigende 200-dages) er skjult som standard og kan slås til. Tabellerne kan sorteres, søges i, filtreres og hentes som CSV; filtrene står i adressen.

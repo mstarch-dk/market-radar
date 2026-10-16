@@ -9,6 +9,7 @@ import { Discover } from "./pages/Discover";
 import { Home } from "./pages/Home";
 import { Me } from "./pages/Me";
 import { Momentum } from "./pages/Momentum";
+import { Quality } from "./pages/Quality";
 import { Ops } from "./pages/Ops";
 import { Experiments } from "./pages/Experiments";
 import { Performance } from "./pages/Performance";
@@ -31,7 +32,7 @@ const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton
 
 // what each page in lib/nav.ts shows (the groups, labels and order live there)
 const ELEMENTS: Record<string, ReactNode> = {
-  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />,
+  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />,
   "/discover": <Discover />, "/positioning": <Positioning />,
   "/me": <Me />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
   "/notebook": lazyPage(<Notebook />),

@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { date, num, pct } from "../lib/format";
 import { useAlignment } from "../lib/views";
 import { stockValCols } from "../components/valuationCols";
+import { scoreCols } from "../components/fundCols";
 
 const baseCols: Col<MomentumRow>[] = [
   { key: "name", label: "Company", align: "l", sort: (r) => r.name ?? r.ticker, search: (r) => `${r.name ?? ""} ${r.ticker}`,
@@ -34,6 +35,7 @@ const baseCols: Col<MomentumRow>[] = [
   { key: "new", label: "New", sort: (r) => r.new, render: (r) => (r.new ? <span className="new">NEW</span> : null), help: "new",
     filter: { kind: "bool" }, hidden: true },
   ...stockValCols<MomentumRow>(),
+  ...scoreCols<MomentumRow>(),
   { key: "signals", label: "Signals", help: "signals", sort: (r) => worst(r.gauges), csv: false,
     render: (r) => <GaugeDots gauges={r.gauges ?? {}} names={{ score: "Momentum score", from_high: "52w high", vol_surge: "Volume" }} /> },
   { key: "star", label: "", name: "Watch", render: (r) => <WatchStar symbol={r.ticker} />, csv: false },

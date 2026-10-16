@@ -12,6 +12,7 @@ import { PortfolioPicker, usePortfolioSel } from "../components/PortfolioPicker"
 import { formatSel, isDefaultSel } from "../lib/portfolioSel";
 import { date, num, pct } from "../lib/format";
 import { stockValCols } from "../components/valuationCols";
+import { scoreCols } from "../components/fundCols";
 
 const name: Col<MyRow> = { key: "name", label: "Name", align: "l", sort: (r) => r.name ?? r.symbol,
   search: (r) => `${r.name ?? ""} ${r.symbol}`, csv: (r) => r.symbol, csvHeader: "Ticker",
@@ -38,6 +39,7 @@ const valuation: Col<MyRow>[] = [
     help: "pe_fy1", csv: (r) => r.pe_fy1 ?? r.pe,
     render: (r) => <Graded g={r.val_gauges?.pe_vs_sector ?? r.val_gauges?.pe_vs_acwi}>{num(r.pe_fy1 ?? r.pe, 1)}</Graded> },
   ...stockValCols<MyRow>().filter((c) => c.key !== "pe_fy1").map((c) => ({ ...c, hidden: true })),
+  ...scoreCols<MyRow>(),
 ];
 
 const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} />, help: "flags",
