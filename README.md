@@ -49,7 +49,7 @@ double-click the start script again.
 - **Update data:** on the *Data & coverage* page, click *Update data* (or click the button in the yellow banner
   that appears when the data is a week old). Updates take a minute or two.
 - **Your portfolio:** on the *Portfolio* page, add your trades one by one (the price of that day is filled in
-  for you), or *Import…* them from your broker (Saxo, Nordnet, Danske Bank), Yahoo Finance or any spreadsheet. The
+  for you), or import them (the *Imports* tab) from your broker (Saxo, Nordnet, Danske Bank), Yahoo Finance or any spreadsheet. The
   import shows every row before anything is saved and can be undone. Positions, average cost (fees included) and
   your return vs the world index follow from the trades. Mark each trade's account (e.g. aktiesparekonto or frie
   midler) to see positions per account.

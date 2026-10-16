@@ -29,6 +29,7 @@ books:
           - {slug: portefolje, title: "Portefølje: handler, kontanter og import"}
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
+          - {slug: eksperimenter, title: "Eksperimenter: virtuelle porteføljer"}
           - {slug: stop-simulering, title: Simulér stop og take-profit på dine handler}
           - {slug: scoretest, title: Test momentumscoren på historikken}
           - {slug: markedssyn, title: Mine markedssyn}
@@ -123,6 +124,7 @@ page_links:
   /notebook: brugervejledning/notesbog
   /portfolio: brugervejledning/portefolje
   /returns: brugervejledning/afkast
+  /experiments: brugervejledning/eksperimenter
   /data: brugervejledning/data-og-daekning
   /ops: brugervejledning/drift
   /ticker: brugervejledning/tickerprofil

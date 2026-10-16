@@ -1,24 +1,23 @@
 # Portefølje: handler, kontanter og import
 
-Siden [Portfolio](/portfolio) er stedet, hvor du fører dine handler. Handlerne er sandheden: positioner, gennemsnitlig anskaffelseskurs og afkast regnes altid ud fra dem, pr. portefølje. Alt gemmes i `radar.db` i din datamappe på din egen computer, og intet sendes nogen steder hen. Der tages automatisk backup af det; se [Dine data, backup og opdatering](brugervejledning/dine-data).
+Siden [Portfolio](/portfolio) er stedet, hvor du fører handlerne på dine konti (de rigtige porteføljer). Handlerne er sandheden: positioner, gennemsnitlig anskaffelseskurs og afkast regnes altid ud fra dem, pr. konto. Alt gemmes i `radar.db` i din datamappe på din egen computer, og intet sendes nogen steder hen. Der tages automatisk backup af det; se [Dine data, backup og opdatering](brugervejledning/dine-data).
+
+Virtuelle porteføljer (A/B-testen, simuleringer og forks) vises ikke her, men på siden [Experiments](/experiments). Se [Eksperimenter: virtuelle porteføljer](brugervejledning/eksperimenter).
 
 ## Siden i overblik
 
-Øverst står tre knapper og porteføljevælgeren:
+Øverst står en række kort, ét pr. konto, med kontoens navn, skattetype og værdi i DKK. *All accounts* viser alle dine konti samlet (standard); klikker du på en konto, viser siden kun den (`?pf=` i adressen).
 
-- *Add a trade or cash row* åbner formularen til en ny række.
-- *Import…* åbner guiden til import fra en bank eller et regneark.
-- *Download your trades (CSV)* henter de viste rækker som en CSV-fil. Vælger du andre porteføljer, hedder knappen *Download these trades (CSV)*.
-- *Portfolio* vælger, hvilke porteføljer siden viser (`?pf=` i adressen). Standarden er dine rigtige porteføljer. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags).
+Derunder er siden delt i fire faner (`?tab=` i adressen, så *Tilbage* i browseren går til den forrige fane):
 
-Derunder kommer:
+- ***Positions***: dine positioner med antal, gennemsnitlig anskaffelseskurs (*Average cost*), seneste kurs, værdi, urealiseret afkast og dato for første køb. *Total* lægger kontiene sammen, *By account* viser dem hver for sig. Har en konto kontantrækker, står kontantbeholdningen i DKK under tabellen. Værdierne er i hvert papirs egen valuta.
+- ***Transactions***: alle rækker, nyeste først, med *Edit* og *Delete*. Knapperne *Add a trade* og *Add a cash row* åbner formularen lige over tabellen, og *Download your transactions (CSV)* henter de viste rækker. Sletter du en række, kan du fortryde med *Undo* lige bagefter.
+- ***Imports***: *Import a file…* åbner guiden til import fra en bank eller et regneark, og *Past imports* viser tidligere importer med mulighed for at fortryde (se [Fortryd en import](#fortryd-en-import)).
+- ***Accounts***: dine konti med skattetype, tags, kurtageskema og arkiv. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags).
 
-- **Positions**: dine positioner med antal, gennemsnitlig anskaffelseskurs (*Average cost*), seneste kurs, værdi, urealiseret afkast og dato for første køb. *Total* lægger porteføljerne sammen, *By portfolio* viser dem hver for sig. Har en portefølje kontantrækker, står kontantbeholdningen i DKK under tabellen. Værdierne er i hvert papirs egen valuta.
-- **Trades**: alle rækker, nyeste først, med *Edit* og *Delete*. Sletter du en række, kan du fortryde med *Undo* lige bagefter.
-- **Past imports**: tidligere importer med mulighed for at fortryde (se [Fortryd en import](#fortryd-en-import)).
-- **Portfolios**: dine porteføljer, tags og arkiv.
+Ligger der handler i porteføljen *Main* (handler fra før porteføljerne fandtes), og har du andre konti, viser siden over fanerne en linje, hvor du kan flytte dem: alle eller ét symbol ad gangen.
 
-Ligger der handler i porteføljen *Main* (handler fra før porteføljerne fandtes), og har du andre rigtige porteføljer, viser siden en linje, hvor du kan flytte dem: alle eller ét symbol ad gangen.
+Et gammelt bogmærke til en virtuel portefølje på denne side sender dig videre til [Experiments](/experiments).
 
 ## Handler og kontantrækker
 
@@ -34,13 +33,27 @@ En række er enten en handel eller en kontantrække:
 | FEE | *Fee* | Beløb i DKK (fx depotgebyr) |
 | INTEREST | *Interest* | Beløb i DKK (renter) |
 
-Når du vælger ticker og dato til en handel, udfylder formularen kursen med den dags lukkekurs (*close …*) i papirets egen valuta. Kurtage angives i samme valuta. For papirer i fremmed valuta kan du skrive den kurs, du handlede til, i feltet *DKK per …* (for London-papirer i pence: *DKK per penny*); er feltet tomt, bruges Yahoos kurs den dag.
+I feltet *Ticker* kan du skrive et firmanavn eller et symbol: listen under feltet viser forslag fra Yahoo med symbol, navn, børs og type, og et papir, radaren allerede følger, er markeret *tracked*. Vælg med piletasterne og Enter eller med musen; når du har valgt, står papirets navn og børs under feltet, så NOVO-B.CO ikke forveksles med NVO.
+
+Når du vælger ticker og dato til en handel, udfylder formularen kursen med den dags lukkekurs (*close …*) i papirets egen valuta. Kurtage angives i samme valuta; har kontoen et kurtageskema, udfyldes den med et estimat (se [Kurtage-estimatet](#kurtage-estimatet)). For papirer i fremmed valuta kan du skrive den kurs, du handlede til, i feltet *DKK per …* (for London-papirer i pence: *DKK per penny*); er feltet tomt, bruges Yahoos kurs den dag.
 
 Kontantrækker indtastes altid i DKK. Et gebyr på en handel skrives i feltet *Fee*; et gebyr uden handel er en række for sig af typen *Fee*.
 
 > **Bemærk:** Udbytte tæller kun, når porteføljens udbyttepolitik er *cash*. Med standarden *reinvested* indeholder de justerede kurser allerede udbyttet, så en udbytterække gemmes til orientering uden at blive talt med. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags).
 
 Kontantrækker er frivillige. Uden dem regner radaren hvert køb som nye penge og hvert salg som penge taget ud. Med ind- og udbetalinger fører radaren en kontantbeholdning, og afkastet regnes på beholdning plus kontanter. Se [Afkast over tid](brugervejledning/afkast).
+
+## Kurtage-estimatet
+
+Hver konto kan have et kurtageskema: for hvert marked en procentsats af handlens værdi med en mindstekurtage og eventuelt en maksimal kurtage. Du sætter det under fanen *Accounts* ved at klikke *fees: …* ud for kontoen.
+
+- *Start from* udfylder skemaet fra en mægler: Saxo (Classic), Danske Bank (Netbank online) eller Danske Banks kampagne uden kurtage på aktiesparekontoen. Hver skabelon har datoen for prislisten og et link til kilden. Priserne ændrer sig, så sammenlign med din mæglers aktuelle prisliste, og ret tallene til.
+- Markederne er *Denmark* (`.CO`), *Nordic* (`.ST`, `.OL`, `.HE`, `.IC`), *USA* (symboler uden endelse), *Europe* (fx `.DE`, `.PA`, `.AS`), *UK* (`.L`) og *Other markets*, som bruges for alt, skemaet ikke har en regel for. Mindste- og maksimalkurtagen står i reglens egen valuta (fx 1 USD) og omregnes med dagens valutakurs.
+- *Currency exchange surcharge* er mæglerens vekselgebyr. Det vises ved siden af estimatet, men lægges ikke til: skriver du den kurs, du handlede til, er vekselgebyret allerede med i den.
+
+I formularen udfyldes *Fee* med estimatet, og under feltet står grundlaget, fx *estimated 4,20: 0.2% (min 29 DKK)*. Skriver du selv et beløb, beholdes det, og estimatet står som *schedule says …* med knappen *use it*. Uden et skema, eller uden en valutakurs til at omregne en mindstekurtage, udfyldes intet: et manglende estimat er aldrig 0.
+
+> **Bemærk:** Estimatet er et skøn. Det er beløbet på din afregning, der tæller; skatter som fransk FTT og britisk stempelafgift er ikke med.
 
 ## Kontrollen af en række
 
@@ -80,7 +93,7 @@ Hver portefølje har sine egne positioner. Visningen *Total* lægger dem sammen,
 
 ## Import fra bank eller regneark
 
-*Import…* åbner en guide i fire trin: vælg en fil, tjek kolonnerne, bekræft symbolerne, gennemse og importér. Intet gemmes før sidste trin.
+*Import a file…* under fanen *Imports* åbner en guide i fire trin: vælg en fil, tjek kolonnerne, bekræft symbolerne, gennemse og importér. Intet gemmes før sidste trin.
 
 ### 1. Vælg en fil
 

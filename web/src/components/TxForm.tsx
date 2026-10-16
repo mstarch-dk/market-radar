@@ -12,20 +12,31 @@ export const PORTFOLIO_KEYS = [["transactions"], ["positions"], ["context"], ["m
 type TxType = TxIn["type"];
 const TYPES: [TxType, string][] = [["BUY", "Buy"], ["SELL", "Sell"], ["DEPOSIT", "Deposit"], ["WITHDRAW", "Withdrawal"],
   ["DIVIDEND", "Dividend"], ["FEE", "Fee"], ["INTEREST", "Interest"]];
+const roundFee = (v: number) => Math.round(v * 100) / 100;
 const isTrade = (t: TxType) => t === "BUY" || t === "SELL";
 
 /** Add or edit one row: a trade, or a cash row (deposit, withdrawal, dividend, fee, interest; amounts in DKK).
  *  The API checks it while you type (errors block, warnings need a tick) and shows what a trade does to the position
- *  in its portfolio; the price is prefilled with that day's close, in the stock's own currency. `portfolio`
- *  preselects a portfolio for a new row (default: the default portfolio). */
-export function TxForm({ edit, portfolio, onDone }: { edit?: TxRow | null; portfolio?: number | null; onDone: () => void }) {
+ *  in its portfolio; the price is prefilled with that day's close, in the stock's own currency, and the fee with
+ *  the estimate from the portfolio's fee schedule until you type one. `portfolio` preselects a portfolio for a new
+ *  row (default: the default portfolio); `scope` limits the choice to your accounts or to virtual portfolios, and
+ *  `lock` to the one given. */
+export function TxForm({ edit, portfolio, type, scope, lock, onDone }: {
+  edit?: TxRow | null;
+  portfolio?: number | null;
+  type?: TxIn["type"];
+  scope?: "real" | "virtual";
+  lock?: boolean;
+  onDone: () => void;
+}) {
   const qc = useQueryClient();
-  const { data: portfolios = [] } = useQuery({ queryKey: ["portfolios"], queryFn: api.portfolios });
+  const { data: all = [] } = useQuery({ queryKey: ["portfolios"], queryFn: api.portfolios });
+  const portfolios = all.filter((p) => ((!scope || p.mode === scope) && (!lock || p.id === portfolio)) || p.id === edit?.portfolio_id);
   const [tx, setTx] = useState<TxIn>(() => edit
     ? { symbol: edit.symbol ?? "", date: edit.date, type: edit.type, quantity: edit.quantity ?? null, price: edit.price ?? null,
         fee: edit.fee, amount: edit.amount ?? null, currency: edit.currency ?? null, fx_rate: edit.fx_rate ?? null,
         portfolio_id: edit.portfolio_id, note: edit.note ?? null, confirm: false }
-    : { symbol: "", date: today(), type: "BUY", quantity: null, price: null, fee: 0, amount: null, fx_rate: null,
+    : { symbol: "", date: today(), type: type ?? "BUY", quantity: null, price: null, fee: 0, amount: null, fx_rate: null,
         portfolio_id: portfolio ?? null, note: null, confirm: false });
   useEffect(() => {        // a new row goes into the default portfolio unless one is chosen
     if (tx.portfolio_id == null && portfolios.length) {
@@ -34,6 +45,7 @@ export function TxForm({ edit, portfolio, onDone }: { edit?: TxRow | null; portf
     }
   }, [portfolios, tx.portfolio_id]);
   const [priceTouched, setPriceTouched] = useState(!!edit);
+  const [feeTouched, setFeeTouched] = useState(!!edit);
   const [confirm, setConfirm] = useState(false);
   const set = (patch: Partial<TxIn>) => { setTx((t) => ({ ...t, ...patch })); setConfirm(false); };
   const trade = isTrade(tx.type);
@@ -64,6 +76,11 @@ export function TxForm({ edit, portfolio, onDone }: { edit?: TxRow | null; portf
   const errors = issues.filter((i) => i.level === "error");
   const warnings = issues.filter((i) => i.level === "warning");
   const eff = check.data?.effect;
+  const est = trade ? check.data?.fee_estimate : null;
+  useEffect(() => {        // the schedule's estimate fills the fee until one is typed
+    if (!feeTouched && est) setTx((t) => (t.fee === roundFee(est.fee) ? t : { ...t, fee: roundFee(est.fee) }));
+  }, [est, feeTouched]);
+  const feeDiffers = !!est && roundFee(est.fee) !== (tx.fee ?? 0);
   const ccy = pc.data?.currency ?? check.data?.price?.currency;
   const fieldIssue = (f: string) => issues.find((i) => i.field === f);
   const n = (v: string) => (v === "" ? null : Number(v));
@@ -90,7 +107,16 @@ export function TxForm({ edit, portfolio, onDone }: { edit?: TxRow | null; portf
               {pc.data?.close != null && <span className="hint">close {pc.data.close_date}: {num(pc.data.close, 2)} {ccy}</span>}
             </label>
             <label>Fee {ccy && <span className="muted">({ccy})</span>}<input type="number" min="0" step="any" value={tx.fee || ""}
-              onChange={(e) => set({ fee: Number(e.target.value) })} /></label>
+              onChange={(e) => { setFeeTouched(true); set({ fee: Number(e.target.value) }); }} />
+              {est && (
+                <span className="hint" title={`From ${pf?.name ?? "the portfolio"}'s fee schedule${est.preset ? ` (${est.preset}` + (est.as_of ? `, price list ${est.as_of})` : ")") : ""}: an estimate, check your statement`}>
+                  {feeDiffers ? "schedule says" : "estimated"} {num(est.fee, 2)}: {est.basis}{est.rule_market !== est.market && " (other markets)"}
+                  {est.fx_fee != null && <>; FX {est.fx_pct}% ≈ {num(est.fx_fee, 2)} not included</>}
+                  {feeDiffers && <> <button type="button" className="linkish" onClick={() => { setFeeTouched(false); set({ fee: roundFee(est.fee) }); }}>use it</button></>}
+                </span>
+              )}
+              {!est && pf && !pf.fee_schedule && !!tx.symbol && <span className="hint">no fee schedule for {pf.name}</span>}
+            </label>
             {ccy && ccy !== "DKK" && (
               <label>DKK per {ccy === "GBp" ? "penny" : ccy} <span className="muted">(optional)</span>
                 <input type="number" min="0" step="any" value={tx.fx_rate ?? ""} className={fieldIssue("fx_rate") ? "bad" : ""}

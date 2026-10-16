@@ -47,8 +47,9 @@ Fanerne øverst i appen følger rækkefølgen ovenfor. Her er hvad hver side gø
 | *Holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |
 | *Market views* | Dine egne markedssyn, holdt op mod data | [Mine markedssyn](brugervejledning/markedssyn) |
 | *Notebook* | Briefs, research-notater, sammenligninger og din beslutningsjournal | [Notesbogen](brugervejledning/notesbog) |
-| *Portfolio* | Handler, kontanter, import og porteføljer | [Portefølje](brugervejledning/portefolje) |
+| *Portfolio* | Dine konti: positioner, handler, import og kurtageskemaer | [Portefølje](brugervejledning/portefolje) |
 | *Returns* | Afkast over tid mod ACWI (TWR og MWR) | [Afkast over tid](brugervejledning/afkast) |
+| *Experiments* | Virtuelle porteføljer: A/B-testen, simuleringer og forks, med beholdning, handler og afkast | [Eksperimenter](brugervejledning/eksperimenter) |
 | *Data & coverage* | Kilder, alder, status og blinde vinkler | [Data og dækning](brugervejledning/data-og-daekning) |
 | *Operations* | Forespørgsler, fejl, jobs og pauser pr. kilde | [Drift](brugervejledning/drift) |
 

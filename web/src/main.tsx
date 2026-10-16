@@ -10,6 +10,7 @@ import { Home } from "./pages/Home";
 import { Me } from "./pages/Me";
 import { Momentum } from "./pages/Momentum";
 import { Ops } from "./pages/Ops";
+import { Experiments } from "./pages/Experiments";
 import { Performance } from "./pages/Performance";
 import { Portfolio } from "./pages/Portfolio";
 import { Positioning } from "./pages/Positioning";
@@ -32,7 +33,7 @@ const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton
 const ELEMENTS: Record<string, ReactNode> = {
   "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />,
   "/discover": <Discover />, "/positioning": <Positioning />,
-  "/me": <Me />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/views": <Views />,
+  "/me": <Me />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
   "/notebook": lazyPage(<Notebook />),
   "/data": <Data />, "/ops": <Ops />,
 };

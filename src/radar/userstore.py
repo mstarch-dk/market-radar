@@ -172,6 +172,8 @@ MIGRATIONS = [
     # what a snapshot import replaced, and the copy taken before it: undoing it can't bring those rows back
     ("ALTER TABLE imports ADD COLUMN rows_replaced INTEGER NOT NULL DEFAULT 0",
      "ALTER TABLE imports ADD COLUMN backup TEXT"),
+    # a broker fee schedule per portfolio (JSON; fees.py), to estimate a trade's commission while it is typed
+    "ALTER TABLE portfolios ADD COLUMN fee_schedule TEXT",
 ]
 
 
@@ -321,6 +323,7 @@ def _portfolio_rows(con, where: str = "", args: tuple = ()) -> list[dict]:
         p = dict(r)
         p["archived"] = bool(p["archived"])
         p["params"] = json.loads(p["params"]) if p["params"] else None
+        p["fee_schedule"] = json.loads(p["fee_schedule"]) if p["fee_schedule"] else None
         p["tags"] = [t["tag"] for t in con.execute(
             "SELECT tag FROM portfolio_tags WHERE portfolio_id = ? ORDER BY tag", (p["id"],))]
         p["is_default"] = p["id"] == default
@@ -376,6 +379,8 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
             vals[k] = p[k]
     if "params" in p:
         vals["params"] = json.dumps(p["params"]) if p["params"] is not None else None
+    if "fee_schedule" in p:                        # None clears it
+        vals["fee_schedule"] = json.dumps(p["fee_schedule"]) if p["fee_schedule"] else None
     with closing(_connect()) as con, con:
         if "name" in vals and con.execute("SELECT 1 FROM portfolios WHERE name = ? AND id IS NOT ?",
                                           (vals["name"], pid)).fetchone():
@@ -518,7 +523,8 @@ def move_transactions(from_id: int, to_id: int, ids=None, symbols=None) -> int:
                            [to_id, _now(), *args]).rowcount
 
 
-BUNDLE_PORTFOLIO_KEYS = (*PORTFOLIO_FIELDS, "origin", "forked_at", "strategy", "params", "tags", "is_default")
+BUNDLE_PORTFOLIO_KEYS = (*PORTFOLIO_FIELDS, "origin", "forked_at", "strategy", "params", "fee_schedule", "tags",
+                         "is_default")
 
 
 def export_portfolios_json(scope: str = "real") -> str:

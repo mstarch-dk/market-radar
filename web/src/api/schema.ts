@@ -931,6 +931,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolios/fee-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Fee Presets
+         * @description Broker fee schedules copied from public price lists (dated): a starting point for a portfolio's own.
+         */
+        get: operations["list_fee_presets_api_portfolios_fee_presets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolios/{pid}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sim Runs
+         * @description The runs that wrote a simulated portfolio's rows (empty for any other portfolio).
+         */
+        get: operations["list_sim_runs_api_portfolios__pid__runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolios/tags": {
         parameters: {
             query?: never;
@@ -2100,6 +2140,94 @@ export interface components {
             alpha_t?: number | null;
             /** Loadings */
             loadings: components["schemas"]["Loading"][];
+        };
+        /**
+         * FeeEstimate
+         * @description A trade's estimated commission in the quote currency, from its portfolio's fee schedule.
+         */
+        FeeEstimate: {
+            /** Fee */
+            fee: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "DK" | "NORDIC" | "US" | "EU" | "UK" | "OTHER";
+            /**
+             * Rule Market
+             * @enum {string}
+             */
+            rule_market: "DK" | "NORDIC" | "US" | "EU" | "UK" | "OTHER";
+            /**
+             * Applied
+             * @enum {string}
+             */
+            applied: "pct" | "min" | "max";
+            /** Basis */
+            basis: string;
+            /** Fx Pct */
+            fx_pct?: number | null;
+            /** Fx Fee */
+            fx_fee?: number | null;
+            /** Preset */
+            preset?: string | null;
+            /** As Of */
+            as_of?: string | null;
+        };
+        /** FeePreset */
+        FeePreset: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** As Of */
+            as_of: string;
+            /** Source Url */
+            source_url: string;
+            /** Note */
+            note?: string | null;
+            schedule: components["schemas"]["FeeSchedule"];
+        };
+        /**
+         * FeeRule
+         * @description A market's commission: pct of the trade's value, at least `min` and at most `max` (in `currency`).
+         */
+        FeeRule: {
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "DK" | "NORDIC" | "US" | "EU" | "UK" | "OTHER";
+            /** Pct */
+            pct: number;
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /**
+             * Currency
+             * @default DKK
+             */
+            currency: string;
+        };
+        /**
+         * FeeSchedule
+         * @description A portfolio's broker fees (fees.py), to estimate a trade's commission. `fx_pct`: the currency-exchange
+         *     surcharge, shown apart from the fee.
+         */
+        FeeSchedule: {
+            /** Preset */
+            preset?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /** Markets */
+            markets: components["schemas"]["FeeRule"][];
+            /** Fx Pct */
+            fx_pct?: number | null;
+            /** Note */
+            note?: string | null;
         };
         /** ForkIn */
         ForkIn: {
@@ -3591,6 +3719,7 @@ export interface components {
             params?: {
                 [key: string]: unknown;
             } | null;
+            fee_schedule?: components["schemas"]["FeeSchedule"] | null;
             /** Note */
             note?: string | null;
             /** Archived */
@@ -3644,6 +3773,7 @@ export interface components {
              * @default []
              */
             tags: string[];
+            fee_schedule?: components["schemas"]["FeeSchedule"] | null;
         };
         /** PortfolioRef */
         PortfolioRef: {
@@ -4519,6 +4649,39 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /**
+         * SimRun
+         * @description One run that wrote a simulated portfolio's rows (the latest replaces the earlier ones).
+         */
+        SimRun: {
+            /** Id */
+            id: number;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Strategy */
+            strategy: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Start */
+            start: string;
+            /** End */
+            end?: string | null;
+            /** Data Asof */
+            data_asof?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "failed";
+            /** Rows */
+            rows: number;
+            /** Message */
+            message?: string | null;
+            /** At */
+            at: string;
+        };
         /** Source */
         Source: {
             /** Key */
@@ -4676,6 +4839,7 @@ export interface components {
             issues: components["schemas"]["Issue"][];
             effect?: components["schemas"]["Effect"] | null;
             price?: components["schemas"]["PriceCheck"] | null;
+            fee_estimate?: components["schemas"]["FeeEstimate"] | null;
         };
         /**
          * TxIn
@@ -6827,6 +6991,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Portfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fee_presets_api_portfolios_fee_presets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeePreset"][];
+                };
+            };
+        };
+    };
+    list_sim_runs_api_portfolios__pid__runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimRun"][];
                 };
             };
             /** @description Validation Error */
