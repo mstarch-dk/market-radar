@@ -45,7 +45,7 @@ from dataclasses import dataclass, field, replace
 import pandas as pd
 
 from .. import performance, simulate, universe, userstore
-from ..config import settings
+from ..config import settings, write_text
 from ..paths import REPORTS
 from .pit import Context
 
@@ -646,9 +646,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
     if write:
         REPORTS.mkdir(parents=True, exist_ok=True)
         f = REPORTS / (REPORT_FILE if spec is None or spec.key == "rule" else f"sim-exits-{spec.key}.json")
-        tmp = f.with_suffix(".tmp")
-        tmp.write_text(json.dumps(out, indent=1, default=_json), encoding="utf-8")
-        tmp.replace(f)
+        write_text(f, json.dumps(out, indent=1, default=_json))
     return out
 
 

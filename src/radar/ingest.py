@@ -10,7 +10,7 @@ import pandas as pd
 import yfinance as yf
 
 from . import guard, locks, net
-from .config import settings, write_parquet
+from .config import settings, write_parquet, write_text
 from .paths import CACHE, FRED_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
@@ -85,9 +85,7 @@ def _load_from() -> dict[str, str]:
 
 def _save_from(d: dict[str, str]) -> None:
     f = CACHE / FROM_FILE
-    tmp = f.with_suffix(".tmp")
-    tmp.write_text(json.dumps(d, sort_keys=True), encoding="utf-8")
-    tmp.replace(f)
+    write_text(f, json.dumps(d, sort_keys=True))
 
 
 def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None,
@@ -141,7 +139,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
         more = _norm_dates(_download(sorted(late), since))
         more = more[~more["ticker"].isin(rescaled(df, more))]   # another basis: the next run downloads it in full
 
-    with locks.file_lock(PRICES_FILE, what="the price store"):
+    with locks.file_lock(PRICES_FILE, what="the price store is busy: another update is writing it"):
         current = _load_current()        # what is stored now, with anything written while we downloaded
         df, short, reached = _merge(current, full, [inc, more], limit)
         write_parquet(df, PRICES_FILE, index=False)

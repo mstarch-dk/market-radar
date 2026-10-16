@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 from . import guard, net
-from .config import universe_config, write_parquet
+from .config import universe_config, write_parquet, write_text
 from .paths import CACHE, HISTORY
 
 COT_FILE = CACHE / "cot.parquet"
@@ -280,8 +280,8 @@ def update_factset(today: date | None = None) -> str | None:
         write_parquet(df, FACTSET_FILE, index=False)
         FACTSET_TEXT.parent.mkdir(parents=True, exist_ok=True)
         keep = [p for p in pages if any(h in p[:200] for h in FACTSET_TEXT_PAGES)]
-        FACTSET_TEXT.write_text(f"FactSet Earnings Insight {d.isoformat()}\n{FACTSET_URL.format(d=d)}\n\n"
-                                + "\n\n".join(keep), encoding="utf-8")
+        write_text(FACTSET_TEXT, f"FactSet Earnings Insight {d.isoformat()}\n{FACTSET_URL.format(d=d)}\n\n"
+                   + "\n\n".join(keep))
         return d.isoformat()
     return None
 
@@ -455,9 +455,7 @@ def detail(ticker: str, max_age_hours: float = 24, refresh: bool = False) -> tup
     if not any(raw.get(k) for k in ("info", "recommendations", "eps_trend", "calendar")):
         return (cached, "stale") if cached else (None, "missing")  # Yahoo answered with nothing
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(raw, indent=1), encoding="utf-8")
-    tmp.replace(path)
+    write_text(path, json.dumps(raw, indent=1))
     return raw, "ok"
 
 

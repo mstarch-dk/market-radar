@@ -11,7 +11,7 @@ from datetime import date
 import pandas as pd
 
 from . import net
-from .config import POSITIVE_LIST_FILE, settings, universe_config
+from .config import POSITIVE_LIST_FILE, settings, universe_config, write_csv
 from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
@@ -96,7 +96,7 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
         coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list", exc=e)
         return cached
     CACHE.mkdir(parents=True, exist_ok=True)
-    df.to_csv(cache_file, index=False)
+    write_csv(df, cache_file, index=False)
     coverage.record("constituents", True, f"{len(df)} stocks")
     return df["ticker"].tolist()
 
@@ -123,7 +123,7 @@ def names(tickers: list[str]) -> dict[str, str]:
                 return t, t
         with net.pool(8) as ex:
             cached |= dict(ex.map(lookup, missing))
-        pd.DataFrame(list(cached.items()), columns=["ticker", "name"]).to_csv(cache_file, index=False)
+        write_csv(pd.DataFrame(list(cached.items()), columns=["ticker", "name"]), cache_file, index=False)
     return {t: out.get(t) or cached.get(t, t) for t in tickers}
 
 
@@ -145,7 +145,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
             found = [r for r in ex.map(lookup, missing) if r]
         cached = pd.concat([cached, pd.DataFrame(found)], ignore_index=True)
         CACHE.mkdir(parents=True, exist_ok=True)
-        cached.to_csv(cache_file, index=False)
+        write_csv(cached, cache_file, index=False)
     return cached.set_index("ticker").reindex(tickers).fillna("")
 
 
@@ -200,7 +200,7 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
         with net.pool(8) as ex:
             cached |= {t: c for t, c in ex.map(lookup, missing) if c}
         CACHE.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(list(cached.items()), columns=["ticker", "currency"]).to_csv(cache_file, index=False)
+        write_csv(pd.DataFrame(list(cached.items()), columns=["ticker", "currency"]), cache_file, index=False)
     return {t: cached.get(t) for t in tickers}
 
 

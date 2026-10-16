@@ -219,18 +219,23 @@ def paths(as_json: bool = typer.Option(False, "--json", help="As JSON (for the s
 
 @contextmanager
 def _job(kind: str):
-    """Record a CLI run in the operations log (ops.db in the cache) like the app's jobs; yields its log function."""
+    """Record a CLI run in the operations log (ops.db in the cache) like the app's jobs; yields its log function.
+    An update or scan that is already running elsewhere ends the command with its message and exit code 1."""
     from datetime import datetime
 
-    from . import ops
+    from . import locks, ops
 
     lines: list[str] = []
 
     def log(line: str) -> None:
         typer.echo(line)
         lines.append(f"{datetime.now():%H:%M:%S} {line}")
-    with ops.job(kind, lines):
-        yield log
+    try:
+        with ops.job(kind, lines):
+            yield log
+    except locks.Busy as e:
+        typer.echo(f"Not started: {e}.", err=True)
+        raise typer.Exit(1) from None
 
 
 @app.command()
