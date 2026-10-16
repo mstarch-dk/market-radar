@@ -351,7 +351,8 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     s = slug(name)
     tags = sorted({"picks", f"picks-{s}"[:32], *(userstore.norm_tag(t) for t in tags)})
     params = {"asof": day.date().isoformat(), "fill": fday.date().isoformat(), "end": end, "capital": capital,
-              "picks": chosen, "meta": meta, "model_cutoff": model_cutoff, "fee_bps": fee, "tags": tags}
+              "picks": chosen, "meta": meta, "model_cutoff": model_cutoff, "fee_bps": fee,
+              "fee_model": {"kind": "bps", "bps": fee}, "tags": tags}       # a basket from no account: no broker schedule
     ids = {}
     msg = f"basket of {len(weights)} picked on {day:%Y-%m-%d}"
     runs = [("hold", rows), ("exits", rep["rows"])] + ([("control", crow)] if crow else [])

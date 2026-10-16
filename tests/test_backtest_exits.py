@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 import world
-from radar import mine, performance, profile, simulate, userstore
+from radar import fees, mine, performance, profile, simulate, userstore
 from radar.backtest import exits, pit
 from radar.signals import momentum, regime
 from world import IDX, N
@@ -244,6 +244,66 @@ def test_rule_and_parking_trades_pay_the_fee(market):
     assert rule_rows and all(r["fee"] == pytest.approx(r["quantity"] * r["price"] * 0.0025) for r in rule_rows)
     assert simulate.check_rows(paid["rows"], market) == []
 
+
+
+DANSKE = {"markets": [{"market": "US", "pct": 0.20, "min": 29, "currency": "DKK"}], "fx_pct": 0.30,
+          "preset": "danske-online", "as_of": "2026-10-01"}
+
+
+def test_an_accounts_replay_pays_its_broker_minimum_and_says_so(market, monkeypatch):
+    monkeypatch.setattr(mine, "level_universe", lambda etfs, ah=None: {"CRASH"})
+    acct = userstore.save_portfolio({"name": "Danske", "kind": "frie_midler", "fee_schedule": DANSKE})
+    plain = userstore.save_portfolio({"name": "Plain", "kind": "frie_midler"})
+    for pid in (acct, plain):
+        userstore.add_tx(buy("CRASH", 190, 10, fx=FX) | {"portfolio_id": pid})
+    rep = exits.refresh([acct, plain], market, variants=("rules",), write=False)
+    by = {e["name"]: e["variants"]["rules"]["portfolio_id"] for e in rep["portfolios"]}
+    runs = {n: userstore.sim_runs(pid)[0]["params"] for n, pid in by.items()}
+    assert runs["Danske"]["fee_model"] == {"kind": "schedule", "portfolio_id": acct, "portfolio": "Danske",
+                                           "preset": "danske-online", "as_of": "2026-10-01", "fx_pct": 0.30,
+                                           "schedule": DANSKE,
+                                           "fallback_bps": 10.0, "fallbacks": {}}
+    assert runs["Plain"]["fee_model"] == {"kind": "bps", "bps": 10.0}
+    for name, pid in by.items():
+        traded = [r for r in userstore.transactions(portfolios=[pid])
+                  if r["type"] in ("BUY", "SELL") and not (r["note"] or "").startswith("as your")]
+        assert len(traded) == 2                                               # the stop's sale and the parking buy
+        for r in traded:
+            value = r["quantity"] * r["price"]
+            want = max(value * 0.002, 29 / FX) + value * 0.003 if name == "Danske" else value * 0.001
+            assert r["fee"] == pytest.approx(want)
+        if name == "Danske":            # ~11,000 DKK × 0.20% < 29 DKK: the minimum, plus 0.30% FX on a USD trade
+            assert all(r["fee"] == pytest.approx(29 / FX + r["quantity"] * r["price"] * 0.003) for r in traded)
+
+
+def test_a_trade_the_schedule_cannot_price_pays_fee_bps_and_is_counted(market):
+    ctx = context(market, "CRASH")
+    nordic = fees.SimFees(10, {"markets": [{"market": "NORDIC", "pct": 0.15, "min": 29, "currency": "DKK"}]})
+    rep = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fees=nordic)
+    rule_rows = [r for r in rep["rows"] if r["type"] in ("BUY", "SELL") and not r["note"].startswith("as your")]
+    assert rule_rows and all(r["fee"] == pytest.approx(r["quantity"] * r["price"] * 0.001) for r in rule_rows)
+    assert rep["fee_model"]["fallbacks"] == {"CRASH": {"trades": 1, "why": "no rule for US"},
+                                             "ACWI": {"trades": 1, "why": "no rule for US"}}
+
+
+def test_money_that_does_not_cover_the_minimum_stays_cash(market):
+    ctx = context(market, "CRASH")
+    steep = fees.SimFees(10, {"markets": [{"market": "US", "pct": 0.1, "min": 700, "currency": "DKK"}]})
+    rep = exits.replay([buy("CRASH", 190, 1)], ctx, "rules", fees=steep)       # 1 share: ~1,150 DKK at the stop
+    [e] = rep["exits"]
+    assert e["proceeds_dkk"] == pytest.approx(e["quantity"] * e["fill_price"] * FX - 700)
+    assert e["park_units"] == 0 and not [r for r in rep["rows"] if r.get("symbol") == "ACWI"]
+    assert [ev["kind"] for ev in rep["events"] if ev["kind"] == "not parked"] == ["not parked"]
+    assert simulate.check_rows(rep["rows"], market) == []
+
+
+def test_terms_invert_the_fee_for_a_budget_and_a_net(market):
+    for t in (fees.Terms(0.002, lo=29 / FX, hi=500 / FX), fees.Terms(0.002, lo=29 / FX, hi=500 / FX, fx=0.003),
+              fees.Terms(0.001)):
+        for budget in (1.0, 100.0, 5_000.0, 10_000.0, 1e6):
+            v = t.value_for_budget(budget)
+            assert v == 0 or v + t.fee(v) == pytest.approx(budget)
+            assert t.value_for_net(budget) - t.fee(t.value_for_net(budget)) == pytest.approx(budget)
 
 def test_the_ablation_keeps_only_one_half_of_the_rule(market):
     ctx = context(market, "CRASH")

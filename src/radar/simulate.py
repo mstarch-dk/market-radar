@@ -3,7 +3,10 @@
 - **fork**: copy a portfolio as it stood at the close of a day into a new virtual one (one deposit, one buy per
   holding at that day's traded close and DKK rate), so the two can be compared from there on equal terms
   (/api/portfolios/compare with start = that day). The copy holds the same shares and cash; dividends the
-  original earned before that day stay with the original, so its value can be a little higher.
+  original earned before that day stay with the original, so its value can be a little higher. The copy's buys
+  pay no fee (they copy holdings, not trades); the fork takes over the source's broker fee schedule, so the trades
+  you make in it later pay what the source's broker would charge (fees.SimFees; without one, `backtest.fee_bps`),
+  and its params record which (`fee_model`).
 - **simulations**: a `Strategy` turns prices into rows (trades and cash) for a period; `write_run` checks the
   whole ledger and stores it as one run in a virtual portfolio made for it, replacing the previous run. The
   same inputs give the same rows, so a rerun is idempotent. The strategies themselves (rule engines, e.g.
@@ -18,6 +21,8 @@ from typing import Protocol
 import pandas as pd
 
 from . import performance, universe, userstore
+from .config import settings
+from .fees import SimFees
 
 SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
 
@@ -70,9 +75,11 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         raise ValueError(f"{src['name']} held nothing on {day:%Y-%m-%d}")
     deposit = {"date": day.date().isoformat(), "type": "DEPOSIT", "amount": total, "currency": "DKK",
                "note": f"forked from {src['name']} at the close of {day:%Y-%m-%d}"}
+    fees = SimFees.for_portfolio(src, float((settings().get("backtest") or {}).get("fee_bps", 0)))
     return userstore.create_with_rows(
         {"name": name, "mode": "virtual", "kind": src["kind"], "dividends": src["dividends"], "origin": "fork",
          "parent_id": src_id, "forked_at": day.date().isoformat(), "tags": list(tags),
+         "fee_schedule": fees.schedule, "params": {"fee_model": fees.describe()},
          "note": f"A copy of {src['name']} at the close of {day:%Y-%m-%d}"}, [deposit, *buys], "fork")
 
 

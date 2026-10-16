@@ -17,8 +17,10 @@ The rule, per position (an "episode": from a buy while flat until it is sold out
 - Only holdings the radar gives levels (stocks, sector/theme funds; mine.level_universe) follow the rule; broad
   funds are held as in the real portfolio.
 - The proceeds are parked in `backtest.park` (ACWI) and drawn on, before anything else, for your next buys.
-- **Costs**: every rule and parking trade pays `backtest.fee_bps` of its value (commission and FX spread); your
-  own trades keep the fees they had.
+- **Costs**: every rule and parking trade pays what the real portfolio's broker schedule (fees.py) charges for
+  it, minimum included, else `backtest.fee_bps` of its value (commission and FX spread); your own trades keep the
+  fees they had. A buy whose money doesn't cover the minimum isn't made (the money stays as cash). The run's
+  params say which fee model was used (`fee_model`).
 - **Ablation** (`rule`): `both` (the rule as shown), `stop` (stop-loss only) or `take_profit` (take-profit only),
   so the study (backtest/study.py) can tell which half of the rule helps.
 - **The rule as settings has it** (`RuleSpec()`): with `stops.mode: trend` (the default) the stop is the close
@@ -46,6 +48,7 @@ import pandas as pd
 
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
+from ..fees import SimFees, Terms
 from ..paths import REPORTS
 from .pit import Context
 
@@ -118,7 +121,7 @@ class Replay:
     fill: str
     park: str
     rule: str = "both"
-    fee_bps: float = 0.0
+    fees: SimFees = field(default_factory=lambda: SimFees(0.0))
     spec: RuleSpec = field(default_factory=RuleSpec)
     picker: object = None            # study.Picker: n, pick(day, held, barred) -> name | None, rank(day, name) -> int | None
     sold: dict = field(default_factory=dict)            # symbol -> the session of its last rule / rotation sale
@@ -136,6 +139,7 @@ class Replay:
     counts: dict = field(default_factory=lambda: {"rule_days": 0, "no_levels_days": 0, "missing": {}})
     _fx: dict = field(default_factory=dict)
     _bars: dict = field(default_factory=dict)
+    _ccy: dict = field(default_factory=dict)
     seq: int = 0
     day_out: float = 0.0             # implicit funding: money taken out at the end of the day (netted, as performance.book does)
 
@@ -165,6 +169,30 @@ class Replay:
     def has_bar(self, sym: str, day: pd.Timestamp) -> bool:
         return day in self.bars(sym).index
 
+    @property
+    def fee_bps(self) -> float:
+        return self.fees.bps
+
+    def terms(self, sym: str, day: pd.Timestamp, rate: float, count: bool = False) -> Terms:
+        """What a rule or parking trade in `sym` pays on `day` (`rate`: DKK per unit of its price; `count`: the
+        trade itself, not its sizing)."""
+        if not self.fees.schedule:
+            return self.fees.terms(sym, None, None)
+        if sym not in self._ccy:
+            self._ccy[sym] = universe.currencies([sym]).get(sym)
+
+        def convert(amount: float, ccy: str) -> float | None:
+            if ccy == "DKK":
+                return amount / rate
+            fx = universe.fx_to_dkk(self.market.closes, ccy)
+            v = fx.dropna().asof(day) if fx is not None and len(fx.dropna()) else None
+            return amount * float(v) / rate if v is not None and pd.notna(v) and v > 0 else None
+        return self.fees.terms(sym, self._ccy[sym], convert, count)
+
+    def buy_qty(self, sym: str, day: pd.Timestamp, dkk: float, px: float, rate: float) -> float:
+        """The shares `dkk` buys, the fee included (0 when the fee alone would take it)."""
+        return self.terms(sym, day, rate).value_for_budget(dkk / rate) / px
+
     # ---------------- rows ----------------
 
     def _emit(self, row: dict) -> dict:
@@ -172,10 +200,12 @@ class Replay:
         self.rows.append(row | {"ext_ref": f"exits:{self.variant}:{self.seq}"})
         return row
 
-    def trade(self, typ: str, sym: str, day: pd.Timestamp, qty: float, price: float, rate: float, note: str) -> float:
-        """A rule or parking trade at a traded price, paying `fee_bps`; returns its DKK cash effect (proceeds
-        after the fee for a sale, the cost with the fee for a buy)."""
-        fee = qty * price * self.fee_bps / 1e4
+    def trade(self, typ: str, sym: str, day: pd.Timestamp, qty: float, price: float, rate: float, note: str,
+              free: bool = False) -> float:
+        """A rule or parking trade at a traded price, paying its fee (`fees`); returns its DKK cash effect
+        (proceeds after the fee for a sale, the cost with the fee for a buy). `free`: a holding copied in, not
+        traded."""
+        fee = 0.0 if free else self.terms(sym, day, rate, count=True).fee(qty * price)
         self._emit({"symbol": sym, "date": day.date().isoformat(), "type": typ, "quantity": qty, "price": price,
                     "fee": fee, "fx_rate": rate, "note": note})
         dkk = (qty * price + (-fee if typ == "SELL" else fee)) * rate
@@ -192,7 +222,7 @@ class Replay:
         if need > EPS and self.park_units > EPS:
             px, rate = self.traded(self.park, day), self.rate(self.park, day)
             if px and rate:
-                units = min(self.park_units, need / (px * rate * (1 - self.fee_bps / 1e4)))
+                units = min(self.park_units, self.terms(self.park, day, rate).value_for_net(need / rate) / px)
                 self.trade("SELL", self.park, pd.Timestamp(date_str), units, px, rate, f"parked money used for {why}")
                 self.park_units -= units
                 if self.park_units < 1e-7:
@@ -286,10 +316,13 @@ class Replay:
         units, ppx, prate = 0.0, None, None
         if not (dkk > 0 and self.redeploy(sym, p, day, dkk)):
             ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
-            if ppx and prate and dkk > 0:
-                units = dkk / (ppx * prate * (1 + self.fee_bps / 1e4))
+            units = self.buy_qty(self.park, day, dkk, ppx, prate) if ppx and prate and dkk > 0 else 0.0
+            if units > EPS:
                 self.trade("BUY", self.park, day, units, ppx, prate, f"parked: money from the {sym} exit")
                 self.park_units += units
+            elif ppx and prate and dkk > 0:
+                self.events.append({"date": day.date().isoformat(), "kind": "not parked", "symbol": sym,
+                                    "detail": f"{dkk:,.0f} DKK doesn't cover the fee: kept as cash"})
         self.exits.append(p | {"symbol": sym, "fill_date": day.date().isoformat(), "quantity": qty, "fill_price": px,
                                "fx": rate, "proceeds_dkk": dkk, "park_units": units, "park_price": ppx, "park_fx": prate,
                                "episode_start": ep.start.date().isoformat()})
@@ -314,7 +347,11 @@ class Replay:
             self.events.append({"date": day.date().isoformat(), "kind": "redeploy skipped", "symbol": sym,
                                 "detail": "no candidate" if not new else f"{new}: no traded price or DKK rate that day"})
             return False
-        qty = dkk / (px * rate * (1 + self.fee_bps / 1e4))
+        qty = self.buy_qty(new, day, dkk, px, rate)
+        if qty <= EPS:
+            self.events.append({"date": day.date().isoformat(), "kind": "redeploy skipped", "symbol": sym,
+                                "detail": f"{dkk:,.0f} DKK doesn't cover the fee on {new}"})
+            return False
         self.trade("BUY", new, day, qty, px, rate, f"redeploy: money from the {sym} {p['trigger'].replace('_', '-')}")
         self.eps[new] = Episode(qty, day)
         self.redeploys.append({"symbol": new, "from": sym, "trigger": p["trigger"], "trigger_date": p["trigger_date"],
@@ -374,7 +411,11 @@ class Replay:
         self.park_units -= units
         if self.park_units < 1e-7:
             self.park_units = 0.0
-        qty = dkk / (px * rate * (1 + self.fee_bps / 1e4))
+        qty = self.buy_qty(sym, day, dkk, px, rate)
+        if qty <= EPS:
+            self.events.append({"date": day.date().isoformat(), "kind": "re-entry skipped", "symbol": sym,
+                                "detail": f"{dkk:,.0f} DKK doesn't cover the fee: kept as cash"})
+            return
         self.trade("BUY", sym, day, qty, px, rate,
                    f"re-entry: uptrend and score {w['pending']['score']:.0f} on {w['pending']['trigger_date']}")
         self.eps[sym] = Episode(qty, day)
@@ -431,7 +472,7 @@ class Replay:
 
 def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
     """Start the replay at `start` from what the real portfolio held then (as simulate.fork): one deposit of its
-    value, one buy per holding at that day's traded close. Returns the rows after `start`."""
+    value, one buy per holding at that day's traded close, without a fee (a copy, not a trade). Returns the rows after `start`."""
     before = [r for r in rows if pd.Timestamp(str(r["date"])[:10]) <= start]
     after = [r for r in rows if pd.Timestamp(str(r["date"])[:10]) > start]
     qty: dict[str, float] = {}
@@ -455,15 +496,17 @@ def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
     if total > 0:
         rp.cash_row("DEPOSIT", start.date().isoformat(), total, f"what the portfolio held at the close of {start:%Y-%m-%d}")
     for sym, q, px, rate in buys:
-        rp.trade("BUY", sym, start, q, px, rate, "held at the start")
+        rp.trade("BUY", sym, start, q, px, rate, "held at the start", free=True)
         rp.eps[sym] = Episode(q, start)
     return after
 
 
 def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None,
-           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None, picker=None) -> dict:
+           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None, picker=None,
+           fees: SimFees | None = None) -> dict:
     """The simulated rows and the report for one real portfolio's rows (`rule`: both / stop / take_profit;
-    `fee_bps` per rule or parking trade, default settings backtest.fee_bps; `spec`: a variant of the rule;
+    `fees` per rule or parking trade, default `fee_bps` of its value, default settings backtest.fee_bps;
+    `spec`: a variant of the rule;
     `picker`: the candidates for `spec.redeploy` / `spec.rotate`)."""
     if variant not in VARIANTS:
         raise ValueError(f"variant must be one of {', '.join(VARIANTS)}")
@@ -484,7 +527,7 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
                 bt.get("park") or universe.benchmark(), rule,
-                float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps), spec, picker)
+                fees or SimFees(float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps)), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
     if not rows:
@@ -541,6 +584,7 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
     return {"rows": rp.rows, "exits": _evaluate(rp, real_rows, days[-1]), "events": rp.events,
             "pending": open_triggers, "no_rule": sorted(rp.no_rule), "counts": rp.counts, "funding":
             "ledger" if rp.ledger else "implicit", "park": rp.park, "fill": rp.fill, "rule": rp.rule, "fee_bps": rp.fee_bps,
+            "fee_model": rp.fees.report(),
             "spec": rp.spec.key, "reentries": rp.reentries, "redeploys": rp.redeploys,
             "start": days[0].date().isoformat(), "end": days[-1].date().isoformat()}
 
@@ -627,9 +671,10 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
         for v in variants:
             if spec is not None and spec.reentry and v != "rules":
                 continue
+            fees = SimFees.for_portfolio(p, float(bt.get("fee_bps", 0)))
+            rep = replay(rows[p["id"]], ctx, v, start, end, fill, spec=spec, fees=fees)
             params = {"variant": v, "fill": fill or bt.get("fill", "next"), "start": start, "end": end,
-                      "fee_bps": float(bt.get("fee_bps", 0)), "spec": spec.key if spec else "rule"}
-            rep = replay(rows[p["id"]], ctx, v, start, end, fill, spec=spec)
+                      "fee_bps": fees.bps, "fee_model": fees.report(), "spec": spec.key if spec else "rule"}
             sid = _sim_for(p, v, params, spec)
             s = summary(rep)
             msg = (f"{s['stops']} stops, {s['take_profits']} take-profits; saved at the end "

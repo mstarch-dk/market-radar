@@ -28,6 +28,10 @@ Your data now lives apart from the program, so a new version never touches it.
   one experiment's holdings, trades, rebalances and returns. `GET /api/portfolios/{id}/runs` lists a sim's runs.
 - **Fee schedules** per account (`portfolios.fee_schedule`, `fees.py`, presets for Saxo and Danske Bank in
   `config/fee_presets.yaml`): the trade form prefills the fee with an estimate (`fee_estimate` from validate).
+- **Simulations pay the account's fees**: `radar sim exits` charges each rule and parking trade what the account's
+  schedule says (minimum, maximum and the FX surcharge on non-DKK trades, as the sim books Yahoo's mid rate), else
+  `backtest.fee_bps`; a buy the minimum would eat stays cash. A fork takes over its source's schedule. Each run's
+  params record the fee model (`fee_model`). Opening holdings with `--start` are copied without a fee.
 - Ticker lookup in the trade form: keyboard navigation, the tracked badge and the chosen name under the field.
 - Linux start script `start-market-radar.sh`.
 

@@ -75,6 +75,8 @@ En fork er en virtuel kopi af en portefølje, som den stod ved lukkekursen en be
 
 Mangler en beholdning kurs eller valutakurs den dag, afvises forken. Udbytte, som originalen fik før dagen, bliver hos originalen.
 
+Kopiens køb koster ingen kurtage: de kopierer beholdningen, de er ikke handler. Kopien overtager originalens kurtageskema, så de handler, du laver i den bagefter, får samme kurtage-estimat som på kontoen (fx Danske Banks mindstekurtage på 29 kr.). Har originalen intet skema, har kopien heller intet, og simuleringer regner da med {{settings:backtest.fee_bps}} basispoint (`backtest.fee_bps`). Kopiens parametre (`fee_model`) siger, hvilken af delene der gælder. Se [Kurtagen i simuleringen](brugervejledning/stop-simulering#kurtagen-i-simuleringen).
+
 På kommandolinjen: `uv run radar portfolios fork ASK "ASK test" --date 2026-06-30 [--cash 10000] [--tag test]`. `--cash` lægger ekstra kontanter i kopien.
 
 ## Simuleringer af dine handler
@@ -91,7 +93,7 @@ Radaren kan køre en test fremad i tid af sine to scorer mod hinanden. `uv run r
 
 Hver kurv har lige vægte, højst {{settings:abtest.max_per_sector}} aktier fra samme sektor og starter med {{settings:abtest.capital}} kr. (virtuelt). Kun aktier med en kurs og en DKK-kurs kan købes.
 
-**Én gang om måneden.** Den første rapport i hver kalendermåned (efter *Update data* eller `uv run radar run`) gemmer nye lister ud fra den dags scorer. Næste handelsdag handles alle tre porteføljer til de nye vægte til dagens lukkekurser, og hver handel koster {{settings:backtest.fee_bps}} basispoint (`backtest.fee_bps`). En gemt liste ændres aldrig bagefter, så testen kan ikke se frem eller justeres i bakspejlet. Det er den rene test, som backtests på fortiden ikke kan give.
+**Én gang om måneden.** Den første rapport i hver kalendermåned (efter *Update data* eller `uv run radar run`) gemmer nye lister ud fra den dags scorer. Næste handelsdag handles alle tre porteføljer til de nye vægte til dagens lukkekurser, og hver handel koster {{settings:backtest.fee_bps}} basispoint (`backtest.fee_bps`). Porteføljerne kommer ikke fra en konto, så intet kurtageskema gælder for dem. En gemt liste ændres aldrig bagefter, så testen kan ikke se frem eller justeres i bakspejlet. Det er den rene test, som backtests på fortiden ikke kan give.
 
 **Følg den** på siden [Experiments](/experiments), hvor testen har sit eget kort med kurvenes afkast og næste ombalancering, og hver kurv viser beholdning, handler og ombalanceringer. Eller med `uv run radar abtest status`, eller på siden [Afkast](/returns) med tagget `ab-qvm`, mod ACWI. Status viser også korrelationen mellem kurvenes ugentlige afkast; den kræver mindst {{settings:risk.min_weeks}} uger. Se [Diversifikation og korrelation](laerebog/diversifikation#værdi-og-momentum-side-om-side).
 

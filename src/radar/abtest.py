@@ -9,7 +9,8 @@ out-of-sample counterpart to the backtests.
 
 The trades are replayed from the records (`ScoreRebalance`): on the session after each record, sell what left
 the list, then trade every holding to its target weight at that day's traded closes and DKK rates, paying
-`backtest.fee_bps` on what is traded. Buys never spend more cash than there is. A record whose next session
+`backtest.fee_bps` on what is traded (they come from no account, so no broker schedule applies; each run's
+params say so, `fee_model`). Buys never spend more cash than there is. A record whose next session
 isn't in the prices yet waits. `simulate.write_run` stores each portfolio's run, so a rerun gives the same rows.
 
 Scores: K+V (or the værdiscore, `abtest.value_score`) from fundamentals/context.py; momentum as the momentum
@@ -241,7 +242,8 @@ def refresh(market, today: date | None = None, ranked: dict | None = None, log=N
         notes += [f"{LABELS[key]}: {n}" for n in strat.notes]
         if rows:
             recs = p["params"]["rebalances"]
-            runs[key] = simulate.write_run(p["id"], ScoreRebalance.key, {k: v for k, v in p["params"].items()},
+            run_params = p["params"] | {"fee_model": {"kind": "bps", "bps": float(p["params"].get("fee_bps", 0))}}
+            runs[key] = simulate.write_run(p["id"], ScoreRebalance.key, run_params,
                                            recs[0]["date"], recs[-1]["date"], rows, market)
     if log:
         log(f"A/B test: {'picks recorded for ' + recorded if recorded else 'no new picks this month'}; "
