@@ -23,7 +23,7 @@ from .api_models import (
     PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
     MoveIn, MoveResult, Portfolio, PortfolioIn, TagCount, TagsIn, Comparison, Performance, ForkIn,
     ImportCommitResult, ImportPreview, ImportRecord, Preset,
-    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn,
+    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn, SecContact,
     DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
     GuideChapter, GuideHit, GuideTree, NotebookDocument, NotebookListing,
     HomeStatus, LegacyFound, SetupIn, SetupResult,
@@ -379,6 +379,25 @@ def put_regime_votes(body: VotesIn) -> list[dict]:
         raise HTTPException(422, f"unknown group(s): {', '.join(unknown)}; known: {', '.join(sorted(known))}")
     userstore.meta_set("regime_votes", (userstore.meta_get("regime_votes") or {}) | body.votes)
     return dashboard.vote_options()
+
+
+@app.get("/api/settings/sec-contact", response_model=SecContact)
+def get_sec_contact() -> dict:
+    from .fundamentals import edgar
+
+    return {"email": edgar.contact()}
+
+
+@app.put("/api/settings/sec-contact", response_model=SecContact)
+def put_sec_contact(body: SecContact) -> dict:
+    """The contact e-mail SEC asks for in the User-Agent of each EDGAR request (stored in userdata; null or empty
+    removes it, and EDGAR is then skipped)."""
+    from .fundamentals import edgar
+
+    try:
+        return {"email": edgar.set_contact(body.email)}
+    except ValueError as e:
+        raise HTTPException(422, str(e))
 
 
 @app.get("/api/rotation", response_model=RotationView)

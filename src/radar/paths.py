@@ -234,12 +234,15 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "valuation/etfs.parquet",
         "factset.parquet",              # the source only looks 14 days back
         "putcall.parquet",              # the backfill reaches one year back
+        "fundamentals/yahoo.parquet",   # Yahoo's statements: it shows ~4 years, what scrolls out is gone
     ),
     "cache": (
         "prices.parquet", "prices_from.json", "fred.parquet", "cot.parquet", "oecd_cli.parquet", "ecb.parquet",
         "aaii.parquet", "valuation/market.parquet", "factset_latest.txt", "profiles/", "constituents_us.csv",
         "names.csv", "sectors.csv", "currencies.csv", "sources.json", "ops.db", "updates.json",
         "discovery/universe.csv", "discovery/isin_map.csv", "discovery/prices.parquet",
+        "fundamentals/edgar.parquet", "fundamentals/cik.csv", "fundamentals/edgar_log.csv",
+        "fundamentals/yahoo_log.csv",
         "*.lock",                       # locks.file_lock: one writer at a time, next to the file it guards
     ),
     "reports": ("dashboard.json", "summary.json", "discovery.json", "score-study.json", "exit-study.json",

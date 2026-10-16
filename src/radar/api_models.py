@@ -544,6 +544,10 @@ class VotesIn(Strict):
     votes: dict[str, bool]
 
 
+class SecContact(Strict):
+    email: str | None = None       # sent to SEC in the User-Agent of each EDGAR request; None: EDGAR is skipped
+
+
 class ChartSeries(Strict):
     name: str
     dates: list[str]

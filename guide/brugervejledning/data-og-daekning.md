@@ -11,6 +11,7 @@ Siden [Data & coverage](/data) er radarens varedeklaration. Den siger, hvor hver
 - **Mapperne:** en tabel med datamappen (*Your data folder*), *Notes*, *Research*, *Journal*, *Briefs*, *Exports*, *Backups*, *History* og *Market data (cache)*. For hver står stien, antal filer og størrelse, om indholdet er dit (*yours: can't be downloaded again*), historik (*built up over time*) eller cache (*can be deleted*), og en knap *Open*, der åbner mappen i Stifinder eller Finder. Her står også, hvilken version af Market Radar du kører, og en advarsel, hvis datamappen ligger i en synkroniseret mappe.
 - **Kortet *Backups*:** hvornår den seneste backup blev taget, knappen *Back up now*, knappen *Export my data (CSV, JSON, Markdown)*, de nyeste backupper med *Restore…* og under *A second copy, off this disk* en anden mappe, som hver backup også kopieres til.
 - **Kortet *New versions*:** hvordan du opdaterer, og fluebenet for det daglige tjek for en ny version.
+- **Kortet *US financial statements (SEC EDGAR)*:** den kontakt-e-mail, der sendes til SEC med hver forespørgsel efter amerikanske regnskaber. Se [Regnskaber](#regnskaber).
 
 Alt om det står i [Dine data, backup og opdatering](brugervejledning/dine-data).
 
@@ -49,12 +50,26 @@ Grænserne står i `config/settings.yaml` under `coverage.max_age`. Med de nuvæ
 | Euroområdets renter (ECB) | {{settings:coverage.max_age.ecb}} |
 | Put/call (CBOE) og AAII | {{settings:coverage.max_age.putcall}} og {{settings:coverage.max_age.aaii}} |
 | Discover: navneliste og kurser | {{settings:coverage.max_age.discovery_universe}} og {{settings:coverage.max_age.discovery_prices}} |
+| Regnskaber (SEC EDGAR og Yahoo) | {{settings:coverage.max_age.fundamentals_edgar}} og {{settings:coverage.max_age.fundamentals_yahoo}} |
 
 En kilde, der er ældre end sin grænse, får status *stale* og holder op med at stemme i regimet. Den vises stadig, så du kan se, hvad den sidst sagde. Positivlisten er *stale*, når et nyt kalenderår er begyndt uden årets ark. Se [Indstillinger](brugervejledning/indstillinger).
 
 ### Når en kilde fejler
 
 En kilde, der fejler eller svarer med noget, radaren ikke kan læse, beholder sine seneste data. Radaren gemmer aldrig et tomt resultat som en succes: et svar uden indhold er en fejl. Fejlen står i *Last update* og som en hændelse på siden [Operations](/ops); se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift). Næste opdatering prøver igen.
+
+## Regnskaber
+
+Radaren henter selskabernes regnskaber (resultatopgørelse, pengestrøm og balance) fra to kilder. De lægges i ét fælles format, og `uv run radar fundamentals show TICKER` viser, hvad der er gemt for et selskab.
+
+- **SEC EDGAR** (rækken *Financial statements (US)*): amerikanske selskabers 10-K og 10-Q med den dato, hvor hvert tal blev offentliggjort. Det er officielle data, og de går op til 12 år tilbage. Selskaber, der aflægger regnskab efter IFRS, findes ikke her; dem dækker Yahoo.
+- **Yahoo** (rækken *Financial statements*): alle de aktier, radaren følger, også de europæiske, nordiske og asiatiske. Yahoo viser omkring fire år og fem kvartaler. Det, der falder ud af Yahoos vindue, kan ikke hentes igen, så radaren gemmer tallene som historik og lægger kun nye og ændrede tal til.
+
+**Kontakt-e-mail til SEC.** SEC beder programmer, der henter data automatisk, om at oplyse en kontakt. Skriv din e-mail i kortet *US financial statements (SEC EDGAR)* under *Your data*, eller kør `uv run radar fundamentals contact din@mail.dk`. Adressen gemmes i din egen database og sendes kun til SEC. Uden den springer radaren EDGAR over og bruger Yahoo til de amerikanske selskaber.
+
+**Hvornår der hentes.** Regnskaber ændrer sig én gang i kvartalet, så hvert selskab hentes for sig. Det sker, når et nyt regnskab burde være ude (efter selskabets regnskabsdag fra værdiansættelsen, eller et kvartal efter seneste periode), når det er mere end {{settings:fundamentals.edgar.refresh_days}} dage (EDGAR) eller {{settings:fundamentals.yahoo.refresh_days}} dage (Yahoo) siden sidst, eller dagen efter et forsøg, der fejlede. Hver opdatering tager højst {{settings:fundamentals.edgar.max_per_run}} selskaber fra EDGAR og {{settings:fundamentals.yahoo.max_per_run}} fra Yahoo, så den første hentning af alle fordeles over nogle dages opdateringer. Vil du have det hele med det samme: `uv run radar fundamentals update --all`.
+
+**Et svar med mindre bliver ikke gemt.** Svarer EDGAR for et selskab med færre perioder end dem, der er gemt (fx uden det seneste kvartal), beholdes de gemte tal, og selskabet tæller som fejlet. `uv run radar fundamentals check` sammenligner de to kilder for amerikanske selskaber og viser, hvor de er mere end 10 % fra hinanden.
 
 ## Sådan bygges aflæsningerne
 

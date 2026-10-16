@@ -70,6 +70,7 @@ backtest:                  # `radar sim exits` (backtest/): the stop/take-profit
   fred_lag_days: 1         # a FRED value counts from the day after its date
   oecd_lag_days: 70        # OECD CLI is published about two months after its month
   valuation_lag_days: 30   # Shiller CAPE / Damodaran ERP monthly values
+  fundamentals_lag_days: 1 # an EDGAR statement value counts from the day after its filing date
   fee_bps: 10              # cost of each simulated rule / parking / basket trade, in basis points of its value (commission + FX spread)
   study_holdout_from: 2024-10-01   # `radar study score`: formation dates from this day on are the holdout (never tuned on)
   study_min_names: 30      # a formation date needs at least this many ranked names with a forward return
@@ -101,6 +102,8 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     ecb: 14
     putcall: 7             # CBOE daily put/call ratios
     aaii: 14               # AAII weekly sentiment survey
+    fundamentals_edgar: 45 # financial statements (SEC EDGAR): fetched per company as new reports come out
+    fundamentals_yahoo: 45 # financial statements (Yahoo)
   blind_spots:             # what the radar does not see; shown on the page and in summary.json
     - "Valuation comes from Yahoo's consensus estimates (unofficial, weekly snapshots) and, for the US market, Shiller's CAPE and Damodaran's risk premium. Its own history for stocks and ETFs only starts with the first snapshot, so percentiles and revisions take weeks to appear."
     - "Earnings revisions: FactSet for the S&P 500; elsewhere only changes in Yahoo's consensus between snapshots (names that report in another currency than they trade in are left out, as Yahoo converts their estimates at today's rate)."
@@ -130,6 +133,7 @@ network:                   # src/radar/net.py: every external request is paced p
     "pages.stern.nyu.edu": {rate: 0.5, burst: 1, concurrency: 1}
     "www.aaii.com": {rate: 0.5, burst: 1, concurrency: 1}
     "api.github.com": {rate: 0.2, burst: 1, concurrency: 1}              # the opt-in check for a new version
+    "*.sec.gov": {rate: 5, burst: 5, concurrency: 2, budget: 3000}        # SEC EDGAR; SEC's fair-access limit is 10/s
   cooldown:                # pause a host that keeps answering 429 (shared by the app and the CLI through ops.db)
     trip: 3                # this many 429s ...
     window_min: 10         # ... within this many minutes
@@ -153,6 +157,21 @@ valuation:                 # src/radar/valuation.py and signals/valuation.py
   revision_band: 0.01      # a forward EPS change within +-1% counts as unchanged
   etf_history_weeks: 26    # an ETF's P/E percentile needs this many weekly snapshots
   etf_min_share: 0.8       # a new ETF snapshot needs fund data for this share of the last one's ETFs, else it's kept
+
+fundamentals:              # src/radar/fundamentals/: financial statements (SEC EDGAR for US companies, Yahoo for all)
+  edgar:
+    refresh_days: 30       # fetch a company's facts again after this many days ...
+    after_period_days: 45  # ... or once a quarter plus this many days has passed since its latest period end
+    max_per_run: 200       # companies per update (the first backfill is spread over a few updates)
+    tickers_max_age_days: 30   # SEC's ticker -> CIK list is fetched again after this
+    max_fail_share: 0.2    # more than this share of the companies failing makes the step fail (what worked is kept)
+    years: 12              # fiscal years kept per company
+  yahoo:
+    refresh_days: 35       # fetch a stock's statements again after this many days ...
+    after_earnings_days: 5 # ... or this many days after its earnings date (from the valuation snapshot)
+    max_per_run: 150       # stocks per update (8 requests each)
+    min_ok_share: 0.5      # fewer answering stocks than this share makes the step fail (what worked is kept)
+    assumed_lag_days: {quarterly: 45, annual: 75}   # a first fetch's values: assumed public this long after the period end
 
 sentiment:                 # src/radar/sentiment.py
   putcall_backfill_days: 365

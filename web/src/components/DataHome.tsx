@@ -132,6 +132,36 @@ export function DataHome() {
         ) : <p className="muted small">This copy doesn&apos;t name a place to check for new versions (settings.yaml
           <code> updates.repo</code>); whoever gave you Market Radar will tell you when there is one.</p>)}
       </div>
+      <SecContactCard />
     </>
+  );
+}
+
+/** The contact e-mail SEC asks for in each EDGAR request (US financial statements). */
+function SecContactCard() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["sec-contact"], queryFn: api.secContact, retry: false });
+  const save = useMutation({ mutationFn: api.setSecContact, onSuccess: (d) => qc.setQueryData(["sec-contact"], d) });
+  const [email, setEmail] = useState("");
+  const current = q.data?.email;
+  return (
+    <div className="card">
+      <h2 id="sec-contact">US financial statements (SEC EDGAR)</h2>
+      <p className="note">SEC asks programs that fetch its data to name a contact. The address you enter here is sent to
+        SEC (and nowhere else) with each request for US companies&apos; statements. Without one, US statements come from
+        Yahoo only.</p>
+      {current ? (
+        <p>Contact: <code>{current}</code>{" "}
+          <button className="btn small" disabled={save.isPending} onClick={() => save.mutate(null)}>Remove</button></p>
+      ) : q.isSuccess && <p className="warn-text">No contact set: SEC EDGAR is skipped.</p>}
+      <div className="setup-row">
+        <input className="setup-path" type="email" placeholder="you@example.com" value={email}
+          onChange={(e) => setEmail(e.target.value)} aria-label="Contact e-mail for SEC" />
+        <button className="btn" disabled={!email.trim() || save.isPending}
+          onClick={() => save.mutate(email.trim(), { onSuccess: () => setEmail("") })}>
+          {current ? "Change" : "Use this address"}</button>
+      </div>
+      {save.isError && <p className="neg">{(save.error as Error).message}</p>}
+    </div>
   );
 }
