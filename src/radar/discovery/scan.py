@@ -14,7 +14,7 @@ from typing import Callable
 import pandas as pd
 
 from .. import coverage, ingest, net, ops, universe
-from ..config import discovery_config, settings, write_parquet
+from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
 from . import sources
@@ -23,6 +23,7 @@ DIR = CACHE / "discovery"
 UNIVERSE_FILE = DIR / "universe.csv"
 ISIN_MAP_FILE = DIR / "isin_map.csv"
 PRICES_FILE = DIR / "prices.parquet"
+SCAN_LOCK = DIR / "scan.lock"        # one discovery scan at a time (the app's, or `radar discover` in a terminal)
 SNAPSHOTS = HISTORY / "discovery" / "snapshots"
 REPORT_FILE = REPORTS / "discovery.json"
 
@@ -121,7 +122,7 @@ def _etfs(mk: dict, cfg: dict, log: Log, progress: Progress | None) -> pd.DataFr
     isin_map = sources.map_isins(list(funds["isin"]), cached, cfg["etf_exchanges"], progress=progress,
                                  budget=cfg["isin_lookups_per_scan"])
     DIR.mkdir(parents=True, exist_ok=True)
-    isin_map.to_csv(ISIN_MAP_FILE, index=False)
+    write_csv(isin_map, ISIN_MAP_FILE, index=False)
     picked = sources.pick_share_classes(funds, isin_map, cfg["etf_exchanges"])
     if len(picked) < mk.get("min_count", 0):
         raise ValueError(f"only {len(picked)} positive-list ETFs found on Yahoo (expected ≥ {mk['min_count']})")
@@ -177,7 +178,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
         df[col] = df[col].fillna("") if col in df else ""
     df = df.reindex(columns=UNIVERSE_COLS)
     DIR.mkdir(parents=True, exist_ok=True)
-    df.to_csv(UNIVERSE_FILE, index=False)
+    write_csv(df, UNIVERSE_FILE, index=False)
     if failed:
         raise PartialFailure(f"{len(df)} names; failed: {'; '.join(failed)}")
     return df
@@ -277,11 +278,9 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
             "thresholds": {"size_large_dkk": cfg["size_dkk"]["large"], "size_mid_dkk": cfg["size_dkk"]["mid"],
                            "liquidity_floor_dkk": cfg["liquidity_floor_dkk"]}}
     REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = REPORT_FILE.with_name(REPORT_FILE.name + ".tmp")
-    tmp.write_text(json.dumps(data, separators=(",", ":"), allow_nan=False), encoding="utf-8")
-    tmp.replace(REPORT_FILE)
+    write_text(REPORT_FILE, json.dumps(data, separators=(",", ":"), allow_nan=False))
     SNAPSHOTS.mkdir(parents=True, exist_ok=True)
-    df[["ticker", "market", "score"]].to_parquet(SNAPSHOTS / f"{date.today().isoformat()}.parquet", index=False)
+    write_parquet(df[["ticker", "market", "score"]], SNAPSHOTS / f"{date.today().isoformat()}.parquet", index=False)
     return {"asof": data["asof"], "names": len(df), "scored": int(df["score"].notna().sum())}
 
 
@@ -296,7 +295,15 @@ def load_report() -> dict | None:
 
 def run(log: Log = print, progress: Progress | None = None, refresh_universe: bool = False) -> dict:
     """Universe (when older than `universe_max_age_days`, or asked), prices, report. Steps are logged in
-    data/sources.json; a failing step keeps its cached data."""
+    data/sources.json; a failing step keeps its cached data. One scan at a time (`locks.Busy` otherwise)."""
+    from .. import locks
+
+    with locks.file_lock(SCAN_LOCK, timeout=0,
+                         what="a discovery scan is already running (in the app or in a terminal): wait for it to finish"):
+        return _run(log, progress, refresh_universe)
+
+
+def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
     cfg = discovery_config()
     t0 = time.time()
     age = universe_age_days()

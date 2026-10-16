@@ -47,8 +47,10 @@ class Busy(TimeoutError):
 
 
 def lock_path(path: Path) -> Path:
+    """`<path>.lock` next to the file it guards; a path that already ends in .lock is the lock itself (a lock for
+    a job rather than a file, such as the update)."""
     path = Path(path)
-    return path.with_name(path.name + ".lock")
+    return path if path.suffix == ".lock" else path.with_name(path.name + ".lock")
 
 
 @contextmanager
@@ -67,7 +69,7 @@ def file_lock(path: Path, timeout: float = 120, poll: float = 0.1, what: str | N
         deadline = time.monotonic() + timeout
         while not _try(fd):
             if time.monotonic() >= deadline:
-                raise Busy(f"{what or Path(path).name} is busy: another update is writing it")
+                raise Busy(what or f"{Path(path).name} is busy: another update is writing it")
             time.sleep(poll)
         held.add(lp)
         try:

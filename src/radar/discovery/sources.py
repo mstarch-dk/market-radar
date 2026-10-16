@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+from datetime import date
 from typing import Callable
 
 import pandas as pd
@@ -263,11 +264,20 @@ def search_isin(isin: str) -> list[dict]:
 
 def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
               search: Callable[[str], list[dict]] = search_isin, workers: int = 2,
-              progress: Callable[[int, int], None] | None = None, budget: int | None = None) -> pd.DataFrame:
-    """ISIN -> best Yahoo ETF listing (exchange preference order). Looked-up ISINs are cached, unresolved ones
-    too (symbol empty), so each ISIN is searched once; a failed search is not cached and retried next time.
-    At most `budget` new ISINs are searched per call, so Yahoo isn't flooded; the rest follow on later scans."""
-    done = set(cached["isin"]) if not cached.empty else set()
+              progress: Callable[[int, int], None] | None = None, budget: int | None = None,
+              today: date | None = None) -> pd.DataFrame:
+    """ISIN -> best Yahoo ETF listing (exchange preference order). Looked-up ISINs are cached with the day they
+    were searched; an unresolved one (symbol empty) is searched again once that is `RETRY_UNRESOLVED_DAYS` old
+    (Yahoo may list it by then), and a failed search is not cached and retried next time. At most `budget` ISINs
+    are searched per call, so Yahoo isn't flooded; the rest follow on later scans."""
+    today = today or date.today()
+    if not cached.empty and "searched" not in cached:
+        cached = cached.assign(searched="")          # cached before search dates were kept: old enough to retry
+    done = set()
+    if not cached.empty:
+        age = (pd.Timestamp(today) - pd.to_datetime(cached["searched"].replace("", None), errors="coerce")).dt.days
+        stale = (cached["symbol"].fillna("") == "") & ~(age < RETRY_UNRESOLVED_DAYS)
+        done = set(cached.loc[~stale, "isin"])
     todo = [i for i in isins if i not in done][:budget]
     rank = {e: n for n, e in enumerate(exchanges)}
     failures = [0]                    # consecutive failed searches: Yahoo is throttling, so stop for this scan
@@ -286,7 +296,8 @@ def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
         q = etfs[0] if etfs else {}
         return {"isin": isin, "symbol": q.get("symbol", ""), "exchange": q.get("exchange", ""),
                 "yahoo_name": q.get("longname") or q.get("shortname") or "",
-                "quote_type": "ETF" if etfs else (quotes[0].get("quoteType", "") if quotes else "")}
+                "quote_type": "ETF" if etfs else (quotes[0].get("quoteType", "") if quotes else ""),
+                "searched": today.isoformat()}
     found = []
     with net.pool(workers) as ex:
         for n, r in enumerate(ex.map(one, todo)):
@@ -294,10 +305,15 @@ def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
                 found.append(r)
             if progress and n % 100 == 0:
                 progress(n, len(todo))
-    return pd.concat([cached, pd.DataFrame(found)], ignore_index=True) if found else cached
+    if not found:
+        return cached
+    new = pd.DataFrame(found)
+    rest = cached[~cached["isin"].isin(set(new["isin"]))] if not cached.empty else cached
+    return pd.concat([rest, new], ignore_index=True)
 
 
 MAX_FAILURES = 15
+RETRY_UNRESOLVED_DAYS = 90     # an ISIN Yahoo couldn't find is searched again after this (it may be listed now)
 
 
 HEDGED = re.compile(r"hedg|hdg|\bh\b", re.I)

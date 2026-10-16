@@ -271,6 +271,8 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     if raw_status != OK:
         notes.append("Yahoo fundamentals and estimates: " + ("no data" if raw is None else
                      f"couldn't refresh, showing data from {raw['fetched'][:10]}"))
+    for block, when in ((raw or {}).get("kept") or {}).items():
+        notes.append(f"Yahoo {block.replace('_', ' ')}: couldn't refresh, showing data from {when[:10]}")
     detail_asof = raw["fetched"][:10] if raw else None
 
     is_fund = info.get("quoteType") in ("ETF", "MUTUALFUND")

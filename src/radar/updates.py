@@ -10,7 +10,7 @@ import json
 from datetime import datetime, timedelta
 
 from . import home, paths
-from .config import settings
+from .config import settings, write_text
 
 CHECK_FILE = paths.CACHE / "updates.json"
 EVERY = timedelta(days=1)
@@ -56,7 +56,7 @@ def status(check: bool = True) -> dict:
     if check and due:
         c = _fetch(out["repo"])
         CHECK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CHECK_FILE.write_text(json.dumps(c, indent=1), encoding="utf-8")
+        write_text(CHECK_FILE, json.dumps(c, indent=1))
     if c:
         out |= {k: c.get(k) for k in ("latest", "url", "published", "checked", "error")}
         out["newer"] = bool(out["latest"]) and home._vt(out["latest"].lstrip("v")) > home._vt(out["current"])

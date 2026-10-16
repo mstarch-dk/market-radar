@@ -10,9 +10,13 @@ import threading
 from datetime import datetime
 from typing import Callable
 
-from . import coverage, external, ingest, ops, report, sentiment, universe, valuation
+from . import coverage, external, ingest, locks, ops, report, sentiment, universe, valuation
 from .fundamentals import edgar, yahoo
 from .config import settings
+from .paths import CACHE
+
+UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
+BUSY = "an update is already running (in the app or in a terminal): wait for it to finish"
 
 Log = Callable[[str], None]
 
@@ -31,7 +35,13 @@ def _steps(steps: dict, log: Log) -> None:
 
 
 def update(log: Log = print, refresh_constituents: bool = False, progress: Callable[[int, int], None] | None = None) -> None:
-    """Download new prices (incremental) and macro and non-price series."""
+    """Download new prices (incremental) and macro and non-price series. One at a time: while another update runs
+    (the app's, or one in a terminal) this raises `locks.Busy` before asking anything."""
+    with locks.file_lock(UPDATE_LOCK, timeout=0, what=BUSY):
+        _update(log, refresh_constituents, progress)
+
+
+def _update(log: Log, refresh_constituents: bool, progress) -> None:
     tickers = universe.all_price_tickers(refresh_constituents)
     log(f"Updating {len(tickers)} tickers…")
 
@@ -68,9 +78,13 @@ def update(log: Log = print, refresh_constituents: bool = False, progress: Calla
 
     _steps({"prices": ("Prices", prices)}, log)
     log("Looking up names and sectors (the first time this takes a few minutes)…")
-    with ops.context(source="reference"):
-        universe.names(tickers)  # warm the name cache
-        universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
+    try:   # a cache, not a source: a failure is logged and the remaining steps still run
+        with ops.context(source="reference"):
+            universe.names(tickers)  # warm the name cache
+            universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
+    except Exception as e:
+        log(f"Names and sectors: FAILED ({type(e).__name__}: {e}); using the cached ones.")
+        ops.event("error", "source", f"names and sectors: {type(e).__name__}: {e}", source="reference", exc=e)
     _steps({"fred": ("Macro (FRED)", fred)}, log)
     update_external(log)
 

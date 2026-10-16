@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import paths
-from .config import ROOT
+from .config import ROOT, write_text
 
 # Changes to the data folder's layout (a folder renamed, a file moved between tiers): one function per step, taking
 # the home Path; step i turns format i into i + 1. Append only, never edit a released step, never delete user data
@@ -97,9 +97,7 @@ def read_manifest(home: Path) -> dict | None:
 
 def _write_manifest(home: Path, m: dict) -> None:
     f = Path(home) / MANIFEST
-    tmp = f.with_name(f.name + ".tmp")
-    tmp.write_text(json.dumps(m, indent=1, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(f)
+    write_text(f, json.dumps(m, indent=1, ensure_ascii=False))
 
 
 def _log(m: dict, event: str, **kw) -> dict:
