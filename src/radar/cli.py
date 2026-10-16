@@ -1088,11 +1088,15 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
                 seasoned: bool = typer.Option(False, "--seasoned", help="Leave out names listed less than a year by then"),
                 since: str = typer.Option(None, "--since", help="First formation date"),
                 no_regime: bool = typer.Option(False, "--no-regime", help="Skip the split by regime (faster)"),
+                signal: str = typer.Option("momentum", "--signal", help="momentum, or quality, value or qv (K+V): "
+                                           "US stocks from SEC EDGAR, point in time"),
                 as_json: bool = typer.Option(False, "--json", help="The full report as JSON"),
                 out: str = typer.Option(None, "--out", help="Also write the JSON here")):
-    """How well the momentum score ranked stocks at every past month-end, on the returns that followed: rank
-    correlation (IC) with Newey-West t, quintile spreads, the top N against the universe and ACWI, splits by
-    year, regime, group and holdout, and variants of the score tested fairly. Writes reports/score-study.json."""
+    """How well a score ranked stocks at every past month-end, on the returns that followed: rank correlation (IC)
+    with Newey-West t, quintile spreads, the top N against the universe and ACWI, splits by year, regime, group and
+    holdout, and variants tested fairly. The momentum score by default (reports/score-study.json); --signal
+    quality|value|qv tests the kvalitetsscore, værdiscore or K+V on US stocks from SEC EDGAR
+    (reports/score-study-<signal>.json)."""
     import json
     from pathlib import Path
 
@@ -1103,7 +1107,8 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
         with _job("study") as log:
-            rep = study.run(profile.Market.load(), hs, keys, n, exits_months, seasoned, since, not no_regime, log)
+            rep = study.run(profile.Market.load(), hs, keys, n, exits_months, seasoned, since, not no_regime, log,
+                            signal=signal)
             study.write(rep)
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
@@ -1115,8 +1120,11 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
         typer.echo(text)
         return
     u = rep["universe"]
-    typer.echo(f"\n{u['tickers']} stocks, formation dates {u['first']} to {u['last']}; holdout from "
-               f"{rep['settings']['holdout_from']}; {rep['variants_tried']} variants tried against the score")
+    bk = next(v["key"] for v in rep["variants"] if v["baseline"])
+    sig = study.SIGNALS[rep["signal"]]
+    names = f"{u['fund_names']} US stocks with SEC EDGAR statements" if sig.fund else f"{u['tickers']} stocks"
+    typer.echo(f"\n{sig.label}: {names}, formation dates {u['first']} to {u['last']}; holdout from "
+               f"{rep['settings']['holdout_from']}; {rep['variants_tried']} variants tried against {bk}")
     labels = {v["key"]: v for v in rep["variants"]}
     for h, res in rep["results"].items():
         typer.echo(f"\n{h} month(s) ahead: excess over the equal-weight universe")
@@ -1131,19 +1139,23 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
                        f"{_pct(a.get('ic_pos'), False):>5}  {_pct(q[0]):>7} {_pct(q[2]):>7} {_pct(q[4]):>7} "
                        f"{_pct(a.get('spread')):>7} {_num(a.get('spread_t'), '+.1f'):>6}  {_pct(a.get('top_excess')):>7} "
                        f"{_pct(a.get('top_hit'), False):>4}  {_num(o.get('ic_mean')):>10}  {v}{pit}")
-        base = res[study.BASELINE]
+        base = res[bk]
         reg = {g: s for g, s in (base.get("by_regime") or {}).items() if s}
         if reg:
-            typer.echo("  score IC by regime on D: " + ", ".join(f"{g} {_num(s['ic_mean'])} ({s['dates']})" for g, s in reg.items()))
+            typer.echo(f"  {bk} IC by regime on D: " + ", ".join(f"{g} {_num(s['ic_mean'])} ({s['dates']})" for g, s in reg.items()))
         grp = {g: s for g, s in (base.get("by_group") or {}).items() if s}
         if grp:
-            typer.echo("  score IC within each group: " + ", ".join(f"{g} {_num(s['ic_mean'])}" for g, s in grp.items()))
+            typer.echo(f"  {bk} IC within each group: " + ", ".join(f"{g} {_num(s['ic_mean'])}" for g, s in grp.items()))
         a = base["all"] or {}
         if a.get("top_dkk") is not None:
             typer.echo(f"  top {n} in DKK: mean {_pct(a['top_dkk'])} against ACWI {_pct(a['acwi_dkk'])}, "
                        f"ahead on {_pct(a['top_beats_acwi'], False)} of dates")
-    typer.echo("\nIC decay (score): " + ", ".join(f"{h}m {_num(v)}" for h, v in rep["decay"][study.BASELINE].items()))
-    typer.echo(f"Top-quintile turnover per month (score): {_pct(rep['turnover'][study.BASELINE], False)}")
+    typer.echo(f"\nIC decay ({bk}): " + ", ".join(f"{h}m {_num(v)}" for h, v in rep["decay"][bk].items()))
+    typer.echo(f"Top-quintile turnover per month ({bk}): {_pct(rep['turnover'][bk], False)}")
+    mc = rep.get("momentum_corr")
+    if mc and mc.get("mean") is not None:
+        typer.echo(f"Rank correlation with the momentum score: {_num(mc['mean'])} on average over {mc['dates']} dates "
+                   "(near 0 or below: the two pick different stocks)")
     e = rep.get("exits")
     if e and e.get("summary"):
         s = e["summary"]
@@ -1158,7 +1170,7 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
         if e.get("inputs_missing"):
             typer.echo("  inputs missing on rule days: " + ", ".join(f"{k} {v:.0%}" for k, v in e["inputs_missing"].items()))
     typer.echo("\nCaveats: " + " ".join(rep["caveats"][:2]))
-    typer.echo("Report: reports/score-study.json")
+    typer.echo(f"Report: reports/{sig.report}")
 
 
 @study_app.command("exits")

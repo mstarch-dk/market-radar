@@ -135,14 +135,20 @@ class View:
         self.items: dict[str, list[Row]] = {}
         if d.empty:
             return
-        for r in d.sort_values(["end", "known"], kind="stable").itertuples(index=False):
-            start = None if pd.isna(r.start) else pd.Timestamp(r.start)
-            end = pd.Timestamp(r.end)
-            cur = r.currency if isinstance(r.currency, str) else None
-            self.items.setdefault(r.item, []).append(
-                Row(start, end, float(r.value), r.fp if isinstance(r.fp, str) else None,
-                    r.form if isinstance(r.form, str) else None, r.tag if isinstance(r.tag, str) else None, cur,
-                    None if pd.isna(r.known) else pd.Timestamp(r.known), kind(start, end) if start is not None else None))
+        d = d.sort_values(["end", "known"], kind="stable")
+        # plain lists, read once: iterating the (Arrow-backed) frame row by row is what made a View slow
+        cols = [d["item"].tolist(), pd.to_datetime(d["start"]).tolist(), pd.to_datetime(d["end"]).tolist(),
+                d["value"].astype(float).tolist(), *(d[c].tolist() for c in ("fp", "form", "tag", "currency")),
+                pd.to_datetime(d["known"]).tolist()]
+        kinds: dict = {}
+        txt = (lambda v: v if isinstance(v, str) else None)
+        for item, start, end, value, fp, form, tag, cur, known in zip(*cols):
+            start = None if start is pd.NaT else start
+            if start is not None and (start, end) not in kinds:
+                kinds[(start, end)] = kind(start, end)
+            self.items.setdefault(item, []).append(
+                Row(start, end, value, txt(fp), txt(form), txt(tag), txt(cur), None if known is pd.NaT else known,
+                    kinds[(start, end)] if start is not None else None))
 
     def rows(self, item: str) -> list[Row]:
         return self.items.get(item, [])

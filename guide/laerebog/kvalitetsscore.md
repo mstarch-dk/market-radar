@@ -127,6 +127,7 @@ på tre af fire søjler.
 - **Udbytterækken** er kort, fordi kurshistorikken er det: højst så mange år, som radaren har kurser for.
 - **Negativ egenkapital** giver ingen ROE for en bank. For andre selskaber bruger ROIC aktiverne, så tallet findes stadig.
 - **Overlevelsesbias.** Listerne er dagens selskaber. Et regnskab, der så godt ud, før selskabet gik ned, er ikke med.
+- **Testet på historikken?** Kun for amerikanske aktier og over få år: `uv run radar study score --signal qv` (se [Test momentumscoren på historikken](brugervejledning/scoretest#kvalitet-og-værdi)). A/B-testen fremad i tid er den rene test.
 - **Scoren er en sammenligning, ikke en vurdering.** En værdiscore på 80 betyder billig i forhold til sektoren, ikke billig i sig selv. Er hele sektoren dyr, er dens billigste aktie det også.
 
 ## Videre læsning

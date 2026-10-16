@@ -217,6 +217,7 @@ Viser værdi, tidsvægtet afkast (TWR, også pr. år), pengevægtet afkast (MWR 
 ```
 uv run radar study score
 uv run radar study score --exits 6 --json
+uv run radar study score --signal qv     # kvalitet + værdi, amerikanske aktier fra SEC EDGAR
 uv run radar study exits
 uv run radar study redeploy
 uv run radar sim picks-candidates --asof 6M
