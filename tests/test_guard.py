@@ -216,3 +216,19 @@ def test_data_files_are_written_through_the_atomic_helpers():
             if raw.search(line) and "tmp" not in line.split("(")[0]:
                 bad.append(f"{f.relative_to(Path(radar.__file__).parent)}:{i}: {line.strip()}")
     assert not bad, "write through config.write_*:\n" + "\n".join(bad)
+
+
+def test_two_processes_logging_sources_keep_each_others_entries(tmp_path):
+    """sources.json is read, changed and written by the app and a terminal update alike."""
+    import json
+    import os
+    import subprocess
+    import sys
+    env = os.environ | {"MARKET_RADAR_HOME": str(tmp_path / "home"), "MARKET_RADAR_CACHE": str(tmp_path / "cache"),
+                        "MARKET_RADAR_CONFIG": str(tmp_path / "config")}
+    code = ("import sys; from radar import coverage, paths\n"
+            "for i in range(40): coverage.record(f'{sys.argv[1]}{i}', True, 'ok')\n")
+    procs = [subprocess.Popen([sys.executable, "-c", code, p], env=env) for p in ("a", "b")]
+    assert [p.wait(120) for p in procs] == [0, 0]
+    log = json.loads((tmp_path / "cache" / "sources.json").read_text(encoding="utf-8"))
+    assert len(log) == 80

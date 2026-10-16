@@ -93,3 +93,22 @@ def test_detail_cache_and_failure(tmp_path, monkeypatch):
              "calendar": {}, "errors": {"info": "HTTPError: 404"}}
     monkeypatch.setattr(external, "fetch_detail", lambda t: empty)
     assert external.detail("X", max_age_hours=0) == (None, "missing")
+
+
+# ---------------- a partial answer keeps the cached blocks it lacks (hardening 1.8) ----------------
+
+def test_a_block_that_fails_keeps_its_cached_copy(tmp_data, monkeypatch):
+    from radar import external
+    full = {"symbol": "X", "fetched": "2026-10-10T10:00:00", "errors": {},
+            "info": {"quoteType": "EQUITY", "longName": "X Corp"}, "recommendations": [{"period": "0m", "buy": 3}],
+            "eps_trend": {"0y": {"current": 1.0}}, "eps_revisions": {}, "growth_estimates": {}, "calendar": {}}
+    partial = dict(full, fetched="2026-10-15T10:00:00", recommendations=[],
+                   errors={"recommendations": "YFRateLimitError: Too Many Requests"})
+    answers = iter([full, partial])
+    monkeypatch.setattr(external, "fetch_detail", lambda t: next(answers))
+    external.detail("X")
+    raw, status = external.detail("X", refresh=True)
+    assert status == "ok" and raw["recommendations"] == [{"period": "0m", "buy": 3}]
+    assert raw["kept"] == {"recommendations": "2026-10-10T10:00:00"} and "recommendations" not in raw["errors"]
+    raw2, _ = external.detail("X")                         # and so stored
+    assert raw2["recommendations"] == [{"period": "0m", "buy": 3}]

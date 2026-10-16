@@ -454,6 +454,16 @@ def detail(ticker: str, max_age_hours: float = 24, refresh: bool = False) -> tup
         return cached, "stale" if cached else "missing"
     if not any(raw.get(k) for k in ("info", "recommendations", "eps_trend", "calendar")):
         return (cached, "stale") if cached else (None, "missing")  # Yahoo answered with nothing
+    if cached:   # a block that failed this time keeps its cached copy (noted in `kept`, not shown as an error)
+        raw["kept"] = {}
+        for name in list(raw.get("errors") or {}):
+            if cached.get(name):
+                raw[name] = cached[name]
+                raw["kept"][name] = cached.get("kept", {}).get(name) or cached["fetched"]
+                del raw["errors"][name]
+        if "fund" not in raw and cached.get("fund") and raw.get("info", {}).get("quoteType") in ("ETF", "MUTUALFUND"):
+            raw["fund"] = cached["fund"]
+            raw["kept"]["fund"] = cached.get("kept", {}).get("fund") or cached["fetched"]
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     write_text(path, json.dumps(raw, indent=1))
     return raw, "ok"

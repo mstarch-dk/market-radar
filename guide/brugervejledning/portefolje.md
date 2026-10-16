@@ -94,7 +94,9 @@ De ikke-afprøvede formater bygger på offentlige beskrivelser og bliver først 
 
 Kender radaren ikke formatet, vælger du selv, hvilken kolonne der er dato, køb/salg, symbol, ISIN, navn, antal, kurs, kurtage, valuta, konto, handels-id og kontantbeløb. Den generelle genkendelse forstår almindelige kolonnenavne.
 
-Decimaltegnet læses for hver kolonne ud fra hele filen: står der et sted `12,50`, bruger kolonnen komma som decimaltegn, og `1.234` i samme kolonne er da tusind to hundrede fireogtredive. En kolonne uden spor følger filens andre talkolonner. Kan filen ikke afgøre det (fx en kolonne, hvor kun `1.234` står), får rækken en advarsel i stedet for et gæt. Tal i et regneark (`.xlsx`) bruges, som de står i arket, uanset formatets decimaltegn. Kortlægger du kontokolonnen (*Account (→ portfolio)*), havner hver række i porteføljen med det navn; mangler en portefølje, oprettes den som rigtig ved importen. Vil du hellere samle alt i den valgte portefølje, så lad kontokolonnen være tom.
+Decimaltegnet læses for hver kolonne ud fra hele filen: står der et sted `12,50`, bruger kolonnen komma som decimaltegn, og `1.234` i samme kolonne er da tusind to hundrede fireogtredive. En kolonne uden spor følger filens andre talkolonner. Kan filen ikke afgøre det (fx en kolonne, hvor kun `1.234` står), får rækken en advarsel i stedet for et gæt. Tal i et regneark (`.xlsx`) bruges, som de står i arket, uanset formatets decimaltegn.
+
+Har filen en valutakolonne, sammenlignes den med den valuta, papiret handles i på Yahoo. Er de forskellige (fx DKK for en aktie, der handles i USD), får rækken en advarsel: kurs og kurtage gemmes i papirets egen valuta og skal omregnes, eller du skal vælge den notering, der handles i filens valuta. Kortlægger du kontokolonnen (*Account (→ portfolio)*), havner hver række i porteføljen med det navn; mangler en portefølje, oprettes den som rigtig ved importen. Vil du hellere samle alt i den valgte portefølje, så lad kontokolonnen være tom.
 
 ### 3. Bekræft symbolerne
 

@@ -78,9 +78,9 @@ def record(source: str, ok: bool, detail: str | None = None, error: str | None =
     """Log one update attempt. A failure keeps the last success, so the page can say how old the data is. Each
     attempt is also an event in the operations log (a failure with its traceback when `exc` is given; a
     ValueError is a parse failure: the source answered, but not in the shape we expect)."""
-    from . import ops
+    from . import locks, ops
 
-    with _log_lock:
+    with _log_lock, locks.file_lock(LOG_FILE, timeout=30):   # the app and a terminal update both write it
         log = load_log()
         now = datetime.now().isoformat(timespec="seconds")
         entry = log.get(source, {}) | {"last_attempt": now, "detail": detail, "error": None if ok else error}

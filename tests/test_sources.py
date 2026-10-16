@@ -289,3 +289,26 @@ def test_oecd_area_missing_from_the_answer_keeps_its_stored_values(monkeypatch):
     df = pd.read_parquet(external.CLI_FILE)
     assert areas[0] in df.columns and df[areas[0]].notna().sum() == 24
     assert f"kept the stored {areas[0]}" in msg
+
+
+# ---------------- reference caches keep answers, not failures (hardening 1.7) ----------------
+
+def test_a_failed_name_lookup_is_not_cached(tmp_data, monkeypatch):
+    from fakes import fake_yf
+    monkeypatch.setattr(universe, "etfs", lambda: [])
+    yf = fake_yf(monkeypatch, info={"A": RuntimeError("429"), "B": {}, "C": {"longName": "Cee Corp"}})
+    assert universe.names(["A", "B", "C"]) == {"A": "A", "B": "B", "C": "Cee Corp"}   # shown as the ticker...
+    cached = pd.read_csv(paths.CACHE / "names.csv")
+    assert list(cached["ticker"]) == ["C"]                                             # ...but not remembered
+    yf.asked.clear()
+    universe.names(["A", "B", "C"])
+    assert sorted(t for _, t in yf.asked) == ["A", "B"]                                # so asked again
+
+
+def test_a_sector_is_cached_only_from_a_real_answer(tmp_data, monkeypatch):
+    from fakes import fake_yf
+    fake_yf(monkeypatch, info={"S": {"quoteType": "EQUITY", "sector": "Technology", "industry": "Chips"},
+                               "E": {"quoteType": "ETF"}, "T": {}})
+    universe.sectors(["S", "E", "T"])
+    cached = pd.read_csv(paths.CACHE / "sectors.csv", keep_default_na=False)
+    assert sorted(cached["ticker"]) == ["E", "S"]          # T's empty answer (throttled?) is asked again later
