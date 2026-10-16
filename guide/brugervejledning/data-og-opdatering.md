@@ -16,7 +16,7 @@ Når du klikker, starter den samme opdatering som `radar run` i terminalen. Unde
 - En bjælke viser, hvor langt kursdownloaden er.
 - *What it did (N lines)* folder loggen ud: én linje pr. trin, med hvad der blev hentet, eller hvad der fejlede.
 
-Du kan bruge appen imens. Når opdateringen er færdig, står der *Updated* med tidspunktet, og alle sider henter deres data igen af sig selv. Der kan kun køre én opdatering ad gangen.
+Du kan bruge appen imens. Når opdateringen er færdig, står der *Updated* med tidspunktet, og alle sider henter deres data igen af sig selv. Der kan kun køre én opdatering ad gangen, også på tværs af appen og terminalen: starter du `radar update` eller `radar run`, mens appen opdaterer (eller omvendt), stopper den nye med det samme med beskeden *an update is already running*. Det samme gælder Discover-scanningen. At slå en ticker op i appen virker hele tiden.
 
 Stopper opdateringen helt, står der *Update stopped:* efterfulgt af fejlen. Det sker sjældent, fordi de enkelte kilder fejler hver for sig uden at stoppe resten (se [Når en kilde fejler](brugervejledning/data-og-opdatering#når-en-kilde-fejler)).
 

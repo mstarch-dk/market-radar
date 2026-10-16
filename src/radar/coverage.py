@@ -13,7 +13,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from .config import POSITIVE_LIST_FILE
+from .config import POSITIVE_LIST_FILE, write_text
 from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
 
 LOG_FILE = CACHE / "sources.json"
@@ -83,9 +83,7 @@ def record(source: str, ok: bool, detail: str | None = None, error: str | None =
             entry["last_success"] = now
         log[source] = entry
         CACHE.mkdir(parents=True, exist_ok=True)
-        tmp = LOG_FILE.with_name(LOG_FILE.name + ".tmp")
-        tmp.write_text(json.dumps(log, indent=1), encoding="utf-8")
-        tmp.replace(LOG_FILE)
+        write_text(LOG_FILE, json.dumps(log, indent=1))
     if ok:
         ops.event("info", "source", detail or "updated", source=source)
     else:

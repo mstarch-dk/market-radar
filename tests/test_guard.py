@@ -195,3 +195,24 @@ def test_a_lock_held_by_another_process_is_respected(tmp_path):
             pass
     finally:
         proc.wait(10)
+
+
+def test_data_files_are_written_through_the_atomic_helpers():
+    """A cache, history or report file written with to_csv/to_parquet/write_text directly can be read half-written
+    by the running app, or collide with another writer's temp file. Use config.write_parquet / write_csv /
+    write_text. The exceptions write a file the user named (--out), a zip with its own temp file, or the
+    pointer file at setup."""
+    import re
+    from pathlib import Path
+
+    import radar
+    allowed = {"cli.py", "backup.py", "export.py", "paths.py", "config.py", "api.py", "home.py"}
+    raw = re.compile(r"\.(to_csv|to_parquet|write_text|write_bytes)\(")
+    bad = []
+    for f in Path(radar.__file__).parent.rglob("*.py"):
+        if f.name in allowed:
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            if raw.search(line) and "tmp" not in line.split("(")[0]:
+                bad.append(f"{f.relative_to(Path(radar.__file__).parent)}:{i}: {line.strip()}")
+    assert not bad, "write through config.write_*:\n" + "\n".join(bad)

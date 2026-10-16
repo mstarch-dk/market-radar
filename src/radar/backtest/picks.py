@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from .. import performance, simulate, universe, userstore
-from ..config import settings
+from ..config import settings, write_text
 from ..paths import REPORTS
 from . import exits as ex
 from . import study
@@ -415,9 +415,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
         d = REPORTS / REPORT_DIR
         d.mkdir(parents=True, exist_ok=True)
         f = d / f"{s}.json"
-        tmp = f.with_suffix(".tmp")
-        tmp.write_text(json.dumps(out, indent=1, default=study._json), encoding="utf-8")
-        tmp.replace(f)
+        write_text(f, json.dumps(out, indent=1, default=study._json))
     return out
 
 
