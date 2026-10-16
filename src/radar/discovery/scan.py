@@ -213,8 +213,17 @@ def update_prices(tickers: list[str], progress: Progress | None = None, log: Log
     got = set(df["ticker"])
     if len(got) < 0.5 * len(tickers):
         raise RuntimeError(f"prices for only {len(got)} of {len(tickers)} names; keeping the previous download")
+    # names Yahoo didn't return this time keep their stored bars in the window (marked stale by their last date)
+    old = load_prices()
+    kept = pd.DataFrame(columns=ingest.COLUMNS)
+    if not old.empty:
+        old["date"] = pd.to_datetime(old["date"])
+        kept = old[old["ticker"].isin(set(tickers) - got) & (old["date"] >= pd.Timestamp(start))]
+    if not kept.empty:
+        df = pd.concat([df, kept], ignore_index=True)
     write_parquet(df.sort_values(["ticker", "date"]), PRICES_FILE, index=False)
-    return {"requested": len(tickers), "got": len(got), "missing": sorted(set(tickers) - got)}
+    return {"requested": len(tickers), "got": len(got), "missing": sorted(set(tickers) - got),
+            "kept": sorted(set(kept["ticker"]))}
 
 
 # ---------------- report ----------------
@@ -310,7 +319,8 @@ def run(log: Log = print, progress: Progress | None = None, refresh_universe: bo
     try:
         with ops.context(source="discovery_prices"):
             res = update_prices(tickers, progress, log)
-        msg = f"{res['got']} of {res['requested']} names"
+        msg = f"{res['got']} of {res['requested']} names" + (
+            f"; kept the stored prices of {len(res['kept'])} Yahoo didn't return" if res.get("kept") else "")
         coverage.record("discovery_prices", True, msg + (f"; no data for {len(res['missing'])}" if res["missing"] else ""))
         log(f"Prices: {msg}.")
     except Exception as e:

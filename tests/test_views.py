@@ -183,3 +183,23 @@ def test_views_api_round_trip(env):
     gone = c.delete(f"/api/views/{vid}").json()
     assert c.post("/api/views/restore", json=gone).status_code == 200
     assert c.post("/api/views/restore", json=gone).status_code == 409
+
+
+def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkeypatch):
+    import json
+    userstore.save_view(AI_BUBBLE)
+    userstore.save_view({**AI_BUBBLE, "statement": "Rates stay high"})
+    before = userstore.export_views_json()
+    real = userstore._write_children
+    calls = []
+
+    def flaky(con, view_id, v):
+        calls.append(view_id)
+        if len(calls) == 2:
+            raise sqlite3.OperationalError("disk I/O error")
+        return real(con, view_id, v)
+    monkeypatch.setattr(userstore, "_write_children", flaky)
+    with pytest.raises(sqlite3.OperationalError):
+        userstore.import_views_json(json.dumps([{**AI_BUBBLE, "statement": "new 1"}, {**AI_BUBBLE, "statement": "new 2"}]))
+    assert userstore.export_views_json() == before                          # all or nothing
+    assert any("views" in b.name for b in (tmp_data / "userdata" / "backups").iterdir())   # and a copy first

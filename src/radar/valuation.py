@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 
 import pandas as pd
 
-from . import net
+from . import guard, net
 from .config import discovery_config, settings, write_parquet
 from .paths import CACHE, HISTORY
 
@@ -344,10 +344,16 @@ def parse_damodaran(content: bytes, min_rows: int = 100) -> pd.DataFrame:
     return df.sort_values("date").reset_index(drop=True)
 
 
-def _market_merge(name: str, s: pd.Series) -> None:
+def _market_merge(series: dict[str, pd.Series]) -> None:
+    """Replace these series in the market file, each checked against its stored copy first (guard: not ending
+    earlier, starting later or markedly shorter); nothing is written unless all pass."""
     old = load_market()
-    new = pd.DataFrame({"date": s.index, "series": name, "value": s.values})
-    df = pd.concat([old[old["series"] != name], new], ignore_index=True) if not old.empty else new
+    df = old
+    for name, s in series.items():
+        new = pd.DataFrame({"date": s.index, "series": name, "value": s.values})
+        stored = old[old["series"] == name][["date", "value"]] if not old.empty else None
+        guard.check(stored, new[["date", "value"]], what=name.upper(), key=None, date="date", row_tol=0.02)
+        df = pd.concat([df[df["series"] != name], new], ignore_index=True) if not df.empty else new
     write_parquet(df.sort_values(["series", "date"]), MARKET_FILE, index=False)
 
 
@@ -355,7 +361,7 @@ def update_cape() -> str:
     resp = net.get(MULTPL_URL, timeout=60)
     resp.raise_for_status()
     s = parse_multpl(resp.text)
-    _market_merge("cape", s)
+    _market_merge({"cape": s})
     return f"{len(s):,} months since {s.index[0]:%Y}; {s.iloc[-1]:.1f} on {s.index[-1]:%d %b %Y}"
 
 
@@ -363,8 +369,7 @@ def update_erp() -> str:
     resp = net.get(DAMODARAN_URL, timeout=60)
     resp.raise_for_status()
     df = parse_damodaran(resp.content)
-    _market_merge("erp", df.set_index("date")["erp"])
-    _market_merge("tbond", df.set_index("date")["tbond"])
+    _market_merge({"erp": df.set_index("date")["erp"], "tbond": df.set_index("date")["tbond"]})
     last = df.iloc[-1]
     return f"{len(df)} months; {last['erp']:.2%} on {last['date']:%b %Y}"
 

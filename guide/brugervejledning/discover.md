@@ -12,7 +12,7 @@ Discover bygger på sin egen scanning, adskilt fra den daglige opdatering, så d
 
 - **Første gang** viser siden en forklaring og knappen *Run the first discovery scan*. Den første scanning slår omkring 3.500 navne op og tager et stykke tid.
 - **Senere** starter du en ny scanning med *Scan again* ved siden af markedsvælgeren, eller med `uv run radar discover` i terminalen. Det tager nogle minutter.
-- **Listen over navne** bygges igen cirka månedligt; kurserne hentes ved hver scanning.
+- **Listen over navne** bygges igen cirka månedligt; kurserne hentes ved hver scanning. Svarer Yahoo ikke for et navn, beholder det sine gemte kurser, og loggen siger det.
 - Er scanningen ældre end {{settings:coverage.max_age.discovery_prices}} dage, viser siden et banner, *This scan is N days old*, med *Scan again*.
 
 Kør den cirka en gang om ugen. Se [Data og opdatering](brugervejledning/data-og-opdatering#discover-scanningen-er-separat).

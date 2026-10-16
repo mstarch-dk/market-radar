@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from . import locks, net
+from . import guard, locks, net
 from .config import settings, write_parquet
 from .paths import CACHE, FRED_FILE, PRICES_FILE
 
@@ -261,7 +261,8 @@ def _norm_dates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def update_fred(series: list[str]) -> list[str]:
-    """Download each FRED series in full; a series that fails keeps its cached values. Returns the failures."""
+    """Download each FRED series in full; a series that fails, or answers with less than is cached (ending
+    earlier, starting later, fewer values: guard.check), keeps its cached values. Returns the failures."""
     cached = load_fred()
     cols, failed = {}, []
     for sid in series:
@@ -269,7 +270,10 @@ def update_fred(series: list[str]) -> list[str]:
         try:
             resp = net.get(url, timeout=30)
             resp.raise_for_status()
-            cols[sid] = parse_fred_csv(resp.text, sid)
+            s = parse_fred_csv(resp.text, sid)
+            if sid in cached:
+                guard.check(cached[[sid]], s.to_frame(sid), what=f"FRED {sid}", key=None, date=None, row_tol=0.01)
+            cols[sid] = s
         except Exception as e:
             failed.append(f"{sid} ({type(e).__name__})")
             if sid in cached:
