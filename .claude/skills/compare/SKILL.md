@@ -36,6 +36,12 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
   This shows whether a "great stock" is really momentum, value or sector exposure.
 - **`table`:** rows `{metric, direction, values: {SYM: v, ACWI: v}, best}`. Use it rather than re-deriving numbers.
 - **P/E vs peers:** `fundamentals.snapshot.pe_vs_sector` is each stock's P/E on next year's EPS against its sector's median among its radar peers (funds: `pe_vs_acwi`). Use it in the valuation row so names in different markets are compared with their own sector, and say when it is missing (too few peers).
+- **Quality & value:** each stock's `quality` section has the kvalitetsscore, værdiscore and K+V (0–100 against its
+  sector's peers across regions), what they rest on (`q_n` / `v_n` of 4), every metric with its percentile, the
+  fiscal years and the source (`fund_source`, `period_end`). The `table` has the rows Kvalitetsscore, Værdiscore,
+  FCF yield, ROIC, EV/EBIT and Shareholder yield. Use them in the rubric's business-quality and valuation rows. A
+  bank or insurer (`fund_set: financial`) is scored on ROE, equity / assets and book / price, so don't compare its
+  FCF figures with an industrial's. Funds have no `quality` section.
 - **P/E basis:** `fundamentals.forward_pe` is Yahoo's and may be on next year's EPS. Use the table rows "P/E on
   this year's / next year's EPS estimate" and always name the year. A low P/E on a cyclical's record earnings is
   a peak signal as much as a value signal; treat it as both, not as an argument for one side.
@@ -65,8 +71,10 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
    ACWI. Each cell is a short verdict plus the field it came from (e.g. `momentum.r12_1 +48%`):
    - **Momentum:** score, 12-1m, trend, vs ACWI 3m (the radar's main, evidence-backed edge)
    - **Earnings momentum:** `analyst.eps[*].chg_30d`, target change, revisions up/down
-   - **Valuation vs growth:** forward P/E, EV/EBITDA against revenue and earnings growth
-   - **Quality:** margins, ROE, debt/equity
+   - **Valuation vs growth:** forward P/E, EV/EBITDA, the værdiscore, FCF yield and EV/EBIT against revenue and
+     earnings growth
+   - **Quality:** the kvalitetsscore and its pillars (profitability, durability, balance sheet, dividend record),
+     ROIC, margins, debt; "n/a" for a fund or a stock without statements
    - **Risk:** 1y vol, downside beta, 3y max drawdown, the stock-specific share (`idio_vol_ann`)
    - **Rotation tailwind:** `peers.rotation.quadrant` of the sector ETF
    - **Stretch and crowding:** RSI, %B, `from_high`, red watch-outs

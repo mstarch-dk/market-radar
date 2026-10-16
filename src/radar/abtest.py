@@ -301,3 +301,28 @@ def view(market) -> dict:
             "portfolios": [{"kind": k, "label": LABELS[k], "id": ps[k]["id"], "name": ps[k]["name"]} for k in order],
             "params": {k: v for k, v in ps[order[0]]["params"].items() if k != "rebalances"},
             "comparison": cmp, "correlation": corr, "rebalances": rebal, "next_due": next_due, "notes": notes}
+
+
+def summary(market) -> dict:
+    """The compact digest for summary.json (the skills read it): per basket its return, ACWI's and the difference
+    since the first purchase, and its latest picks; the correlation of the weekly returns; when the next picks are
+    due. {"running": False} when no test runs."""
+    v = view(market)
+    if not v["running"]:
+        return {"running": False}
+    rows = {r["portfolio"]["id"]: r for r in (v["comparison"] or {}).get("rows", []) if r.get("portfolio")}
+    latest = {}
+    for r in v["rebalances"]:                                  # in date order: the last one per basket wins
+        latest[r["kind"]] = r
+    baskets = []
+    for p in v["portfolios"]:
+        s = (rows.get(p["id"]) or {}).get("stats") or {}
+        r = latest.get(p["kind"]) or {}
+        baskets.append({"kind": p["kind"], "label": p["label"], "name": p["name"], "start": s.get("start"),
+                        "twr": s.get("twr_total"), "acwi": s.get("acwi_twr_total"), "excess": s.get("excess_twr"),
+                        "max_drawdown": s.get("max_drawdown"), "picked": r.get("date"), "turnover": r.get("turnover"),
+                        "picks": [x["ticker"] for x in sorted(r.get("picks", []), key=lambda x: -x["weight"])]})
+    c = v["correlation"]
+    return {"running": True, "value_score": (v["params"] or {}).get("value_score"), "baskets": baskets,
+            "correlation": {"weeks": c["weeks"], "symbols": c["symbols"], "matrix": c["matrix"]} if c else None,
+            "next_due": v["next_due"], "notes": v["notes"]}

@@ -37,7 +37,8 @@ def test_summary_schema(summary):
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
         "earnings_factset", "stale_tickers", "behind_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment",
-        "quality_top10", "quality_new_entrants", "quality_coverage"}
+        "quality_top10", "quality_new_entrants", "quality_coverage", "abtest"}
+    assert summary["abtest"] == {"running": False}
     assert summary["asof"] == IDX[-1].date().isoformat()
 
 

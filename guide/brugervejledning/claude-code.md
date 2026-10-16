@@ -46,7 +46,7 @@ Alt, hvad skills skriver, kan du læse i appen på siden [Notebook](/notebook) (
 
 Markedsbriefen opdaterer først radaren (`uv run radar run`) og læser derefter `summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen under 10 dage gammel, læses den også, og dine markedssyn hentes med `radar views --json`.
 
-Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Briefen skrives på dansk.
+Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Afsnittet *Kvalitet og værdi* nævner de bedste K+V-navne, deres overlap med momentumlederne og status for A/B-testen. Briefen skrives på dansk.
 
 Med `/market-brief podcast` skriver Claude også en lytteversion i `briefs/lyt/`, som du kan gøre til en podcast i NotebookLM; se [Månedsbriefen](brugervejledning/maanedsbrief#som-podcast-notebooklm).
 
@@ -56,7 +56,7 @@ Briefen kører også af sig selv den første i hver måned som en planlagt opgav
 
 ## /research
 
-`/research NOVO-B.CO` skriver et notat i `research/NOVO-B.CO.md`. Claude henter hele profilen med `uv run radar info <TICKER>` (momentum, risiko, stop, analytikere, værdiansættelse, fondsgennemlysning, peers og dine markedssyn), læser rotationen fra `summary.json`, ser efter dine tidligere beslutninger i `journal/` og søger på nettet efter forretning, seneste regnskaber, værdiansættelse mod historik og peers og kommende begivenheder.
+`/research NOVO-B.CO` skriver et notat i `research/NOVO-B.CO.md`. Claude henter hele profilen med `uv run radar info <TICKER>` (momentum, risiko, stop, analytikere, værdiansættelse, fondsgennemlysning, peers og dine markedssyn), læser rotationen fra `summary.json`, ser efter dine tidligere beslutninger i `journal/` og søger på nettet efter forretning, seneste regnskaber, værdiansættelse mod historik og peers og kommende begivenheder. Kvalitets- og værdiscoren, FCF yield, ROIC og EV/EBIT tager Claude fra radarens egne regnskabstal (afsnittet *Quality & value* i notatet).
 
 Notatet har en fast skabelon: tese (bull case), momentum og rotation, nøgletal og værdiansættelse, sammenhæng med dine markedssyn, katalysatorer de næste 1–6 måneder, risici (bear case), hvad der ville ugyldiggøre tesen, implementering (aktien selv eller en UCITS-ETF, og hvilken konto) og kilder. Manglende data skrives som "n/a", aldrig som et gæt.
 
@@ -66,7 +66,7 @@ Findes notatet allerede, beholdes det gamle indhold, og Claude tilføjer et date
 
 `/compare NVDA AMD MU` sammenligner to eller flere navne side om side og altid med ACWI som det at gøre ingenting. Claude henter data med `uv run radar info NVDA AMD MU --out …` (en fil i `exports/` i datamappen) og går frem i fast rækkefølge:
 
-1. **Rubrik** fra radarens data alene, før nyhederne: momentum, indtjeningsmomentum, værdiansættelse mod vækst, kvalitet, risiko, rotationsmedvind, overstrækning, praktiske forhold.
+1. **Rubrik** fra radarens data alene, før nyhederne: momentum, indtjeningsmomentum, værdiansættelse mod vækst (med værdiscoren, FCF yield og EV/EBIT), kvalitet (med kvalitetsscoren og dens søjler), risiko, rotationsmedvind, overstrækning, praktiske forhold.
 2. **Fakta fra nettet** med kilder.
 3. **Bull og bear** pr. navn, hver bundet til data eller en kilde.
 4. **Red team**: en separat agent angriber hver bull case og skriver en pre-mortem.
@@ -87,7 +87,7 @@ Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, 
 `/hindsight 3M 6M` bygger en kurv af aktier, som den kunne have været valgt for 3 og 6 måneder siden ud fra det, radaren vidste dengang, og simulerer den frem til i dag. Claude spørger én gang:
 
 - **Hvor langt tilbage**: 1, 3, 6 eller 12 måneder.
-- **Grundlaget**: scoren alene (mekanisk, den rene test), scoren og dine markedssyn (kun dem, der var oprettet senest på dagen) eller scoren og Claudes vurdering.
+- **Grundlaget**: scoren alene (mekanisk, den rene test), scoren og dine markedssyn (kun dem, der var oprettet senest på dagen), scoren og Claudes vurdering, eller K+V (de bedste efter kvalitet og værdi, som de så ud på dagen; kun amerikanske aktier).
 - **Antal aktier** og **spredning**: fx højst 3 pr. sektor, lige vægte eller vægtet efter score.
 
 Claude henter universet med `uv run radar sim picks-candidates`, låser valget i en fil, før noget resultat er kendt, og kører `uv run radar sim picks`. Notatet viser kurven beholdt og med stopreglen fulgt mod ACWI, mod scorens egne bedste aktier og mod gennemsnitsaktien, kurvens placering blandt tilfældige kurve og scorens test over alle måneder (`uv run radar study score`). Én kurv over én periode er et eksempel, ikke et bevis, og det står i notatet.
