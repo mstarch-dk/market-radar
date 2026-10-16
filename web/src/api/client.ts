@@ -27,6 +27,7 @@ export type ViewAlignment = S["ViewAlignment"];
 export type AlignCompact = S["AlignCompact"];
 export type PositioningView = S["PositioningView"];
 export type VoteOption = S["VoteOption"];
+export type SecContact = S["SecContact"];
 export type CoverageView = S["CoverageView"];
 export type LineChartData = S["LineChart"];
 export type MeView = S["MeView"];
@@ -213,6 +214,9 @@ export const api = {
   dataExportUrl: "/api/data-home/export",
   updates: () => get<UpdateCheck>("/api/updates"),
   setUpdates: (enabled: boolean) => get<UpdateCheck>("/api/updates", "PUT", json({ enabled }), "application/json"),
+  secContact: () => get<SecContact>("/api/settings/sec-contact"),
+  setSecContact: (email: string | null) =>
+    get<SecContact>("/api/settings/sec-contact", "PUT", json({ email }), "application/json"),
   watch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "PUT"),
   unwatch: (symbol: string) => get<WatchState>(`/api/watchlist/${enc(symbol)}`, "DELETE"),
 };

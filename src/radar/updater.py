@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Callable
 
 from . import coverage, external, ingest, locks, ops, report, sentiment, universe, valuation
+from .fundamentals import edgar, yahoo
 from .config import settings
 from .paths import CACHE
 
@@ -105,6 +106,9 @@ def update_external(log: Log = print) -> None:
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
         "valuation_etfs": ("ETF valuation (Yahoo fund data)", valuation.update_etfs),
         "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)", valuation.update_stocks),
+        # after the valuation snapshot: it names each stock's reporting currency and next earnings date
+        "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)", edgar.update_edgar),
+        "fundamentals_yahoo": ("Financial statements (Yahoo)", yahoo.update_yahoo),
     }, log)
 
 

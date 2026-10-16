@@ -21,6 +21,7 @@ SERVICES = {
     "multpl.com (Shiller CAPE)": "https://www.multpl.com/",
     "Damodaran (equity risk premium)": "https://pages.stern.nyu.edu/~adamodar/",
     "CBOE (put/call ratios)": "https://www.cboe.com/",
+    "SEC EDGAR (US financial statements)": "https://data.sec.gov/",
     "AAII (sentiment survey)": "https://www.aaii.com/",
 }
 

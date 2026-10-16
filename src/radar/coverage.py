@@ -20,7 +20,8 @@ LOG_FILE = CACHE / "sources.json"
 _log_lock = threading.Lock()  # the update and the discovery scan can record at the same time
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
-NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii"}  # never "the regime's oldest input"
+NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
+              "fundamentals_edgar", "fundamentals_yahoo"}
 
 # key -> display name, provider, official source?, cadence, what it feeds
 SOURCES = {
@@ -52,6 +53,10 @@ SOURCES = {
     "ecb": ("Euro-area rates", "ECB Data Portal", True, "daily", "Positioning"),
     "putcall": ("Put/call ratios", "CBOE daily market statistics", True, "daily", "Positioning (sentiment)"),
     "aaii": ("Investor sentiment survey", "AAII (weekly)", False, "weekly", "Positioning (sentiment)"),
+    "fundamentals_edgar": ("Financial statements (US)", "SEC EDGAR company facts (10-K, 10-Q)", True,
+                           "per company, as reports come out", "Statement facts (radar fundamentals)"),
+    "fundamentals_yahoo": ("Financial statements", "Yahoo Finance via yfinance", False,
+                           "per company, as reports come out", "Statement facts (radar fundamentals)"),
 }
 
 
@@ -230,6 +235,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
 
     rows += _discovery_rows(today, max_age, log)
     rows += _valuation_rows(ref, max_age, log, stock_tickers)
+    rows += _fundamentals_rows(ref, max_age, log, stock_tickers)
 
     reg = regime_counts(indicators)
     dated = [r for r in rows if r["age_days"] is not None and r["status"] in (OK, STALE) and r["key"] != "prices"
@@ -297,6 +303,25 @@ def _valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str
     aa = sentiment.load_aaii()
     rows.append(_row("aaii", pd.to_datetime(aa["date"]).max() if not aa.empty else None, ref, max_age.get("aaii"),
                      f"{len(aa):,} weeks" if not aa.empty else "not loaded", "Bullish / neutral / bearish members", log))
+    return rows
+
+
+def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
+    """Financial statements: how many companies have them and when they were fetched. Each company is fetched on
+    its own schedule, so the source's age is its newest fetch; the oldest fetch is in the detail."""
+    from .fundamentals import edgar, schedule, yahoo
+
+    rows = []
+    for key, path, names, label in (("fundamentals_edgar", edgar.LOG_FILE, edgar.us_tickers(), "US stocks"),
+                                    ("fundamentals_yahoo", yahoo.LOG_FILE, stock_tickers, "tracked stocks")):
+        d = schedule.load_log(path)
+        good = d[d["ok"] & d["last_end"].notna() & d["ticker"].isin(set(names))]
+        detail = (f"oldest fetch {_d(good['fetched'].min())}; latest periods from {_d(good['last_end'].min())} "
+                  f"to {_d(good['last_end'].max())}" if not good.empty else "not fetched yet")
+        if key == "fundamentals_edgar" and not edgar.contact():
+            detail = "needs a contact e-mail for SEC (Data page, or radar fundamentals contact EMAIL)"
+        rows.append(_row(key, d["fetched"].max() if not d.empty else None, ref, max_age.get(key),
+                         f"{len(good)} of {len(names)} {label}", detail, log))
     return rows
 
 

@@ -283,6 +283,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/sec-contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sec Contact */
+        get: operations["get_sec_contact_api_settings_sec_contact_get"];
+        /**
+         * Put Sec Contact
+         * @description The contact e-mail SEC asks for in the User-Agent of each EDGAR request (stored in userdata; null or empty
+         *     removes it, and EDGAR is then skipped).
+         */
+        put: operations["put_sec_contact_api_settings_sec_contact_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rotation": {
         parameters: {
             query?: never;
@@ -3972,6 +3994,11 @@ export interface components {
             /** Tracked */
             tracked: boolean;
         };
+        /** SecContact */
+        SecContact: {
+            /** Email */
+            email?: string | null;
+        };
         /** SectorWeight */
         SectorWeight: {
             /** Sector */
@@ -5137,6 +5164,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoteOption"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sec_contact_api_settings_sec_contact_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecContact"];
+                };
+            };
+        };
+    };
+    put_sec_contact_api_settings_sec_contact_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecContact"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecContact"];
                 };
             };
             /** @description Validation Error */

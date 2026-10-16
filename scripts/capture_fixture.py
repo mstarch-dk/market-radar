@@ -73,12 +73,61 @@ def cboe():
     raise SystemExit("no CBOE day in the last week")
 
 
+def trim_companyfacts(js: dict, years: int = 4) -> dict:
+    """Company facts cut to the tags the parser reads and the last `years` years of period ends."""
+    from radar.fundamentals import items
+
+    cutoff = (TODAY - timedelta(days=365 * years)).isoformat()
+    keep = items.edgar_tags()
+    out = {k: v for k, v in js.items() if k != "facts"} | {"facts": {}}
+    for tax, tags in js.get("facts", {}).items():
+        for tag, node in tags.items():
+            name = f"dei:{tag}" if tax == "dei" else tag
+            if name not in keep:
+                continue
+            units = {u: [r for r in rows if r.get("end", "") >= cutoff] for u, rows in node.get("units", {}).items()}
+            out["facts"].setdefault(tax, {})[tag] = {"label": node.get("label"), "units": units}
+    return out
+
+
+def edgar_aapl(file: str | None = None):
+    """Apple's company facts (a 10-Q year with year-to-date cash flows, a September fiscal year), trimmed. With
+    --file, an answer saved earlier is trimmed instead (a fetch needs the SEC contact set in the data folder)."""
+    import json
+
+    from radar.fundamentals import edgar
+
+    if file:
+        return f"{file} (saved from {edgar.FACTS_URL.format(cik=320193)})", json.dumps(trim_companyfacts(
+            json.loads(Path(file).read_text(encoding="utf-8"))))
+    return edgar.FACTS_URL.format(cik=320193), json.dumps(trim_companyfacts(edgar.fetch_companyfacts(320193,
+                                                                                                    edgar.headers())))
+
+
+def yahoo_statements(file: str | None = None):
+    """Yahoo statements for a US quarterly reporter and a UK half-year reporter, as yfinance frames (split JSON),
+    cut to the lines the parser reads."""
+    import json
+
+    from radar.fundamentals import items, yahoo
+
+    lines = {n for i in items.ITEMS for n in i.yahoo}
+    out = {}
+    for t in ("AAPL", "RR.L"):
+        raw = yahoo.fetch_statements(t)
+        out[t] = {f"{st} {freq}": json.loads(df[df.index.isin(lines)].to_json(orient="split", date_format="iso"))
+                  for (st, freq), df in raw["blocks"].items()}
+    return "yfinance Ticker.get_income_stmt / get_cash_flow / get_balance_sheet (AAPL, RR.L)", json.dumps(out)
+
+
 SOURCES = {   # name → (file name, capture)
     "fred_DGS10": ("fred_DGS10.csv", fred("DGS10")),
     "ecb_monthly": ("ecb_euribor_monthly.csv", ecb_monthly),
     "oecd_cli": ("oecd_cli.csv", oecd_cli),
     "yahoo_download": ("yahoo_download_batch.parquet", yahoo_download),
     "cboe": ("cboe_daily_options.json", cboe),
+    "edgar_aapl": ("edgar_companyfacts_aapl.json", edgar_aapl),
+    "yahoo_statements": ("yahoo_statements.json", yahoo_statements),
 }
 
 
@@ -87,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("source", nargs="?")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="fetch and report, write nothing")
+    ap.add_argument("--file", help="edgar_aapl: trim this saved answer instead of fetching")
     a = ap.parse_args(argv)
     if a.list or not a.source:
         print("\n".join(f"{k:16} → tests/fixtures/{f}" for k, (f, _) in SOURCES.items()))
@@ -95,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"unknown source {a.source!r}; --list shows them", file=sys.stderr)
         return 2
     name, capture = SOURCES[a.source]
-    where, body = capture()
+    where, body = capture(a.file) if a.file else capture()
     data = body.encode() if isinstance(body, str) else body
     print(f"{a.source}: {len(data):,} bytes from {where}, captured {TODAY}")
     if not a.dry_run:
