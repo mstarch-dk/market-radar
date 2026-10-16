@@ -954,6 +954,8 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
                                                                            "(personal)"),
                          model_cutoff: str = typer.Option(None, "--model-cutoff", help="The picker's knowledge cutoff "
                                                                                        "(YYYY-MM), to flag hindsight"),
+                         fund: bool = typer.Option(False, "--fund", help="Add K+V, kvalitet and værdi as known on the "
+                                                                         "day (US stocks, SEC EDGAR)"),
                          as_json: bool = typer.Option(False, "--json", help="Machine-readable output (for the skills)"),
                          out: str = typer.Option(None, "--out", help="Also write the JSON here")):
     """The stock universe ranked by momentum score as the radar saw it on a past day: only data up to that day
@@ -965,7 +967,7 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
     from .backtest import picks
 
     try:
-        rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff)
+        rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff, fund=fund)
     except ValueError as e:
         raise typer.Exit(str(e))
     text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)

@@ -129,7 +129,11 @@ def _abtest(log: Log) -> None:
         return
     try:
         with ops.context(source="abtest"):
-            abtest.refresh(profile.Market.load(), log=log)
+            m = profile.Market.load()
+            abtest.refresh(m, log=log)
+            from . import report
+
+            report.add_abtest(m)
     except Exception as e:  # noqa: BLE001
         log(f"A/B test: FAILED ({type(e).__name__}: {e}); the portfolios keep their last run.")
         ops.event("error", "job", f"abtest: {type(e).__name__}: {e}", source="abtest", exc=e)

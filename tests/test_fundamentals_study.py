@@ -88,6 +88,19 @@ def test_the_pit_context_ignores_todays_yahoo_snapshot(market):
     assert set(pit.info) == set(live.info)
 
 
+def test_hindsight_candidates_carry_the_scores_known_then(market, monkeypatch):
+    from radar.backtest import picks
+
+    e = edgar()
+    monkeypatch.setattr(store, "load_edgar", lambda: e)
+    day = _day(e)
+    rep = picks.candidates(market, day.date().isoformat(), fund=True)
+    rows = {r["ticker"]: r for r in rep["candidates"]}
+    assert rows["S1"]["qv"] == pytest.approx(FundPIT(market, edgar=e).table(day).at["S1", "qv"])
+    assert rows["E1"]["qv"] is None and "qv" in rep["columns"] and rep["fund_scored"] >= 2   # US only
+    assert "qv" not in picks.candidates(market, day.date().isoformat())["candidates"][0]     # only when asked
+
+
 # ---------------- the study's signals, on a constructed panel ----------------
 
 DAYS = 520

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import date
 
-from . import dashboard, snapshot
+from . import dashboard, ops, snapshot
 from .config import write_text
 from .fundamentals import context as fcontext
 from .paths import REPORTS
@@ -48,6 +48,7 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
                                      if x.get("rank_qv") is not None][:10] for r in qual},
         "quality_new_entrants": {r["key"]: r["entrants"] for r in qual},
         "quality_coverage": {r["key"]: r["coverage"] for r in qual},
+        "abtest": {"running": False},      # the forward A/B test's digest (abtest.summary), filled by add_abtest
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
@@ -83,6 +84,19 @@ def _portfolios() -> list[dict]:
     return performance.summary(profile.Market.load())
 
 
+def add_abtest(market=None) -> None:
+    """Put the forward A/B test's digest into summary.json: after the report, and again after the test's refresh
+    has replayed the month's picks."""
+    from . import abtest, profile
+
+    f = REPORTS / "summary.json"
+    if not f.exists() or not abtest.portfolios():
+        return
+    s = json.loads(f.read_text(encoding="utf-8"))
+    s["abtest"] = abtest.summary(market or profile.Market.load())
+    _write(f, s)
+
+
 def build() -> dict:
     c = dashboard.compute()
     d = c.data
@@ -97,5 +111,9 @@ def build() -> dict:
     if not c.quality.empty:
         snapshot.save("qv", c.quality, today)
     fcontext.save_week(c.fctx, today)
+    try:
+        add_abtest()
+    except Exception as e:  # noqa: BLE001 - the digest is extra; the report itself is written
+        ops.event("error", "job", f"abtest summary: {type(e).__name__}: {e}", source="abtest", exc=e)
     return {"dashboard": str(out), "asof": d["asof"], "regime": d["regime"]["overall"]["label"],
             "stale": len(d["coverage"]["stale_tickers"]), "behind": len(d["coverage"].get("behind_tickers", []))}

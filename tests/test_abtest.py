@@ -97,6 +97,27 @@ def test_refresh_stores_runs_and_the_view(market):
     assert v["rebalances"][0]["turnover"] == pytest.approx(0.5)                          # 0 -> 100% S1: half
 
 
+def test_summary_digest(market, tmp_data):
+    import json
+
+    from radar import report
+    from radar.paths import REPORTS
+
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    f = REPORTS / "summary.json"
+    f.write_text(json.dumps({"asof": "x", "abtest": {"running": False}}), encoding="utf-8")
+    report.add_abtest(market)
+    assert json.loads(f.read_text(encoding="utf-8"))["abtest"] == {"running": False}    # no test: left as it was
+    abtest.create(market, capital=30000, n=3)
+    report.add_abtest(market)
+    s = json.loads(f.read_text(encoding="utf-8"))
+    a = s["abtest"]
+    assert s["asof"] == "x" and a["running"] and [b["kind"] for b in a["baskets"]] == list(abtest.KINDS)
+    mom = next(b for b in a["baskets"] if b["kind"] == "ab-momentum")
+    assert mom["picks"] == ["S1", "S2", "E1"] and mom["twr"] is None    # bought at the next session: no return yet
+    assert a["next_due"] and a["value_score"] == "qv"
+
+
 def test_api(market, monkeypatch):
     monkeypatch.setattr(api, "_market", None)
     client = TestClient(api.app)

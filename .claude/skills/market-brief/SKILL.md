@@ -27,6 +27,8 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `revisions_regional`: EPS-revision breadth from Yahoo consensus per radar region and Discover market (`windows[].rows`: `up`, `down`, `net` over 4 and 12 weeks). Empty windows mean the weekly snapshots don't go back far enough yet: say "building history", not "no revisions".
    - `sentiment`: the AAII survey (`spread` = bull − bear, `pct` since 1987, `flag` extreme fear / euphoria) and CBOE's equity put/call (`equity_10d`, `pct` over 3 years). Contrarian and US-centred; they never vote.
    - Per row in `momentum_top10` and `me`: `pe_fy1` (P/E on next year's consensus EPS), `pe_vs_sector` (vs its sector's median among its peers: 0.8 = 20% cheaper) and `eps_rev_4w` / `eps_rev_12w`; in `rotation`: the fund `pe` and `pe_vs_acwi`.
+   - `quality_top10` per region: the top 10 by K+V (`qv`, the mean of the kvalitetsscore `quality` and værdiscore `value`, 0–100 against each stock's sector peers across regions, from financial statements), with `q_n` / `v_n` (pillars / value metrics of 4 behind each), `fcf_yield`, `ev_ebit`, `roic`, `fund_source` and `fund_period_end`; `quality_new_entrants` and `quality_coverage` (how many of the region's stocks have a score, and from EDGAR or Yahoo). `quality`, `value` and `qv` are also on every `momentum_top10` and `me` row (`null` = no statements).
+   - `abtest`: the forward A/B test of kvalitet+værdi vs momentum vs a 50/50 blend (virtual baskets, never the user's). `running: false` = not started. Otherwise per basket (`baskets`) its return since the first purchase (`twr`), ACWI's (`acwi`), the difference (`excess`), `max_drawdown` and the latest `picks`; `correlation` of the weekly returns (`null` or `null` values before 26 weeks, `risk.min_weeks`: say "too early"), `next_due` and `notes`.
    - `earnings_factset`: S&P 500 growth estimate vs the start of the quarter, guidance, forward P/E, and the sectors with upward or downward revisions.
    - The `me` list: holdings, watchlist and sold positions with flags (the user's real portfolios pooled; virtual ones are never in it).
    - `portfolios`: each real portfolio's returns over time in DKK (time-weighted, 1m / 3m / YTD / 1y and since its start) next to ACWI's, with its tax kind and notes (gaps, funding). Report these as they are; a `null` is missing data, not zero.
@@ -42,6 +44,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - Themes in Leading or Improving that have a UCITS ticker
    - Momentum clusters and new entrants, especially an industry cluster with NEW names, which suggests a theme forming
    - **Confirmation or divergence.** For example, a sector leading in the RRG that also has upward FactSet revisions is confirmed; leadership without revisions or breadth is fragile. Outside the US, use `revisions_regional` the same way. A momentum leader on a P/E far above its sector (`pe_vs_sector` well above 1) with falling estimates is the most fragile kind. Also flag CFTC `3y high`/`3y low` readings in markets that matter to the rotation (crowding risk).
+   - **Momentum and quality together.** Names in both `momentum_top10` and `quality_top10` (a strong trend in a good business at a reasonable price) are the sturdier leaders; a momentum leader with a low kvalitetsscore and værdiscore rests on the trend alone. New names in `quality_new_entrants` are worth a line when they aren't momentum names: a different kind of idea.
    - Holdings flagged `losing momentum` or `below 200d`, watchlist names flagged `turning up`, and sold names with a strong move since the sale
 4. **Research the "why"**: use WebSearch (standard mode; send the searches together) for the drivers behind the top items over the last 2–4 weeks: earnings, guidance, macro data, policy, flows. Prefer primary or reputable sources. Every factual claim about news needs a link. Useful free sources:
    - Bloomberg markets headlines RSS (`https://feeds.bloomberg.com/markets/news.rss`): headlines and short summaries only. Don't try to read paywalled articles.
@@ -77,6 +80,9 @@ What's leading, what's rotating in or out, and the drivers (with links). For the
 ## Momentum – nye ledere
 New entrants by region, grouped by theme where possible, each with one line on why it's moving.
 
+## Kvalitet og værdi
+Two to four lines from `quality_top10` and `quality_new_entrants`: which sectors the high K+V names come from, the overlap with the momentum leaders (and what that says), and a new name or two worth a look. Mention coverage when it is thin (`quality_coverage`). Then the A/B test (`abtest`), one line: each basket against ACWI since the start and the correlation once it exists; while it is under a year old, say plainly that the difference says little yet. Skip the A/B line when it isn't running.
+
 ## Nyt på radaren (Discover)
 Only when the discovery scan is fresh: 3–5 names from outside the radar's lists (Nordic, Europe, positive-list ETFs), each with its score, Δscore or flag, size and one line on why it may be moving. State the scan date. Small caps are noisier: say so when a name is small or near the liquidity floor.
 
@@ -102,7 +108,7 @@ Only when the user has active views. One line per view (highest conviction first
 
 - **Prose only**: no tables, no inline links, no ticker lists. Round numbers and say them in words ("knap 3 procent bedre end ACWI over tre måneder"). Name a company or fund in full before its ticker.
 - **Explain as you go**: spell out each acronym the first time (RRG, CAPE, ERP, ASK, OECD CLI) and give the "why" behind every move. Keep the confirmation/divergence logic: what supports a move and what makes it fragile.
-- **Length**: about 600–900 words, in the brief's order (TL;DR as an opening, then regime, positioning and cycle, rotation, momentum, Discover, research queue).
+- **Length**: about 600–900 words, in the brief's order (TL;DR as an opening, then regime, positioning and cycle, rotation, momentum, quality and value, Discover, research queue).
 - **Private by default**: the file is uploaded to Google, so leave out everything personal: *Dine markedssyn mod data*, *Din portefølje i den sammenhæng*, holdings, watchlist, sold names and anything from `notes/`. With `personal`, include them in the same spoken style.
 - Say "dette er analyse, ikke rådgivning" in the opening, and frame actions as things to review, as in the brief.
 - End with a short plain list of the sources (publisher and title, then the URL).

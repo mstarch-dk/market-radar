@@ -33,6 +33,30 @@ Your data now lives apart from the program, so a new version never touches it.
   `backtest.fee_bps`; a buy the minimum would eat stays cash. A fork takes over its source's schedule. Each run's
   params record the fee model (`fee_model`). Opening holdings with `--start` are copied without a fee.
 - Ticker lookup in the trade form: keyboard navigation, the tracked badge and the chosen name under the field.
+- **Kvalitetsscore and værdiscore** beside the momentum score, from the companies' financial statements:
+  - **Statements**: SEC EDGAR for US companies (with filing dates) and Yahoo's statements for every tracked
+    stock, in one fact store (`fundamentals/`). Fetched a few at a time in the daily update, or
+    `radar fundamentals update --all`. EDGAR needs a contact e-mail (Data page, `radar fundamentals contact`).
+  - **Two scores, 0–100**, each against the sector's peers across regions:
+    - Quality: FCF margin, ROIC, margin and revenue steadiness, net debt / EBITDA, interest cover, dividend record.
+    - Value: FCF yield, EBIT / EV, shareholder yield, today's price against the company's own history.
+    - K+V is their mean. Banks and insurers have their own set.
+    - Missing figures are never 0.
+  - **In the app**:
+    - a new *Quality & value* page (Markets)
+    - *Quality* and *Value* columns on Momentum and Holdings & watchlist
+    - a *Quality & value* card on the ticker page
+  - **Forward A/B test** (`radar abtest start`, or the button on the Quality & value page): three virtual baskets
+    (K+V, momentum, 50/50), picked once a month and frozen, against ACWI and each other.
+  - **Point-in-time study**: `radar study score --signal quality|value|qv` tests the scores at every past
+    month-end on US stocks, from the facts filed by then.
+  - **summary.json**: `quality_top10`, `quality_new_entrants`, `quality_coverage`, `quality` / `value` / `qv` on
+    the momentum and holdings rows, and `abtest`.
+  - **Skills**:
+    - `/research` gets a quality and value section from `radar info`, no longer looking up FCF yield on the web.
+    - `/compare` adds the scores to its rubric.
+    - `/market-brief` covers the K+V leaders, their overlap with momentum and the A/B test.
+    - `/hindsight` can pick a K+V basket (`radar sim picks-candidates --fund`).
 - Linux start script `start-market-radar.sh`.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the

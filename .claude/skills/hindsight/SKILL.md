@@ -35,6 +35,8 @@ be steered by memory of which names went on to rally, even without meaning to. S
      - *Score only*: mechanical, the score's own top N. The clean test.
      - *Score + your views*: your market views created by that day tilt the choice.
      - *Score + Claude's judgment*: Claude chooses from the candidates (blind before your cutoff).
+     - *K+V*: mechanical, the top N by K+V (kvalitet + værdi) as known on that day. US stocks only, since SEC
+       EDGAR is the one source with filing dates. A different kind of basket, to set beside the momentum ones.
    - **Number of stocks:** 5, 10, 15 (default) or 20.
    - **Diversification and weighting:** "max 3 per sector, equal" (default); "max 3 per sector and 6 per
      region, equal"; "no caps, equal"; "max 3 per sector, weighted by score".
@@ -44,14 +46,18 @@ be steered by memory of which names went on to rally, even without meaning to. S
 
 2. **Candidates** per lookback:
    ```
-   uv run radar sim picks-candidates --asof <1M|3M|6M|1Y> --model-cutoff <YYYY-MM> [--blind] [--views] --json --out exports/picks/<name>-candidates.json
+   uv run radar sim picks-candidates --asof <1M|3M|6M|1Y> --model-cutoff <YYYY-MM> [--blind] [--views] [--fund] --json --out exports/picks/<name>-candidates.json
    ```
+   - For *K+V*, add `--fund` and leave out `--top`: each candidate then has `qv`, `quality` and `value` from the
+     statements filed by D (`null` outside the US or without statements), and `fund_scored` says how many have one.
    - Read `asof` (the day D) and `fill` (the buy session) from the file. **Use that date, not the lookback, from
      here on**, so a later run doesn't drift with new prices.
    - Values are fractions; `null` is missing. Sectors are today's (the file says so).
    - `dkk: false` names can't be bought in a simulation (no DKK rate): leave them out.
 
 3. **Pick** (skip for *Score only*):
+   - *K+V* (`--fund`): the names with a `qv` and `dkk: true`, highest `qv` first (ties by `rank`), within the
+     caps; no judgment. `meta.basis` is `"qv"`. With fewer scored names than N, say so and stop.
    - *Score + your views* (`--views`):
      - Start from the top 60 by score.
      - Prefer names whose `views.label` is aligned. Leave out names that conflict with a view of conviction 4–5.
@@ -102,6 +108,10 @@ be steered by memory of which names went on to rally, even without meaning to. S
    - Take, for 3 and 6 months: the score's `ic_mean` with `ic_t`, `ic_pos`, `spread` with `spread_t`,
      `top_excess`, `top_dkk` against `acwi_dkk`, and the holdout IC.
    - Add any variant whose verdict is a candidate improvement.
+   - For a *K+V* basket, read `reports/score-study-qv.json` the same way (if it is older than 35 days, run
+     `uv run radar study score --signal qv --no-regime` in the background: 10–15 minutes), and its
+     `momentum_corr` (how differently K+V and momentum rank the same stocks). Its control is still the momentum
+     score's top N, which is the comparison that matters here: a different kind of basket against the radar's main one.
 
 6. **Write the memo** (template below) for each basket. If there are several lookbacks, add one short comparison
    table at the end of the last memo.

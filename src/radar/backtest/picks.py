@@ -99,7 +99,7 @@ def _clean(v):
 
 
 def candidates(market, asof, blind: bool = False, views: bool = False, top: int | None = None,
-               model_cutoff: str | None = None, p: study.Panels | None = None) -> dict:
+               model_cutoff: str | None = None, p: study.Panels | None = None, fund: bool = False) -> dict:
     p = p or study.panels(market)
     day, note = resolve_asof(asof, p.sessions, (settings().get("backtest") or {}).get("fill", "next"))
     df = ranked(p, day)
@@ -108,6 +108,11 @@ def candidates(market, asof, blind: bool = False, views: bool = False, top: int 
     names = universe.names(list(df["ticker"]))
     df["name"] = df["ticker"].map(names)
     align = _views_at(market, day, list(df["ticker"])) if views else None
+    ft = None
+    if fund:                               # K+V, kvalitet and værdi as known on the day (US, SEC EDGAR)
+        from .fund import FundPIT
+
+        ft = FundPIT(market).table(day)
     rows = []
     for _, r in df.iterrows():
         if top and len(rows) >= top:
@@ -117,6 +122,9 @@ def candidates(market, asof, blind: bool = False, views: bool = False, top: int 
                                             "trend_ok", "above200", "vol", "group", "sector", "industry", "dkk")}}
         if not blind:
             row["close"] = _clean(r["close"])
+        if ft is not None:
+            for k in ("qv", "quality", "value"):
+                row[k] = _clean(ft.at[r["ticker"], k]) if r["ticker"] in ft.index and k in ft else None
         if align is not None:
             a = align["names"].get(r["ticker"])
             row["views"] = a
@@ -137,6 +145,12 @@ def candidates(market, asof, blind: bool = False, views: bool = False, top: int 
            "candidates": rows}
     if align is not None:
         out["views"] = align["views"]
+    if ft is not None:
+        out["columns"] |= {"qv": "K+V 0-100 (mean of kvalitet and værdi), from SEC EDGAR statements filed by the day; "
+                                 "US stocks only, ranked among US peers",
+                           "quality": "kvalitetsscore 0-100, as known on the day", "value": "værdiscore 0-100, as known on the day"}
+        out["fund_scored"] = int(ft["qv"].notna().sum()) if "qv" in ft else 0
+        out["caveats"].append("K+V, kvalitet and værdi: US stocks only (SEC EDGAR has filing dates); peers are the US names.")
     return out
 
 
