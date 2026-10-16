@@ -1135,6 +1135,66 @@ PortfolioKind = Literal["ask", "frie_midler", "pension", "other"]
 PortfolioMode = Literal["real", "virtual"]
 
 
+FeeMarket = Literal["DK", "NORDIC", "US", "EU", "UK", "OTHER"]
+
+
+class FeeRule(Strict):
+    """A market's commission: pct of the trade's value, at least `min` and at most `max` (in `currency`)."""
+    market: FeeMarket
+    pct: float
+    min: float | None = None
+    max: float | None = None
+    currency: str = "DKK"
+
+
+class FeeSchedule(Strict):
+    """A portfolio's broker fees (fees.py), to estimate a trade's commission. `fx_pct`: the currency-exchange
+    surcharge, shown apart from the fee."""
+    preset: str | None = None
+    as_of: str | None = None
+    markets: list[FeeRule]
+    fx_pct: float | None = None
+    note: str | None = None
+
+
+class FeePreset(Strict):
+    id: str
+    label: str
+    as_of: str
+    source_url: str
+    note: str | None = None
+    schedule: FeeSchedule
+
+
+class FeeEstimate(Strict):
+    """A trade's estimated commission in the quote currency, from its portfolio's fee schedule."""
+    fee: float
+    currency: str
+    market: FeeMarket
+    rule_market: FeeMarket                 # the rule used (OTHER when the schedule has none for the market)
+    applied: Literal["pct", "min", "max"]
+    basis: str                             # e.g. "0.1% (min 29 DKK)"
+    fx_pct: float | None = None
+    fx_fee: Num = None                     # the FX surcharge on the trade, not included in `fee`
+    preset: str | None = None
+    as_of: str | None = None
+
+
+class SimRun(Strict):
+    """One run that wrote a simulated portfolio's rows (the latest replaces the earlier ones)."""
+    id: int
+    portfolio_id: int
+    strategy: str
+    params: dict[str, Any]
+    start: str
+    end: str | None = None
+    data_asof: str | None = None
+    status: Literal["ok", "failed"]
+    rows: int
+    message: str | None = None
+    at: str
+
+
 class Portfolio(Strict):
     """A real portfolio (one of your accounts) or a virtual one (a simulation or an A/B test). Only real ones
     count as yours unless others are chosen; tags are free-form labels for grouping."""
@@ -1148,6 +1208,7 @@ class Portfolio(Strict):
     forked_at: str | None = None
     strategy: str | None = None
     params: dict[str, Any] | None = None
+    fee_schedule: FeeSchedule | None = None
     note: str | None = None
     archived: bool
     tags: list[str]
@@ -1167,6 +1228,7 @@ class PortfolioIn(Strict):
     note: str | None = None
     archived: bool = False
     tags: list[str] = []
+    fee_schedule: FeeSchedule | None = None    # left out: kept as it is; null: removed
 
 
 class TagsIn(Strict):
@@ -1392,6 +1454,7 @@ class TxCheck(Strict):
     issues: list[Issue]
     effect: Effect | None = None
     price: PriceCheck | None = None
+    fee_estimate: FeeEstimate | None = None
 
 
 class TxResult(Strict):

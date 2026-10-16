@@ -70,7 +70,7 @@ Når testen kører, viser panelet:
 - korrelationen mellem kurvenes ugentlige afkast (kræver {{settings:risk.min_weeks}} uger)
 - hver kurvs seneste udvalg med datoen og omsætningen (*turnover*), og hvornår næste udvalg kommer
 
-Linket *Open on the Returns page* åbner de tre kurve på siden [Returns](/returns) med tagget `ab-qvm`. Reglerne for testen står i [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum).
+Under panelet fører et link til siden [Experiments](/experiments), hvor hver kurvs beholdninger, handler og ombalanceringer står (se [Eksperimenter](brugervejledning/eksperimenter)), og et andet til siden [Returns](/returns) med de tre kurve samlet under tagget `ab-qvm`. Reglerne for testen står i [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum).
 
 ## Tips
 

@@ -1,0 +1,53 @@
+# Broker fee schedules (fees.py): a starting point for a portfolio's own schedule, copied by hand from the brokers'
+# public price lists for private customers in Denmark. They go out of date: each has the date it was read and its
+# source, and the app tells you to check it against your broker's current list. Per market: pct of the trade's
+# value, min/max in `currency`. fx_pct (the currency-exchange margin) is shown next to an estimate, never added.
+presets:
+  - id: saxo-classic
+    label: Saxo (Classic)
+    as_of: "2026-10-16"
+    source_url: https://www.home.saxo/da-dk/rates-and-conditions/stocks/commissions
+    note: >-
+      Classic, the entry tier (Platinum 0.05%, VIP 0.03%, same minimums); stocks and ETFs alike. Minimums differ per
+      exchange in a market (Stockholm SEK 10, Oslo NOK 10, Helsinki EUR 3; Xetra EUR 3, Paris and Amsterdam EUR 2):
+      the rule uses the first. FX 0.25% on automatic conversion. Taxes such as French FTT and UK stamp duty come on top.
+    schedule:
+      markets:
+        - {market: DK, pct: 0.08, min: 10, currency: DKK}
+        - {market: NORDIC, pct: 0.08, min: 10, currency: SEK}
+        - {market: US, pct: 0.08, min: 1, currency: USD}
+        - {market: EU, pct: 0.08, min: 3, currency: EUR}
+        - {market: UK, pct: 0.08, min: 3, currency: GBP}
+      fx_pct: 0.25
+  - id: danske-online
+    label: Danske Bank (Netbank online)
+    as_of: "2026-10-01"
+    source_url: https://danskebank.dk/privat/produkter/investering/alle-produkter/online-investering
+    note: >-
+      Online trading in Netbank/Mobilbank, the price list in force from 1 October 2026 (prices ex. VAT; trading
+      through an adviser costs more). Europe and North America share the 0.20% band. FX margin 0.30% on the major
+      currencies (SEK, NOK, EUR, USD, GBP, CHF …).
+    schedule:
+      markets:
+        - {market: DK, pct: 0.15, min: 29, currency: DKK}
+        - {market: NORDIC, pct: 0.15, min: 29, currency: DKK}
+        - {market: US, pct: 0.20, min: 29, currency: DKK}
+        - {market: EU, pct: 0.20, min: 29, currency: DKK}
+        - {market: UK, pct: 0.20, min: 29, currency: DKK}
+      fx_pct: 0.30
+  - id: danske-ask-campaign
+    label: Danske Bank aktiesparekonto (campaign)
+    as_of: "2026-10-16"
+    source_url: https://danskebank.dk/privat/produkter/investering/alle-produkter/aktiesparekonto
+    note: >-
+      No commission on online trades in an aktiesparekonto up to and including 1 March 2027 (Danske's campaign);
+      switch to "Danske Bank (Netbank online)" after that. Whether the FX margin still applies isn't stated: 0.30% is
+      assumed.
+    schedule:
+      markets:
+        - {market: DK, pct: 0, currency: DKK}
+        - {market: NORDIC, pct: 0, currency: DKK}
+        - {market: US, pct: 0, currency: DKK}
+        - {market: EU, pct: 0, currency: DKK}
+        - {market: UK, pct: 0, currency: DKK}
+      fx_pct: 0.30

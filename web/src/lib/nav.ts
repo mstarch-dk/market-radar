@@ -19,8 +19,9 @@ export const NAV: NavGroup[] = [
   {
     id: "mine", label: "Mine", pages: [
       { path: "/me", label: "Holdings & watchlist", blurb: "Returns vs ACWI, flags, stops and targets" },
-      { path: "/portfolio", label: "Portfolio", blurb: "Trades, cash, imports and portfolios" },
+      { path: "/portfolio", label: "Portfolio", blurb: "Your accounts: positions, transactions, imports" },
       { path: "/returns", label: "Returns", blurb: "Returns over time vs ACWI, A/B comparisons" },
+      { path: "/experiments", label: "Experiments", blurb: "Virtual portfolios: A/B tests, simulations, forks" },
       { path: "/views", label: "Market views", blurb: "Your beliefs, tested against the data" },
       { path: "/notebook", label: "Notebook", blurb: "Briefs, research memos and your decision journal" },
     ],

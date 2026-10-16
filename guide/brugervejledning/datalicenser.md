@@ -41,6 +41,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **CFTC** | Futurespositionering (COT) | Ja | Ja (offentligt amerikansk data) |
 | **SEC EDGAR** (XBRL company facts) | Amerikanske selskabers regnskaber fra 10-K og 10-Q, med indleveringsdato | Ja | Ja (offentligt amerikansk data). SEC beder om højst 10 forespørgsler i sekundet og en kontakt-e-mail i hver forespørgsel, som du selv angiver på siden *Data* |
 | **SKAT**, positivlisten | Positivliste-status | Ja | Ja (offentlige danske data) |
+| **Saxo, Danske Bank**, offentlige prislister (skrevet af i hånden i `config/fee_presets.yaml` med dato og kilde; intet hentes) | Skabeloner til kurtage-estimatet | Ja | Ja, med kilde og dato |
 
 Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på MSCI's egne indeksdata. "MSCI" og "ACWI" er MSCI's varemærker. Market Radar er hverken tilknyttet eller godkendt af MSCI eller af nogen anden kilde i tabellen.
 

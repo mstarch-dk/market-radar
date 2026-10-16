@@ -119,7 +119,8 @@ function AbRunning({ d }: { d: AbTest }) {
     <>
       <p className="small muted">
         Next picks due {date(d.next_due)} (the first report that month).{" "}
-        <Link to={`/returns?pf=tag:ab-qvm`}>Open on the Returns page</Link>.
+        <Link to="/experiments">Each basket&apos;s holdings and trades on Experiments</Link>,{" "}
+        <Link to={`/returns?pf=tag:ab-qvm`}>the pooled lines on Returns</Link>.
       </p>
       {d.notes.length > 0 && <ul className="small muted">{d.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
       {d.comparison && d.comparison.rows.some((r) => r.stats) && (
