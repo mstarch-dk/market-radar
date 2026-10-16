@@ -11,6 +11,7 @@ export const NAV: NavGroup[] = [
       { path: "/rotation", label: "Sector rotation", blurb: "US & European sectors, regions vs ACWI" },
       { path: "/themes", label: "Themes & factors", blurb: "Theme ETFs with UCITS alternatives, factors" },
       { path: "/momentum", label: "Momentum", blurb: "Leaders per region, clusters, new entrants" },
+      { path: "/quality", label: "Quality & value", blurb: "Business quality and price from the statements, the A/B test" },
       { path: "/discover", label: "Discover", blurb: "Heat map and screener beyond the radar's lists" },
       { path: "/positioning", label: "Positioning & cycle", blurb: "Revisions, valuation, OECD CLI, CFTC, sentiment" },
     ],

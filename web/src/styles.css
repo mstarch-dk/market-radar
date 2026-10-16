@@ -707,3 +707,11 @@ dl.nb-facts dd { margin: 0; }
 .data-home td.wrap { overflow-wrap: anywhere; }
 .data-home td.num { text-align: right; white-space: nowrap; }
 .setup details.card summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.q-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 8px; }
+.ab-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.ab-picks h3 { margin-top: 0; }
+.q-metrics td.pct { width: 45%; }
+.q-scores { margin: 0 0 10px; }
+.q-metrics tr.q-pillar td { padding-top: 10px; border-bottom: none; }
+.q-bar { display: grid; grid-template-columns: minmax(40px, 1fr) 28px auto; align-items: center; gap: 6px; }
+.q-bar .stack { height: 8px; } .q-bar .bar { display: block; height: 100%; border-radius: 0; }

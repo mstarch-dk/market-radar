@@ -44,6 +44,7 @@ Tallet er farvet efter niveau: under 25 *weak*, 25–40 *below average*, 40–60
 | *Vol 20d/120d* | Gennemsnitlig volumen de seneste 20 dage divideret med de seneste 120 dage; over 1× er mere handel end normalt |
 | *Trend* | ✓ når kursen er over 200-dages snit, og 50-dages snit er over 200-dages snit: en intakt optrend |
 | *P/E next yr* | P/E på analytikernes indtjeningsskøn for næste regnskabsår, farvet i forhold til sektoren |
+| *Quality*, *Value* | Kvalitets- og værdiscoren 0–100 fra regnskaberne; en streg, når aktien ikke har nok regnskabstal. Se [Kvalitet og værdi](brugervejledning/kvalitet-og-vaerdi) |
 | *Signals* | Prikker for score, afstand til 52-ugers top og volumen |
 
 Du kan slå flere kolonner til under *Columns*:
@@ -53,6 +54,7 @@ Du kan slå flere kolonner til under *Columns*:
 - *P/E this yr* og *P/E ttm*: P/E på indeværende års skøn og på de seneste 12 måneders faktiske indtjening.
 - *EPS rev 4w* og *EPS rev 12w*: ændringen i analytikernes indtjeningsskøn for næste år over 4 og 12 uger. Ændringer inden for ±{{settings:valuation.revision_band|pct}} regnes som uændrede.
 - *Div yield* og *Earnings*: udbytteafkast og næste regnskabsdato.
+- *K+V*, *FCF yield*, *EV/EBIT*, *ROIC* og *Statements*: gennemsnittet af kvalitets- og værdiscoren, tre af nøgletallene bag dem og regnskabernes kilde og seneste periode.
 
 Har du skrevet markedssyn på siden *Market views*, får tabellen også en kolonne *Views*, der viser, om navnet passer med dine syn (*fits your views*), går imod dem (*against your views*) eller begge dele (*mixed*). Hold musen over mærket for at se begrundelserne. Se [Mine markedssyn](brugervejledning/markedssyn).
 

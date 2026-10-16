@@ -98,7 +98,7 @@ Ved siden af scoren står, hvor mange søjler og værdinøgletal den bygger på.
 
 ### Hvor du ser det
 
-I denne version ligger scorerne i rapporten (`dashboard.json`) og i de rækker, appen henter til momentum og dine beholdninger, i afsnittet `quality` i `uv run radar info TICKER` og i `summary.json`, som Claude-skills læser (`quality_top10` pr. region). Hver uge gemmes scorerne også som historik.
+På siden [Quality & value](/quality), i kolonnerne *Quality* og *Value* på [Momentum](/momentum) og [Holdings & watchlist](/me) og i kortet *Quality & value* på tickerprofilen (se [Kvalitet og værdi](brugervejledning/kvalitet-og-vaerdi)). På kommandolinjen i afsnittet `quality` i `uv run radar info TICKER`, og for Claude-skills i `summary.json` (`quality_top10` pr. region). Hver uge gemmes scorerne også som historik.
 
 ## Regneeksempel
 

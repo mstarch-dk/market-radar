@@ -220,6 +220,32 @@ Tjekket er slået fra, til du sætter flueben i *Check for a new version once a 
 
 Se [Relativ værdiansættelse](laerebog/relativ-vaerdiansaettelse) og [Estimatrevisioner](laerebog/estimatrevisioner).
 
+## `fundamentals`: regnskaber, kvalitets- og værdiscore
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `fundamentals.top_n` | {{settings:fundamentals.top_n}} | Navne pr. region på siden *Quality & value* |
+| `fundamentals.min_sector_peers` | {{settings:fundamentals.min_sector_peers}} | Et nøgletal rangeres i sektoren (alle regioner samlet), når så mange aktier har det; ellers blandt alle |
+| `fundamentals.ttm_max_age_days` | {{settings:fundamentals.ttm_max_age_days}} | Tal for de seneste 12 måneder, der ender længere tilbage end dette, bruges ikke |
+| `fundamentals.stability_years` | {{settings:fundamentals.stability_years}} | Regnskabsår bag spredning i bruttoavance, jævn vækst og spredning i ROE |
+| `fundamentals.quality.min_pillars` | {{settings:fundamentals.quality.min_pillars}} | Søjler, en kvalitetsscore kræver (lønsomheden skal være med) |
+| `fundamentals.value.min_components` | {{settings:fundamentals.value.min_components}} | Værdinøgletal, en værdiscore kræver (FCF yield eller EBIT/EV skal være med) |
+| `fundamentals.yahoo.max_per_run` | {{settings:fundamentals.yahoo.max_per_run}} | Aktier, hvis regnskaber hentes fra Yahoo pr. opdatering |
+| `fundamentals.edgar.max_per_run` | {{settings:fundamentals.edgar.max_per_run}} | Amerikanske selskaber, der hentes fra SEC EDGAR pr. opdatering |
+
+Vægtene (`quality.weights`, `value.weights`, `financial_value.weights`), branchelisten for banker og forsikring (`financial_industries`) og de rimelige intervaller (`ranges`) står i samme blok. Se [Radarens kvalitets- og værdiscore](laerebog/kvalitetsscore).
+
+## `abtest`: A/B-testen
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `abtest.n` | {{settings:abtest.n}} | Aktier pr. kurv, med lige vægte |
+| `abtest.max_per_sector` | {{settings:abtest.max_per_sector}} | Højst så mange fra samme sektor i en kurv |
+| `abtest.capital` | {{settings:abtest.capital}} | Kroner, hver kurv starter med (virtuelt) |
+| `abtest.value_score` | `qv` | `qv`: kvalitets- og værdikurven rangerer på K+V; `value`: kun på værdiscoren |
+
+Ændringer gælder kun for en ny test; en kørende test beholder sine indstillinger. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum).
+
 ## `sentiment`: put/call og AAII
 
 | Nøgle | Værdi | Betyder |
