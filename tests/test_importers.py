@@ -137,3 +137,54 @@ def test_a_preset_still_uses_generic_columns_it_does_not_list(client):
     pv = _preview(client, body)
     assert pv["preset"] == "danske" and pv["mapping"]["symbol"] == "Symbol"
     assert pv["symbols"][0]["chosen"] == "S4" and pv["symbols"][0]["certain"] is True
+
+
+# ---------------- numbers: one decimal mark per column, Excel cells as they are (hardening 3.2) ----------------
+
+@pytest.mark.parametrize("values, mark", [
+    (["12,50", "1.234,00"], ","),
+    (["1,234.5", "7"], "."),
+    (["1.234", "12,5"], ","),       # 12,5 settles it: the column uses a decimal comma, so 1.234 is a thousand
+    (["1,234", "2.5"], "."),
+    (["1.234"], None),              # a lone separator before three digits says nothing
+    (["1.234", "2,000"], None),
+    (["12,5", "3.75"], None),       # contradicting evidence: decide value by value
+])
+def test_the_decimal_mark_is_read_from_the_whole_column(values, mark):
+    assert importers.infer_decimal(values) == mark
+
+
+def _generic(prices: list[str]) -> bytes:
+    rows = ["Date;Type;Symbol;Quantity;Price"] + [f"{D1.isoformat()};BUY;S4;1;{p}" for p in prices]
+    return "\n".join(rows).encode()
+
+
+def test_a_generic_file_reads_its_numbers_by_the_columns_convention():
+    df = importers.read_table(_generic(["1.234", "12,50"]))
+    rows, _ = importers.normalize(df, importers.map_columns(list(df.columns), importers.GENERIC))
+    assert [r["price"] for r in rows] == [1234.0, 12.5]
+    assert all(not r["ambiguous"] for r in rows)
+
+
+def test_an_ambiguous_number_is_a_warning_not_a_guess(client):
+    pv = _preview(client, _generic(["1.234"]))
+    issues = pv["rows"][0]["issues"]
+    assert any(i["level"] == "warning" and i["field"] == "price" and "decimal mark" in i["message"] for i in issues)
+
+
+def test_excel_numbers_keep_their_value_with_a_decimal_comma_preset():
+    buf = io.BytesIO()
+    pd.DataFrame({"Bogføringsdag": [D1.isoformat()], "Type": ["Køb"], "Papir": ["S4"], "Antal": [3],
+                  "Kurs": [1234.5]}).to_excel(buf, index=False)
+    df = importers.read_table(buf.getvalue(), "t.xlsx")
+    comma = next(k for k, p in importers.presets().items() if p.get("decimal") == ",")
+    mapping = {"date": "Bogføringsdag", "type": "Type", "symbol": "Papir", "quantity": "Antal", "price": "Kurs"}
+    rows, _ = importers.normalize(df, mapping, comma)
+    assert rows[0]["price"] == 1234.5 and rows[0]["quantity"] == 3
+
+
+def test_a_column_without_evidence_follows_the_rest_of_the_file():
+    rows = ["Dato;Type;Symbol;Antal;Kurs", f"{D1:%d-%m-%Y};Køb;S4;10;412,50", f"{D1:%d-%m-%Y};Køb;S4;1.000;400,00"]
+    df = importers.read_table("\n".join(rows).encode())
+    out, _ = importers.normalize(df, importers.map_columns(list(df.columns), importers.GENERIC))
+    assert [r["quantity"] for r in out] == [10, 1000] and not any(r["ambiguous"] for r in out)

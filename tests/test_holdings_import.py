@@ -69,3 +69,29 @@ def test_unknown_transaction_types_are_skipped_with_a_warning(imported, tmp_data
     assert df.loc["KO", "quantity"] == 10 and df.loc["KO", "avg_price"] == pytest.approx(60.0)
     assert "skipped a DIVIDEND" in warn["KO"][0]
     assert universe.transactions()["type"].tolist() == ["BUY"]                 # only BUY/SELL are stored
+
+
+# ---------------- a snapshot import never loses a lot (hardening 3.1) ----------------
+
+def test_a_lot_without_price_or_date_refuses_the_import_and_keeps_the_last_one(imported, tmp_data):
+    from radar import userstore
+    imported(_row("NOVO-B.CO", 20260105, 400, 10, "BUY"), _row("AAPL", 20250105, 100, 10, "BUY"))
+    before = userstore.transactions()
+    for broken in (_row("NOVO-B.CO", 20260105, "", 10, "BUY"), _row("NOVO-B.CO", "", 400, 10, "BUY")):
+        with pytest.raises(ValueError, match="NOVO-B.CO"):
+            imported(broken, _row("AAPL", 20250105, 100, 10, "BUY"))
+        assert userstore.transactions() == before                       # nothing replaced
+
+
+def test_a_trade_in_the_future_refuses_the_import(imported):
+    with pytest.raises(ValueError, match="future"):
+        imported(_row("AAPL", 20991231, 100, 10, "BUY"))
+
+
+def test_a_price_far_off_the_close_is_noted(imported, monkeypatch):
+    from radar import portfolio
+    monkeypatch.setattr(universe, "_import_market", lambda: object())
+    monkeypatch.setattr(portfolio, "price_check", lambda m, sym, day, price: (
+        {"verdict": "x100", "message": "about 100× the close"} if sym == "BP.L" else {"verdict": "ok", "message": None}))
+    _, notes = imported(_row("BP.L", 20260105, 45000, 10, "BUY"), _row("AAPL", 20250105, 100, 10, "BUY"))
+    assert notes["BP.L"] == ["2026-01-05: about 100× the close"] and "AAPL" not in notes

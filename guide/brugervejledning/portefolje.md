@@ -92,7 +92,9 @@ De ikke-afprøvede formater bygger på offentlige beskrivelser og bliver først 
 
 ### 2. Tjek kolonnerne
 
-Kender radaren ikke formatet, vælger du selv, hvilken kolonne der er dato, køb/salg, symbol, ISIN, navn, antal, kurs, kurtage, valuta, konto, handels-id og kontantbeløb. Den generelle genkendelse forstår almindelige kolonnenavne. Kortlægger du kontokolonnen (*Account (→ portfolio)*), havner hver række i porteføljen med det navn; mangler en portefølje, oprettes den som rigtig ved importen. Vil du hellere samle alt i den valgte portefølje, så lad kontokolonnen være tom.
+Kender radaren ikke formatet, vælger du selv, hvilken kolonne der er dato, køb/salg, symbol, ISIN, navn, antal, kurs, kurtage, valuta, konto, handels-id og kontantbeløb. Den generelle genkendelse forstår almindelige kolonnenavne.
+
+Decimaltegnet læses for hver kolonne ud fra hele filen: står der et sted `12,50`, bruger kolonnen komma som decimaltegn, og `1.234` i samme kolonne er da tusind to hundrede fireogtredive. En kolonne uden spor følger filens andre talkolonner. Kan filen ikke afgøre det (fx en kolonne, hvor kun `1.234` står), får rækken en advarsel i stedet for et gæt. Tal i et regneark (`.xlsx`) bruges, som de står i arket, uanset formatets decimaltegn. Kortlægger du kontokolonnen (*Account (→ portfolio)*), havner hver række i porteføljen med det navn; mangler en portefølje, oprettes den som rigtig ved importen. Vil du hellere samle alt i den valgte portefølje, så lad kontokolonnen være tom.
 
 ### 3. Bekræft symbolerne
 
@@ -110,7 +112,9 @@ Under *Past imports* står hver import med tidspunkt, kilde, fil og antal række
 
 ## Den hurtige Yahoo-import
 
-På siden [Holdings & watchlist](/me) og på velkomstsiden ligger en kortere vej: *Choose the exported CSV file* indlæser en Yahoo Finance-eksport direkte, med beholdninger, solgte positioner og watchlist-navne. Den erstatter den forrige Yahoo-import, og dine watchlist-ændringer i appen bevares. Kurser for nye navne hentes ved næste opdatering. Se [Mine beholdninger og watchlist](brugervejledning/beholdninger).
+På siden [Holdings & watchlist](/me) og på velkomstsiden ligger en kortere vej: *Choose the exported CSV file* indlæser en Yahoo Finance-eksport direkte, med beholdninger, solgte positioner og watchlist-navne. Den erstatter den forrige Yahoo-import, og dine watchlist-ændringer i appen bevares. Kurser for nye navne hentes ved næste opdatering.
+
+Fordi den erstatter, afvises en fil med et køb eller salg uden købskurs eller handelsdato, eller med en handel dateret i fremtiden, og intet ændres. Ellers ville den handel forsvinde. Ret den i Yahoo og eksportér igen, eller brug importen på *Portfolio*-siden, hvor du kan udfylde den. En kurs omkring 100 gange dagens lukkekurs (pence og pund) eller langt fra den nævnes ved symbolet. Se [Mine beholdninger og watchlist](brugervejledning/beholdninger).
 
 ## Kommandolinjen
 
