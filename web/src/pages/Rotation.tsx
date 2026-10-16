@@ -93,7 +93,7 @@ export function Rotation() {
         const groups = d.groups.filter((g) => !THEME_GROUPS.includes(g.key));
         return (
           <>
-            <PageHead title="Sector rotation" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
+            <PageHead title="Sector rotation" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated}>
               The rotation graph plots each ETF&apos;s <b>relative trend</b> vs ACWI (x) against its <b>acceleration</b> (y).
               Rotation usually runs clockwise: Improving → Leading → Weakening → Lagging. Names moving from <b>Improving into
               Leading</b> are typical early momentum candidates. Rank change is compared with the snapshot from{" "}

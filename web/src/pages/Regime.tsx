@@ -63,7 +63,7 @@ export function Regime() {
         const cr = d.coverage.regime;
         return (
           <>
-            <PageHead title="Regime" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} />
+            <PageHead title="Regime" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated} />
             <div className="card hero">
               <div>
                 <div className="sub">Overall reading</div>

@@ -1,6 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { ApiError } from "../api/client";
+import { ApiError, type Outdated } from "../api/client";
 import { date, pct, tone, type Maybe } from "../lib/format";
 import { QUAD_KIND } from "./quadrants";
 import { Badge } from "./ui";
@@ -44,13 +44,38 @@ export function regimeKind(label: string | null | undefined): string {
   return label === "Risk-on" ? "pos" : label === "Risk-off" ? "neg" : "warn";
 }
 
+/** What a changed input is called in the "readings are behind" note (dashboard.inputs in Python). */
+const INPUT_LABEL: Record<string, string> = {
+  prices: "prices", fred: "FRED macro", cot: "CFTC positioning", oecd_cli: "OECD leading indicators", ecb: "ECB rates",
+  factset: "FactSet earnings", analyst: "analyst targets", valuation_stocks: "stock valuation", valuation_etfs: "ETF valuation",
+  valuation_market: "market valuation", aaii: "AAII sentiment", putcall: "put/call ratios",
+  fundamentals_edgar: "financial statements", fundamentals_yahoo: "financial statements",
+  settings: "config/settings.yaml", universe: "config/universe.yaml",
+};
+
+/** The readings are behind the data on disk (built by an older version, or a file changed since): rebuild them
+ *  from what is already downloaded. */
+export function OutdatedNote({ o }: { o: Outdated }) {
+  const changed = [...new Set(o.changed.map((k) => INPUT_LABEL[k] ?? k))];
+  return (
+    <div className="notes" role="status">
+      {o.reason === "format"
+        ? "These readings were built by an older version of the app."
+        : `Data has changed since these readings were built (${changed.join(", ")}).`}
+      {" "}Rebuilding them takes about half a minute and downloads nothing.{" "}
+      <UpdatePanel job="report" compact label="Rebuild the readings" />
+    </div>
+  );
+}
+
 /** Page title plus "data as of / built" from the last `radar run`. */
-export function PageHead({ title, asof, generated, ageDays, stale, children }: {
+export function PageHead({ title, asof, generated, ageDays, stale, outdated, children }: {
   title: string;
   asof?: string;
   generated?: string;
   ageDays?: number;
   stale?: boolean;
+  outdated?: Outdated | null;
   children?: ReactNode;
 }) {
   return (
@@ -61,6 +86,7 @@ export function PageHead({ title, asof, generated, ageDays, stale, children }: {
           This data is {ageDays} days old. Update it before acting on it. <UpdatePanel compact />
         </div>
       )}
+      {outdated && !stale && <OutdatedNote o={outdated} />}
       {asof && (
         <div className="sub">
           Data as of {date(asof)}{generated && <> · built {generated.replace("T", " ").slice(0, 16)}</>} · benchmark MSCI ACWI

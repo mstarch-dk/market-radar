@@ -36,7 +36,7 @@ export function Data() {
           const analystLimit = d.sources.find((s) => s.key === "analyst")?.max_age;
           return (
             <>
-              <PageHead title="Data & coverage" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
+              <PageHead title="Data & coverage" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated}>
                 Every reading in the radar comes from the sources below, and only from them. A &ldquo;Risk-on&rdquo; label means the
                 inputs listed here lean risk-on; it says nothing about what isn&apos;t measured (see the blind spots further down).
                 A source older than its limit is marked <Signal s="stale" /> and stops counting in the regime vote; an input with no
@@ -44,6 +44,13 @@ export function Data() {
                 config/settings.yaml (<code>coverage:</code>).
               </PageHead>
               <UpdatePanel />
+              {!d.outdated && (
+                <div className="note">
+                  Edited config/settings.yaml, or ran an update in a terminal without <code>radar report</code>? Rebuild the
+                  readings from the data already downloaded (about half a minute, no downloads):{" "}
+                  <UpdatePanel job="report" compact label="Rebuild the readings" />
+                </div>
+              )}
               <DataHome />
               <h2>Sources</h2>
               <div className="card"><DataTable id="src" csvName="sources" rows={d.sources} cols={cols} rowKey={(s) => s.key} /></div>

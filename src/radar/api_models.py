@@ -557,11 +557,20 @@ class WatchState(Strict):
 
 # ---------------- dashboard (reports/dashboard.json, written by `radar run`) ----------------
 
+class Outdated(Strict):
+    """Why the readings are behind what is on disk (dashboard.outdated): `format` = built by an older version,
+    `inputs` = a file they read has changed since (named in `changed`). A rebuild needs no downloads."""
+    reason: Literal["format", "inputs"]
+    changed: list[str]
+    rebuilding: bool                       # the app's rebuild job is running
+
+
 class Snapshot(Strict):
     asof: str
     generated: str
     age_days: int
     stale: bool
+    outdated: Outdated | None = None
 
 
 class Overall(Strict):

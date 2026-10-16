@@ -48,6 +48,18 @@ Efter kurserne tjekker radaren, om hver ticker har en kurs for benchmarkets sene
 ### Rapporten
 Derefter regner radaren regime, rotation, momentum, positionering og dækning ud og skriver resultatet til `dashboard.json` (som siderne læser) og `summary.json` (som Claude Code-kommandoerne læser) i cache-mappens `reports/`. Samtidig gemmes et øjebliksbillede af rangeringerne i `history/snapshots/` i datamappen. Det er dem, der gør det muligt at vise ændring i rang og nye navne siden sidst.
 
+Rapporten bygges én gang pr. opdatering og ikke hver gang, du åbner en side. Den tager omkring et halvt minut, og øjebliksbillederne og A/B-testen skal kun køre én gang pr. opdatering. Det, der afhænger af dine egne ændringer, regnes til gengæld ud med det samme: *Holdings & watchlist*, dine valg i regimeafstemningen, markedssyn og datakildernes seneste status.
+
+## Byg aflæsningerne igen
+
+Rapporten husker, hvilke filer den blev bygget af, og hvilken version af appen der byggede den. Ændrer en af filerne sig bagefter, viser markedssiderne et banner: *Data has changed since these readings were built* med de ændrede kilder i parentes og knappen *Rebuild the readings*. Det sker fx, når du har kørt `radar update` i terminalen uden `radar report`, har hentet regnskaber med `radar fundamentals`, eller har ændret `config/settings.yaml` eller `config/universe.yaml`. Knappen bygger rapporten igen ud fra de data, der allerede ligger lokalt. Den henter intet og tager omkring et halvt minut. Knappen findes også altid på siden [Data & coverage](/data), under *Update data*.
+
+Er rapporten bygget af en ældre version af appen, bygger appen den selv igen, når den starter. Imens viser siderne den gamle rapport med beskeden *These readings were built by an older version of the app* og *Rebuilding…* ved knappen.
+
+Du behøver ikke bygge igen efter ændringer i dine porteføljer, din watchlist, dine markedssyn eller dine valg i regimeafstemningen: dem viser siderne med det samme. Mens *Update data* kører, vises banneret ikke, fordi opdateringen selv bygger rapporten til sidst.
+
+Der kan kun bygges én rapport ad gangen, også på tværs af appen og terminalen. Starter du `radar report`, mens appen bygger (eller omvendt), stopper den nye med beskeden *the readings are already being built*. En opdatering, der er færdig med at hente, venter i stedet på, at den igangværende bygning bliver færdig.
+
 ## Fra terminalen
 
 Foretrækker du terminalen, gør disse kommandoer det samme som knappen:
@@ -58,7 +70,7 @@ uv run radar update    # kun hentningen
 uv run radar report    # kun rapporten, ud fra de data, der allerede ligger lokalt
 ```
 
-`radar report` er nyttig, hvis du har ændret en indstilling i `config/settings.yaml` og vil se virkningen uden at hente noget nyt. `radar update --refresh-constituents` henter desuden listen over S&P 500-selskaber igen (ellers sker det automatisk efter {{settings:constituents_max_age_days}} dage). Se [Kommandolinjen](brugervejledning/kommandolinjen).
+`radar report` er nyttig, hvis du har ændret en indstilling i `config/settings.yaml` og vil se virkningen uden at hente noget nyt. Den gør det samme som knappen *Rebuild the readings* (se [Byg aflæsningerne igen](brugervejledning/data-og-opdatering#byg-aflæsningerne-igen)). `radar update --refresh-constituents` henter desuden listen over S&P 500-selskaber igen (ellers sker det automatisk efter {{settings:constituents_max_age_days}} dage). Se [Kommandolinjen](brugervejledning/kommandolinjen).
 
 ## Discover-scanningen er separat
 

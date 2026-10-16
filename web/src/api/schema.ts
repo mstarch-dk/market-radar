@@ -733,6 +733,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report Status
+         * @description The rebuild of the readings started from the app (no downloads).
+         */
+        get: operations["report_status_api_report_get"];
+        put?: never;
+        /**
+         * Start Report
+         * @description Rebuild dashboard.json and summary.json from the data already downloaded, in the background. 409 while an
+         *     update (which rebuilds them itself when it finishes) or another rebuild runs; a build in a terminal makes
+         *     the job stop with its message.
+         */
+        post: operations["start_report_api_report_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/import": {
         parameters: {
             query?: never;
@@ -1752,6 +1778,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             /** Sources */
             sources: components["schemas"]["Source"][];
             regime: components["schemas"]["RegimeCounts"];
@@ -1950,6 +1977,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             /** Universe Asof */
             universe_asof: string;
             /** Markets */
@@ -3083,6 +3111,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             /** Prev */
             prev?: string | null;
             /** Top N */
@@ -3527,6 +3556,22 @@ export interface components {
             /** Rows */
             rows: components["schemas"]["OpsRow"][];
         };
+        /**
+         * Outdated
+         * @description Why the readings are behind what is on disk (dashboard.outdated): `format` = built by an older version,
+         *     `inputs` = a file they read has changed since (named in `changed`). A rebuild needs no downloads.
+         */
+        Outdated: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "format" | "inputs";
+            /** Changed */
+            changed: string[];
+            /** Rebuilding */
+            rebuilding: boolean;
+        };
         /** Overall */
         Overall: {
             /** Label */
@@ -3849,6 +3894,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             factset?: components["schemas"]["FactSet"] | null;
             /** Cli */
             cli: components["schemas"]["CliRow"][];
@@ -4177,6 +4223,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             /** Prev */
             prev?: string | null;
             /** Top N */
@@ -4264,6 +4311,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             overall: components["schemas"]["Overall"];
             /** Indicators */
             indicators: components["schemas"]["Indicator"][];
@@ -4505,6 +4553,7 @@ export interface components {
             age_days: number;
             /** Stale */
             stale: boolean;
+            outdated?: components["schemas"]["Outdated"] | null;
             /** Prev */
             prev?: string | null;
             /** Tail Weeks */
@@ -6528,6 +6577,46 @@ export interface operations {
         };
     };
     start_update_api_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+        };
+    };
+    report_status_api_report_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+        };
+    };
+    start_report_api_report_post: {
         parameters: {
             query?: never;
             header?: never;

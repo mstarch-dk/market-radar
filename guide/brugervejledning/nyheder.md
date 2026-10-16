@@ -27,6 +27,7 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
   - `/compare` har scorerne i sin rubrik.
   - `/market-brief` skriver om de bedste K+V-navne, overlappet med momentum og A/B-testen.
   - `/hindsight` kan vælge en kurv efter K+V.
+- **Byg aflæsningerne igen uden at hente noget.** Har en kilde ændret sig siden sidste rapport (fx efter `radar update` i terminalen eller en ændring i `config/settings.yaml`), viser markedssiderne et banner med knappen *Rebuild the readings*. Knappen findes også på *Data & coverage*. Efter en ny version bygger appen selv rapporten igen ved start. Se [Byg aflæsningerne igen](brugervejledning/data-og-opdatering#byg-aflæsningerne-igen).
 - **Bedre tickeropslag** i handelsformularen: piletaster, *tracked*-markering og papirets navn og børs under feltet.
 - **Siden *Data & coverage*** har fået afsnittet *Your data* med mapperne, backupperne og versionen. Nye kommandoer: `radar paths`, `radar backup`, `radar backups`, `radar restore`, `radar export`, `radar import-export`, `radar updates` og `radar --version`.
 

@@ -188,7 +188,7 @@ export function Quality() {
         });
         return (
           <>
-            <PageHead title="Quality & value" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
+            <PageHead title="Quality & value" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated}>
               Two scores from the companies&apos; reported statements, not from prices, each 0–100 among the sector&apos;s
               peers across regions. <b>Quality</b>: free cash flow and ROIC, steady margins and revenue, a sound balance
               sheet and a dividend record. <b>Value</b>: free cash flow yield, EBIT / EV, cash returned to owners and the

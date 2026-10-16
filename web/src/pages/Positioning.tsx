@@ -145,7 +145,7 @@ export function Positioning() {
         const f = d.factset;
         return (
           <>
-            <PageHead title="Positioning & cycle" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale}>
+            <PageHead title="Positioning & cycle" asof={d.asof} generated={d.generated} ageDays={d.age_days} stale={d.stale} outdated={d.outdated}>
               Data that doesn&apos;t come from prices, so it can lead or confirm what rotation and momentum show. Sources: FactSet
               Earnings Insight (weekly), Yahoo consensus estimates (weekly snapshots), Shiller CAPE and Damodaran&apos;s equity
               risk premium (monthly), OECD Composite Leading Indicators (monthly, about 2 months&apos; lag), ECB and FRED rates,
