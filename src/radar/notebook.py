@@ -2,6 +2,7 @@
 
 - `briefs/YYYY-MM-DD.md` (/market-brief and the monthly scheduled task)
 - `research/<TICKER>.md` (/research) and `research/compare/YYYY-MM-DD_<tickers>.md` (/compare)
+- `research/proposals/YYYY-MM-DD_<portfolio>.md` (/propose-portfolio) and `research/proposals/reviews/YYYY-MM.md`
 - `journal/YYYY-MM-DD-<TICKER>-<action>.md` with YAML front matter (/journal) and `journal/reviews/YYYY-MM.md`
 
 All of these folders are local and personal (gitignored, left out of the public export). A document is only ever
@@ -23,6 +24,8 @@ FOLDERS = {
     "briefs": HOME / "briefs",
     "research": HOME / "research",
     "compare": HOME / "research" / "compare",
+    "proposals": HOME / "research" / "proposals",
+    "proposal_reviews": HOME / "research" / "proposals" / "reviews",
     "journal": HOME / "journal",
     "reviews": HOME / "journal" / "reviews",
 }

@@ -1980,7 +1980,7 @@ class GuideHit(Strict):
 
 # ---------------- the notebook (notebook.py): briefs, research memos and the decision journal ----------------
 
-NotebookKind = Literal["briefs", "research", "compare", "journal", "reviews"]
+NotebookKind = Literal["briefs", "research", "compare", "proposals", "proposal_reviews", "journal", "reviews"]
 
 
 class JournalMeta(Strict):
@@ -2010,6 +2010,8 @@ class NotebookListing(Strict):
     briefs: list[NotebookEntry]
     research: list[NotebookEntry]
     compare: list[NotebookEntry]
+    proposals: list[NotebookEntry]
+    proposal_reviews: list[NotebookEntry]
     journal: list[NotebookEntry]
     reviews: list[NotebookEntry]
 

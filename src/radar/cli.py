@@ -1293,6 +1293,278 @@ def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months
     typer.echo("Report: reports/redeploy-study.json")
 
 
+@study_app.command("propose")
+def study_propose(tilts: str = typer.Option("momentum,value,mix", help="Tilts to test (momentum, value, mix)"),
+                  ns: str = typer.Option(None, "--ns", help="Basket sizes (default: settings.yaml propose.study_ns)"),
+                  horizons: str = typer.Option(None, help="Horizons in months (default: propose.horizons)"),
+                  since: str = typer.Option(None, "--since", help="First formation date"),
+                  no_regime: bool = typer.Option(False, "--no-regime", help="Skip the split by regime (faster)"),
+                  as_json: bool = typer.Option(False, "--json", help="The full report as JSON")):
+    """The proposal rule (`radar propose`: gates, proposal score, caps, equal weights, costs) at every past
+    month-end, held 3 and 6 months and with the proposal's exits, in DKK against ACWI: the only source of a
+    proposal's modelled excess and one of its drawdown lenses. Value and mix: US stocks only (SEC EDGAR). Writes
+    reports/propose-study.json."""
+    import json
+
+    from . import profile
+    from .backtest import propose_study as ps
+    from .backtest import study
+
+    try:
+        with _job("study") as log:
+            rep = ps.run(profile.Market.load(), [t.strip() for t in tilts.split(",") if t.strip()],
+                         [int(x) for x in ns.split(",")] if ns else None,
+                         [int(x) for x in horizons.split(",")] if horizons else None, since, not no_regime, log)
+            ps.write(rep)
+    except ValueError as e:
+        raise typer.Exit(f"Not studied: {e}")
+    if as_json:
+        typer.echo(json.dumps(rep, indent=1, default=study._json))
+        return
+    u = rep["universe"]
+    typer.echo(f"\n{u['dates']} month-ends, {u['first']} to {u['last']}; costs {rep['cost_bps']} bp each way; holdout from "
+               f"{rep['holdout_from']}; settings {rep['settings_hash']}")
+    for tilt, by_n in rep["results"].items():
+        ic = rep["ic"][tilt]
+        typer.echo(f"\n{tilt}{' (US only)' if rep['us_only'][tilt] else ''}: composite IC with 6 months "
+                   f"{_num(ic['mean'])} (t {_num(ic['t'], '+.1f')}, {ic['dates']} dates)")
+        typer.echo(f"  {'n':>2} {'h':>2}  {'excess':>7} {'t':>5} {'eff N':>5} {'hit':>4}  {'holdout':>7} {'max DD':>7} "
+                   f"{'bad DD':>7}  {'exits':>7} {'vs kept':>7}")
+        for n, by_h in by_n.items():
+            for h, arms in by_h.items():
+                a = (arms["kept"] or {}).get("all") or {}
+                o = (arms["kept"] or {}).get("holdout") or {}
+                x = (arms["exits"] or {}).get("all") or {}
+                typer.echo(f"  {n:>2} {h:>2}  {_pct(a.get('mean')):>7} {_num(a.get('t'), '+.1f'):>5} "
+                           f"{_num(a.get('effective_n'), '.1f'):>5} {_pct(a.get('hit'), False):>4}  {_pct(o.get('mean')):>7} "
+                           f"{_pct(a.get('dd_median')):>7} {_pct(a.get('dd_p10')):>7}  {_pct(x.get('mean')):>7} "
+                           f"{_pct(x.get('vs_kept_mean')):>7}")
+    typer.echo("\nExcess: over ACWI in DKK after costs. Read the effective N: overlapping windows. Caveat: " + rep["caveats"][0])
+    typer.echo("Report: reports/propose-study.json")
+
+
+propose_app = typer.Typer(help="Proposals: a fee-aware basket of new stocks for one of your portfolios, tested against "
+                               "ACWI and the alternatives (analysis, not advice).", no_args_is_help=True)
+app.add_typer(propose_app, name="propose")
+
+
+def parse_amount(text: str) -> float:
+    """50000, 50.000, 50,000, 50k, 1.5m (DKK)."""
+    import re
+
+    t = str(text).strip().lower().replace(" ", "").replace("dkk", "").replace("kr", "")
+    mult = 1.0
+    if t.endswith("k"):
+        mult, t = 1e3, t[:-1]
+    elif t.endswith("m"):
+        mult, t = 1e6, t[:-1]
+    if re.fullmatch(r"\d{1,3}([.,]\d{3})+", t):
+        t = re.sub(r"[.,]", "", t)
+    t = t.replace(",", ".")
+    try:
+        v = float(t) * mult
+    except ValueError:
+        raise typer.BadParameter(f"not an amount: {text}")
+    if v <= 0:
+        raise typer.BadParameter("the amount must be positive")
+    return v
+
+
+def _bp(v) -> str:
+    return "–" if v is None else f"{v:.2%}"
+
+
+def _write_out(text: str, out: str | None) -> None:
+    from pathlib import Path
+
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(text, encoding="utf-8")
+
+
+def _load_picks(path: str) -> dict:
+    import json
+    from pathlib import Path
+
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise typer.Exit(f"Can't read the picks file: {e}")
+
+
+@propose_app.command("candidates")
+def propose_candidates(portfolio: str = typer.Option(..., "--portfolio", help="The portfolio to add to (by name)"),
+                       amount: str = typer.Option(..., "--amount", help="DKK to put in (50000, 50.000, 50k)"),
+                       tilt: str = typer.Option("mix", "--tilt", help="momentum | value | mix"),
+                       mode: str = typer.Option("conviction", "--mode", help="conviction | fill-gaps"),
+                       n: int = typer.Option(None, "--n", help="New names (default: amount ÷ the minimum ticket, capped)"),
+                       weighting: str = typer.Option("equal", "--weighting", help="equal | inverse-vol"),
+                       max_position: float = typer.Option(None, "--max-position", help="Largest position as a share of "
+                                                          "your whole real book (0.1 = 10 %)"),
+                       horizon: int = typer.Option(6, "--horizon", help="Months (3 or 6)"),
+                       no_etf: bool = typer.Option(False, "--no-etf", help="Leave leftover cash as cash"),
+                       top: int = typer.Option(40, "--top", help="Names in the shortlist"),
+                       as_json: bool = typer.Option(False, "--json", help="As JSON (for the skill)"),
+                       out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """The gated, scored shortlist for adding AMOUNT to PORTFOLIO, the rule-only basket sized with the portfolio's
+    fees, and a draft picks file (`draft_picks`) with the standard exit criteria."""
+    import json
+
+    from . import profile
+    from . import propose as pr
+
+    try:
+        rep = pr.candidates(profile.Market.load(), portfolio, parse_amount(amount), tilt, mode, n, weighting,
+                            max_position, not no_etf, horizon, top)
+    except ValueError as e:
+        raise typer.Exit(f"No candidates: {e}")
+    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    _write_out(text, out)
+    if as_json:
+        typer.echo(text)
+        return
+    g = rep["gates"]
+    typer.echo(f"{rep['portfolio']['name']}: {rep['amount']:,.0f} DKK as {rep['n']} names (~{rep['ticket_dkk']:,.0f} each), "
+               f"tilt {rep['tilt']}, {rep['mode']}; regime {rep['regime'] or '–'}")
+    typer.echo(f"Pool {g['pool']}, {g['kept']} pass the gates: "
+               + ", ".join(f"{k} {v['count']}" for k, v in g["excluded"].items()))
+    for note in rep["notes"]:
+        typer.echo(f"Note: {note}")
+    typer.echo(f"\n{'':<10} {'score':>5} {'mom':>4} {'K+V':>4} {'3m':>7} {'6m':>7} {'vol':>5} {'corr':>5}  sector / region  rule")
+    for r in rep["shortlist"]:
+        typer.echo(f"{r['ticker']:<10} {_num(r['composite'], '.0f'):>5} {_num(r['momentum_score'], '.0f'):>4} "
+                   f"{_num(r['qv'], '.0f'):>4} {_pct(r['r3m']):>7} {_pct(r['r6m']):>7} {_pct(r['vol'], False):>5} "
+                   f"{_num(r['corr_book'], '.2f'):>5}  {r['sector']} / {r['region']}  "
+                   f"{'*' if r['in_rule_basket'] else (r['passed_over'] or '')}")
+    sz = rep["rule_basket"]["size"]
+    typer.echo(f"\nRule basket: {', '.join(x['ticker'] for x in rep['rule_basket']['picks'])}; invested "
+               f"{sz['invested_dkk']:,.0f} DKK, round-trip costs {_bp(sz['roundtrip_pct'])}, leftover "
+               f"{sz['leftover_dkk']:,.0f} DKK")
+
+
+@propose_app.command("freeze")
+def propose_freeze(picks_file: str = typer.Argument(..., help="A picks file (the draft from `candidates`, edited)")):
+    """Stamp a picks file as frozen and store it in exports/proposals/ (before `evaluate`, so the picks are fixed
+    before the model's numbers are seen). Prints the stored file's path."""
+    from . import propose as pr
+
+    try:
+        f = pr.save_picks(_load_picks(picks_file))
+    except ValueError as e:
+        raise typer.Exit(f"Not frozen: {e}")
+    typer.echo(f)
+
+
+@propose_app.command("evaluate")
+def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks file (exports/proposals/…)"),
+                     max_position: float = typer.Option(None, "--max-position", help="Largest position as a share of "
+                                                        "your whole real book (default: the picks file's)"),
+                     tolerance: float = typer.Option(None, "--tolerance", help="The largest drawdown you accept "
+                                                     "(0.25 = 25 %): part of the decision rule"),
+                     light: bool = typer.Option(False, "--light", help="Skip the alternatives (faster)"),
+                     as_json: bool = typer.Option(False, "--json", help="As JSON (for the skill)"),
+                     out: str = typer.Option(None, "--out", help="Also write the JSON here")):
+    """Sizing, constraints, exposures before and after vs ACWI, risk, the drawdown three ways, the modelled
+    return from the rule study, the alternatives A0-A6 and the decision rule. Saved next to the picks file as
+    <name>-evaluation.json (review and check read it)."""
+    import json
+    from pathlib import Path
+
+    from . import profile
+    from . import propose as pr
+
+    doc = _load_picks(picks_file)
+    if not (doc.get("meta") or {}).get("frozen_at"):
+        raise typer.Exit("Freeze the picks first: radar propose freeze FILE (the picks are fixed before the numbers)")
+    try:
+        rep = pr.evaluate(profile.Market.load(), doc, max_position, tolerance, light=light)
+    except ValueError as e:
+        raise typer.Exit(f"Not evaluated: {e}")
+    if Path(picks_file).resolve().parent == Path(pr.PROPOSALS).resolve():
+        pr.save_evaluation(Path(picks_file).name, rep)
+    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    _write_out(text, out)
+    if as_json:
+        typer.echo(text)
+        return
+    d, mo, dd = rep["decision"], rep["model"], rep["drawdown"]
+    typer.echo(f"Verdict: {d['verdict']} ({d['why']})")
+    for c in rep["constraints"]:
+        typer.echo(f"  {'ok ' if c['ok'] else 'NO '} {c['check']}: {c['detail']}")
+    b = mo["bootstrap"] or {}
+    typer.echo(f"Modelled {mo['horizon']}M excess vs ACWI after costs: {_pct(mo['drift_net'])} "
+               f"(band {_pct((b.get('excess') or {}).get('p10'))} to {_pct((b.get('excess') or {}).get('p90'))}, "
+               f"P(beat) {_pct(b.get('p_beat'), False)}); costs {_bp(mo['cost_pct'])}")
+    typer.echo(f"Max drawdown: expected {_pct(dd['expected'])}, bad case {_pct(dd['bad_case'])}")
+    for k, a in rep["alternatives"].items():
+        if "risk" in a:
+            typer.echo(f"  {k:<12} {a['label'][:44]:<45} net {_pct(a['drift_net']):>7}  vol {_pct(a['risk']['vol_ann'], False):>5} "
+                       f"TE {_pct(a['risk']['te_ann'], False):>5}  DD {_pct(((a['bootstrap'] or {}).get('max_dd') or {}).get('median')):>7}")
+
+
+@propose_app.command("shadow")
+def propose_shadow(picks_file: str = typer.Argument(..., help="A frozen picks file"),
+                   name: str = typer.Option(..., "--name", help="The shadow portfolio's name (also '<name> · ACWI' and "
+                                                                "'<name> · rule')")):
+    """Virtual copies of the portfolio plus the amount: the proposal, ACWI and the rule-only basket, bought at the
+    latest close (tags proposal, proposal-<date>). Never a real portfolio."""
+    from . import profile
+    from . import propose as pr
+
+    try:
+        res = pr.shadow(profile.Market.load(), _load_picks(picks_file), name)
+    except ValueError as e:
+        raise typer.Exit(f"No shadow: {e}")
+    typer.echo("Created: " + ", ".join(res["names"].values()))
+    typer.echo(f"Returns page: {res['returns_link']}  (or radar performance --tag {res['tags'][1]})")
+
+
+@propose_app.command("review")
+def propose_review(as_json: bool = typer.Option(False, "--json", help="As JSON (for the skill)")):
+    """Every frozen proposal since its day: return vs ACWI and vs its rule basket, its drawdown against the
+    modelled band, and what the trend exit would have done."""
+    import json
+
+    from . import profile
+    from . import propose as pr
+
+    rep = pr.review(profile.Market.load())
+    if as_json:
+        typer.echo(json.dumps(rep, indent=1, ensure_ascii=False, default=str))
+        return
+    for r in rep["proposals"]:
+        typer.echo(f"{r['date']} {r['portfolio']:<14} {r.get('tilt') or '':<8} ret {_pct(r.get('ret')):>7} vs ACWI "
+                   f"{_pct(r.get('excess')):>7}  vs rule {_pct(r.get('judgment_vs_rule')):>7}  DD {_pct(r.get('max_dd')):>7}"
+                   f"  in band {r.get('dd_inside_band')}")
+    if rep["note"]:
+        typer.echo(rep["note"])
+
+
+@propose_app.command("check")
+def propose_check(portfolio: str = typer.Option(None, "--portfolio", help="Only proposals for this portfolio"),
+                  as_json: bool = typer.Option(False, "--json", help="As JSON (for the skills)")):
+    """Each open proposal's exit criteria today (review level, signal exit, thesis checks, time stop, basket
+    drawdown): Intact, Weakening or Triggered, with the evidence."""
+    import json
+
+    from . import profile
+    from . import propose as pr
+
+    rep = pr.check(profile.Market.load(), portfolio)
+    if as_json:
+        typer.echo(json.dumps(rep, indent=1, ensure_ascii=False, default=str))
+        return
+    for pp in rep["proposals"]:
+        typer.echo(f"\n{pp['date']} {pp['portfolio']}"
+                   + (f"  (older rule: {'; '.join(pp['older_rule'])})" if pp["older_rule"] else ""))
+        for x in pp["names"]:
+            ev = "; ".join(f"{i['criterion']}: {i['status']}" for i in x["items"])
+            typer.echo(f"  {x['ticker']:<10} {x['status']:<10} {ev}")
+        b = pp["basket"]
+        if b.get("status"):
+            typer.echo(f"  basket drawdown {_pct(b['max_dd'])} vs bad case {_pct(b['bad_case'])}: {b['status']}")
+
+
 fundamentals_app = typer.Typer(help="Financial statements: SEC EDGAR (US) and Yahoo (all tracked stocks).",
                                no_args_is_help=True)
 app.add_typer(fundamentals_app, name="fundamentals")
