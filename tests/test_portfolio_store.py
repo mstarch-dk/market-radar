@@ -97,3 +97,16 @@ def test_accounts_are_seeded_as_portfolios_and_renames_carry_the_transactions(tm
 def test_without_any_data_nothing_is_created(tmp_data):
     assert universe.transactions().empty and universe.holdings().empty
     assert not (tmp_data / "userdata").exists()
+
+
+def test_undoing_an_import_that_replaced_rows_is_refused_with_its_backup(tmp_data):
+    import pytest
+    first = userstore.add_import([_tx("Y", "2026-01-05", "BUY", 1, 10)], "yahoo", replace_source=True)
+    second = userstore.add_import([_tx("Z", "2026-01-06", "BUY", 1, 10)], "yahoo", replace_source=True)
+    rec = {i["id"]: i for i in userstore.imports()}[second["id"]]
+    assert rec["rows_replaced"] == 1 and rec["backup"].startswith("radar-") and "before-yahoo-import" in rec["backup"]
+    with pytest.raises(ValueError, match="replaced 1") as e:
+        userstore.undo_import(second["id"])           # would leave Y gone and Z gone: neither file's state
+    assert rec["backup"] in str(e.value)
+    assert sorted(t["symbol"] for t in userstore.transactions()) == ["Z"]      # nothing changed
+    assert userstore.undo_import(first["id"]) == 0    # an import that replaced nothing can still be undone

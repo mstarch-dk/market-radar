@@ -112,6 +112,8 @@ En Yahoo-eksport er et øjebliksbillede af hele porteføljen og erstatter derfor
 
 Under *Past imports* står hver import med tidspunkt, kilde, fil og antal rækker. *Undo* fjerner alle rækker, importen tilføjede. Radaren tager en sikkerhedskopi af databasen i `backups/` i datamappen før hver import og hver fortrydelse.
 
+En Yahoo-import, der erstattede en tidligere, kan ikke fortrydes med *Undo*: det ville fjerne de nye rækker uden at bringe de gamle tilbage. Der står i stedet *replaced N*, og holder du musen over, ser du navnet på kopien af databasen, der blev taget lige før importen. Gendan den kopi, eller importér den tidligere fil igen.
+
 ## Den hurtige Yahoo-import
 
 På siden [Holdings & watchlist](/me) og på velkomstsiden ligger en kortere vej: *Choose the exported CSV file* indlæser en Yahoo Finance-eksport direkte, med beholdninger, solgte positioner og watchlist-navne. Den erstatter den forrige Yahoo-import, og dine watchlist-ændringer i appen bevares. Kurser for nye navne hentes ved næste opdatering.

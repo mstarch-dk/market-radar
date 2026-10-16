@@ -25,6 +25,7 @@ import json
 import sqlite3
 from contextlib import closing
 from datetime import datetime
+from pathlib import Path
 
 from .paths import USERDATA
 
@@ -168,6 +169,9 @@ MIGRATIONS = [
      "CREATE INDEX tx_portfolio_date ON transactions (portfolio_id, date)",
      "DROP TABLE accounts"),
     "ALTER TABLE imports ADD COLUMN portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE SET NULL",
+    # what a snapshot import replaced, and the copy taken before it: undoing it can't bring those rows back
+    ("ALTER TABLE imports ADD COLUMN rows_replaced INTEGER NOT NULL DEFAULT 0",
+     "ALTER TABLE imports ADD COLUMN backup TEXT"),
 ]
 
 
@@ -657,7 +661,7 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
     date, type, quantity and price) are skipped: in any real portfolio when importing into a real one, so trades
     moved to another account aren't imported twice; in the target only when importing into a virtual one. `replace_source` first removes the target's earlier rows from this source
     (for a snapshot export such as Yahoo's, which always contains the full history). A backup is taken first."""
-    backup(f"before-{source}-import")
+    copy = backup(f"before-{source}-import")
     with closing(_connect()) as con, con:
         target = _target(con, {}, portfolio_id)
         replaced = con.execute("DELETE FROM transactions WHERE source = ? AND portfolio_id = ?",
@@ -668,8 +672,9 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
             "(SELECT mode FROM portfolios WHERE id = ?) = 'real')", (target, target))]
         keys = {_key(r) for r in existing}
         refs = {r["ext_ref"] for r in existing if r["ext_ref"]}
-        imp = con.execute("INSERT INTO imports (source, file_name, at, portfolio_id) VALUES (?, ?, ?, ?)",
-                          (source, file_name, _now(), target)).lastrowid
+        imp = con.execute("INSERT INTO imports (source, file_name, at, portfolio_id, rows_replaced, backup) "
+                          "VALUES (?, ?, ?, ?, ?, ?)",
+                          (source, file_name, _now(), target, replaced, Path(copy).name if copy else None)).lastrowid
         added = skipped = 0
         for r in rows:
             if (r.get("ext_ref") and r["ext_ref"] in refs) or _key(r) in keys:
@@ -696,7 +701,16 @@ def imports() -> list[dict]:
 
 
 def undo_import(import_id: int) -> int:
-    """Remove every transaction an import added (a backup is taken first). Returns the number removed."""
+    """Remove every transaction an import added (a backup is taken first). Returns the number removed. An import
+    that replaced earlier rows (a snapshot such as Yahoo's) is refused: removing its rows wouldn't bring back the
+    ones it replaced, so the way back is the copy of the database taken before it."""
+    with closing(_connect()) as con:
+        imp = con.execute("SELECT rows_replaced, backup, at FROM imports WHERE id = ?", (import_id,)).fetchone()
+    if imp and imp["rows_replaced"]:
+        raise ValueError(f"This import replaced {imp['rows_replaced']} earlier rows, which undoing it can't bring "
+                         f"back. Restore the copy taken just before it instead: {imp['backup'] or 'see backups/'} "
+                         "(in backups/ in the data folder; the newest copies are kept), or import the earlier file "
+                         "again.")
     backup(f"before-undo-import-{import_id}")
     with closing(_connect()) as con, con:
         n = con.execute("DELETE FROM transactions WHERE import_id = ?", (import_id,)).rowcount

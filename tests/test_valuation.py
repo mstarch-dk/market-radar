@@ -300,3 +300,12 @@ def test_ecb_series_without_values_is_refused_before_anything_is_written(tmp_dat
     with pytest.raises(ValueError):
         external.update_ecb()
     assert external.ECB_FILE.read_bytes() == before
+
+
+def test_the_earnings_date_is_the_exchanges_own_day():
+    ts = pd.Timestamp("2026-11-04 23:30", tz="UTC").timestamp()      # 08:30 on 5 Nov in Tokyo
+    q = {"symbol": "7203.T", "quoteType": "EQUITY", "currency": "JPY", "regularMarketPrice": 3000.0,
+         "earningsTimestamp": ts, "exchangeTimezoneName": "Asia/Tokyo"}
+    assert valuation.quote_valuation(q, {"JPY": 0.045})["earnings_date"] == "2026-11-05"
+    assert valuation.quote_valuation({k: v for k, v in q.items() if k != "exchangeTimezoneName"},
+                                     {"JPY": 0.045})["earnings_date"] == "2026-11-04"     # no zone given: UTC's day

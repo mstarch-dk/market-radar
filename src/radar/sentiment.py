@@ -86,6 +86,9 @@ def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str
 
 def parse_aaii(content: bytes, min_rows: int = 1000) -> pd.DataFrame:
     """AAII's sentiment.xls: weekly bullish / neutral / bearish shares (fractions) since 1987."""
+    if content.lstrip()[:15].lower().startswith((b"<!doctype html", b"<html")):
+        raise ValueError("AAII answered with a web page, not the spreadsheet (a bot check after many requests?): "
+                         "try again later")
     raw = pd.read_excel(io.BytesIO(content), sheet_name="SENTIMENT", header=None)
     head = None
     for i in range(min(10, len(raw))):

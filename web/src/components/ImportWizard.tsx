@@ -227,12 +227,16 @@ export function ImportsList() {
             <tr key={i.id}>
               <td className="l">{i.at.replace("T", " ").slice(0, 16)}</td><td className="l">{i.source}</td>
               <td className="l small">{i.file_name ?? "–"}</td><td>{i.rows_added}</td><td>{i.rows_now}</td>
-              <td>{i.rows_now > 0 && <button type="button" className="linkish small neg" disabled={undo.isPending}
+              <td>{(i.rows_replaced ?? 0) > 0
+                ? <span className="muted small" title={`Undo can't bring back the ${i.rows_replaced} rows this import replaced. Restore the copy taken before it: ${i.backup ?? "backups/"} (in backups/ in the data folder).`}>
+                    replaced {i.rows_replaced}: restore {i.backup ? "its backup" : "a backup"}</span>
+                : i.rows_now > 0 && <button type="button" className="linkish small neg" disabled={undo.isPending}
                 onClick={() => { if (window.confirm(`Undo this import? Its ${i.rows_now} trades will be removed (a backup is kept).`)) undo.mutate(i.id); }}>Undo</button>}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {undo.error && <p className="error">{undo.error.message}</p>}
     </div>
   );
 }
