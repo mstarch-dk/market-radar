@@ -88,6 +88,8 @@ def _fmt(v, how: str | None) -> str:
         return s if how == "raw" else s.replace(".", ",")
     if isinstance(v, (list, tuple)):
         return ", ".join(_fmt(x, how) for x in v)
+    if isinstance(v, int) and abs(v) >= 10_000 and how != "raw":
+        return f"{v:,}".replace(",", ".")              # Danish thousands: 10.000
     return str(v)
 
 

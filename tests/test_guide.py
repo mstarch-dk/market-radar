@@ -87,6 +87,8 @@ def test_placeholders_format_danish():
     assert guide.fill("{{settings:regime.rates_shock}}") == "0,5"
     assert guide.fill("{{settings:regime.rates_shock|raw}}") == "0.5"
     assert guide.fill("{{settings:regime.oil_shock|pct}}") == "30 %"
+    assert guide.fill("{{settings:propose.min_ticket_dkk}}") == "10.000"
+    assert guide.fill("{{settings:propose.min_ticket_dkk|raw}}") == "10000"
     with pytest.raises(KeyError):
         guide.fill("{{settings:regime.nope}}")
 

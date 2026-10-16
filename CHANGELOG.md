@@ -62,6 +62,17 @@ Your data now lives apart from the program, so a new version never touches it.
   `settings.yaml`), the market pages show a *Rebuild the readings* banner (also on the Data page; `POST
   /api/report`). A dashboard built by an older version is rebuilt when the app starts, instead of answering 503.
   One build at a time across the app and a terminal (`report.lock`).
+- **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a
+  fee-aware basket of new stocks for one portfolio (momentum, value or a mix; at least
+  `propose.min_ticket_dkk` per name), picked by a pre-registered proposal score under caps on the portfolio after
+  the addition (sector, region and currency vs ACWI's own weights, correlation, position size), frozen before the
+  numbers are seen, and evaluated against ACWI, the rule-only basket, other tilts, the basket-size frontier,
+  topping up, sector ETFs and random baskets. The expected excess comes only from the rule study (`radar study
+  propose` → `reports/propose-study.json`); the drawdown three ways (study, vol-scaled block bootstrap, stress
+  windows); a decision rule fixed beforehand. Exit criteria per pick, re-checked by `radar propose check` (used by
+  `/journal review` and `/market-brief`); `radar propose shadow` / `review` track proposals against ACWI.
+- New source: iShares MSCI ACWI UCITS holdings (ACWI's sector, region and currency weights), cached monthly.
+- The Notebook lists proposals; guide placeholders show large numbers with Danish thousands (10.000).
 - Linux start script `start-market-radar.sh`.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the

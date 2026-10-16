@@ -106,8 +106,8 @@ works too, but leaves the history behind.)
 
 ## Optional: Claude Code skills
 
-If you use [Claude Code](https://claude.com/claude-code), open this folder in it and you get four commands that
-use the radar's data:
+If you use [Claude Code](https://claude.com/claude-code), open this folder in it and you get commands that use the
+radar's data:
 
 | Command | What you get |
 |---|---|
@@ -115,6 +115,7 @@ use the radar's data:
 | `/research NOVO-B.CO` | A research memo on one stock or ETF: thesis, momentum context, valuation, risks, what would prove it wrong |
 | `/compare NVDA AMD MU` | An honest side-by-side, including whether any of them beats just owning the world index |
 | `/journal buy RHM.DE …` / `/journal review` | A decision journal with exit rules, and a monthly review of open decisions |
+| `/propose-portfolio ASK 50000` | A fee-aware basket of new stocks for one of your portfolios (momentum, value or a mix), tested against ACWI and the alternatives, with an expected drawdown and exit criteria per pick |
 
 First copy `investor.example.md` to `notes/investor.md` in your data folder and fill it in (your accounts, e.g.
 aktiesparekonto and frie midler, your horizon and limits), so the skills fit you. The skills find the data folder

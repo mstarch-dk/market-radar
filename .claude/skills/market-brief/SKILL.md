@@ -94,6 +94,7 @@ Only when the user has active views. One line per view (highest conviction first
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)
+- Proposals (`/propose-portfolio`): run `uv run radar propose check --json`; list each pick whose status is Triggered (and Weakening ones in one line), with the criterion and its value, as a reason to review, not a trade. Skip the line when there are no open proposals.
 - The score's paper trail (`picks-live`): one line on how the monthly top-15 baskets have done so far against ACWI and the equal-weight universe (`return_dkk`, `yardsticks`), and their mean percentile among random baskets. Only once at least three baskets are 3 months old; until then just say how many there are.
 
 ## Research-kø
