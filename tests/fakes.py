@@ -2,7 +2,8 @@
 
 - `serve(monkeypatch, {pattern: answer})`: what `net.get` gets back, by URL. Requests still go through `net.get`
   (limits, retries, the operations log); an answer is a `Resp`, an exception (raised) or a callable(url).
-- `FakeYf`: the parts of yfinance the radar uses, installed with `fake_yf(monkeypatch, ...)`.
+- `FakeYf`: the parts of yfinance the radar uses, installed with `fake_yf(monkeypatch, ...)`; `statements(…)`
+  reads the captured Yahoo statement frames.
 - `stored(path)`: rows and first/last date per key of a stored file, for "never shrinks" checks.
 """
 from __future__ import annotations
@@ -67,8 +68,9 @@ class FakeYf:
     `download` is a callable(tickers, start) returning a frame shaped like yf.download's."""
 
     def __init__(self, info: dict | None = None, funds: dict | None = None, fast: dict | None = None,
-                 download=None):
+                 download=None, statements: dict | None = None):
         self.info, self.funds, self.fast, self._download = info or {}, funds or {}, fast or {}, download
+        self.statements = statements or {}    # ticker -> {"income yearly": DataFrame, …} or an exception
         self.asked: list[tuple[str, str]] = []
 
     def _answer(self, table: dict, kind: str, t: str):
@@ -93,11 +95,31 @@ class FakeYf:
             @property
             def fast_info(self):
                 return fake._answer(fake.fast, "fast", t) or {}
+
+            def _statement(self, kind, freq):
+                blocks = fake._answer(fake.statements, f"{kind} {freq}", t) or {}
+                return blocks.get(f"{kind} {freq}", pd.DataFrame())
+
+            def get_income_stmt(self, freq="yearly"):
+                return self._statement("income", freq)
+
+            def get_cash_flow(self, freq="yearly"):
+                return self._statement("cash", freq)
+
+            def get_balance_sheet(self, freq="yearly"):
+                return self._statement("balance", freq)
         return _T()
 
     def download(self, tickers, start=None, **kw):
         self.asked.append(("download", ",".join(tickers if isinstance(tickers, list) else [tickers])))
         return self._download(tickers, start) if self._download else pd.DataFrame()
+
+
+def statements(ticker: str) -> dict[str, pd.DataFrame]:
+    """The captured Yahoo statements of AAPL or RR.L (tests/fixtures/yahoo_statements.json) as yfinance frames."""
+    js = _json.loads((Path(__file__).parent / "fixtures" / "yahoo_statements.json").read_text(encoding="utf-8"))
+    return {k: pd.DataFrame(v["data"], index=v["index"], columns=pd.to_datetime(v["columns"]).tz_localize(None))
+            for k, v in js[ticker].items()}
 
 
 def fake_yf(monkeypatch, **kw) -> FakeYf:

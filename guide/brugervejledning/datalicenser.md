@@ -26,7 +26,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 
 | Kilde | Bruges til | Personlig brug | Hosting eller videregivelse |
 |---|---|---|---|
-| **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser (historik fra før din første handel), tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
+| **Yahoo Finance** (via det uofficielle bibliotek `yfinance`) | Alle kurser (historik fra før din første handel), tickerdetaljer, analytikerestimater, screener (*Discover* og værdiansættelse), fonddata, regnskaber (resultatopgørelse, pengestrøm, balance), søgning | Ja | **Nej.** Kun personlig, ikke-kommerciel brug; Yahoo licenserer selv data fra børser og dataleverandører |
 | **FactSet** Earnings Insight (offentlig PDF) | Forward P/E, yield gap | Ja | **Nej.** Ophavsretligt beskyttet analyse |
 | **State Street (SSGA)**, SPY-beholdninger | S&P 500-medlemmer | Ja | **Nej.** Indeksmedlemmer tilhører S&P Dow Jones Indices |
 | **iShares (BlackRock)**, fondsbeholdninger | ETF-gennemsyn, *Discover*-universet (medlemmerne af STOXX Europe 600 og S&P 500) | Ja | **Nej.** Indeksmedlemmer tilhører indeksudbyderne (MSCI, STOXX, S&P Dow Jones Indices m.fl.) |
@@ -39,6 +39,7 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **ECB Data Portal** | Euroområdets renter | Ja | Ja, med kildeangivelse |
 | **OECD** | Ledende indikatorer (CLI) | Ja | Ja, med kildeangivelse (CC BY 4.0) |
 | **CFTC** | Futurespositionering (COT) | Ja | Ja (offentligt amerikansk data) |
+| **SEC EDGAR** (XBRL company facts) | Amerikanske selskabers regnskaber fra 10-K og 10-Q, med indleveringsdato | Ja | Ja (offentligt amerikansk data). SEC beder om højst 10 forespørgsler i sekundet og en kontakt-e-mail i hver forespørgsel, som du selv angiver på siden *Data* |
 | **SKAT**, positivlisten | Positivliste-status | Ja | Ja (offentlige danske data) |
 
 Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på MSCI's egne indeksdata. "MSCI" og "ACWI" er MSCI's varemærker. Market Radar er hverken tilknyttet eller godkendt af MSCI eller af nogen anden kilde i tabellen.

@@ -12,15 +12,18 @@ until it is removed, so the table can't silently fall behind the code.
 from __future__ import annotations
 
 import io
+import json
 from datetime import date, timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from fakes import Resp, fake_yf, never_shrank, serve, stored
-from radar import external, ingest, sentiment, valuation
+from fakes import Resp, fake_yf, never_shrank, serve, statements, stored
+from radar import external, ingest, sentiment, universe, valuation
 from radar.discovery import scan
+from radar.fundamentals import edgar, store, yahoo
 
 TODAY = date(2026, 10, 15)          # a Thursday
 MODES = ("error", "empty", "short", "missing")
@@ -275,7 +278,62 @@ class DiscoveryPrices(Source):
         scan.update_prices(self.NAMES, log=lambda m: None, sleep=lambda s: None, today=TODAY)
 
 
-SOURCES = [Fred(), Oecd(), Ecb(), Aaii(), Cape(), Erp(), Etfs(), Prices(), DiscoveryPrices()]
+AAPL_FACTS = Path(__file__).parent / "fixtures" / "edgar_companyfacts_aapl.json"
+SEC_TICKERS = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple"},
+               "1": {"cik_str": 789019, "ticker": "MSFT", "title": "Microsoft"}}
+
+
+class Edgar(Source):
+    file = store.EDGAR_FILE
+    measure = {"key": "ticker", "date": "end"}
+
+    def _serve(self, mp, aapl):
+        mp.setattr(universe, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
+        mp.setattr(valuation, "tracked_stocks", lambda: ["AAPL", "MSFT"])
+        serve(mp, {"company_tickers": Resp(json=SEC_TICKERS), "0000320193": aapl})
+
+    def good(self, mp):
+        edgar.set_contact("someone@example.com")
+        self._serve(mp, Resp(text=AAPL_FACTS.read_text(encoding="utf-8")))
+        edgar.update_edgar(today=TODAY)
+
+    def bad(self, mp, mode):
+        js = json.loads(AAPL_FACTS.read_text(encoding="utf-8"))
+        if mode == "short":       # the latest 10-Q is missing from the answer
+            for node in js["facts"]["us-gaap"].values():
+                for u in node["units"]:
+                    node["units"][u] = [r for r in node["units"][u] if r["end"] < "2026-06-01"]
+        answer = {"error": Resp(500), "empty": Resp(json={"cik": 320193, "facts": {}}), "short": Resp(json=js),
+                  "missing": Resp(404)}[mode]
+        self._serve(mp, answer)
+        edgar.update_edgar(today=TODAY, force=True)
+
+
+class YahooStatements(Source):
+    file = store.YAHOO_FILE
+    measure = {"key": "ticker", "date": "end"}
+    NAMES = ["AAPL", "RR.L"]
+
+    def _install(self, mp, answers):
+        mp.setattr(valuation, "tracked_stocks", lambda: list(self.NAMES))
+        fake_yf(mp, statements=answers)
+
+    def good(self, mp):
+        self._install(mp, {t: statements(t) for t in self.NAMES})
+        yahoo.update_yahoo(today=TODAY)
+
+    def bad(self, mp, mode):
+        aapl = statements("AAPL")
+        answers = {"error": {t: RuntimeError("Yahoo") for t in self.NAMES},
+                   "empty": {t: {} for t in self.NAMES},
+                   "short": {"AAPL": {k: v.iloc[:, :1] for k, v in aapl.items()}, "RR.L": {}},
+                   "missing": {"AAPL": aapl, "RR.L": RuntimeError("404")}}[mode]
+        self._install(mp, answers)
+        yahoo.update_yahoo(today=TODAY, force=True)
+
+
+SOURCES = [Fred(), Oecd(), Ecb(), Aaii(), Cape(), Erp(), Etfs(), Prices(), DiscoveryPrices(), Edgar(),
+           YahooStatements()]
 CASES = [pytest.param(s, m, id=f"{type(s).__name__}-{m}",
                       marks=[pytest.mark.xfail(strict=True, reason=s.gaps[m])] if m in s.gaps else [])
          for s in SOURCES for m in s.modes]

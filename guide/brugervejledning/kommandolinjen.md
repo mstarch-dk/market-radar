@@ -39,6 +39,7 @@ Er der endnu ikke valgt en datamappe, mangler den, eller er dataene skrevet af e
 | `radar discover` | Den separate Discover-scanning (nordiske og europæiske aktier, S&P 500, ETF'er fra positivlisten) |
 | `radar doctor` | Sundhedstjekket |
 | `radar ops` | Driftsloggen: forespørgsler, fejl og pauser |
+| `radar fundamentals` | Selskabernes regnskaber: hent, vis og tjek dem, og angiv kontakten til SEC |
 
 ### radar run, update og report
 
@@ -80,6 +81,19 @@ uv run radar ops --errors                    # også de seneste fejlhændelser
 ```
 
 Se [Drift: forespørgsler, fejl og pauser](brugervejledning/drift).
+
+### radar fundamentals
+
+```
+uv run radar fundamentals contact din@mail.dk     # kontakten, SEC beder om (ellers kun Yahoo for USA)
+uv run radar fundamentals update                  # hent de selskaber, der står for tur
+uv run radar fundamentals update AAPL NOVO-B.CO   # kun disse
+uv run radar fundamentals update --all            # alle på én gang (tager et stykke tid)
+uv run radar fundamentals show AAPL               # hvad der er gemt, og hvordan de seneste 12 måneder er regnet
+uv run radar fundamentals check                   # EDGAR mod Yahoo for amerikanske selskaber
+```
+
+`radar update` henter selv de selskaber, der står for tur. Se [Regnskaber](brugervejledning/data-og-daekning#regnskaber).
 
 ## Appen
 

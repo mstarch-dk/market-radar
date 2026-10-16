@@ -33,7 +33,7 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 
 | Source | Used for | Terms in brief | Personal use | Hosting or redistribution |
 |---|---|---|---|---|
-| **Yahoo Finance** (via the unofficial [`yfinance`](https://github.com/ranaroussi/yfinance) library) | All prices (history from before your first trade), ticker detail, analyst estimates, screener (Discover and valuation snapshots), fund data, symbol search | [Yahoo Terms of Service](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html): personal, non-commercial use only. Yahoo itself licenses the data from exchanges and data vendors. `yfinance` is not affiliated with Yahoo and is meant for personal use. | Yes | **No** |
+| **Yahoo Finance** (via the unofficial [`yfinance`](https://github.com/ranaroussi/yfinance) library) | All prices (history from before your first trade), ticker detail, analyst estimates, screener (Discover and valuation snapshots), fund data, financial statements (income statement, cash flow, balance sheet), symbol search | [Yahoo Terms of Service](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html): personal, non-commercial use only. Yahoo itself licenses the data from exchanges and data vendors. `yfinance` is not affiliated with Yahoo and is meant for personal use. | Yes | **No** |
 | **FactSet** Earnings Insight (public PDF) | Forward P/E, yield gap | Copyrighted research FactSet publishes for reading. | Yes | **No** |
 | **State Street (SSGA)** SPY holdings | S&P 500 constituents | Fund-site terms; constituents belong to S&P Dow Jones Indices. | Yes | **No** |
 | **iShares (BlackRock)** fund holdings | ETF look-through, Discover universe (STOXX Europe 600 members via EXSA, S&P 500 members via CSPX) | Fund-site terms; index constituents belong to the index providers (MSCI, STOXX, S&P Dow Jones Indices and others). | Yes | **No** |
@@ -46,6 +46,7 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 | **ECB Data Portal** | Euro-area yields and rates | [ECB reuse policy](https://www.ecb.europa.eu/services/disclaimer/html/index.en.html): reuse allowed with attribution. | Yes | Yes, with attribution |
 | **OECD** | Composite leading indicators | [CC BY 4.0](https://www.oecd.org/en/about/terms-conditions.html). | Yes | Yes, with attribution |
 | **CFTC** | Commitments of Traders (futures positioning) | US government data, public domain. | Yes | Yes |
+| **SEC EDGAR** (XBRL company facts) | US companies' financial statements from their 10-K and 10-Q filings, with filing dates | US government data, public domain. SEC's [fair-access policy](https://www.sec.gov/os/accessing-edgar-data) asks automated clients for at most 10 requests a second and a User-Agent naming a contact, which you enter yourself (Data page). | Yes | Yes (no implied endorsement by SEC) |
 | **SKAT** positive list (you download it into `imports/`) | UCITS / positive-list flag | Danish public-sector data. | Yes | Yes |
 
 **MSCI ACWI**: the radar uses the iShares MSCI ACWI ETF's prices (from Yahoo), not MSCI's index data. "MSCI"
