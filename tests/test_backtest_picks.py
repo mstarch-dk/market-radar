@@ -11,6 +11,7 @@ import world
 from radar import performance, profile, userstore
 from radar.backtest import picks, study
 from radar.config import settings
+from radar.userstore import viewstore
 from world import IDX, N
 
 D = 260                                     # the score needs 12-1-month momentum: about 252 bars of history
@@ -113,9 +114,9 @@ def test_asof_specs(market):
 
 
 def test_views_are_only_those_created_by_the_day(market):
-    old = userstore.save_view({"statement": "Tech leads", "conviction": 4, "created_at": day(100),
+    old = viewstore.save_view({"statement": "Tech leads", "conviction": 4, "created_at": day(100),
                                "exposures": [{"kind": "sector", "key": "Technology", "effect": 1}]})
-    userstore.save_view({"statement": "New view", "exposures": [{"kind": "sector", "key": "Technology", "effect": -1}]})
+    viewstore.save_view({"statement": "New view", "exposures": [{"kind": "sector", "key": "Technology", "effect": -1}]})
     rep = picks.candidates(market, day(), views=True)
     assert [v["id"] for v in rep["views"]] == [old]
     assert all(c["views"] is None or c["views"]["views"] == [old] for c in rep["candidates"])

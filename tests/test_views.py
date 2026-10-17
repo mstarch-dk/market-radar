@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 import world
 from radar import api, api_models, ingest, market_views, profile, universe, userstore
 from radar.signals import views as sv
+from radar.userstore import viewstore
 
 CFG = {"theme_corr": 0.5, "min_weeks": 26, "thresholds": {"aligned": 0.35}}
 AI_BUBBLE = {"statement": "AI is in a bubble", "conviction": 4, "horizon": "12m",
@@ -20,20 +21,20 @@ AI_BUBBLE = {"statement": "AI is in a bubble", "conviction": 4, "horizon": "12m"
 # ---------------- store ----------------
 
 def test_views_are_added_edited_deleted_and_restored(tmp_data):
-    assert userstore.views() == [] and not (tmp_data / "userdata" / userstore.DB_NAME).exists()  # reading creates nothing
-    vid = userstore.save_view(AI_BUBBLE)
-    v = userstore.get_view(vid)
+    assert viewstore.views() == [] and not (tmp_data / "userdata" / userstore.DB_NAME).exists()  # reading creates nothing
+    vid = viewstore.save_view(AI_BUBBLE)
+    v = viewstore.get_view(vid)
     assert v["status"] == "active" and len(v["exposures"]) == 3 and v["indicators"][0]["indicator"] == "semis"
-    userstore.save_view({**AI_BUBBLE, "conviction": 2, "exposures": [], "status": "archived"}, vid)
-    v2 = userstore.get_view(vid)
+    viewstore.save_view({**AI_BUBBLE, "conviction": 2, "exposures": [], "status": "archived"}, vid)
+    v2 = viewstore.get_view(vid)
     assert v2["conviction"] == 2 and v2["exposures"] == [] and v2["status"] == "archived"
-    assert userstore.views("active") == []
-    gone = userstore.delete_view(vid)
-    assert userstore.views() == []
-    userstore.restore_view(gone)
-    assert userstore.get_view(vid)["statement"] == "AI is in a bubble"
-    text = userstore.export_views_json()
-    assert userstore.import_views_json(text) == 1 and userstore.views()[0]["statement"] == "AI is in a bubble"
+    assert viewstore.views("active") == []
+    gone = viewstore.delete_view(vid)
+    assert viewstore.views() == []
+    viewstore.restore_view(gone)
+    assert viewstore.get_view(vid)["statement"] == "AI is in a bubble"
+    text = viewstore.export_views_json()
+    assert viewstore.import_views_json(text) == 1 and viewstore.views()[0]["statement"] == "AI is in a bubble"
 
 
 def test_the_migration_keeps_an_existing_database(tmp_data):
@@ -46,9 +47,9 @@ def test_the_migration_keeps_an_existing_database(tmp_data):
     con.execute("INSERT INTO meta (key, value) VALUES ('yahoo_watch', '[\"X\"]')")
     con.commit()
     con.close()
-    assert userstore.views() == [] and userstore.meta_get("yahoo_watch") == ["X"]
-    userstore.save_view(AI_BUBBLE)
-    assert len(userstore.views()) == 1 and [p["name"] for p in userstore.portfolios()] == ["ASK", "frie midler"]
+    assert viewstore.views() == [] and userstore.meta_get("yahoo_watch") == ["X"]
+    viewstore.save_view(AI_BUBBLE)
+    assert len(viewstore.views()) == 1 and [p["name"] for p in userstore.portfolios()] == ["ASK", "frie midler"]
 
 
 def test_templates_only_use_known_indicators_and_tracked_etfs():
@@ -152,7 +153,7 @@ def env(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "load_fred", world.fred)
     api.reset()
     market_views.reset()
-    userstore.save_view({"statement": "Software keeps winning", "conviction": 4,
+    viewstore.save_view({"statement": "Software keeps winning", "conviction": 4,
                          "exposures": [{"kind": "sector", "key": "Technology", "effect": 1}],
                          "indicators": [{"indicator": "us10y", "expect": "down"}]})
 
@@ -187,10 +188,10 @@ def test_views_api_round_trip(env):
 
 def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkeypatch):
     import json
-    userstore.save_view(AI_BUBBLE)
-    userstore.save_view({**AI_BUBBLE, "statement": "Rates stay high"})
-    before = userstore.export_views_json()
-    real = userstore._write_children
+    viewstore.save_view(AI_BUBBLE)
+    viewstore.save_view({**AI_BUBBLE, "statement": "Rates stay high"})
+    before = viewstore.export_views_json()
+    real = viewstore._write_children
     calls = []
 
     def flaky(con, view_id, v):
@@ -198,8 +199,8 @@ def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkey
         if len(calls) == 2:
             raise sqlite3.OperationalError("disk I/O error")
         return real(con, view_id, v)
-    monkeypatch.setattr(userstore, "_write_children", flaky)
+    monkeypatch.setattr(viewstore, "_write_children", flaky)
     with pytest.raises(sqlite3.OperationalError):
-        userstore.import_views_json(json.dumps([{**AI_BUBBLE, "statement": "new 1"}, {**AI_BUBBLE, "statement": "new 2"}]))
-    assert userstore.export_views_json() == before                          # all or nothing
+        viewstore.import_views_json(json.dumps([{**AI_BUBBLE, "statement": "new 1"}, {**AI_BUBBLE, "statement": "new 2"}]))
+    assert viewstore.export_views_json() == before                          # all or nothing
     assert any("views" in b.name for b in (tmp_data / "userdata" / "backups").iterdir())   # and a copy first

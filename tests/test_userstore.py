@@ -5,6 +5,7 @@ from contextlib import closing
 import pandas as pd
 
 from radar import trades, userstore
+from radar.userstore import viewstore
 
 HEADER = "symbol,status,quantity,avg_price,first_trade,last_sell_date,last_sell_price\n"
 
@@ -30,7 +31,7 @@ def test_first_connections_at_once_migrate_once(tmp_data):
     from concurrent.futures import ThreadPoolExecutor
 
     def open_store(_):
-        with closing(userstore._connect()) as con:
+        with closing(userstore.connect()) as con:
             return con.execute("PRAGMA user_version").fetchone()[0]
 
     with ThreadPoolExecutor(8) as ex:
@@ -95,7 +96,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
                                                encoding="utf-8")
     userstore.watch("A")
     userstore.unwatch("W")
-    userstore.save_view({"statement": "AI is in a bubble", "conviction": 4,
+    viewstore.save_view({"statement": "AI is in a bubble", "conviction": 4,
                          "exposures": [{"kind": "etf", "key": "SMH", "effect": -1}],
                          "indicators": [{"indicator": "semis", "expect": "down"}]})
     userstore.meta_set("regime_votes", {"valuation": True})
@@ -107,7 +108,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     assert res.exit_code == 0 and "1 transactions in 3 portfolios, 2 watchlist edits and 1 market views" in res.output
     h = trades.holdings().set_index("symbol")
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
-    [v] = userstore.views()
+    [v] = viewstore.views()
     assert v["statement"] == "AI is in a bubble" and v["exposures"] == [{"kind": "etf", "key": "SMH", "effect": -1}]
     assert userstore.meta_get("regime_votes") == {"valuation": True}   # the other machine votes like this one
 
@@ -180,7 +181,7 @@ def test_bundle_to_a_file_and_back_takes_a_backup_first(tmp_data):
     from radar import cli
 
     userstore.watch("A")
-    userstore.save_view({"statement": "Rates stay high", "conviction": 3, "exposures": [], "indicators": []})
+    viewstore.save_view({"statement": "Rates stay high", "conviction": 3, "exposures": [], "indicators": []})
     path = tmp_data / "my-radar.bundle"
     res = CliRunner().invoke(cli.app, ["bundle-holdings", "--out", str(path)])
     assert res.exit_code == 0 and path.exists() and "keep it private" in res.output
