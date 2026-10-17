@@ -248,6 +248,7 @@ Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don'
   data folders are committed.
 - The monthly brief runs on this machine: a Claude desktop scheduled task runs `/market-brief` on the 1st.
 - CI (`.github/workflows/ci.yml`) runs the tests and web checks on every pull
-  request and push to main.
+  request and push to main. Its `emails` job fails when any commit's author or committer email isn't a noreply
+  address (GitHub's email privacy must stay on, or a merge on github.com would publish the account's email).
 - Line endings are LF (`.gitattributes`), except the `.cmd` start script. The one-off renormalisation commit is in
   `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.

@@ -17,6 +17,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  emails:
+    # every commit's author and committer is a noreply address: the repo is public, and a merge or edit on
+    # github.com uses the account's email unless GitHub's email privacy is on
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Commit emails are noreply addresses
+        shell: bash
+        run: |
+          ok=' ([0-9]+\+)?[A-Za-z0-9-]+@users\.noreply\.github\.com$| noreply@github\.com$| noreply@anthropic\.com$'
+          bad=$(git log --format='%h %ae%n%h %ce' | grep -v -E "$ok" | sort -u || true)
+          if [ -n "$bad" ]; then
+            echo "Commits with an email that isn't a noreply address:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "All $(git rev-list --count HEAD) commits use noreply addresses."
+
   python:
     strategy:
       fail-fast: false
