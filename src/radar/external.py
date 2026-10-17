@@ -15,6 +15,7 @@ import pandas as pd
 
 from . import guard, net
 from .config import universe_config, write_parquet, write_text
+from .jsonsafe import clean
 from .paths import CACHE, HISTORY
 
 COT_FILE = CACHE / "cot.parquet"
@@ -370,30 +371,11 @@ DETAIL_INFO_KEYS = (
 )
 
 
-def _jsonable(v):
-    if v is pd.NA or v is pd.NaT:          # before the date check: NaT is a Timestamp and would become "NaT"
-        return None
-    if isinstance(v, np.datetime64):
-        v = pd.Timestamp(v)
-        return None if v is pd.NaT else v.isoformat()[:10]
-    if isinstance(v, (pd.Timestamp, date)):
-        return v.isoformat()[:10]
-    if isinstance(v, np.generic):
-        v = v.item()
-    if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
-        return None
-    if isinstance(v, (list, tuple)):
-        return [_jsonable(x) for x in v]
-    if isinstance(v, dict):
-        return {str(k): _jsonable(x) for k, x in v.items()}
-    return v
-
-
 def _frame(df) -> dict:
     """{row: {column: value}} for a yfinance table; empty for None/empty."""
     if df is None or not isinstance(df, pd.DataFrame) or df.empty:
         return {}
-    return _jsonable({str(i): row for i, row in df.to_dict(orient="index").items()})
+    return clean({str(i): row for i, row in df.to_dict(orient="index").items()})
 
 
 def fetch_detail(ticker: str) -> dict:
@@ -417,12 +399,12 @@ def fetch_detail(ticker: str) -> dict:
 
     def recommendations():
         df = t.recommendations
-        return _jsonable(df.to_dict(orient="records")) if isinstance(df, pd.DataFrame) else []
+        return clean(df.to_dict(orient="records")) if isinstance(df, pd.DataFrame) else []
 
     def fund():
         fd = t.funds_data
         top, ops = fd.top_holdings, fd.fund_operations
-        return _jsonable({
+        return clean({
             "top_holdings": [{"symbol": s, "name": r.get("Name"), "weight": r.get("Holding Percent")}
                              for s, r in top.to_dict(orient="index").items()] if isinstance(top, pd.DataFrame) else [],
             "sector_weightings": fd.sector_weightings or {}, "asset_classes": fd.asset_classes or {},
@@ -430,12 +412,12 @@ def fetch_detail(ticker: str) -> dict:
             "overview": fd.fund_overview or {},
         })
 
-    block("info", lambda: _jsonable({k: (t.info or {}).get(k) for k in DETAIL_INFO_KEYS}), {})
+    block("info", lambda: clean({k: (t.info or {}).get(k) for k in DETAIL_INFO_KEYS}), {})
     block("recommendations", recommendations, [])
     block("eps_trend", lambda: _frame(t.eps_trend), {})
     block("eps_revisions", lambda: _frame(t.eps_revisions), {})
     block("growth_estimates", lambda: _frame(t.growth_estimates), {})
-    block("calendar", lambda: _jsonable(t.calendar or {}), {})
+    block("calendar", lambda: clean(t.calendar or {}), {})
     if raw["info"].get("quoteType") in ("ETF", "MUTUALFUND"):
         block("fund", fund, {})
     return raw

@@ -169,6 +169,15 @@ def test_regime_vote_switches(client):
     assert after["overall"]["off"] == before["overall"]["off"] + 2 and after["overall"]["not_voting"] == 3  # the 3 context rows
     api_models.RegimeView(**after)
 
+    # before the next report, every reader already counts the switch: the start page, a profile, and what a
+    # proposal reads (the file, not summary.json, which still has the old vote)
+    from radar.model import inputs
+    now = {k: after["overall"][k] for k in ("label", "net")}
+    assert now["net"] != before["overall"]["net"]
+    assert {k: client.get("/api/context").json()["regime"][k] for k in now} == now
+    assert {k: client.get("/api/ticker/S1").json()["context"]["regime"][k] for k in now} == now
+    assert {k: inputs.current_regime()[k] for k in now} == now
+
     import json
     out = report.build()
     summary = json.loads((report.REPORTS / "summary.json").read_text(encoding="utf-8"))

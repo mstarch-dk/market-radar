@@ -1,12 +1,19 @@
-"""Inputs the app and the studies choose the same way: which tickers get stop / take-profit levels, and which
-indicator groups vote in the regime. My holdings (mine.py), the dashboard and the point-in-time replay
-(backtest/pit.py) all read them from here."""
+"""Inputs the app and the studies choose the same way: which tickers get stop / take-profit levels, which
+indicator groups vote in the regime, and the regime of the last `radar run` voted with that choice. My holdings
+(mine.py), the dashboard, profiles, proposals and the point-in-time replay (backtest/pit.py) all read them from
+here."""
 from __future__ import annotations
+
+import json
 
 import pandas as pd
 
 from .. import external, universe, userstore
 from ..config import settings
+from ..paths import REPORTS
+from ..signals import regime
+
+DASHBOARD_FILE = "dashboard.json"
 
 
 def level_universe(etfs: set[str], analyst_hist: pd.DataFrame | None = None) -> set[str]:
@@ -30,3 +37,25 @@ def effective_votes() -> dict[str, bool]:
     votes = {k: bool(v) for k, v in (settings()["regime"].get("votes") or {}).items()}
     chosen = userstore.meta_get("regime_votes") or {}
     return votes | {k: bool(v) for k, v in chosen.items() if k in votes}
+
+
+def regime_now(d: dict) -> tuple[dict, list[dict]]:
+    """The stored indicators of a dashboard.json, voted again with the current choice of groups (a switch on the
+    Regime page takes effect at once, without a new `radar run`)."""
+    inds = [dict(i) for i in d["regime"]["indicators"]]
+    return regime.overall(inds, effective_votes()), inds
+
+
+def current_regime(d: dict | None = None) -> dict:
+    """The overall regime of the last `radar run`, voted with your current choice of groups: what the start page,
+    profiles, the stop levels and proposals all use. `d` is a loaded dashboard.json (default: read the file);
+    label None before the first run."""
+    if d is None:
+        try:
+            d = json.loads((REPORTS / DASHBOARD_FILE).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            d = None
+    if d is None:
+        return {"label": None, "asof": None}
+    overall = regime_now(d)[0]
+    return {"label": overall["label"], "asof": d["asof"], "net": overall.get("net")}

@@ -20,6 +20,7 @@ import pandas as pd
 from . import guard, net
 from .config import discovery_config, settings, write_parquet
 from .paths import CACHE, HISTORY
+from .values import num
 
 STOCKS_FILE = HISTORY / "valuation" / "stocks.parquet"     # weekly snapshots: history
 ETFS_FILE = HISTORY / "valuation" / "etfs.parquet"
@@ -32,14 +33,6 @@ ETF_COLS = ["date", "ticker", "pe", "pb", "ps", "pcf", "note"]
 
 def _cfg() -> dict:
     return settings()["valuation"]
-
-
-def _num(v) -> float | None:
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
-        return None
-    return f if math.isfinite(f) else None
 
 
 # ---------------- stocks: one row per screener quote ----------------
@@ -81,14 +74,14 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
     notes: list[str] = []
     ccy = q.get("currency")
     fin = q.get("financialCurrency") or ccy
-    raw = _num(q.get("regularMarketPrice"))
+    raw = num(q.get("regularMarketPrice"))
     base = "GBP" if ccy == "GBp" else ccy
     px_trade = raw / 100 if raw is not None and ccy == "GBp" else raw       # in the trading currency's main unit
     px_fin = price_in(raw, ccy, fin, fx)                                      # in the reporting currency
     if raw is not None and px_fin is None:
         notes.append(f"no {ccy}→{fin} rate: this year's P/E left out")
-    eps = {"ttm": _num(q.get("epsTrailingTwelveMonths")), "cy": _num(q.get("epsCurrentYear")),
-           "fy1": _num(q.get("epsForward"))}
+    eps = {"ttm": num(q.get("epsTrailingTwelveMonths")), "cy": num(q.get("epsCurrentYear")),
+           "fy1": num(q.get("epsForward"))}
 
     def pe(key: str, price: float | None) -> float | None:
         e = eps[key]
@@ -112,23 +105,23 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
     if pe_cy and pe_fy1 and not 1 / 3 <= pe_cy / pe_fy1 <= 3:
         notes.append(f"this year's P/E {pe_cy:.3g} vs next year's {pe_fy1:.3g}: inconsistent, left out")
         pe_cy = None
-    book = _num(q.get("bookValue"))                                          # reporting currency
+    book = num(q.get("bookValue"))                                          # reporting currency
     pb = px_fin / book if px_fin is not None and book and book > 0 else None
     if pb is not None and not 0.05 <= pb <= 100:
         notes.append(f"P/B {pb:.3g} out of range: left out")
         pb = None
-    dy = _num(q.get("trailingAnnualDividendYield"))       # a fraction; screener `dividendYield` is in percent
+    dy = num(q.get("trailingAnnualDividendYield"))       # a fraction; screener `dividendYield` is in percent
     if dy is not None and not 0 <= dy <= 0.25:
         notes.append(f"dividend yield {dy:.3g} out of range: left out")
         dy = None
-    ts = _num(q.get("earningsTimestamp"))
+    ts = num(q.get("earningsTimestamp"))
     out = {"ticker": q.get("symbol"), "quote_type": q.get("quoteType"), "currency": ccy, "financial_currency": fin,
            "cross_ccy": bool(base and fin and base != fin), "price": px_trade,
            "eps_ttm": eps["ttm"], "eps_cy": eps["cy"], "eps_fy1": eps["fy1"],
            "pe_ttm": pe("ttm", px_trade), "pe_cy": pe_cy, "pe_fy1": pe_fy1, "pb": pb, "div_yield": dy,
            "earnings_date": _local_day(ts, q.get("exchangeTimezoneName")) if ts else None,
-           "market_cap": _num(q.get("marketCap"))}       # Yahoo's, in the trading currency (a check on ours)
-    yahoo = _num(q.get("forwardPE"))
+           "market_cap": num(q.get("marketCap"))}       # Yahoo's, in the trading currency (a check on ours)
+    yahoo = num(q.get("forwardPE"))
     if out["pe_fy1"] and yahoo and abs(yahoo / out["pe_fy1"] - 1) > 0.05:
         notes.append(f"Yahoo's own forward P/E is {yahoo:.1f}")
     return out | {"note": "; ".join(notes) or None}
@@ -263,7 +256,7 @@ def fund_valuation(holdings: dict, pe_range: tuple[float, float] = (3, 150)) -> 
     ranges = {"pe": pe_range, "pb": (0.2, 50), "ps": (0.1, 50), "pcf": (1, 200)}
     out, notes = {}, []
     for label, key in FUND_KEYS.items():
-        v = _num(holdings.get(label))
+        v = num(holdings.get(label))
         if v is None or v <= 0:
             out[key] = None
             continue
@@ -464,12 +457,12 @@ class Context:
         from .signals import gauges as gz
 
         r = self.now.loc[t] if t in self.now.index else None
-        get = (lambda k: _num(r[k]) if r is not None else None)
+        get = (lambda k: num(r[k]) if r is not None else None)
         rel = self.rel[peers].get(t)
-        rel = _num(rel)
+        rel = num(rel)
         out = {"pe_fy1": get("pe_fy1"), "pe_cy": get("pe_cy"), "pe_ttm": get("pe_ttm"), "pb": get("pb"),
                "div_yield": get("div_yield"), "pe_vs_sector": rel,
-               "eps_rev_4w": _num(self.rev[4].get(t)), "eps_rev_12w": _num(self.rev[12].get(t)),
+               "eps_rev_4w": num(self.rev[4].get(t)), "eps_rev_12w": num(self.rev[12].get(t)),
                "earnings_date": (r["earnings_date"] if r is not None and isinstance(r["earnings_date"], str) else None)}
         gauges = {"pe_vs_sector": gz.gauge("pe_vs_sector", rel), "eps_rev": gz.gauge("eps_rev", out["eps_rev_4w"])}
         return out | {"val_gauges": {k: g for k, g in gauges.items() if g}}

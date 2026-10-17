@@ -39,6 +39,15 @@ def test_written_report_loads_with_its_header(tmp_data):
     assert rep.model_extra["dates"] == [{"date": "x"}]
 
 
+def test_a_missing_number_is_written_as_null_not_nan(tmp_data):
+    """NaN isn't JSON, and a reader's `is None` check lets it through into the arithmetic (propose's drift)."""
+    rep = _propose()
+    rep["results"]["momentum"]["5"]["6"]["kept"]["all"]["gross_mean"] = float("nan")
+    f = art.write("propose-study", rep, data_asof="2026-10-16", rule_hash="abc")
+    assert "NaN" not in f.read_text(encoding="utf-8")
+    assert art.load("propose-study").report.results["momentum"]["5"]["6"].kept.all.gross_mean is None
+
+
 def test_another_rule_is_stale_with_its_numbers(tmp_data):
     art.write("propose-study", _propose(), data_asof="2026-10-16", rule_hash="abc")
     got = art.load("propose-study", rule_hash="other")

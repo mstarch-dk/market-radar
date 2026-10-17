@@ -19,7 +19,6 @@ fallback: what a reader does without the report is its own, stated choice."""
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -29,6 +28,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ..config import write_text
+from ..jsonsafe import dumps
 from ..paths import REPORTS
 
 SCHEMA_VERSION = 1
@@ -246,11 +246,11 @@ def stamp(name: str, rep: dict, data_asof: str | None, rule_hash: str | None = N
 
 
 def write(name: str, rep: dict, *, data_asof: str | None, rule_hash: str | None = None,
-          default: Callable | None = str, file: str | None = None) -> Path:
+          file: str | None = None) -> Path:
     """Stamp, check against the contract, then write `rep` to the reports folder (as `file` when the same contract
     is written under another name, e.g. score-study-<signal>.json). Raises when the report breaks the contract."""
     spec = _spec(name)
-    text = json.dumps(stamp(name, rep, data_asof, rule_hash), indent=1, default=default)
+    text = dumps(stamp(name, rep, data_asof, rule_hash), indent=1)
     try:
         spec.model.model_validate(json.loads(text))
     except ValidationError as e:

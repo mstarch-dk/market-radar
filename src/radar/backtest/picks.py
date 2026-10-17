@@ -17,7 +17,6 @@ inspiration and as single-date illustrations of the score (the evidence is the r
 Simulated rows only ever go into virtual portfolios: never yours."""
 from __future__ import annotations
 
-import json
 import re
 
 import numpy as np
@@ -25,6 +24,8 @@ import pandas as pd
 
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
+from ..jsonsafe import clean as _clean
+from ..jsonsafe import dumps
 from ..model import panels as mp
 from ..model.select import capped
 from ..paths import REPORTS
@@ -74,17 +75,6 @@ def _fill(sessions: pd.DatetimeIndex, day: pd.Timestamp) -> pd.Timestamp:
 # ---------------- candidates ----------------
 
 ranked = mp.ranked
-
-
-def _clean(v):
-    if v is None or (isinstance(v, float) and not np.isfinite(v)):
-        return None
-    if isinstance(v, (np.bool_, bool)):
-        return bool(v)
-    if hasattr(v, "item"):
-        v = v.item()
-        return None if isinstance(v, float) and not np.isfinite(v) else v
-    return v
 
 
 def candidates(market, asof, blind: bool = False, views: bool = False, top: int | None = None,
@@ -404,7 +394,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
         d = REPORTS / REPORT_DIR
         d.mkdir(parents=True, exist_ok=True)
         f = d / f"{s}.json"
-        write_text(f, json.dumps(out, indent=1, default=study._json))
+        write_text(f, dumps(out, indent=1))
     return out
 
 

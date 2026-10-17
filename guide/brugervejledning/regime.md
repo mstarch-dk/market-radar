@@ -107,7 +107,7 @@ Kortet *Counted in the vote* har afkrydsningsfelter for to grupper af indikatore
 
 Værdiansættelse er slået fra som standard, fordi den bevæger sig langsomt: et dyrt marked kan forblive dyrt i årevis, så den er ikke et timingsignal på 1–6 måneder. Rækkerne vises stadig, med mærket *not voting*, så du kan se aflæsningen.
 
-Dit valg virker med det samme, uden en ny opdatering. Det gemmes på din computer og bruges alle steder, regimet bruges: på denne side, i bredden af stop på dine beholdninger og ved næste `radar report` (som Claude Code-kommandoerne læser). Afviger dit valg fra standarden, står standarden i parentes.
+Dit valg virker med det samme, uden en ny opdatering. Det gemmes på din computer og bruges alle steder, regimet bruges: på denne side, på forsiden og i tickerprofilerne, i bredden af stop på dine beholdninger, i porteføljeforslag og ved næste `radar report` (som Claude Code-kommandoerne læser). Afviger dit valg fra standarden, står standarden i parentes.
 
 ## Graferne
 

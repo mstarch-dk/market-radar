@@ -289,13 +289,12 @@ def discover(refresh_universe: bool = typer.Option(False, "--refresh-universe",
 def views(as_json: bool = typer.Option(False, "--json", help="Machine-readable output (for the skills)"),
           archived: bool = typer.Option(False, "--archived", help="Include archived views")):
     """Your market views (subjective beliefs) with what the radar's data says about each. Personal."""
-    import json
 
     from . import market_views as mv
 
     vs = mv.with_evidence(None if archived else "active")
     if as_json:
-        typer.echo(json.dumps({"disclaimer": mv.DISCLAIMER, "views": vs}, indent=1, ensure_ascii=False, default=str))
+        typer.echo(_dumps({"disclaimer": mv.DISCLAIMER, "views": vs}, indent=1, ensure_ascii=False))
         return
     if not vs:
         typer.echo("No market views yet: add them on the My market views page of the app.")
@@ -390,7 +389,6 @@ def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbol
 
     With several tickers: a side-by-side comparison for /compare (profiles, ACWI as the benchmark candidate,
     correlations and a metrics table). Personal data is left out unless --personal is given."""
-    import json
     from pathlib import Path
 
     from . import profile
@@ -403,7 +401,7 @@ def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbol
     else:
         sel = _portfolio_ids(portfolio, tag) if (portfolio or tag) else None
         data = profile.compare(tickers, personal=personal, portfolios=sel)
-    text = json.dumps(data, indent=1, default=str)
+    text = _dumps(data, indent=1)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_text(text, encoding="utf-8")
@@ -640,7 +638,6 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
                 as_json: bool = typer.Option(False, "--json", help="As JSON")):
     """Portfolio returns in DKK against ACWI: time-weighted (the investments) and money-weighted (your timing),
     side by side from a common start. Virtual portfolios and tag groups only when named."""
-    import json
 
     from . import performance as perf
     from . import profile, userstore
@@ -650,7 +647,7 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
                                                      if p["mode"] == "real" and p["n_tx"]]
     res = perf.compare(profile.Market.load(), ids, tag, start)
     if as_json:
-        typer.echo(json.dumps(res, indent=1, default=str))
+        typer.echo(_dumps(res, indent=1))
         return
     pct = lambda v: f"{v:+.1%}" if v is not None else "–"  # noqa: E731
     typer.echo(f"From {res['start']} to {res['asof']} (DKK; ACWI given the same cash flows)")
@@ -858,7 +855,6 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
     """Your real trades replayed with the radar's stop-loss / take-profit rule followed, using only what was known
     each day. Writes one simulated portfolio per real portfolio and variant (tags exits-overlay / exits-rules, so
     the Returns page can show them) and reports.json/sim-exits.json with every exit and what it saved or cost."""
-    import json
     from pathlib import Path
 
     from . import profile, userstore
@@ -889,9 +885,9 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
         except ValueError as e:
             raise typer.Exit(f"Not simulated: {e}")
     if out:
-        Path(out).write_text(json.dumps(rep, indent=1, default=exits._json), encoding="utf-8")
+        Path(out).write_text(_dumps(rep, indent=1), encoding="utf-8")
     if as_json:
-        typer.echo(json.dumps(rep, indent=1, default=exits._json))
+        typer.echo(_dumps(rep, indent=1))
         return
     pct = lambda v: f"{v:+.1%}" if v is not None else "–"  # noqa: E731
     dkk = lambda v: f"{v:+,.0f}" if v is not None else "–"  # noqa: E731
@@ -941,6 +937,12 @@ def _num(v, fmt: str = "+.2f") -> str:
     return "–" if v is None else format(v, fmt)
 
 
+def _dumps(obj, **kw) -> str:
+    from .jsonsafe import dumps
+
+    return dumps(obj, **kw)
+
+
 def _picks_meta(n, max_per_sector, max_per_group, trend, weighting, basis) -> dict:
     return {"n": n, "max_per_sector": max_per_sector, "max_per_group": max_per_group, "trend": trend,
             "weighting": weighting, "basis": basis}
@@ -961,7 +963,6 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
                          out: str = typer.Option(None, "--out", help="Also write the JSON here")):
     """The stock universe ranked by momentum score as the radar saw it on a past day: only data up to that day
     (sectors are today's). For picking a hindsight basket (`radar sim picks`)."""
-    import json
     from pathlib import Path
 
     from . import profile
@@ -971,7 +972,7 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
         rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff, fund=fund)
     except ValueError as e:
         raise typer.Exit(str(e))
-    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    text = _dumps(rep, indent=1, ensure_ascii=False)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_text(text, encoding="utf-8")
@@ -1049,7 +1050,7 @@ def sim_picks(asof: str = typer.Option(None, "--asof", help="1M, 3M, 6M, 1Y, tod
         for r in reps:
             log(f"{r['name']}: picked {r['asof']}, bought {r['fill']}, to {r['end']}")
     if as_json:
-        typer.echo(json.dumps(reps[0] if len(reps) == 1 else reps, indent=1, ensure_ascii=False, default=study._json))
+        typer.echo(_dumps(reps[0] if len(reps) == 1 else reps, indent=1, ensure_ascii=False))
         return
     for r in reps:
         y = r["yardsticks"]
@@ -1100,7 +1101,6 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
     holdout, and variants tested fairly. The momentum score by default (reports/score-study.json); --signal
     quality|value|qv tests the kvalitetsscore, værdiscore or K+V on US stocks from SEC EDGAR
     (reports/score-study-<signal>.json)."""
-    import json
     from pathlib import Path
 
     from . import profile
@@ -1115,7 +1115,7 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
             study.write(rep)
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
-    text = json.dumps(rep, indent=1, default=study._json)
+    text = _dumps(rep, indent=1)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_text(text, encoding="utf-8")
@@ -1191,11 +1191,10 @@ def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a c
     verdict rule of `radar study score`, splits by decade, market trend and recession, the long-run base rates of the
     momentum, value and quality factors, and a rough gauge of the survivorship bias in `radar study score`. Writes
     reports/longrun-study.json."""
-    import json
     from pathlib import Path
 
     from . import factors
-    from .backtest import longrun, study
+    from .backtest import longrun
 
     try:
         with _job("study") as log:
@@ -1208,7 +1207,7 @@ def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a c
             longrun.write(rep)
     except (ValueError, RuntimeError) as e:
         raise typer.Exit(f"Not studied: {e}")
-    text = json.dumps(rep, indent=1, default=study._json)
+    text = _dumps(rep, indent=1)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_text(text, encoding="utf-8")
@@ -1274,7 +1273,6 @@ def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (fr
     """Variants of the stop/take-profit rule on every month-end's top-N basket, against simply holding it: return
     and risk (max drawdown, volatility, worst 20 sessions, the 10 % worst outcome), in-sample and in the holdout,
     with a verdict per variant. Slow (10-20 minutes). Writes reports/exit-study.json."""
-    import json
 
     from . import profile
     from .backtest import study
@@ -1288,7 +1286,7 @@ def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (fr
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
     if as_json:
-        typer.echo(json.dumps(rep, indent=1, default=study._json))
+        typer.echo(_dumps(rep, indent=1))
         return
     st = rep["settings"]
     typer.echo(f"\nEach month-end's top {st['n_top']} (equal weights, {st['fee_bps']:g} bp per trade), exits parked in "
@@ -1332,7 +1330,6 @@ def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months
     and a month-end rotation with and without the rule, on every month-end's top-N basket: return, risk and
     risk-adjusted return (Sharpe, Sortino, Calmar, information ratio), in-sample and holdout. Slow. Writes
     reports/redeploy-study.json."""
-    import json
     from pathlib import Path
 
     from . import profile
@@ -1347,7 +1344,7 @@ def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months
             study.write_redeploy(rep)
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
-    text = json.dumps(rep, indent=1, default=study._json)
+    text = _dumps(rep, indent=1)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         Path(out).write_text(text, encoding="utf-8")
@@ -1391,11 +1388,9 @@ def study_propose(tilts: str = typer.Option("momentum,value,mix", help="Tilts to
     month-end, held 3 and 6 months and with the proposal's exits, in DKK against ACWI: the only source of a
     proposal's modelled excess and one of its drawdown lenses. Value and mix: US stocks only (SEC EDGAR). Writes
     reports/propose-study.json."""
-    import json
 
     from . import profile
     from .backtest import propose_study as ps
-    from .backtest import study
 
     try:
         with _job("study") as log:
@@ -1406,7 +1401,7 @@ def study_propose(tilts: str = typer.Option("momentum,value,mix", help="Tilts to
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
     if as_json:
-        typer.echo(json.dumps(rep, indent=1, default=study._json))
+        typer.echo(_dumps(rep, indent=1))
         return
     u = rep["universe"]
     typer.echo(f"\n{u['dates']} month-ends, {u['first']} to {u['last']}; costs {rep['cost_bps']} bp each way; holdout from "
@@ -1495,7 +1490,6 @@ def propose_candidates(portfolio: str = typer.Option(..., "--portfolio", help="T
                        out: str = typer.Option(None, "--out", help="Also write the JSON here")):
     """The gated, scored shortlist for adding AMOUNT to PORTFOLIO, the rule-only basket sized with the portfolio's
     fees, and a draft picks file (`draft_picks`) with the standard exit criteria."""
-    import json
 
     from . import profile
     from . import propose as pr
@@ -1505,7 +1499,7 @@ def propose_candidates(portfolio: str = typer.Option(..., "--portfolio", help="T
                             max_position, not no_etf, horizon, top)
     except ValueError as e:
         raise typer.Exit(f"No candidates: {e}")
-    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    text = _dumps(rep, indent=1, ensure_ascii=False)
     _write_out(text, out)
     if as_json:
         typer.echo(text)
@@ -1554,7 +1548,6 @@ def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks 
     """Sizing, constraints, exposures before and after vs ACWI, risk, the drawdown three ways, the modelled
     return from the rule study, the alternatives A0-A6 and the decision rule. Saved next to the picks file as
     <name>-evaluation.json (review and check read it)."""
-    import json
     from pathlib import Path
 
     from . import profile
@@ -1569,7 +1562,7 @@ def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks 
         raise typer.Exit(f"Not evaluated: {e}")
     if Path(picks_file).resolve().parent == Path(pr.PROPOSALS).resolve():
         pr.save_evaluation(Path(picks_file).name, rep)
-    text = json.dumps(rep, indent=1, ensure_ascii=False, default=str)
+    text = _dumps(rep, indent=1, ensure_ascii=False)
     _write_out(text, out)
     if as_json:
         typer.echo(text)
@@ -1611,14 +1604,13 @@ def propose_shadow(picks_file: str = typer.Argument(..., help="A frozen picks fi
 def propose_review(as_json: bool = typer.Option(False, "--json", help="As JSON (for the skill)")):
     """Every frozen proposal since its day: return vs ACWI and vs its rule basket, its drawdown against the
     modelled band, and what the trend exit would have done."""
-    import json
 
     from . import profile
     from . import propose as pr
 
     rep = pr.review(profile.Market.load())
     if as_json:
-        typer.echo(json.dumps(rep, indent=1, ensure_ascii=False, default=str))
+        typer.echo(_dumps(rep, indent=1, ensure_ascii=False))
         return
     for r in rep["proposals"]:
         typer.echo(f"{r['date']} {r['portfolio']:<14} {r.get('tilt') or '':<8} ret {_pct(r.get('ret')):>7} vs ACWI "
@@ -1633,14 +1625,13 @@ def propose_check(portfolio: str = typer.Option(None, "--portfolio", help="Only 
                   as_json: bool = typer.Option(False, "--json", help="As JSON (for the skills)")):
     """Each open proposal's exit criteria today (review level, signal exit, thesis checks, time stop, basket
     drawdown): Intact, Weakening or Triggered, with the evidence."""
-    import json
 
     from . import profile
     from . import propose as pr
 
     rep = pr.check(profile.Market.load(), portfolio)
     if as_json:
-        typer.echo(json.dumps(rep, indent=1, ensure_ascii=False, default=str))
+        typer.echo(_dumps(rep, indent=1, ensure_ascii=False))
         return
     for pp in rep["proposals"]:
         typer.echo(f"\n{pp['date']} {pp['portfolio']}"
@@ -1700,7 +1691,6 @@ def _fmt_value(v) -> str:
 def fundamentals_show(ticker: str, as_json: bool = typer.Option(False, "--json", help="As JSON")):
     """One ticker's statement items as they are read: the last twelve months of each flow (and how it was built),
     the latest balance, the fiscal years stored and the source's name for each value."""
-    import json
 
     from . import fundamentals
     from .fundamentals import items, store
@@ -1720,7 +1710,7 @@ def fundamentals_show(ticker: str, as_json: bool = typer.Option(False, "--json",
     if as_json:
         out = {"ticker": t, "source": src, "latest_end": f"{store.latest_end(f):%Y-%m-%d}",
                "items": [{k: v for k, v in r.items() if k != "_v"} for r in rows]}
-        typer.echo(json.dumps(out, indent=1, default=str))
+        typer.echo(_dumps(out, indent=1))
         return
     typer.echo(f"{t}: {'SEC EDGAR' if src == 'edgar' else 'Yahoo'}; latest period {store.latest_end(f):%d %b %Y}")
     typer.echo(f"  {'item':<20}{'value':>18}  {'period end':<11}{'basis':<10}{'years':>5}  tag")
@@ -1817,13 +1807,12 @@ def abtest_refresh():
 def abtest_status(as_json: bool = typer.Option(False, "--json", help="As JSON (for the skills)")):
     """Where the test stands: each basket's return against ACWI since its first purchase, the correlation of
     their weekly returns, the latest picks and when the next are due."""
-    import json
 
     from . import abtest, profile
 
     v = abtest.view(profile.Market.load())
     if as_json:
-        typer.echo(json.dumps(v, indent=1, default=str, ensure_ascii=False))
+        typer.echo(_dumps(v, indent=1, ensure_ascii=False))
         return
     if not v["running"]:
         typer.echo("No A/B test is running: radar abtest start")

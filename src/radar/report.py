@@ -8,6 +8,7 @@ from datetime import date
 from . import dashboard, ops, snapshot
 from .config import write_text
 from .fundamentals import context as fcontext
+from .jsonsafe import dumps
 from .paths import REPORTS
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
@@ -74,7 +75,7 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
 
 def _write(path, data: dict) -> None:
     """Write via a temp file, so a running `radar serve` never reads half a file."""
-    write_text(path, json.dumps(data, indent=1, default=str))
+    write_text(path, dumps(data, indent=1))
 
 
 def _portfolios() -> list[dict]:

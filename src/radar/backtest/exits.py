@@ -41,7 +41,6 @@ return equals the real one's (tests/test_backtest_exits.py pins that).
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field, replace
 
 import pandas as pd
@@ -49,6 +48,7 @@ import pandas as pd
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
 from ..fees import SimFees, Terms
+from ..jsonsafe import dumps
 from ..model import paths as mpaths
 from ..paths import REPORTS
 from .pit import Context
@@ -692,13 +692,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
     if write:
         REPORTS.mkdir(parents=True, exist_ok=True)
         f = REPORTS / (REPORT_FILE if spec is None or spec.key == "rule" else f"sim-exits-{spec.key}.json")
-        write_text(f, json.dumps(out, indent=1, default=_json))
+        write_text(f, dumps(out, indent=1))
     return out
 
 
-def _json(v):
-    if isinstance(v, pd.Timestamp):
-        return v.date().isoformat()
-    if hasattr(v, "item"):
-        return v.item()
-    return str(v)

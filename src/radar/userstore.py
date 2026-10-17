@@ -817,15 +817,16 @@ def export_transactions_csv(portfolios: list[int] | None = None) -> str:
     return buf.getvalue()
 
 
-def _num(v) -> float | None:
+def _cell_float(v) -> float | None:
+    """A CSV cell as a float; an empty one is None."""
     return float(v) if v not in (None, "") else None
 
 
 def import_transactions_csv(text: str) -> int:
     """Load an exported set (restoring a holdings bundle): each portfolio it names (the older `account` column too;
     empty means the default portfolio) gets exactly these rows. Returns the number of rows."""
-    rows = [{**r, "quantity": _num(r.get("quantity")), "price": _num(r.get("price")), "fee": _num(r.get("fee")) or 0.0,
-             "amount": _num(r.get("amount")), "fx_rate": _num(r.get("fx_rate")), "currency": r.get("currency") or None,
+    rows = [{**r, "quantity": _cell_float(r.get("quantity")), "price": _cell_float(r.get("price")), "fee": _cell_float(r.get("fee")) or 0.0,
+             "amount": _cell_float(r.get("amount")), "fx_rate": _cell_float(r.get("fx_rate")), "currency": r.get("currency") or None,
              "portfolio": r.get("portfolio") or r.get("account") or None, "note": r.get("note") or None,
              "ext_ref": r.get("ext_ref") or None}
             for r in csv.DictReader(io.StringIO(text))]

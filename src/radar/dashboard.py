@@ -16,13 +16,13 @@ from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
 from .ingest import load_fred, load_prices, wide
 from .jsonsafe import clean as _clean
-from .model.inputs import effective_votes
+from .model.inputs import DASHBOARD_FILE as FILE_NAME
+from .model.inputs import effective_votes, regime_now  # noqa: F401 (regime_now re-exported)
 from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation
 from .signals import valuation as sv
 
-FILE_NAME = "dashboard.json"
 # dashboard.json's shape: bump it when a section is added or changed, so the app rebuilds an older one at start
 # (a no-network build) instead of answering 503 until the next update
 FORMAT = 1
@@ -81,13 +81,6 @@ def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_
 # ---------------- regime votes (settings.yaml regime.votes, overridden from the Regime page) ----------------
 
 VOTE_GROUPS = {"credit_eu": "Euro high-yield spread", "valuation": "Valuation (CAPE, equity risk premium)"}
-
-
-def regime_now(d: dict) -> tuple[dict, list[dict]]:
-    """The stored indicators, voted again with the current choice of groups (a switch on the Regime page takes
-    effect at once, without a new `radar run`)."""
-    inds = [dict(i) for i in d["regime"]["indicators"]]
-    return regime.overall(inds, effective_votes()), inds
 
 
 def vote_options() -> list[dict]:

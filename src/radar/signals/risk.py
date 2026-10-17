@@ -13,6 +13,8 @@ import math
 import numpy as np
 import pandas as pd
 
+from ..values import num
+
 WEEKS_PER_YEAR = 52
 FLAT = 1e-12  # variance below this is treated as no movement (floating-point noise, not a signal)
 
@@ -52,10 +54,6 @@ def ols(y: np.ndarray, X: np.ndarray) -> dict:
             "r2": 1 - (resid @ resid) / tss if tss > 0 else float("nan"), "resid": resid}
 
 
-def _f(v) -> float | None:
-    return None if v is None or not math.isfinite(float(v)) else float(v)
-
-
 def drawdown(returns: pd.Series) -> tuple[float, int]:
     """Deepest fall from a peak of the cumulative return, and how many weeks the longest spell below a peak lasted."""
     wealth = (1 + returns).cumprod()
@@ -85,16 +83,16 @@ def window_stats(asset: pd.Series, bench: pd.Series, rf: pd.Series | None, weeks
     dd, dd_weeks = drawdown(df["y"])
     total = (1 + df["y"]).prod() ** (WEEKS_PER_YEAR / len(df)) - 1
     return {
-        "n_weeks": int(len(df)), "return_ann": _f(total), "vol_ann": _f(vol),
-        "beta": _f(fit["coef"][1]), "beta_se": _f(fit["se"][1]), "r2": _f(fit["r2"]), "corr": _f(df["y"].corr(df["b"])),
-        "alpha_ann": _f(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": _f(fit["t"][0]),
+        "n_weeks": int(len(df)), "return_ann": num(total), "vol_ann": num(vol),
+        "beta": num(fit["coef"][1]), "beta_se": num(fit["se"][1]), "r2": num(fit["r2"]), "corr": num(df["y"].corr(df["b"])),
+        "alpha_ann": num(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": num(fit["t"][0]),
         "alpha_basis": "excess over T-bills" if r is not None else "raw returns (no risk-free rate)",
-        "idio_vol_ann": _f(np.std(fit["resid"], ddof=2) * math.sqrt(WEEKS_PER_YEAR)),
-        "downside_beta": _f(dfit["coef"][1]) if dfit else None,
-        "sharpe": _f(excess.mean() / df["y"].std() * math.sqrt(WEEKS_PER_YEAR)) if excess is not None else None,
-        "sortino": _f(excess.mean() * WEEKS_PER_YEAR / (math.sqrt((neg ** 2).sum() / len(excess)) * math.sqrt(WEEKS_PER_YEAR)))
+        "idio_vol_ann": num(np.std(fit["resid"], ddof=2) * math.sqrt(WEEKS_PER_YEAR)),
+        "downside_beta": num(dfit["coef"][1]) if dfit else None,
+        "sharpe": num(excess.mean() / df["y"].std() * math.sqrt(WEEKS_PER_YEAR)) if excess is not None else None,
+        "sortino": num(excess.mean() * WEEKS_PER_YEAR / (math.sqrt((neg ** 2).sum() / len(excess)) * math.sqrt(WEEKS_PER_YEAR)))
         if excess is not None and len(neg) > 0 else None,
-        "max_dd": _f(dd), "max_dd_weeks": dd_weeks,
+        "max_dd": num(dd), "max_dd_weeks": dd_weeks,
     }
 
 
@@ -116,9 +114,9 @@ def factor_loadings(asset: pd.Series, market: pd.Series, tilts: dict[str, pd.Ser
     if r is not None:
         X["market"] = X["market"] - r
     fit = ols(y.to_numpy(), X.to_numpy())
-    return {"n_weeks": int(len(df)), "r2": _f(fit["r2"]),
-            "alpha_ann": _f(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": _f(fit["t"][0]),
-            "loadings": [{"factor": k, "beta": _f(fit["coef"][i + 1]), "t": _f(fit["t"][i + 1])} for i, k in enumerate(cols)]}
+    return {"n_weeks": int(len(df)), "r2": num(fit["r2"]),
+            "alpha_ann": num(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": num(fit["t"][0]),
+            "loadings": [{"factor": k, "beta": num(fit["coef"][i + 1]), "t": num(fit["t"][i + 1])} for i, k in enumerate(cols)]}
 
 
 def correlation(returns: dict[str, pd.Series], weeks: int, min_weeks: int) -> dict:
@@ -130,7 +128,7 @@ def correlation(returns: dict[str, pd.Series], weeks: int, min_weeks: int) -> di
         for j, c in enumerate(syms):
             pair = df[[a, c]].dropna()
             if len(pair) >= min_weeks:
-                m[i][j] = 1.0 if i == j else _f(pair[a].corr(pair[c]))
+                m[i][j] = 1.0 if i == j else num(pair[a].corr(pair[c]))
     return {"symbols": syms, "weeks": weeks, "matrix": m}
 
 
