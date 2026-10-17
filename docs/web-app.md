@@ -9,7 +9,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Frontend work: run `pnpm -C web dev` (port 5173, proxies `/api` to 8780) next to `radar serve`.
 
 ## Contract
-- `src/radar/api_models.py` defines every response with `extra="forbid"`, so `profile.py`, `dashboard.py`, `mine.py` and the models can't drift silently (`test_report_e2e` validates a built dashboard against them).
+- `src/radar/api_models.py` defines every response with `extra="forbid"`, so `profile.py`, `dashboard.py`, `mine.py` and the models can't drift silently (`report.build` checks every dashboard section against them before writing, `dashboard.check`, and `profile.build` its profile; `test_report_e2e` and `test_profile` hold both to it). `api_models` sits in the features layer, below the API, so the producers can import it.
 - After changing the models, run `pnpm -C web gen:api` to regenerate `web/src/api/schema.ts` from `radar openapi`. `pnpm -C web build` then fails on any field the UI uses that no longer exists.
 - TypeScript is pinned to 5.9: version 7's native compiler lacks the API `openapi-typescript` needs.
 

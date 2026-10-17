@@ -101,6 +101,7 @@ def add_abtest(market=None) -> None:
 def build() -> dict:
     c = dashboard.compute()
     d = c.data
+    dashboard.check(d)                  # the shape the app reads, before anything is written
     REPORTS.mkdir(parents=True, exist_ok=True)
     out = REPORTS / dashboard.FILE_NAME
     _write(out, d)

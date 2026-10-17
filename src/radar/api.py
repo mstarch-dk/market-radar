@@ -468,7 +468,7 @@ def _outdated(d: dict) -> dict | None:
 def get_regime() -> dict:
     """The regime of the last `radar run`, voted with your current choice of indicator groups."""
     view = _view("regime")
-    view["overall"], view["indicators"] = dashboard.regime_now(_dashboard())
+    view["overall"], view["indicators"] = dashboard.regime_now(_dashboard())   # Regime(overall, indicators)
     return view | {"votes": dashboard.vote_options()}
 
 

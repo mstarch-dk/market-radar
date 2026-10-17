@@ -77,8 +77,11 @@ class RuleSpec:
     redeploy: str = "park"        # park: an exit's proceeds wait in backtest.park; score: they buy the picker's best name
     rotate: int = 0               # > 0: sell at month-end a holding ranked outside rotate x the picker's basket size
     cooldown: int = 21            # sessions after a sale before redeploy can buy the name again
+    half: str = "both"            # both halves of the rule, or only its stop / take-profit (the ablation; see ablation)
 
     def __post_init__(self):
+        if self.half not in RULES:
+            raise ValueError(f"half must be one of {', '.join(RULES)}")
         if self.tp not in ("fixed", "off") or self.stop not in STOP_KINDS:
             raise ValueError(f"tp must be fixed or off, stop one of {', '.join(STOP_KINDS)}")
         if self.redeploy not in ("park", "score") or self.rotate < 0 or self.cooldown < 0:
@@ -501,22 +504,26 @@ def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
     return after
 
 
-def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None,
-           rule: str = "both", fee_bps: float | None = None, spec: RuleSpec | None = None, picker=None,
-           fees: SimFees | None = None) -> dict:
-    """The simulated rows and the report for one real portfolio's rows (`rule`: both / stop / take_profit;
-    `fees` per rule or parking trade, default `fee_bps` of its value, default settings backtest.fee_bps;
-    `spec`: a variant of the rule;
-    `picker`: the candidates for `spec.redeploy` / `spec.rotate`)."""
-    if variant not in VARIANTS:
-        raise ValueError(f"variant must be one of {', '.join(VARIANTS)}")
-    if rule not in RULES:
-        raise ValueError(f"rule must be one of {', '.join(RULES)}")
+def ablation(rule: str, spec: RuleSpec | None = None) -> RuleSpec:
+    """`spec` (default: the radar's rule) with only one half of the rule: "stop" (no take-profit),
+    "take_profit" (no stop) or "both"."""
     spec = spec or RuleSpec()
     if rule == "stop":
-        spec = replace(spec, tp="off")
-    elif rule == "take_profit":
-        spec = replace(spec, stop="none")
+        return replace(spec, tp="off", half=rule)
+    if rule == "take_profit":
+        return replace(spec, stop="none", half=rule)
+    return replace(spec, half=rule)
+
+
+def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=None, fill: str | None = None,
+           fee_bps: float | None = None, spec: RuleSpec | None = None, picker=None,
+           fees: SimFees | None = None) -> dict:
+    """The simulated rows and the report for one real portfolio's rows. `spec`: the rule (default: the radar's;
+    one half only: ablation); `fees` per rule or parking trade, default `fee_bps` of its value, default settings
+    backtest.fee_bps; `picker`: the candidates for `spec.redeploy` / `spec.rotate`."""
+    if variant not in VARIANTS:
+        raise ValueError(f"variant must be one of {', '.join(VARIANTS)}")
+    spec = spec or RuleSpec()
     if spec.reentry and variant != "rules":
         raise ValueError("re-entry needs the rules variant (your own sales would mix with the rule's buys)")
     if spec.redeploy == "score" and (variant != "rules" or picker is None):
@@ -526,7 +533,7 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
     rows = sorted([r for r in real_rows if r["type"] in userstore.TYPES],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
-                bt.get("park") or universe.benchmark(), rule,
+                bt.get("park") or universe.benchmark(), spec.half,
                 fees or SimFees(money.fee_bps(bt) if fee_bps is None else float(fee_bps)), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")

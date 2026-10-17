@@ -491,7 +491,7 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
         rec = {"date": ds, "fill": f.date().isoformat(), "end": e.date().isoformat(), "skipped": problems}
         rec["hold"] = performance.return_on_paid_in(rows, market, e)
         for rule in ex.RULES:
-            rep = ex.replay(rows, ctx, "rules", end=e, rule=rule, fee_bps=fee)
+            rep = ex.replay(rows, ctx, "rules", end=e, spec=ex.ablation(rule), fee_bps=fee)
             rec[rule] = performance.return_on_paid_in(rep["rows"], market, e)
             rec[f"{rule}_exits"] = len(rep["exits"])
             if rule == "both":

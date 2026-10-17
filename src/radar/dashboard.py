@@ -424,6 +424,29 @@ def outdated(d: dict) -> dict | None:
 _cache: tuple[float, dict, str] | None = None  # (mtime, data, path)
 
 
+VIEWS = {"regime": "RegimeView", "rotation": "RotationView", "momentum": "MomentumView",
+         "positioning": "PositioningView", "coverage": "CoverageView", "quality": "QualityView"}
+
+
+def check(d: dict) -> None:
+    """Each section of a dashboard.json against the model the API serves it with (api_models, extra fields an
+    error), so a shape the app can't show fails the report build, not a page. ValueError naming the first
+    mismatch."""
+    from pydantic import ValidationError
+
+    from . import api_models
+
+    data = _clean(d)
+    head = {"asof": data["asof"], "generated": data["generated"], "age_days": 0, "stale": False}   # the API adds these
+    for key, model in VIEWS.items():
+        try:
+            getattr(api_models, model).model_validate(head | data[key])
+        except ValidationError as e:
+            err = e.errors()[0]
+            where = ".".join(str(x) for x in err["loc"])
+            raise ValueError(f"dashboard.json's {key} doesn't match api_models.{model}: {where}: {err['msg']}") from None
+
+
 def reset() -> None:
     """Forget the loaded dashboard.json (it is read again on the next load())."""
     global _cache

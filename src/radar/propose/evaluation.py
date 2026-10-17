@@ -16,17 +16,10 @@ from . import basket, draft, drift, exposure, pricing, riskmodel, rules
 
 
 def picks_doc(doc: dict) -> dict:
-    if doc.get("type") != "propose-picks" or not doc.get("picks"):
-        raise ValueError("not a picks file (type propose-picks with picks)")
-    seen = set()
-    for x in doc["picks"]:
-        t = x.get("ticker")
-        if not t:
-            raise ValueError("a pick without a ticker")
-        if t in seen:
-            raise ValueError(f"{t} is picked twice")
-        seen.add(t)
-    return doc
+    """`doc` checked against the picks file's contract (picks_file.py)."""
+    from . import picks_file
+
+    return picks_file.check(doc)
 
 
 def picks_sha(doc: dict) -> str:
