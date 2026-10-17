@@ -60,7 +60,8 @@ def now() -> datetime:
     return datetime.now()
 
 
-def _ts(t: datetime | None = None) -> str:
+def timestamp(t: datetime | None = None) -> str:
+    """`t` (default: now) as the log's ISO timestamp, to the millisecond."""
     return (t or now()).isoformat(timespec="milliseconds")
 
 
@@ -164,7 +165,7 @@ def record_request(host: str, path: str, method: str, status: int | None, ok: bo
     """One HTTP request. `path` must already be redacted (net.redact): no query string is ever stored."""
     _write("INSERT INTO requests (ts, job_id, source, host, method, path, status, ok, duration_ms, bytes, attempt,"
            " throttled, error) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-           (_ts(), current_job(), current_source(), host, method.upper(), path, status, int(ok), duration_ms, size,
+           (timestamp(), current_job(), current_source(), host, method.upper(), path, status, int(ok), duration_ms, size,
             attempt, int(throttled), error))
 
 
@@ -176,18 +177,18 @@ def event(level: str, kind: str, message: str, source: str | None = None, detail
     if detail and len(detail) > DETAIL_MAX:
         detail = "…" + detail[-DETAIL_MAX:]
     _write("INSERT INTO events (ts, level, kind, source, message, detail, job_id) VALUES (?,?,?,?,?,?,?)",
-           (_ts(), level, kind, source if source is not None else _source.get(), message, detail, current_job()))
+           (timestamp(), level, kind, source if source is not None else _source.get(), message, detail, current_job()))
 
 
 def job_start(kind: str) -> int | None:
-    return _write("INSERT INTO jobs (kind, started, status) VALUES (?,?,'running')", (kind, _ts()))
+    return _write("INSERT INTO jobs (kind, started, status) VALUES (?,?,'running')", (kind, timestamp()))
 
 
 def job_finish(job_id: int | None, status: str, error: str | None = None, lines: list[str] | None = None) -> None:
     if job_id is None:
         return
     _write("UPDATE jobs SET finished = ?, status = ?, error = ?, log = ? WHERE id = ?",
-           (_ts(), status, error, "\n".join(lines or []), job_id))
+           (timestamp(), status, error, "\n".join(lines or []), job_id))
 
 
 @contextmanager
@@ -220,7 +221,7 @@ def host_state(host: str) -> dict | None:
 def set_cooldown(host: str, until: datetime, reason: str, strikes: int) -> None:
     _write("INSERT INTO host_state (host, cooldown_until, reason, strikes, updated) VALUES (?,?,?,?,?) "
            "ON CONFLICT(host) DO UPDATE SET cooldown_until = excluded.cooldown_until, reason = excluded.reason, "
-           "strikes = excluded.strikes, updated = excluded.updated", (host, _ts(until), reason, strikes, _ts()))
+           "strikes = excluded.strikes, updated = excluded.updated", (host, timestamp(until), reason, strikes, timestamp()))
 
 
 def clear_cooldown(host: str) -> bool:
@@ -228,17 +229,17 @@ def clear_cooldown(host: str) -> bool:
     st = host_state(host)
     if not st or not st["cooldown_until"]:
         return False
-    _write("UPDATE host_state SET cooldown_until = NULL, updated = ? WHERE host = ?", (_ts(), host))
+    _write("UPDATE host_state SET cooldown_until = NULL, updated = ? WHERE host = ?", (timestamp(), host))
     return True
 
 
 def cooldowns() -> list[dict]:
     """Hosts paused right now."""
-    return _read("SELECT * FROM host_state WHERE cooldown_until > ? ORDER BY host", (_ts(),))
+    return _read("SELECT * FROM host_state WHERE cooldown_until > ? ORDER BY host", (timestamp(),))
 
 
 def count_requests(host: str, since: datetime, status: int | None = None) -> int:
-    sql, args = "SELECT COUNT(*) AS n FROM requests WHERE host = ? AND ts >= ?", [host, _ts(since)]
+    sql, args = "SELECT COUNT(*) AS n FROM requests WHERE host = ? AND ts >= ?", [host, timestamp(since)]
     if status is not None:
         sql += " AND status = ?"
         args.append(status)
@@ -257,8 +258,8 @@ def prune() -> None:
     t = now()
     try:
         with closing(_connect()) as con, con:
-            con.execute("DELETE FROM requests WHERE ts < ?", (_ts(t - timedelta(days=cfg["keep_requests_days"])),))
-            old = _ts(t - timedelta(days=cfg["keep_events_days"]))
+            con.execute("DELETE FROM requests WHERE ts < ?", (timestamp(t - timedelta(days=cfg["keep_requests_days"])),))
+            old = timestamp(t - timedelta(days=cfg["keep_events_days"]))
             con.execute("DELETE FROM events WHERE ts < ?", (old,))
             con.execute("DELETE FROM jobs WHERE started < ? AND status != 'running'", (old,))
     except sqlite3.Error as e:
@@ -292,7 +293,7 @@ def summary(days: int = 7, hosts_cfg=None) -> dict:
     since, day_ago = t - timedelta(days=days), t - timedelta(days=1)
     today = t.replace(hour=0, minute=0, second=0, microsecond=0)
     rows = _read("SELECT host, source, ts, status, ok, duration_ms, error FROM requests WHERE ts >= ? ORDER BY ts",
-                 (_ts(since),))
+                 (timestamp(since),))
     groups: dict[tuple[str, str | None], list[dict]] = {}
     for r in rows:
         groups.setdefault((r["host"], r["source"]), []).append(r)
@@ -301,7 +302,7 @@ def summary(days: int = 7, hosts_cfg=None) -> dict:
     out_rows = []
     today_by_host: dict[str, int] = {}
     for r in rows:
-        if r["ts"] >= _ts(today):
+        if r["ts"] >= timestamp(today):
             today_by_host[r["host"]] = today_by_host.get(r["host"], 0) + 1
     for (host, source), rs in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1] or "")):
         durs = [r["duration_ms"] for r in rs if r["duration_ms"] is not None]
@@ -326,12 +327,12 @@ def summary(days: int = 7, hosts_cfg=None) -> dict:
             "cooldown_until": cd["cooldown_until"] if cd else None,
             "daily": [per_day[d] for d in dates],
         })
-    recent = [r for r in rows if r["ts"] >= _ts(day_ago)]
-    ev = _read("SELECT COUNT(*) AS n FROM events WHERE level = 'error' AND ts >= ?", (_ts(day_ago),))[0]["n"]
+    recent = [r for r in rows if r["ts"] >= timestamp(day_ago)]
+    ev = _read("SELECT COUNT(*) AS n FROM events WHERE level = 'error' AND ts >= ?", (timestamp(day_ago),))[0]["n"]
     last_update = _read("SELECT * FROM jobs WHERE kind IN ('update', 'cli_run', 'cli_update') ORDER BY id DESC LIMIT 1")
     over = sorted({r["host"] for r in out_rows if r["budget"] and r["today"] > r["budget"]})
     return {
-        "days": days, "dates": dates, "generated": _ts(t),
+        "days": days, "dates": dates, "generated": timestamp(t),
         "requests_24h": len(recent), "errors_24h": sum(1 for r in recent if not r["ok"]),
         "error_events_24h": ev,
         "last_update": _job_row(last_update[0]) if last_update else None,

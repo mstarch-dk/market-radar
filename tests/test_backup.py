@@ -94,7 +94,7 @@ def test_a_copy_goes_to_the_second_folder(data, tmp_path):
 
 def test_a_new_version_backs_up_before_its_first_use(data):
     m = home.read_manifest(data.home)
-    home._write_manifest(data.home, m | {"last_app_version": "0.0.1"})
+    home.write_manifest(data.home, m | {"last_app_version": "0.0.1"})
     f = backup.before_upgrade()
     assert f is not None and "-upgrade-before-v" in f.name
     home.touch(data.home)

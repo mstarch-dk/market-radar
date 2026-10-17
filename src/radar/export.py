@@ -125,7 +125,7 @@ def build() -> bytes:
         holdings_zip(z, include_virtual=True, tx_name=TX)
         for d in DOCS:
             root = paths.HOME / d
-            for p in home._files(root.now()):
+            for p in home.files_under(root.now()):
                 z.write(p, f"{d}/{p.relative_to(root.now()).as_posix()}")
         z.writestr("EXPORT.md", README.format(created=created, version=home.app_version(), fmt=EXPORT_FORMAT))
         z.writestr("export.json", json.dumps({"export_format": EXPORT_FORMAT, "created": created,

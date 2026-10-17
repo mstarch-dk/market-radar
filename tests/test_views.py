@@ -150,8 +150,8 @@ def env(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})
     monkeypatch.setattr(ingest, "load_fred", world.fred)
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(market_views, "_cache", {})
+    api.reset()
+    market_views.reset()
     userstore.save_view({"statement": "Software keeps winning", "conviction": 4,
                          "exposures": [{"kind": "sector", "key": "Technology", "effect": 1}],
                          "indicators": [{"indicator": "us10y", "expect": "down"}]})

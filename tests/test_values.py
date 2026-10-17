@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from radar.model.stats import mean
-from radar.values import num
+from radar.values import num, whole
 
 
 @pytest.mark.parametrize("v, want", [(1, 1.0), ("2.5", 2.5), (np.float32(0.5), 0.5), (True, 1.0), (-0.0, 0.0)])
@@ -21,3 +21,8 @@ def test_anything_else_is_missing(v):
 def test_mean_leaves_out_what_is_missing():
     assert mean([1.0, None, np.nan, 3.0, np.inf]) == 2.0
     assert mean([None, np.nan]) is None and mean([]) is None
+
+
+def test_whole_is_an_int_or_missing():
+    assert whole(np.int64(3)) == 3 and isinstance(whole(3.0), int)
+    assert whole(None) is None and whole(np.nan) is None and whole(pd.NA) is None

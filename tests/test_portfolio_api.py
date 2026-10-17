@@ -15,8 +15,8 @@ S3_CLOSE = 100 * 1.0008 ** 200
 def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     return TestClient(api.app)
 
 

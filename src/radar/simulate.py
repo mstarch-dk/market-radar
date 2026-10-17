@@ -29,9 +29,9 @@ SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
 
 def _close(market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
     """The traded close on `day`, or the last one before it."""
-    from .portfolio import _session
+    from .portfolio import session_close
 
-    return _session(market, sym, day)
+    return session_close(market, sym, day)
 
 
 def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=()) -> int:
@@ -43,7 +43,7 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         raise ValueError(f"no portfolio {src_id}")
     if userstore.portfolio_by_name(name):
         raise ValueError(f"there is already a portfolio called {name}")
-    cal = performance._calendar(market)
+    cal = performance.benchmark_sessions(market)
     day = cal[cal <= pd.Timestamp(at)]
     if day.empty:
         raise ValueError(f"no prices on or before {at}")
@@ -146,7 +146,7 @@ def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict
     problems = check_rows(rows, market, p["dividends"])
     if problems:
         raise ValueError("; ".join(problems[:5]))
-    asof = performance._calendar(market)[-1].date().isoformat()
+    asof = performance.benchmark_sessions(market)[-1].date().isoformat()
     run_id = userstore.replace_sim_run(pid, {"strategy": strategy, "params": params, "start": start, "end": end,
                                              "data_asof": asof, "message": message}, rows)
     perf = performance.portfolio_performance(pid, market)

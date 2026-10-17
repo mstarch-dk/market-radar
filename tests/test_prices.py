@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import dashboard, ingest, mine, paths
+from radar import dashboard, ingest, paths, universe
 from radar.mine import _vs_shadow
 from radar.model.score import score_vs
 
@@ -84,21 +84,21 @@ def test_shadow_return_is_in_dkk():
 def test_fx_to_dkk_handles_pence_and_unknown_currencies():
     closes = pd.DataFrame({"GBPDKK=X": [8.5, np.nan, 8.6], "USDDKK=X": [6.9, 7.0, 7.1]},
                           index=pd.bdate_range("2026-01-05", periods=3))
-    assert mine._fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
-    assert mine._fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
-    assert (mine._fx_to_dkk(closes, "DKK") == 1.0).all()
-    assert mine._fx_to_dkk(closes, "XYZ") is None and mine._fx_to_dkk(closes, None) is None
-    assert mine._fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
+    assert universe.fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
+    assert universe.fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
+    assert (universe.fx_to_dkk(closes, "DKK") == 1.0).all()
+    assert universe.fx_to_dkk(closes, "XYZ") is None and universe.fx_to_dkk(closes, None) is None
+    assert universe.fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
 
 
 def test_won_and_taiwan_dollar_cross_via_usd():
     from radar import universe
     closes = pd.DataFrame({"USDDKK=X": [7.0, 6.8, np.nan], "USDKRW=X": [1400.0, np.nan, 1360.0],
                            "USDTWD=X": [32.0, 34.0, 34.0]}, index=pd.date_range("2025-01-01", periods=3))
-    assert mine._fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
-    assert mine._fx_to_dkk(closes, "TWD").tolist() == pytest.approx([7 / 32, 0.2, 0.2])
-    assert mine._fx_to_dkk(closes.drop(columns="USDKRW=X"), "KRW") is None   # either leg missing: no rate
-    assert mine._fx_to_dkk(closes.drop(columns="USDDKK=X"), "TWD") is None
+    assert universe.fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
+    assert universe.fx_to_dkk(closes, "TWD").tolist() == pytest.approx([7 / 32, 0.2, 0.2])
+    assert universe.fx_to_dkk(closes.drop(columns="USDKRW=X"), "KRW") is None   # either leg missing: no rate
+    assert universe.fx_to_dkk(closes.drop(columns="USDDKK=X"), "TWD") is None
     rates = universe.dkk_rates({"USDDKK=X": 6.8, "USDKRW=X": 1360.0, "GBPDKK=X": 8.6})
     assert rates == pytest.approx({"DKK": 1.0, "USD": 6.8, "GBP": 8.6, "KRW": 0.005})   # no TWD, no GBp
     assert "KRW" not in universe.dkk_rates({"USDKRW=X": 1360.0})
@@ -132,7 +132,7 @@ def price_store(tmp_path, monkeypatch):
             calls.append((sorted(tickers), start))
             frames = [w[w["date"] >= pd.Timestamp(start)] for t, w in world.items() if t in tickers]
             return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=ingest.COLUMNS)
-        monkeypatch.setattr(ingest, "_download", fake)
+        monkeypatch.setattr(ingest, "download_bars", fake)
     return install, calls
 
 
@@ -242,7 +242,7 @@ def test_tickers_without_the_benchmarks_last_session_are_asked_again(price_store
         src = lagging if len(calls) == 1 else world
         frames = [src.get(t, world[t]) for t in tickers]
         return pd.concat([f[f["date"] >= pd.Timestamp(start)] for f in frames], ignore_index=True)
-    monkeypatch.setattr(ingest, "_download", fake)
+    monkeypatch.setattr(ingest, "download_bars", fake)
     res = ingest.update_prices(["BENCH", "EU", "HOL"], bench="BENCH")
     assert calls[1][0] == ["EU", "HOL"]                          # one catch-up for the two behind
     assert ingest.load_prices().query("ticker == 'EU'")["date"].max() == pd.Timestamp("2026-09-28")
@@ -327,7 +327,7 @@ def test_two_writers_at_once_keep_each_others_tickers(price_store, monkeypatch):
             started.set()
             release.wait(5)
         return pd.concat([world[t][world[t]["date"] >= pd.Timestamp(start)] for t in tickers], ignore_index=True)
-    monkeypatch.setattr(ingest, "_download", download)
+    monkeypatch.setattr(ingest, "download_bars", download)
     slow = threading.Thread(target=ingest.update_prices, args=(["A"],), kwargs={"today": TODAY})
     slow.start()
     started.wait(5)

@@ -18,8 +18,8 @@ S2 = lambda i: 100 * 1.0010 ** i            # S2's close at bar i (USD; USDDKK i
 def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [])
     return TestClient(api.app)
 

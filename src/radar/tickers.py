@@ -11,6 +11,12 @@ from .paths import CACHE
 _cache: tuple[tuple, list[dict]] | None = None
 
 
+def reset() -> None:
+    """Forget the cached ticker list."""
+    global _cache
+    _cache = None
+
+
 def _cached_currencies(tickers: list[str]) -> dict[str, str | None]:
     """Quote currencies from the local cache only (no Yahoo lookups on a hover)."""
     f = CACHE / "currencies.csv"

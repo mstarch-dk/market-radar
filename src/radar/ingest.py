@@ -27,7 +27,7 @@ def load_prices() -> pd.DataFrame:
     return pd.read_parquet(PRICES_FILE)
 
 
-def _download(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
+def download_bars(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
     """Yahoo daily bars from `start`, in batches; `progress(done, total)` is called after each batch."""
     net.install_yfinance()
     frames, unusable = [], []
@@ -124,17 +124,17 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     deepen = known if legacy else [t for t in known if pd.Timestamp(fetched_from.get(t) or first[t]) > limit]
     known = [t for t in known if t not in deepen]
 
-    full = _download(new + deepen, full_start, progress) if new or deepen else pd.DataFrame(columns=COLUMNS)
+    full = download_bars(new + deepen, full_start, progress) if new or deepen else pd.DataFrame(columns=COLUMNS)
     inc = pd.DataFrame(columns=COLUMNS)
     rebased: list[str] = []
     if known:
         since = pd.Timestamp(last[known].min()).date() - timedelta(days=OVERLAP_DAYS)
-        inc = _norm_dates(_download(known, since, progress))
+        inc = norm_dates(download_bars(known, since, progress))
         rebased = rescaled(existing, inc)
         if rebased:
             inc = inc[~inc["ticker"].isin(rebased)]
-            full = pd.concat([full, _download(rebased, full_start)], ignore_index=True)
-    full = _norm_dates(full)
+            full = pd.concat([full, download_bars(rebased, full_start)], ignore_index=True)
+    full = norm_dates(full)
 
     # Yahoo sometimes answers without the latest session for a whole exchange; ask once more for those
     more = pd.DataFrame(columns=COLUMNS)
@@ -142,7 +142,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     late = behind(df, tickers, bench)
     if late:
         since = min(date.fromisoformat(d) for d in late.values()) - timedelta(days=OVERLAP_DAYS)
-        more = _norm_dates(_download(sorted(late), since))
+        more = norm_dates(download_bars(sorted(late), since))
         more = more[~more["ticker"].isin(rescaled(df, more))]   # another basis: the next run downloads it in full
 
     with locks.file_lock(PRICES_FILE, what="the price store is busy: another update is writing it"):
@@ -258,7 +258,8 @@ def behind(df: pd.DataFrame, tickers: list[str], bench: str | None) -> dict[str,
     return {t: pd.Timestamp(d).date().isoformat() for t, d in last.items() if d < pd.Timestamp(ref)}
 
 
-def _norm_dates(df: pd.DataFrame) -> pd.DataFrame:
+def norm_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """A copy with `date` as naive midnight timestamps (no time zone, no time of day)."""
     df = df.copy()
     df["date"] = pd.to_datetime(df["date"]).dt.tz_localize(None).dt.normalize()
     return df

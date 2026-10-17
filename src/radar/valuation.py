@@ -160,7 +160,7 @@ def _snapshot_due(path, days: int, today: date | None = None) -> tuple[bool, pd.
     return ((today or date.today()) - last).days >= days, old
 
 
-def _store(path, old: pd.DataFrame, new: pd.DataFrame, today: date | None = None) -> int:
+def store_snapshot(path, old: pd.DataFrame, new: pd.DataFrame, today: date | None = None) -> int:
     """Add today's snapshot; one per ISO week (a second run in the same week replaces it). Names the replaced
     run had and this one missed are carried into it, with a note, rather than dropped from the week. Returns how
     many were carried."""
@@ -217,7 +217,7 @@ def update_stocks(force: bool = False, today: date | None = None) -> str:
     missing = [t for t in tracked_stocks() if t not in rows][: cfg["fallback_max"]]
     looked, failed = _lookups(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
-    carried = _store(STOCKS_FILE, old, df, today)
+    carried = store_snapshot(STOCKS_FILE, old, df, today)
     have = sum(t in rows for t in tracked_stocks())
     with_pe = df["pe_fy1"].notna().sum()
     return (f"{len(df):,} names, {with_pe:,} with a forward P/E; {have} of {len(tracked_stocks())} tracked stocks"
@@ -309,7 +309,7 @@ def update_etfs(force: bool = False, today: date | None = None) -> str:
         raise ValueError(f"fund data for only {len(rows)} of {len(tickers)} ETFs (the last snapshot had {len(prev)}): "
                          "keeping the last snapshot")
     df = pd.DataFrame(rows).reindex(columns=ETF_COLS)
-    carried = _store(ETFS_FILE, old, df, today)
+    carried = store_snapshot(ETFS_FILE, old, df, today)
     return (f"{len(df)} of {len(tickers)} ETFs, {df['pe'].notna().sum()} with a P/E"
             + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
@@ -497,6 +497,12 @@ class Context:
 
 
 _ctx: tuple[tuple, Context] | None = None
+
+
+def reset() -> None:
+    """Forget the cached valuation context (context() builds it again)."""
+    global _ctx
+    _ctx = None
 
 
 def context() -> Context:

@@ -15,7 +15,7 @@ END = N - 1
 @pytest.fixture
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
-    monkeypatch.setattr(performance, "_cache", {})
+    performance.reset()
     return profile.Market.load()
 
 
@@ -122,8 +122,8 @@ def test_a_run_that_does_not_add_up_stores_nothing(market):
 
 def test_fork_through_the_api(market, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     client = TestClient(api.app)
     client.get("/api/portfolios")                                                # moves the world's trade in
     main = next(p for p in client.get("/api/portfolios").json() if p["name"] == "Main")

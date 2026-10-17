@@ -31,7 +31,7 @@ def set_enabled(on: bool) -> None:
     if m is None:
         raise RuntimeError("the update check needs a data folder: run `radar setup` first")
     m["update_check"] = bool(on)
-    home._write_manifest(loc.home, home._log(m, "update_check", on=bool(on)))
+    home.write_manifest(loc.home, home.add_log(m, "update_check", on=bool(on)))
 
 
 def _cached() -> dict | None:
@@ -59,7 +59,7 @@ def status(check: bool = True) -> dict:
         write_text(CHECK_FILE, json.dumps(c, indent=1))
     if c:
         out |= {k: c.get(k) for k in ("latest", "url", "published", "checked", "error")}
-        out["newer"] = bool(out["latest"]) and home._vt(out["latest"].lstrip("v")) > home._vt(out["current"])
+        out["newer"] = bool(out["latest"]) and home.version_tuple(out["latest"].lstrip("v")) > home.version_tuple(out["current"])
     return out
 
 

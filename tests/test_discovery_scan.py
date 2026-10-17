@@ -86,7 +86,7 @@ def test_prices_refused_by_yahoo_are_asked_for_again(tmp_data, monkeypatch):
         calls.append(list(ts))
         got = ts[:4] if len(calls) == 1 else ts            # the first pass is rate-limited after 4 names
         return pd.concat([world.bars(t, [1.0, 2.0]) for t in got], ignore_index=True)
-    monkeypatch.setattr(ingest, "_download", download)
+    monkeypatch.setattr(ingest, "download_bars", download)
     waits = []
     res = scan.update_prices(tickers, log=lambda m: None, sleep=waits.append, waits=(1, 2))
     assert res["got"] == 10 and res["missing"] == []

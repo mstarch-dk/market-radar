@@ -244,17 +244,17 @@ def _yf_frame(n=3, start="2026-10-06"):
 def test_download_handles_multi_and_single_ticker_frames(monkeypatch):
     multi = pd.concat({"AAA": _yf_frame(), "BBB": _yf_frame() * np.nan}, axis=1)   # BBB: listed but no data
     monkeypatch.setattr(ingest.yf, "download", lambda batch, **kw: multi if len(batch) > 1 else _yf_frame())
-    out = ingest._download(["AAA", "BBB"], pd.Timestamp("2026-10-01").date())
+    out = ingest.download_bars(["AAA", "BBB"], pd.Timestamp("2026-10-01").date())
     assert set(out["ticker"]) == {"AAA"} and list(out.columns) == ingest.COLUMNS
     assert out["close"].tolist() == pytest.approx([90.0, 90.9, 91.8]) and out["raw_close"].iloc[0] == 100.0
     assert out["high"].iloc[0] == pytest.approx(101 * 0.9)
-    single = ingest._download(["AAA"], pd.Timestamp("2026-10-01").date())   # flat columns from yfinance
+    single = ingest.download_bars(["AAA"], pd.Timestamp("2026-10-01").date())   # flat columns from yfinance
     assert single["ticker"].unique().tolist() == ["AAA"] and len(single) == 3
 
 
 def test_download_empty_response(monkeypatch):
     monkeypatch.setattr(ingest.yf, "download", lambda batch, **kw: pd.DataFrame())
-    out = ingest._download(["AAA"], pd.Timestamp("2026-10-01").date())
+    out = ingest.download_bars(["AAA"], pd.Timestamp("2026-10-01").date())
     assert out.empty and list(out.columns) == ingest.COLUMNS
 
 

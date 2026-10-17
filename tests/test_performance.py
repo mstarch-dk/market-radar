@@ -27,7 +27,7 @@ def market(tmp_data, monkeypatch):
     div = world.bars("DIV", v)                                # DIV: adjusted 100 flat; traded 102 until a 2.00
     div["raw_close"] = np.where(np.arange(N) < 200, 102.0, 100.0)   # dividend goes ex at bar 200
     extra["DIV"] = div
-    monkeypatch.setattr(performance, "_cache", {})
+    performance.reset()
     return profile.Market.load()
 
 
@@ -167,8 +167,8 @@ def test_xirr_known_answers():
 @pytest.fixture
 def client(market, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     return TestClient(api.app)
 
 

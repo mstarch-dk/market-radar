@@ -233,7 +233,7 @@ def _multi(batch, **frames):
 def test_the_download_asks_in_batches_and_concatenates_them(fake_yf):
     fake = fake_yf(lambda b: _multi(b) if len(b) > 1 else _bars())
     progress = []
-    out = ingest._download(["A", "B", "C", "D", "E"], date(2026, 10, 1), lambda d, t: progress.append((d, t)))
+    out = ingest.download_bars(["A", "B", "C", "D", "E"], date(2026, 10, 1), lambda d, t: progress.append((d, t)))
     assert fake.asked == [["A", "B"], ["C", "D"], ["E"]]
     assert progress == [(0, 5), (2, 5), (4, 5)]
     assert sorted(out["ticker"].unique()) == ["A", "B", "C", "D", "E"] and len(out) == 15
@@ -242,27 +242,27 @@ def test_the_download_asks_in_batches_and_concatenates_them(fake_yf):
 
 def test_a_ticker_missing_from_its_batch_is_skipped(fake_yf):
     fake_yf(lambda b: _multi([t for t in b if t != "B"]))
-    out = ingest._download(["A", "B", "C", "D"], date(2026, 10, 1))
+    out = ingest.download_bars(["A", "B", "C", "D"], date(2026, 10, 1))
     assert sorted(out["ticker"].unique()) == ["A", "C", "D"]
 
 
 def test_a_single_ticker_batch_with_flat_columns_is_read_as_that_ticker(fake_yf):
     fake_yf(lambda b: _multi(b) if len(b) > 1 else _bars(n=2))
-    out = ingest._download(["A", "B", "C"], date(2026, 10, 1))
+    out = ingest.download_bars(["A", "B", "C"], date(2026, 10, 1))
     c = out[out["ticker"] == "C"]
     assert len(c) == 2 and c["close"].tolist() == [50.0, 50.5] and c["raw_close"].tolist() == [100.0, 101.0]
 
 
 def test_an_empty_batch_is_skipped_and_the_others_kept(fake_yf):
     fake_yf(lambda b: pd.DataFrame() if b == ["C", "D"] else _multi(b))
-    out = ingest._download(["A", "B", "C", "D"], date(2026, 10, 1))
+    out = ingest.download_bars(["A", "B", "C", "D"], date(2026, 10, 1))
     assert sorted(out["ticker"].unique()) == ["A", "B"]
 
 
 def test_a_frame_without_adj_close_fails_clearly_or_skips_that_ticker(fake_yf):
     fake_yf(lambda b: _multi(b, A=_bars(adj=False)))
     try:
-        out = ingest._download(["A", "B"], date(2026, 10, 1))
+        out = ingest.download_bars(["A", "B"], date(2026, 10, 1))
     except KeyError:
         raise AssertionError("bare KeyError") from None
     except ValueError:
@@ -278,7 +278,7 @@ def test_a_frame_without_adj_close_fails_clearly_or_skips_that_ticker(fake_yf):
 ])
 def test_norm_dates_keeps_the_exchange_local_calendar_day(tz, stamps):
     df = pd.DataFrame({"date": pd.DatetimeIndex(stamps).tz_localize(tz), "close": [1.0, 2.0]})
-    out = ingest._norm_dates(df)
+    out = ingest.norm_dates(df)
     assert out["date"].tolist() == [pd.Timestamp("2026-10-06"), pd.Timestamp("2026-10-07")]
     assert out["date"].dt.tz is None
     assert df["date"].dt.tz is not None          # the input isn't changed
@@ -287,11 +287,11 @@ def test_norm_dates_keeps_the_exchange_local_calendar_day(tz, stamps):
 def test_an_answer_where_no_ticker_has_adj_close_says_the_format_changed(fake_yf):
     fake_yf(lambda b: _multi(b, A=_bars(adj=False), B=_bars(adj=False)))
     with pytest.raises(ValueError, match="Adj Close"):
-        ingest._download(["A", "B"], date(2026, 10, 1))
+        ingest.download_bars(["A", "B"], date(2026, 10, 1))
 
 
 def test_norm_dates_drops_the_time_of_day_on_naive_dates():
-    out = ingest._norm_dates(pd.DataFrame({"date": pd.to_datetime(["2026-10-06 16:00", "2026-10-07 00:00"])}))
+    out = ingest.norm_dates(pd.DataFrame({"date": pd.to_datetime(["2026-10-06 16:00", "2026-10-07 00:00"])}))
     assert out["date"].tolist() == [pd.Timestamp("2026-10-06"), pd.Timestamp("2026-10-07")]
 
 

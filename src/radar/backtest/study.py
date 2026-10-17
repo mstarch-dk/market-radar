@@ -448,8 +448,9 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
             results[str(h)][k] = res
             decay[k][str(h)] = (res["all"] or {}).get("ic_mean")
         base = results[str(h)][BASELINE]
-        verdicts[str(h)] = {k: _verdict(results[str(h)][k], base, _diff_t(per[h][k], per[h][BASELINE], holdout, lag))
-                            for k in keys if k != BASELINE}
+        verdicts[str(h)] = {
+            k: variant_verdict(results[str(h)][k], base, holdout_diff_t(per[h][k], per[h][BASELINE], holdout, lag))
+            for k in keys if k != BASELINE}
 
     out = {
         "signal": sig.key, "signal_label": sig.label,
@@ -492,14 +493,14 @@ CAVEATS = [
 ]
 
 
-def _diff_t(rows: list[dict], base: list[dict], holdout, lag: int) -> float | None:
+def holdout_diff_t(rows: list[dict], base: list[dict], holdout, lag: int) -> float | None:
     """Newey-West t of the holdout's per-date IC difference (variant − baseline), on the dates both have."""
     b = {r["date"]: r["ic"] for r in base if holdout is not None and r["date"] >= holdout}
     d = [r["ic"] - b[r["date"]] for r in rows if r["date"] in b and r["ic"] is not None and b[r["date"]] is not None]
     return nw_t(d, lag)
 
 
-def _verdict(res: dict, base: dict, diff_t: float | None = None) -> dict:
+def variant_verdict(res: dict, base: dict, diff_t: float | None = None) -> dict:
     """Better than the baseline only when it is so in-sample and in the holdout, with a holdout IC t above 2; a
     holdout difference whose own t is below 2 is called small (it may still be chance)."""
     def ic(r, part):
@@ -558,10 +559,10 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
         if not rows:
             continue
         rec = {"date": ds, "fill": f.date().isoformat(), "end": e.date().isoformat(), "skipped": problems}
-        rec["hold"] = _value_return(rows, market, e, capital)
+        rec["hold"] = value_return(rows, market, e, capital)
         for rule in ex.RULES:
             rep = ex.replay(rows, ctx, "rules", end=e, rule=rule, fee_bps=fee)
-            rec[rule] = _value_return(rep["rows"], market, e, capital)
+            rec[rule] = value_return(rep["rows"], market, e, capital)
             rec[f"{rule}_exits"] = len(rep["exits"])
             if rule == "both":
                 c = rep["counts"]
@@ -618,7 +619,9 @@ def fast(ctx, p: Panels):
     return ctx
 
 
-def _value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -> float | None:
+def value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -> float | None:
+    """The return of trade rows on the money paid in, valued at `end`; None when their book doesn't reach `end` or
+    nothing went in."""
     from .. import performance
 
     rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
@@ -639,7 +642,8 @@ def write(rep: dict) -> None:
 
 # ---------------- variants of the exit rule: return and risk ----------------
 
-def _exit_variants():
+def exit_rule_variants():
+    """The exit rule's variants (RuleSpec) that `radar study exits` compares, the current rule first."""
     from .exits import RuleSpec as R
 
     wide4 = (("k_base", 4.0), ("k_min", 3.0), ("k_max", 5.0))
@@ -804,7 +808,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     fee = float(bt.get("fee_bps", 0))
     park = bt.get("park") or universe.benchmark()
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
-    specs = _exit_variants()
+    specs = exit_rule_variants()
     if keys:
         unknown = set(keys) - {s.key for s in specs}
         if unknown:

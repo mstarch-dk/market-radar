@@ -164,7 +164,7 @@ def _check_paused(host: str) -> None:
         hit = (t, ops.host_state(host))
         _paused[host] = hit
     st = hit[1]
-    if st and st["cooldown_until"] and st["cooldown_until"] > ops._ts():
+    if st and st["cooldown_until"] and st["cooldown_until"] > ops.timestamp():
         raise Throttled(host, st["cooldown_until"], st["reason"])
 
 
@@ -179,9 +179,9 @@ def _note_429(host: str) -> None:
     if n < cfg["trip"]:
         return
     st = ops.host_state(host) or {}
-    if st.get("cooldown_until") and st["cooldown_until"] > ops._ts(t):
+    if st.get("cooldown_until") and st["cooldown_until"] > ops.timestamp(t):
         return                               # already paused (another thread tripped it)
-    recent = st.get("updated") and st["updated"] > ops._ts(t - timedelta(days=1))
+    recent = st.get("updated") and st["updated"] > ops.timestamp(t - timedelta(days=1))
     strikes = (st.get("strikes", 0) if recent else 0) + 1
     minutes = min(cfg["cooldown_min"] * 2 ** (strikes - 1), cfg["max_cooldown_min"])
     until = t + timedelta(minutes=minutes)

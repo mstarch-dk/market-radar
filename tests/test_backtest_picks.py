@@ -19,7 +19,7 @@ D = 260                                     # the score needs 12-1-month momentu
 @pytest.fixture
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
-    monkeypatch.setattr(performance, "_cache", {})
+    performance.reset()
     c = copy.deepcopy(settings())
     c["backtest"] |= {"fill": "next", "fee_bps": 10, "random_baskets": 200}
     for mod in (picks, study):

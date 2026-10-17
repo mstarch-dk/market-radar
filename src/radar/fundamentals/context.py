@@ -219,17 +219,23 @@ class Context:
 
 
 def save_week(ctx: Context, today: date | None = None) -> int:
-    """This week's scores into the history tier (one per ISO week; see valuation._store)."""
+    """This week's scores into the history tier (one per ISO week; see valuation.store_snapshot)."""
     t = ctx.table()
     if t.empty:
         return 0
     t = t.assign(set=t["fund_set"], source=t["fund_source"], period_end=t["fund_period_end"],
                  note=[("; ".join(ctx.info[x]["notes"]) or None) for x in t["ticker"]]).reindex(columns=SCORE_COLS)
     old = pd.read_parquet(SCORES_FILE) if SCORES_FILE.exists() else pd.DataFrame(columns=["date"] + SCORE_COLS)
-    return valuation._store(SCORES_FILE, old, t, today)
+    return valuation.store_snapshot(SCORES_FILE, old, t, today)
 
 
 _ctx: tuple[tuple, Context] | None = None
+
+
+def reset() -> None:
+    """Forget the cached scores (context() builds them again)."""
+    global _ctx
+    _ctx = None
 
 
 def context(closes: pd.DataFrame, raw: pd.DataFrame | None, stamp: float = 0.0) -> Context:

@@ -75,7 +75,8 @@ def app_version() -> str:
             return "0.0.0"
 
 
-def _vt(v: str) -> tuple:
+def version_tuple(v: str) -> tuple:
+    """A version as numbers, so versions compare right: "0.2.10" is (0, 2, 10); a part that isn't a number is 0."""
     return tuple(int(p) if p.isdigit() else 0 for p in v.split("."))
 
 
@@ -95,12 +96,14 @@ def read_manifest(home: Path) -> dict | None:
         return None
 
 
-def _write_manifest(home: Path, m: dict) -> None:
+def write_manifest(home: Path, m: dict) -> None:
+    """Write the data home's market-radar.json."""
     f = Path(home) / MANIFEST
     write_text(f, json.dumps(m, indent=1, ensure_ascii=False))
 
 
-def _log(m: dict, event: str, **kw) -> dict:
+def add_log(m: dict, event: str, **kw) -> dict:
+    """Append an event (with the time and this app version) to a manifest's log; returns the manifest."""
     m.setdefault("log", []).append({"at": datetime.now().isoformat(timespec="seconds"),
                                     "app_version": app_version(), "event": event} | kw)
     return m
@@ -114,7 +117,7 @@ def touch(home: Path) -> dict:
     v = app_version()
     if m.get("last_app_version") != v and not _newer(m):
         m["last_app_version"] = v
-        _write_manifest(home, _log(m, "opened"))
+        write_manifest(home, add_log(m, "opened"))
     return m
 
 
@@ -126,7 +129,7 @@ def upgrade(home: Path) -> list[int]:
         step = m.get("home_format", 1)
         HOME_MIGRATIONS[step - 1](Path(home))
         m["home_format"] = step + 1
-        _write_manifest(home, _log(m, "upgraded", to_format=step + 1))
+        write_manifest(home, add_log(m, "upgraded", to_format=step + 1))
         done.append(step + 1)
     return done
 
@@ -201,7 +204,8 @@ def sync_warning(home: Path) -> str | None:
 
 # ---------------- finding data from before the home ----------------
 
-def _files(d: Path, skip: set[str] = frozenset()) -> list[Path]:
+def files_under(d: Path, skip: set[str] = frozenset()) -> list[Path]:
+    """Every file under `d`, leaving out the top-level folders in `skip` and half-written `.tmp` files."""
     if not d.is_dir():
         return []
     return [p for p in d.rglob("*") if p.is_file() and p.relative_to(d).parts[0] not in skip
@@ -213,9 +217,9 @@ def legacy_summary(root: Path) -> dict | None:
     root = Path(root)
     loc = paths.Locations.legacy(root)
     db = loc.userdata / DB_NAME
-    personal = {f: len(_files(root / f)) for f in PERSONAL}
-    imports = len(_files(loc.imports, APP_FILES["imports"]))
-    history = sum(len(_files(loc.history / e)) if e.endswith("/") else int((loc.history / e).exists())
+    personal = {f: len(files_under(root / f)) for f in PERSONAL}
+    imports = len(files_under(loc.imports, APP_FILES["imports"]))
+    history = sum(len(files_under(loc.history / e)) if e.endswith("/") else int((loc.history / e).exists())
                   for e in paths.REGISTRY["history"])
     counts = {}
     if db.exists():
@@ -228,11 +232,11 @@ def legacy_summary(root: Path) -> dict | None:
             counts = {"error": f"{type(e).__name__}: {e}"}
     if not db.exists() and not any(personal.values()) and not imports:
         return None
-    newest = max((p.stat().st_mtime for p in [db] + [x for f in PERSONAL for x in _files(root / f)] if p.exists()),
+    newest = max((p.stat().st_mtime for p in [db] + [x for f in PERSONAL for x in files_under(root / f)] if p.exists()),
                  default=None)
     return {"path": str(root), "is_this_install": root.resolve() == ROOT.resolve(), "database": db.exists(),
             "counts": counts, "personal": personal, "imports": imports, "history_files": history,
-            "cache_mb": round(sum(p.stat().st_size for p in _files(loc.cache)) / 1e6, 1) if loc.cache.is_dir() else 0,
+            "cache_mb": round(sum(p.stat().st_size for p in files_under(loc.cache)) / 1e6, 1) if loc.cache.is_dir() else 0,
             "newest": datetime.fromtimestamp(newest).isoformat(timespec="minutes") if newest else None,
             "moved": (root / "MOVED.txt").exists()}
 
@@ -260,7 +264,8 @@ class HomeError(RuntimeError):
     pass
 
 
-def _sha(p: Path) -> str:
+def file_sha256(p: Path) -> str:
+    """The file's SHA-256 (hex), read in 1 MB blocks."""
     h = hashlib.sha256()
     with open(p, "rb") as f:
         for b in iter(lambda: f.read(1 << 20), b""):
@@ -271,14 +276,14 @@ def _sha(p: Path) -> str:
 def _copy_file(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if src.suffix == ".db":
-        _copy_db(src, dst)
+        copy_db(src, dst)
         return
     shutil.copy2(src, dst)
-    if _sha(src) != _sha(dst):
+    if file_sha256(src) != file_sha256(dst):
         raise HomeError(f"copy of {src} differs from the original")
 
 
-def _copy_db(src: Path, dst: Path) -> None:
+def copy_db(src: Path, dst: Path) -> None:
     """SQLite's backup API: a consistent copy even while the old app has the database open."""
     with closing(sqlite3.connect(f"file:{src.as_posix()}?mode=ro", uri=True)) as s, closing(sqlite3.connect(dst)) as d:
         s.backup(d)
@@ -286,7 +291,7 @@ def _copy_db(src: Path, dst: Path) -> None:
 
 def _copy_tree(src: Path, dst: Path, skip: set[str] = frozenset()) -> int:
     n = 0
-    for f in _files(src, skip):
+    for f in files_under(src, skip):
         _copy_file(f, dst / f.relative_to(src))
         n += 1
     return n
@@ -311,12 +316,12 @@ def _init(home: Path, m: dict) -> None:
     for f in (*PERSONAL, "imports", "history", "backups"):
         (home / f).mkdir(exist_ok=True)
     (home / "README.txt").write_text(README, encoding="utf-8")
-    _write_manifest(home, m)
+    write_manifest(home, m)
 
 
 def _manifest(event: str, **kw) -> dict:
     now = datetime.now().isoformat(timespec="seconds")
-    return _log({"home_format": HOME_FORMAT, "created": now, "created_by": app_version(),
+    return add_log({"home_format": HOME_FORMAT, "created": now, "created_by": app_version(),
                  "last_app_version": app_version()}, event, **kw)
 
 
@@ -372,7 +377,7 @@ def migrate(src_root: Path, home: Path | None = None, cache: Path | None = None,
         db = old.userdata / DB_NAME
         if db.exists():
             progress("Copying radar.db")
-            _copy_db(db, stage.userdata / DB_NAME)
+            copy_db(db, stage.userdata / DB_NAME)
             before, after = table_counts(db), table_counts(stage.userdata / DB_NAME)
             if before != after:
                 raise HomeError(f"radar.db copy differs: {before} vs {after}")

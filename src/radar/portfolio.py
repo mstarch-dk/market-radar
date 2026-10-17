@@ -11,6 +11,7 @@ from datetime import date
 import pandas as pd
 
 from . import universe, userstore
+from .values import whole
 
 ERROR, WARNING = "error", "warning"
 
@@ -24,7 +25,7 @@ def _issue(level: str, field: str, message: str) -> dict:
     return {"level": level, "field": field, "message": message}
 
 
-def _session(market, symbol: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
+def session_close(market, symbol: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
     """The traded close on `day`, or the last session before it (weekends, holidays)."""
     if symbol not in market.closes.columns:
         return None
@@ -44,7 +45,7 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
 
     day = pd.Timestamp(day)
     ccy = u.currencies([symbol]).get(symbol) if symbol in market.closes.columns else None
-    found = _session(market, symbol, day)
+    found = session_close(market, symbol, day)
     out = {"symbol": symbol, "currency": ccy, "close": None, "close_date": None, "verdict": "no_data", "message": None,
            "fx": None}
     if not found:
@@ -144,7 +145,7 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
         candidate |= {"quantity": None, "price": None, "currency": "DKK"}
     else:
         candidate |= {"amount": None, "currency": None}
-    if any(userstore._key(t) == userstore._key(candidate) for t in rest):
+    if any(userstore.trade_key(t) == userstore.trade_key(candidate) for t in rest):
         issues.append(_issue(WARNING, "date", f"The same {TYPE_WORDS[kind]} is already stored in this portfolio."))
     if trade:
         same = [t for t in rest if t["symbol"] == sym]
@@ -232,10 +233,10 @@ def positions_view(market, portfolios: list[int] | None = None) -> dict:
     def rows(df, by_portfolio):
         out = []
         for _, p in df[df["status"] == "holding"].iterrows():
-            found = _session(market, p["symbol"], pd.Timestamp.today())
+            found = session_close(market, p["symbol"], pd.Timestamp.today())
             last = found[1] if found else None
             out.append({"symbol": p["symbol"],
-                        "portfolio_id": universe._int(p.get("portfolio_id")) if by_portfolio else None,
+                        "portfolio_id": whole(p.get("portfolio_id")) if by_portfolio else None,
                         "portfolio": _text(p.get("portfolio")) if by_portfolio else None,
                         "portfolios": _text(p.get("portfolios")), "quantity": float(p["quantity"]),
                         "avg_price": float(p["avg_price"]), "first_trade": p["first_trade"], "last": last,

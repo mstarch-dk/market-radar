@@ -18,8 +18,8 @@ from test_updater import held  # noqa: F401 - the fixture
 def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(updater._rebuild, "Building the readings", "report"))
     monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: None))
     report.build()

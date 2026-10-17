@@ -16,7 +16,7 @@ def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     from radar.fundamentals import context as fcontext
 
-    monkeypatch.setattr(fcontext, "_ctx", None)
+    fcontext.reset()
     return profile.Market.load()
 
 
@@ -119,7 +119,7 @@ def test_summary_digest(market, tmp_data):
 
 
 def test_api(market, monkeypatch):
-    monkeypatch.setattr(api, "_market", None)
+    api.reset()
     client = TestClient(api.app)
     assert client.get("/api/abtest").json()["running"] is False
     assert client.post("/api/abtest", json={"n": 15}).status_code == 422

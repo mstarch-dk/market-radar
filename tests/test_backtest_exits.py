@@ -31,7 +31,7 @@ def crash() -> np.ndarray:
 def market(tmp_data, monkeypatch):
     extra = world.install(tmp_data, monkeypatch)
     extra["CRASH"] = world.bars("CRASH", crash())
-    monkeypatch.setattr(performance, "_cache", {})
+    performance.reset()
     return profile.Market.load()
 
 
@@ -332,7 +332,7 @@ def dip_market(tmp_data, monkeypatch):
     extra = world.install(tmp_data, monkeypatch)
     extra["CRASH"] = world.bars("CRASH", crash())
     extra["DIP"] = world.bars("DIP", dip())
-    monkeypatch.setattr(performance, "_cache", {})
+    performance.reset()
     return profile.Market.load()
 
 
