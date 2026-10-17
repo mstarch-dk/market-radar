@@ -2,7 +2,7 @@
 
 ## Config
 - `config/universe.yaml`: everything tracked: ETF groups, stock lists, macro tickers, CFTC/OECD sources, the watchlist, and `sector_etfs` (the sector ETF a stock is compared with on its profile, by Yahoo sector, with industry overrides). Theme ETFs carry a UCITS `isin`, checked against `imports/positivliste.xlsx` (SKAT list; only the latest year's sheet counts).
-- `config/settings.yaml`: thresholds (regime, momentum, rotation, stops, coverage limits).
+- `config/settings.yaml`: thresholds (regime, momentum, rotation, stops, coverage limits). `config.settings()` checks it on load against `config_schema.py` (pydantic models of `stops`, `backtest`, `risk` and `propose`: unknown keys, missing keys and wrong types fail with the key's path, `SettingsError`; `radar doctor` reports it as *Settings*) and returns the plain dict. A key the code reads with a default is optional in the model; a new key goes in the file and the model together.
 - `config/views.yaml`: market-view templates (ready-made beliefs with exposures and indicators, opposite pairs) and the indicator catalogue the evidence check can read (relative strength, ratios, FRED changes, OECD CLI). `universe.yaml` `macro.fred_views` holds FRED series only the views read (kept out of the regime's freshness check).
 - `config/settings.yaml` `network:` and `ops:`: per-host request limits (rate, burst, concurrency, retries, soft daily budget, cooldown after repeated 429s) and how long the operations log keeps its rows.
 - `config/fee_presets.yaml`: broker fee schedules (Saxo, Danske Bank) with the date and source of each price list, the starting points for an account's fee schedule (fees.py).

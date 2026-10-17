@@ -19,7 +19,12 @@ def load_yaml(name: str) -> dict:
 
 @cache
 def settings() -> dict:
-    return load_yaml("settings.yaml")
+    """config/settings.yaml, checked against config_schema when it is first loaded (SettingsError otherwise)."""
+    from .config_schema import check
+
+    raw = load_yaml("settings.yaml")
+    check(raw)
+    return raw
 
 
 @cache

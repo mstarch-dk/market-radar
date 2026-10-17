@@ -78,3 +78,43 @@ def test_test_thresholds_exist_in_settings(section, test_cfg):
     """The tests' copies of the thresholds must name real settings, so a rename can't leave them testing nothing."""
     real = settings()[section]
     assert set(test_cfg) <= set(real), set(test_cfg) - set(real)
+
+
+# ---------------- settings.yaml's shape (config_schema) ----------------
+
+def _raw() -> dict:
+    import copy
+
+    from radar.config import load_yaml
+    return copy.deepcopy(load_yaml("settings.yaml"))
+
+
+def test_the_shipped_settings_have_the_shape_the_code_reads():
+    from radar import config_schema
+    config_schema.check(_raw())
+    assert settings()["propose"]["min_ticket_dkk"]           # settings() checks on load and returns the plain dict
+
+
+@pytest.mark.parametrize("edit, says", [
+    (lambda c: c["propose"]["caps"].update(sectr=0.3), "propose.caps.sectr: unknown key (a typo?)"),
+    (lambda c: c["backtest"].pop("fee_bps"), "backtest.fee_bps: missing"),
+    (lambda c: c["stops"].update(mode="sideways"), "stops.mode:"),
+    (lambda c: c["propose"]["bootstrap"].update(draws="many"), "propose.bootstrap.draws:"),
+    (lambda c: c["risk"].pop("factors"), "risk.factors: missing"),
+])
+def test_a_bad_setting_fails_at_load_naming_the_key(edit, says):
+    from radar import config_schema
+    c = _raw()
+    edit(c)
+    with pytest.raises(config_schema.SettingsError, match="config/settings.yaml is invalid") as e:
+        config_schema.check(c)
+    assert says in str(e.value)
+
+
+def test_optional_and_nullable_settings_pass():
+    from radar import config_schema
+    c = _raw()
+    c["stops"]["analyst_max_age_days"] = 21                  # read with a default, absent from the file
+    c["propose"]["ask_deposit_cap"] = None
+    c["other_section"] = {"anything": 1}                     # sections outside the checked four pass through
+    config_schema.check(c)
