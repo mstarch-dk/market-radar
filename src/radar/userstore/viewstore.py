@@ -39,7 +39,7 @@ def get_view(view_id: int) -> dict | None:
         return rows[0] if rows else None
 
 
-def _write_children(con, view_id: int, v: dict) -> None:
+def write_children(con, view_id: int, v: dict) -> None:
     con.execute("DELETE FROM view_exposures WHERE view_id = ?", (view_id,))
     con.execute("DELETE FROM view_indicators WHERE view_id = ?", (view_id,))
     con.executemany("INSERT INTO view_exposures (view_id, kind, key, effect) VALUES (?, ?, ?, ?)",
@@ -68,7 +68,7 @@ def _save_view(con, v: dict, view_id: int | None = None) -> int:
     else:
         con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
                     (*vals.values(), now, view_id))
-    _write_children(con, view_id, v)
+    write_children(con, view_id, v)
     return view_id
 
 
@@ -86,7 +86,7 @@ def restore_view(v: dict) -> int:
         con.execute(f"INSERT INTO views (id, {', '.join(VIEW_FIELDS)}, created_at, updated_at) "
                     f"VALUES (?, {', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
                     (v["id"], *(v.get(k) for k in VIEW_FIELDS), v["created_at"], timestamp()))
-        _write_children(con, v["id"], v)
+        write_children(con, v["id"], v)
     return v["id"]
 
 

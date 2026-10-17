@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from hypothesis import settings
 
 from radar import coverage, net, paths, positive_list
 
@@ -11,6 +12,10 @@ pytest_plugins = ["pytester"]  # tests/test_offline.py runs a nested session
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LOCAL = {"localhost", "127.0.0.1", "::1", "", None}
+
+# Property tests (tests/test_properties.py): no per-example deadline (pandas' first call is slow, a CI runner slower)
+settings.register_profile("radar", deadline=None)
+settings.load_profile("radar")
 
 
 CACHED = ("radar.api", "radar.dashboard", "radar.performance", "radar.fundamentals.context", "radar.valuation",
@@ -41,7 +46,7 @@ def with_settings(monkeypatch, base: dict | None = None, **changes) -> dict:
     for section, value in changes.items():
         raw[section] = merge(raw.get(section), value)
     loaded = (raw, check(raw))
-    monkeypatch.setattr(config, "_load", functools.cache(lambda: loaded))
+    monkeypatch.setattr(config, "load_settings", functools.cache(lambda: loaded))
     return raw
 
 

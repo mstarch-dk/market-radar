@@ -20,7 +20,7 @@ def _panel(returns: pd.DataFrame, market: pd.Series | None = None) -> longrun.Pa
 
 
 def _cfg(monkeypatch, holdout="1990-01-01"):
-    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun(holdout_from=holdout, horizons=[1, 6], regime_months=10))
+    monkeypatch.setattr(longrun, "cfg", lambda: Longrun(holdout_from=holdout, horizons=[1, 6], regime_months=10))
 
 
 def _momentum_world(n_months=480, members=30, seed=1, persistent=True) -> pd.DataFrame:
@@ -76,11 +76,11 @@ def test_finds_nothing_in_noise(monkeypatch):
 def test_load_panel_adds_rf_and_keeps_members(monkeypatch):
     idx = _months(30)
     data = pd.concat([
-        factors._long("jkp:mkt_countries", pd.DataFrame({"dnk": 0.01, "usa": 0.02, "zzz": 0.5}, index=idx), date(2026, 1, 1)),
-        factors._long("jkp:mkt_world", pd.DataFrame({"world": 0.015}, index=idx), date(2026, 1, 1)),
-        factors._long("french:ff3_us", pd.DataFrame({"Mkt-RF": 0.01, "RF": 0.001}, index=idx), date(2026, 1, 1)),
+        factors.long_rows("jkp:mkt_countries", pd.DataFrame({"dnk": 0.01, "usa": 0.02, "zzz": 0.5}, index=idx), date(2026, 1, 1)),
+        factors.long_rows("jkp:mkt_world", pd.DataFrame({"world": 0.015}, index=idx), date(2026, 1, 1)),
+        factors.long_rows("french:ff3_us", pd.DataFrame({"Mkt-RF": 0.01, "RF": 0.001}, index=idx), date(2026, 1, 1)),
     ])
-    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun.model_validate({"panels": {"c": {
+    monkeypatch.setattr(longrun, "cfg", lambda: Longrun.model_validate({"panels": {"c": {
         "data": "jkp:mkt_countries", "excess": True, "market": "world", "members": ["dnk", "usa", "nor"]}}}))
     p = longrun.load_panel("c", data)
     assert list(p.returns.columns) == ["dnk", "usa"]                   # configured members only; nor isn't there
@@ -89,7 +89,7 @@ def test_load_panel_adds_rf_and_keeps_members(monkeypatch):
 
 
 def test_load_panel_without_data_says_what_to_run(monkeypatch):
-    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun.model_validate({"panels": {"c": {"data": "jkp:mkt_countries"}}}))
+    monkeypatch.setattr(longrun, "cfg", lambda: Longrun.model_validate({"panels": {"c": {"data": "jkp:mkt_countries"}}}))
 
     with pytest.raises(ValueError, match="radar update"):
         longrun.load_panel("c", pd.DataFrame(columns=factors.COLUMNS))
@@ -109,7 +109,7 @@ def test_base_rates_drawdown_and_losing_windows():
 def test_survivorship_gauge_compares_the_same_months():
     idx = _months(24)
     deciles = pd.DataFrame({f"d{i}": [i / 1000] * 24 for i in range(10)}, index=idx)
-    data = factors._long("french:mom10_us", deciles, date(2026, 1, 1))
+    data = factors.long_rows("french:mom10_us", deciles, date(2026, 1, 1))
     study = artifacts.ScoreStudy.model_validate(
         {"schema_version": 1, "kind": "score-study", "created": "2026-01-01T00:00:00", "data_asof": None,
          "results": {"1": {"score": {"all": {"q": [0, 0, 0, 0, 0.01], "dates": 6}}}},
@@ -142,8 +142,8 @@ def test_prior_weights_spread_the_tilt_over_characteristics():
 
 
 def test_tilt_prior_weights_characteristics_and_splits_by_trend():
-    data = pd.concat([factors._long("jkp_pf:developed:a", _terciles(edge=0.01), date(2026, 1, 1)),
-                      factors._long("jkp_pf:developed:b", _terciles(edge=0.03, seed=6), date(2026, 1, 1))])
+    data = pd.concat([factors.long_rows("jkp_pf:developed:a", _terciles(edge=0.01), date(2026, 1, 1)),
+                      factors.long_rows("jkp_pf:developed:b", _terciles(edge=0.03, seed=6), date(2026, 1, 1))])
     p = prior.tilt_prior({"a": 0.5, "b": 0.5}, 3, "developed", data)
     assert p["mean"] == pytest.approx(0.02 * 3, rel=0.05)           # ≈ 2 % a month for three months
     assert p["eff_n"] == pytest.approx(p["months"] / 3, abs=0.05) and p["t"] > 2

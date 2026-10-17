@@ -28,7 +28,7 @@ COLUMNS = ["key", "series", "date", "ret", "fetched"]
 FRENCH_MISSING = -99.99                 # this or below (-999) marks a missing value
 
 
-def _cfg() -> Factors:
+def cfg() -> Factors:
     return typed().factors
 
 
@@ -118,7 +118,7 @@ def parse_jkp(blob: bytes, series_col: str = "location", name: str | None = None
 
 # ---------------- storage ----------------
 
-def _long(key: str, wide: pd.DataFrame, fetched: date) -> pd.DataFrame:
+def long_rows(key: str, wide: pd.DataFrame, fetched: date) -> pd.DataFrame:
     s = wide.rename_axis(index="date", columns="series").stack().rename("ret").reset_index()   # drops NaN
     s.insert(0, "key", key)
     s["fetched"] = pd.Timestamp(fetched)
@@ -129,13 +129,13 @@ def datasets() -> dict[str, dict]:
     """{key: spec} for every configured dataset: key "french:<name>", "jkp:<name>" or, for JKP's long-only portfolios
     (a region's stocks in terciles by one characteristic), "jkp_pf:<region>:<characteristic>" with series "1" (low)
     to "3" (high)."""
-    cfg = _cfg()
+    conf = cfg()
     out: dict[str, dict] = {}
-    for name, f in cfg.french.items():
+    for name, f in conf.french.items():
         out[f"french:{name}"] = {"source": "french", **({"file": f} if isinstance(f, str) else f.model_dump(exclude_none=True))}
-    for name, j in cfg.jkp.items():
+    for name, j in conf.jkp.items():
         out[f"jkp:{name}"] = {"source": "jkp", **j.model_dump(exclude_none=True)}
-    pf = cfg.jkp_portfolios
+    pf = conf.jkp_portfolios
     for region in pf.regions if pf else []:
         for ch in pf.characteristics if pf else []:
             out[f"jkp_pf:{region}:{ch}"] = {"source": "jkp_pf", "region": region, "characteristic": ch,
@@ -143,7 +143,7 @@ def datasets() -> dict[str, dict]:
     return out
 
 
-def _fetch(spec: dict) -> pd.DataFrame:
+def fetch(spec: dict) -> pd.DataFrame:
     if spec["source"] == "french":
         resp = net.get(FRENCH_URL.format(file=spec["file"]), timeout=120)
         resp.raise_for_status()
@@ -162,7 +162,7 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
     against what is stored (guard: the same series, starting no later, ending no earlier, not markedly fewer rows);
     one that fails keeps its stored rows, and the step then fails naming it after the rest are written."""
     today = today or date.today()
-    max_age = timedelta(days=_cfg().max_age_days)
+    max_age = timedelta(days=cfg().max_age_days)
     stored = load()
     fetched = stored.groupby("key")["fetched"].max() if not stored.empty else pd.Series(dtype="datetime64[ns]")
     fresh, failed, skipped = [], [], 0
@@ -172,7 +172,7 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
             skipped += 1
             continue
         try:
-            new = _long(key, _fetch(spec), today)
+            new = long_rows(key, fetch(spec), today)
             old = stored[stored["key"] == key] if not stored.empty else None
             guard.check(old, new, what=key, key="series", date="date", row_tol=0.02)
             fresh.append(new)

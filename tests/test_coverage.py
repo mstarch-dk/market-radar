@@ -29,7 +29,7 @@ def test_constituents_fall_back_to_cache_when_download_fails(tmp_data, monkeypat
 
     def boom():
         raise ConnectionError("ssga down")
-    monkeypatch.setattr(constituents, "_spy_holdings", boom)
+    monkeypatch.setattr(constituents, "spy_holdings", boom)
     assert constituents.us_constituents(refresh=True) == ["AAPL", "MSFT"]
     assert "ssga down" in sourcelog.load_log()["constituents"]["error"]
     assert constituents.us_constituents(offline=True) == ["AAPL", "MSFT"]

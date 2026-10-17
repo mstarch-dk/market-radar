@@ -5,10 +5,13 @@ import re
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 import radar
 from radar import paths
 from radar.config import ROOT
+
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
 
 
 def _modules():

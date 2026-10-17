@@ -279,7 +279,7 @@ def test_lookups_count_what_failed(monkeypatch):
     fake_yf(monkeypatch, info={"A.CO": {"quoteType": "EQUITY", "currency": "DKK", "regularMarketPrice": 10.0},
                                "B.CO": RuntimeError("429")})
     rows = {}
-    n, failed = valuation._lookups(["A.CO", "B.CO"], {"DKK": 1.0}, (1, 300), rows)
+    n, failed = valuation.look_up(["A.CO", "B.CO"], {"DKK": 1.0}, (1, 300), rows)
     assert n == 1 and failed == ["B.CO"] and "A.CO" in rows
 
 
@@ -293,7 +293,7 @@ def test_ecb_monthly_series_is_read_by_its_freq_column():
 
 def test_ecb_series_without_values_is_refused_before_anything_is_written(tmp_data, monkeypatch):
     from fakes import Resp, serve
-    (key, (sid, _label)), = list(external._cfg().get("ecb", {}).items())[:1]
+    (key, (sid, _label)), = list(external.cfg().get("ecb", {}).items())[:1]
     good = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\n" + "".join(f"{sid},B,2026-10-{d:02d},3.{d}\n" for d in range(1, 15))
     serve(monkeypatch, {"ecb": Resp(text=good)})
     external.update_ecb()
@@ -329,15 +329,15 @@ def new(tickers: list[str]) -> pd.DataFrame:
 # ---------------- when a snapshot is due ----------------
 
 def test_a_snapshot_is_due_when_there_is_none(tmp_path):
-    due, old = valuation._snapshot_due(tmp_path / "none.parquet", 6, date(2026, 10, 16))
+    due, old = valuation.snapshot_due(tmp_path / "none.parquet", 6, date(2026, 10, 16))
     assert due and old.empty
 
 
 def test_a_snapshot_is_due_once_the_last_is_snapshot_days_old(tmp_path):
     path = tmp_path / "s.parquet"
     snap("2026-10-10", ["AAA"]).to_parquet(path, index=False)
-    assert valuation._snapshot_due(path, 6, date(2026, 10, 16))[0]            # 6 days
-    due, old = valuation._snapshot_due(path, 6, date(2026, 10, 15))          # 5 days
+    assert valuation.snapshot_due(path, 6, date(2026, 10, 16))[0]            # 6 days
+    due, old = valuation.snapshot_due(path, 6, date(2026, 10, 15))          # 5 days
     assert not due and list(old["ticker"]) == ["AAA"]
 
 
@@ -407,7 +407,7 @@ def stocks_world(monkeypatch):
     """Two exchanges (min 2 names each), four tracked stocks; returns the screener's answers per exchange."""
     answers = {"XA": [quote("AAA"), quote("BBB", eps_fwd=None), quote("ETF1", kind="ETF")],
                "XB": [quote("CCC"), quote("DDD")]}
-    monkeypatch.setattr(valuation, "_screen_codes",
+    monkeypatch.setattr(valuation, "screen_codes",
                         lambda: {"XA": {"min_cap": 1, "min_count": 2}, "XB": {"min_cap": 1, "min_count": 2}})
     monkeypatch.setattr(sources, "screen_exchange", lambda code, min_cap=0, **kw: answers[code])
     monkeypatch.setattr(scan, "fx_rates", lambda: {"DKK": 1.0, "USD": 6.4})
@@ -474,7 +474,7 @@ def test_coverage_rows_read_the_stored_snapshots():
     etfs = pd.DataFrame({"date": pd.Timestamp("2026-10-01"), "ticker": ["ACWI", "XLK", "XLE"],
                          "pe": [20.0, 30.0, None]}).reindex(columns=valuation.ETF_COLS)
     valuation.write_parquet(etfs, valuation.ETFS_FILE, index=False)
-    rows = {r["key"]: r for r in coverage._valuation_rows(date(2026, 10, 16), MAX_AGE, {}, ["AAA", "BBB", "ZZZ"])}
+    rows = {r["key"]: r for r in coverage.valuation_rows(date(2026, 10, 16), MAX_AGE, {}, ["AAA", "BBB", "ZZZ"])}
     st = rows["valuation_stocks"]
     assert (st["status"], st["age_days"], st["asof"]) == ("ok", 4, "2026-10-12")
     assert st["coverage"] == "1 of 3 tracked stocks with a forward P/E; 3 names in all"
@@ -486,7 +486,7 @@ def test_coverage_rows_read_the_stored_snapshots():
 
 
 def test_coverage_rows_without_snapshots_are_missing_not_zero():
-    rows = {r["key"]: r for r in coverage._valuation_rows(date(2026, 10, 16), MAX_AGE, {}, ["AAA"])}
+    rows = {r["key"]: r for r in coverage.valuation_rows(date(2026, 10, 16), MAX_AGE, {}, ["AAA"])}
     for key in ("valuation_stocks", "valuation_etfs"):
         assert (rows[key]["status"], rows[key]["age_days"], rows[key]["coverage"]) == ("missing", None, "no snapshot yet")
     assert rows["valuation_stocks"]["detail"].startswith("0 weekly snapshots;")

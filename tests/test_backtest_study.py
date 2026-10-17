@@ -184,7 +184,7 @@ def test_the_picker_takes_the_best_name_it_may():
     p = panels(drifting())
     day = IDX[400]
     pk = redeploy.Picker(p, 5, trend=False)
-    best = list(study._score(p, day).sort_values(ascending=False).index)
+    best = list(study.BY_KEY["score"].fn(p, day).sort_values(ascending=False).index)
     assert pk.rank(day, best[0]) == 1 and pk.rank(day, "nope") is None
     assert pk.pick(day, set(), set()) == best[0]
     assert pk.pick(day, {best[0]}, {best[1]}) == best[2]
@@ -228,12 +228,12 @@ def _market_and_stocks(seed: int = 3):
 def test_residual_momentum_ignores_pure_beta():
     p = _market_and_stocks()
     day = IDX[400]
-    r = study._resid(p, day)
+    r = study.BY_KEY["resid"].fn(p, day)
     # a pure-beta stock has (almost) no residual left; alpha stocks rank by their alpha
     assert r[[f"B{i}" for i in range(10)]].abs().max() < r[[f"A{i}" for i in range(10)]].abs().min()
     a = r[[f"A{i}" for i in range(10)]]
     assert a.rank().corr(pd.Series(range(10), index=a.index).astype(float)) > 0.9
-    assert study._resid(p, IDX[100]).isna().all()            # no 12-1 window yet
+    assert study.BY_KEY["resid"].fn(p, IDX[100]).isna().all()      # no 12-1 window yet
 
 
 def test_frog_in_the_pan_prefers_a_smooth_path():
@@ -242,7 +242,7 @@ def test_frog_in_the_pan_prefers_a_smooth_path():
     jumpy = np.full(n, 100.0) * np.cumprod(np.where(np.arange(n) % 10 == 0, 1.0101, 0.99995))
     closes = pd.DataFrame({"S": smooth, "J": jumpy}, index=IDX)
     p = panels(closes)
-    f = study._fip(p, IDX[400])
+    f = study.BY_KEY["fip"].fn(p, IDX[400])
     assert p.m["r12_1"].loc[IDX[400]].gt(0).all()
     assert f["S"] > f["J"]
 
@@ -251,10 +251,11 @@ def test_skip_and_volume_variants(cfg):
     closes = drifting()
     p = panels(closes)
     day = IDX[400]
-    assert study._score_skip(p, day).rank().corr(study._score(p, day).rank()) == pytest.approx(1.0)
-    assert study._vol_surge(p, day).isna().all()             # no volumes in these panels: missing, not 0
+    skip, score, surge = (study.BY_KEY[k].fn for k in ("score_skip", "score", "vol_surge"))
+    assert skip(p, day).rank().corr(score(p, day).rank()) == pytest.approx(1.0)
+    assert surge(p, day).isna().all()             # no volumes in these panels: missing, not 0
     p.volumes = pd.DataFrame(1000.0, index=IDX, columns=closes.columns)
     p.volumes.iloc[-200:, 0] = 3000.0
-    v = study._vol_surge(p, IDX[-1])
+    v = surge(p, IDX[-1])
     assert v.iloc[0] == pytest.approx(1.0) and v.iloc[1] == pytest.approx(1.0)
-    assert study._vol_surge(p, IDX[340]).iloc[0] == pytest.approx(3000 / ((21 * 3000 + 99 * 1000) / 120))  # surge from 320 on
+    assert surge(p, IDX[340]).iloc[0] == pytest.approx(3000 / ((21 * 3000 + 99 * 1000) / 120))  # surge from 320 on

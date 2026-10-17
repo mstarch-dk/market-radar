@@ -85,7 +85,7 @@ def load_universe() -> pd.DataFrame:
     return pd.read_csv(UNIVERSE_FILE, keep_default_na=False, na_values={"market_cap_dkk": [""]})
 
 
-def _stocks(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
+def stock_market(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
     """A stock market: Yahoo's screener on its exchanges, plus every member of its index (if any), any size.
     With `members_only` the screener only supplies the members' market caps; sectors then come from the index
     file (a sector screen of the big US exchanges would cost hundreds of calls)."""
@@ -153,7 +153,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     frames, failed = [], []
     for key, mk in cfg["markets"].items():
         try:
-            df = _etfs(mk, cfg, log, progress) if mk["kind"] == "etf" else _stocks(key, mk, fx, log)
+            df = _etfs(mk, cfg, log, progress) if mk["kind"] == "etf" else stock_market(key, mk, fx, log)
             df["market"] = key
             log(f"  {mk['label']}: {len(df)} names")
             frames.append(df)

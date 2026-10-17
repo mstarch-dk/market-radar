@@ -118,7 +118,7 @@ class Oecd(Source):
     measure = {"key": None, "date": None}
 
     def areas(self):
-        return list(external._cfg().get("oecd_cli", {}))
+        return list(external.cfg().get("oecd_cli", {}))
 
     def good(self, mp):
         serve(mp, {"oecd": Resp(text=oecd_csv(self.areas()))})
@@ -139,7 +139,7 @@ class Ecb(Source):
     modes = ("error", "empty", "short")
 
     def series(self):
-        return external._cfg().get("ecb", {})
+        return external.cfg().get("ecb", {})
 
     def answers(self, first):
         return {sid: (first if i == 0 else Resp(text=ecb_csv(sid)))

@@ -204,8 +204,8 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     else:
         rows.append(_row("holdings", None, ref, None, "no import", "", log, state=MISSING))
 
-    rows += _discovery_rows(today, max_age, log)
-    rows += _valuation_rows(ref, max_age, log, stock_tickers)
+    rows += discovery_rows(today, max_age, log)
+    rows += valuation_rows(ref, max_age, log, stock_tickers)
     rows += _fundamentals_rows(ref, max_age, log, stock_tickers)
     rows += _factors_rows(ref, max_age, log)
 
@@ -223,7 +223,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     }
 
 
-def _discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
+def discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
     """The separate discovery scan: how many names, and how old its universe and prices are (missing until the
     first `radar discover`)."""
     from .discovery import scan
@@ -241,7 +241,7 @@ def _discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
     return rows
 
 
-def _valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
+def valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
     """The valuation snapshots, the market's valuation (CAPE, ERP), euro-area rates and the sentiment series."""
     from . import external, sentiment, valuation
 

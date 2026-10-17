@@ -18,7 +18,7 @@ RS_HIGH_DAYS = 5      # flag: the RS line against ACWI (both in DKK) made a new 
 CROSS_DAYS = 20       # flag: the 50-day average crossed the 200-day within this many sessions
 
 
-def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
+def vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
                raw: pd.Series | None = None) -> tuple[float, float] | None:
     """Total return of the open position vs. a shadow ACWI position with identical DKK cash flows.
 
@@ -85,7 +85,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
         if r["status"] == "holding" and pd.notna(r["last"]):
             fx = fxrates.fx_to_dkk(closes, ccy.get(r["symbol"]))
             raw = raw_closes[r["symbol"]] if raw_closes is not None and r["symbol"] in raw_closes else None
-            res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw) \
+            res = vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw) \
                 if fx is not None else None
             if res is None:
                 f.append("can't compute return")

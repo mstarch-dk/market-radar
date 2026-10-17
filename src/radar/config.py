@@ -24,7 +24,7 @@ def load_yaml(name: str) -> dict:
 
 
 @cache
-def _load() -> tuple[dict, Settings]:
+def load_settings() -> tuple[dict, Settings]:
     from .config_schema import check
 
     raw = load_yaml("settings.yaml")
@@ -34,17 +34,17 @@ def _load() -> tuple[dict, Settings]:
 def settings() -> dict:
     """config/settings.yaml as written, checked against config_schema when it is first loaded (SettingsError
     otherwise). For what records or hashes the file, and the readings that take a section as a dict."""
-    return _load()[0]
+    return load_settings()[0]
 
 
 def typed() -> Settings:
     """config/settings.yaml as the checked model: read values through this."""
-    return _load()[1]
+    return load_settings()[1]
 
 
 def reload() -> None:
     """Read config/settings.yaml again on next use."""
-    _load.cache_clear()
+    load_settings.cache_clear()
 
 
 @cache

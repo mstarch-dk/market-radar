@@ -6,7 +6,7 @@ import pytest
 
 from conftest import with_settings
 from radar import dashboard, fxrates, ingest, paths, tracked, universe
-from radar.mine import _vs_shadow
+from radar.mine import vs_shadow
 from radar.signals.score import score_vs
 
 
@@ -18,7 +18,7 @@ def _bars(ticker, closes, start="2026-01-05"):
 def test_adjust_scales_high_low_by_the_dividend_factor():
     raw = pd.DataFrame({"Date": pd.bdate_range("2026-01-05", periods=2), "High": [102.0, 98.0], "Low": [99.0, 95.0],
                         "Close": [100.0, 96.0], "Adj Close": [95.0, 96.0], "Volume": [10, 20]})
-    out = ingest._adjust(raw, "X")
+    out = ingest.adjust(raw, "X")
     assert list(out.columns) == ingest.COLUMNS
     assert out["high"].tolist() == pytest.approx([96.9, 98.0])
     assert out["low"].tolist() == pytest.approx([94.05, 95.0])
@@ -44,10 +44,10 @@ def test_shadow_return_counts_dividends_received_since_buy():
     adj = _series([95, 95, 95, 100])          # pre-ex bars scaled by 0.95
     one = _series([1.0] * 4)
     tx = pd.DataFrame({"date": [raw.index[0]], "type": ["BUY"], "quantity": [10.0], "price": [100.0]})
-    pos, bench = _vs_shadow(tx, adj, one, _series([10.0] * 4), raw)
+    pos, bench = vs_shadow(tx, adj, one, _series([10.0] * 4), raw)
     assert pos == pytest.approx(100 / 95 - 1)  # +5.3%: price flat, dividend reinvested
     assert bench == pytest.approx(0.0)
-    assert _vs_shadow(tx, adj, one, _series([10.0] * 4))[0] == pytest.approx(0.0)  # price-only without raw
+    assert vs_shadow(tx, adj, one, _series([10.0] * 4))[0] == pytest.approx(0.0)  # price-only without raw
 
 
 def test_shadow_return_lot_bought_after_ex_date_gets_no_dividend():
@@ -56,7 +56,7 @@ def test_shadow_return_lot_bought_after_ex_date_gets_no_dividend():
     one = _series([1.0] * 4)
     tx = pd.DataFrame({"date": [raw.index[0], raw.index[2]], "type": ["BUY", "BUY"], "quantity": [10.0, 10.0],
                        "price": [100.0, 95.0]})
-    pos, _ = _vs_shadow(tx, adj, one, _series([10.0] * 4), raw)
+    pos, _ = vs_shadow(tx, adj, one, _series([10.0] * 4), raw)
     value = 10 * 100 / 95 * 100 + 10 * 100   # first lot reinvested the dividend, second lot didn't
     assert pos == pytest.approx(value / 1950 - 1)
     assert np.isfinite(pos)
@@ -68,17 +68,17 @@ def test_shadow_return_partial_sell_keeps_both_sides_proportional():
     bench = _series([10.0, 10.0, 12.0])
     tx = pd.DataFrame({"date": [px.index[0], px.index[1]], "type": ["BUY", "SELL"], "quantity": [10.0, 4.0],
                        "price": [100.0, 110.0]})
-    pos, shadow = _vs_shadow(tx, px, one, bench)
+    pos, shadow = vs_shadow(tx, px, one, bench)
     assert pos == pytest.approx(0.21) and shadow == pytest.approx(0.2)   # a sale doesn't change either return
     tx_all = tx.assign(quantity=[10.0, 10.0])
-    assert _vs_shadow(tx_all, px, one, bench) is None                    # fully sold: no open position
+    assert vs_shadow(tx_all, px, one, bench) is None                    # fully sold: no open position
 
 
 def test_shadow_return_is_in_dkk():
     px = _series([100.0, 100.0])                 # flat in USD...
     usddkk = _series([6.0, 6.6])                 # ...but the dollar rose 10% against DKK
     tx = pd.DataFrame({"date": [px.index[0]], "type": ["BUY"], "quantity": [1.0], "price": [100.0]})
-    pos, shadow = _vs_shadow(tx, px, usddkk, _series([60.0, 60.0]))
+    pos, shadow = vs_shadow(tx, px, usddkk, _series([60.0, 60.0]))
     assert pos == pytest.approx(0.10) and shadow == pytest.approx(0.0)
 
 
@@ -90,6 +90,16 @@ def test_fx_to_dkk_handles_pence_and_unknown_currencies():
     assert (fxrates.fx_to_dkk(closes, "DKK") == 1.0).all()
     assert fxrates.fx_to_dkk(closes, "XYZ") is None and fxrates.fx_to_dkk(closes, None) is None
     assert fxrates.fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
+
+
+def test_quote_currencies_are_looked_up_once_and_a_failed_lookup_is_asked_again(tmp_data, monkeypatch):
+    from fakes import fake_yf
+
+    fake_yf(monkeypatch, fast={"A": {"currency": "USD"}, "B": ConnectionError("down"), "C": {}})
+    assert fxrates.currencies(["A", "B", "C"]) == {"A": "USD", "B": None, "C": None}     # unknown: missing, not DKK
+    fake = fake_yf(monkeypatch, fast={"B": {"currency": "GBp"}, "C": {}})
+    assert fxrates.currencies(["A", "B", "C"]) == {"A": "USD", "B": "GBp", "C": None}
+    assert sorted(fake.asked) == [("fast", "B"), ("fast", "C")]                        # A came from the cache
 
 
 def test_won_and_taiwan_dollar_cross_via_usd():
@@ -115,7 +125,7 @@ def test_pct_vs_is_the_mean_percentile_against_the_region():
 def test_records_are_json_safe():
     df = pd.DataFrame({"a": [np.nan, np.inf], "b": [np.int64(3), np.float64(1.5)], "c": [pd.Timestamp("2026-10-13"), None],
                        "d": [True, False]})
-    rows = dashboard._records(df)
+    rows = dashboard.records(df)
     assert rows[0] == {"a": None, "b": 3, "c": "2026-10-13", "d": True} and rows[1]["a"] is None
     json.dumps(rows)
 

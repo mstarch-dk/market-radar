@@ -12,6 +12,8 @@ import pytest
 
 from radar import backup, export, home, manifest, paths, trades, userstore
 
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
+
 HOMES = Path(__file__).parent / "fixtures" / "homes"
 FIXTURES = sorted(p for p in HOMES.iterdir() if (p / "expected.json").exists())
 

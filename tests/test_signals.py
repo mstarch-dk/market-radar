@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from radar import coverage
-from radar.dashboard import _clusters
+from radar.dashboard import clusters
 from radar.signals import regime
 
 CFG = {"vix_calm": 18, "vix_stress": 25, "breadth_strong": 60, "breadth_weak": 40, "highs_lows_band": 3,
@@ -85,7 +85,7 @@ def test_clusters_need_overrepresentation():
                            "industry": ["Semis"] * 4 + ["Banks"] * 16 + ["Other"] * 20,
                            "sector": ["Tech"] * 4 + ["Fin"] * 16 + ["Misc"] * 20})
     top = region.iloc[[0, 1, 2, 4, 5, 6, 20, 21, 22, 23]].assign(new=[True, False, False] + [False] * 7)
-    out = {c["name"]: c for c in _clusters(top, region, min_count=3, min_ratio=1.5)}
+    out = {c["name"]: c for c in clusters(top, region, min_count=3, min_ratio=1.5)}
     assert out["Semis"]["count"] == 3 and out["Semis"]["new"] == 1   # 3 vs 1.0 expected
     assert "Banks" not in out                                        # 3 vs 4.0 expected: normal weight
     assert "Tech" not in out                                         # same names as the Semis cluster

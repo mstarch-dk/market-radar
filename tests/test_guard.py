@@ -8,6 +8,8 @@ import pytest
 
 from radar import config, guard, locks
 
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
+
 
 def _long(keys: dict[str, tuple[str, int]]) -> pd.DataFrame:
     """{key: (first date, sessions)} → a long frame with ticker/date/close."""

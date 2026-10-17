@@ -141,7 +141,7 @@ def info_as_quote(symbol: str, info: dict) -> dict:
             "exchangeTimezoneName": info.get("exchangeTimezoneName"), "marketCap": info.get("marketCap")}
 
 
-def _screen_codes() -> dict[str, dict]:
+def screen_codes() -> dict[str, dict]:
     """Exchange code → min_cap and min_count, from discovery.yaml (markets + valuation.us)."""
     dc = discovery_config()
     out = {}
@@ -154,7 +154,7 @@ def _screen_codes() -> dict[str, dict]:
     return out
 
 
-def _snapshot_due(path, days: int, today: date | None = None) -> tuple[bool, pd.DataFrame]:
+def snapshot_due(path, days: int, today: date | None = None) -> tuple[bool, pd.DataFrame]:
     old = pd.read_parquet(path) if path.exists() else pd.DataFrame()
     if old.empty:
         return True, old
@@ -191,14 +191,14 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
     from .discovery import scan, sources
 
     cfg = _cfg()
-    due, old = _snapshot_due(STOCKS_FILE, cfg.snapshot_days, today)
+    due, old = snapshot_due(STOCKS_FILE, cfg.snapshot_days, today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     fx = scan.fx_rates()
     rng = cfg.pe_range
     rows: dict = {}
     short: list = []
-    for code, c in _screen_codes().items():
+    for code, c in screen_codes().items():
         qs = [q for q in sources.screen_exchange(code, min_cap=c["min_cap"]) if q.get("quoteType") == "EQUITY"]
         if len(qs) < c["min_count"]:
             short.append(f"{code} {len(qs)} < {c['min_count']}")
@@ -207,7 +207,7 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
     if short:
         raise ValueError("too few names from Yahoo's screener (" + ", ".join(short) + "): keeping the last snapshot")
     missing = [t for t in stocks if t not in rows][: cfg.fallback_max]
-    looked, failed = _lookups(missing, fx, rng, rows)
+    looked, failed = look_up(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
     carried = store_snapshot(STOCKS_FILE, old, df, today)
     have = sum(t in rows for t in stocks)
@@ -217,7 +217,7 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
             + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
 
-def _lookups(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> tuple[int, list[str]]:
+def look_up(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> tuple[int, list[str]]:
     """Look up names the screener missed, one by one: (how many were added, the ones whose lookup failed)."""
     import logging
 
@@ -270,7 +270,7 @@ def update_etfs(tickers: list[str], force: bool = False, today: date | None = No
     yf = net.yf()
 
     cfg = _cfg()
-    due, old = _snapshot_due(ETFS_FILE, cfg.snapshot_days, today)
+    due, old = snapshot_due(ETFS_FILE, cfg.snapshot_days, today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -331,7 +331,7 @@ def parse_damodaran(content: bytes, min_rows: int = 100) -> pd.DataFrame:
     return df.sort_values("date").reset_index(drop=True)
 
 
-def _market_merge(series: dict[str, pd.Series]) -> None:
+def market_merge(series: dict[str, pd.Series]) -> None:
     """Replace these series in the market file, each checked against its stored copy first (guard: not ending
     earlier, starting later or markedly shorter); nothing is written unless all pass."""
     old = load_market()
@@ -348,7 +348,7 @@ def update_cape() -> str:
     resp = net.get(MULTPL_URL, timeout=60)
     resp.raise_for_status()
     s = parse_multpl(resp.text)
-    _market_merge({"cape": s})
+    market_merge({"cape": s})
     return f"{len(s):,} months since {s.index[0]:%Y}; {s.iloc[-1]:.1f} on {s.index[-1]:%d %b %Y}"
 
 
@@ -356,7 +356,7 @@ def update_erp() -> str:
     resp = net.get(DAMODARAN_URL, timeout=60)
     resp.raise_for_status()
     df = parse_damodaran(resp.content)
-    _market_merge({"erp": df.set_index("date")["erp"], "tbond": df.set_index("date")["tbond"]})
+    market_merge({"erp": df.set_index("date")["erp"], "tbond": df.set_index("date")["tbond"]})
     last = df.iloc[-1]
     return f"{len(df)} months; {last['erp']:.2%} on {last['date']:%b %Y}"
 

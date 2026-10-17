@@ -33,6 +33,7 @@ packages = ["src/radar"]
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "hypothesis>=6.170.1",
     "import-linter>=2.15",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
@@ -49,6 +50,7 @@ marketing = [
 [tool.pytest.ini_options]
 markers = [
     "network: talks to the real sources (live contract checks); deselected unless run with -m network",
+    "os: touches what differs between operating systems (file replacing, locks, paths); CI also runs these on Windows and macOS",
     "slow: runs a study on real-size data (decades of months); deselected unless run with -m slow (CI runs both)",
 ]
 addopts = "-m 'not network and not slow'"
@@ -123,9 +125,9 @@ known-first-party = ["radar"]
 "src/radar/cli/*.py" = ["B904"]   # `raise typer.Exit(message)` inside except: the message is the whole report
 "src/radar/export.py" = ["E501"]   # EXPORT.md's Markdown table rows can't be wrapped
 
-# Coverage (CI: `uv run pytest -q --cov`, which fails below fail_under). 89 % when the floor came in (every CLI
-# command tested); the floor sits a little lower because thread timing moves a run by a point or two. Raise it as
-# coverage rises; never lower it to let a change in.
+# Coverage (CI: `uv run pytest -q --cov`, which fails below fail_under). The floor is the total after the last
+# tranche minus two, rounded down (thread timing moves a run by a point or two): 89.5 % after Tranche 10. Raise it
+# as coverage rises; never lower it to let a change in.
 [tool.coverage.run]
 source = ["radar"]
 branch = true

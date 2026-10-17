@@ -30,7 +30,7 @@ FORMAT = 1
 
 # ---------------- helpers ----------------
 
-def _records(df: pd.DataFrame) -> list[dict]:
+def records(df: pd.DataFrame) -> list[dict]:
     return [_clean(row) for row in df.to_dict("records")]
 
 
@@ -60,7 +60,7 @@ def rrg_points(ratio: pd.DataFrame, mom: pd.DataFrame, names: dict[str, str], as
     return out
 
 
-def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_ratio: float) -> list[dict]:
+def clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_ratio: float) -> list[dict]:
     """Industries (then sectors) over-represented among a region's momentum leaders.
 
     `expected` is the count the group's share of the whole region would predict; a cluster needs at least
@@ -270,7 +270,7 @@ def compute() -> Computed:
             rot.loc[mask, "quadrant_local"] = rot.loc[mask, "ticker"].map(local_q)
         grp["rows"] = with_valuation([{k: r.get(k) for k in ROTATION_KEYS}
                                       | {"gauges": gz.gauges({"rs_ratio": r.get("rs_ratio"), "rs_mom": r.get("rs_mom")})}
-                                      for r in _records(rot[rot["group"] == key])], vctx, "fund")
+                                      for r in records(rot[rot["group"] == key])], vctx, "fund")
         rot_groups.append(grp)
 
     # --- momentum
@@ -299,14 +299,14 @@ def compute() -> Computed:
                                                       | {"gauges": gz.gauges({"score": r.get("score"),
                                                                               "from_high": r.get("from_high"),
                                                                               "vol_surge": r.get("vol_surge")})}
-                                                      for r in _records(top)], vctx, "stock"), fctx),
+                                                      for r in records(top)], vctx, "stock"), fctx),
             "entrants": [t for t, n in zip(top["ticker"], top["new"]) if n],
             "dropped": sorted(prev_top - set(top["ticker"])) if prev_top is not None else [],
-            "clusters": _clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"]),
+            "clusters": clusters(top, df, cfg["sectors"]["cluster_min"], cfg["sectors"]["cluster_ratio"]),
         })
 
     # --- me (the API recomputes this live; summary.json needs it now)
-    rot_rows = _records(rot[["ticker", "ucits", "quadrant"]])
+    rot_rows = records(rot[["ticker", "ucits", "quadrant"]])
     own = prices.set_index("date").groupby("ticker")["close"]
     me = with_fundamentals(with_valuation(mine.table(closes, wide(prices, "high"), wide(prices, "low"), volumes,
                                                      raw_closes, lead, rot_rows, overall["label"], cfg,
@@ -321,7 +321,7 @@ def compute() -> Computed:
     if fs is not None:
         fs_ctx = _clean({k: fs.get(k) for k in FACTSET_KEYS})
         fs_ctx["report_date"] = fs["report_date"].date().isoformat()
-        fs_ctx["history"] = _records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
+        fs_ctx["history"] = records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
 
     # --- data sources & coverage (what the readings above are, and aren't, based on)
     h = trades.holdings()
@@ -348,8 +348,8 @@ def compute() -> Computed:
                                       "putcall": sv.putcall(sentiment.load_putcall(),
                                                             cfg["sentiment"]["putcall_lookback_days"])},
                         "rates": _rates(fred),
-                        "cli": [r | {"gauge": gz.gauge("cli_chg", r["chg_3m"])} for r in _records(cli)] if not cli.empty else [],
-                        "cot": [r | {"gauge": gz.gauge("cot_pct", r["percentile"])} for r in _records(cot_tab)]
+                        "cli": [r | {"gauge": gz.gauge("cli_chg", r["chg_3m"])} for r in records(cli)] if not cli.empty else [],
+                        "cot": [r | {"gauge": gz.gauge("cot_pct", r["percentile"])} for r in records(cot_tab)]
                         if not cot_tab.empty else []},
         "coverage": _clean(cov),
     }

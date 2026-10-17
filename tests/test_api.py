@@ -102,7 +102,7 @@ def test_quality_view_profile_card_and_live_rows(built):
 def test_the_quality_view_wants_a_new_report_after_an_upgrade(built, monkeypatch):
     d = dict(dashboard.load())
     d.pop("quality")
-    monkeypatch.setattr(api, "_dashboard", lambda: d)
+    monkeypatch.setattr(dashboard, "load", lambda: d)
     r = built.get("/api/quality")
     assert r.status_code == 503 and "older version" in r.json()["detail"]
 
@@ -155,8 +155,8 @@ def test_regime_vote_switches(client):
     from radar import valuation
 
     months = pd.date_range(end=world.IDX[-1], periods=440, freq="MS")     # fresh as of the world's last day
-    valuation._market_merge({"cape": pd.Series(range(10, 450), index=months, dtype=float)})      # last = highest
-    valuation._market_merge({"erp": pd.Series([0.08 - i * 0.0001 for i in range(440)], index=months)})  # last = lowest
+    valuation.market_merge({"cape": pd.Series(range(10, 450), index=months, dtype=float)})      # last = highest
+    valuation.market_merge({"erp": pd.Series([0.08 - i * 0.0001 for i in range(440)], index=months)})  # last = lowest
     report.build()
     before = client.get("/api/regime").json()
     assert {v["group"]: v["on"] for v in before["votes"]} == {"credit_eu": True, "valuation": False}

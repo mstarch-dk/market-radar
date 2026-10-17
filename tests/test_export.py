@@ -4,9 +4,12 @@ import io
 import json
 import zipfile
 
+import pytest
 from typer.testing import CliRunner
 
 from radar import cli, export, home, paths, userstore
+
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
 
 
 def _seed(loc):
@@ -19,7 +22,7 @@ def _seed(loc):
 
 
 def test_the_export_is_readable_without_market_radar(tmp_path):
-    loc = home.create(tmp_path / "h", tmp_path / "c")
+    loc = home.create(tmp_path / "Mine Ø-filer" / "Market Radar", tmp_path / "c")
     _seed(loc)
     f = export.write()
     assert f.parent == loc.home / "exports"
@@ -36,7 +39,7 @@ def test_the_export_is_readable_without_market_radar(tmp_path):
 
 
 def test_an_export_loads_on_another_computer(tmp_path):
-    loc = home.create(tmp_path / "h", tmp_path / "c")
+    loc = home.create(tmp_path / "Mine Ø-filer" / "Market Radar", tmp_path / "c")
     _seed(loc)
     f = export.write(tmp_path / "out.zip")
     paths.configure(None)

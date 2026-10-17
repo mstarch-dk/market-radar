@@ -104,3 +104,22 @@ def test_doctor_names_a_bad_setting(monkeypatch):
     monkeypatch.setattr(health, "settings", broken)
     got = {c["name"]: c for c in health.checks(offline=True)}["Settings"]
     assert got["status"] == "fail" and "backtest.fee_bps: missing" in got["detail"]
+
+
+def test_doctor_tells_a_server_error_from_no_connection_and_a_paused_site(tmp_data, monkeypatch):
+    from datetime import datetime, timedelta
+
+    from fakes import Resp, serve
+    from radar import health, net, ops
+
+    serve(monkeypatch, {"yahoo": Resp(200), "stlouisfed": Resp(503), "cftc": ConnectionError("refused")},
+          default=Resp(404))                                  # a 4xx means the site answers: fine for this check
+    ops.set_cooldown("sdmx.oecd.org", datetime.now() + timedelta(hours=1), "429s", strikes=1)
+    net.reset()
+    got = {c["name"].removeprefix("Internet: "): c for c in health.checks() if c["name"].startswith("Internet")}
+    assert got["Yahoo Finance (prices)"]["status"] == "ok" and got["iShares (STOXX 600 holdings)"]["status"] == "ok"
+    assert (got["FRED (US macro)"]["status"], got["FRED (US macro)"]["detail"]) == ("warn", "HTTP 503")
+    assert got["CFTC (futures positioning)"]["status"] == "fail"
+    assert "no connection (ConnectionError)" in got["CFTC (futures positioning)"]["detail"]
+    oecd = got["OECD (leading indicators)"]
+    assert oecd["status"] == "warn" and "paused" in oecd["detail"] and "Operations page" in oecd["fix"]

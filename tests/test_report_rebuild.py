@@ -20,7 +20,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})
     api.reset()
     dashboard.reset()
-    monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(updater._rebuild, "Building the readings", "report"))
+    monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(updater.rebuild_readings, "Building the readings", "report"))
     monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: None))
     report.build()
     return TestClient(api.app)
@@ -80,11 +80,10 @@ def test_no_rebuild_while_an_update_runs_or_another_rebuild(client, monkeypatch)
 
 
 def test_the_app_rebuilds_an_older_shape_at_start(client, monkeypatch):
-    monkeypatch.setattr(api, "_gate", ("ok", None))
-    api._rebuild_if_older()                                           # same shape: nothing to do
+    api.rebuild_if_older(("ok", None))                                # same shape: nothing to do
     assert updater.REPORT_JOB.state["status"] == "idle"
     monkeypatch.setattr(dashboard, "FORMAT", dashboard.FORMAT + 1)
-    api._rebuild_if_older()
+    api.rebuild_if_older(("ok", None))
     assert _wait(updater.REPORT_JOB)["status"] == "done"
     assert dashboard.outdated(dashboard.load()) is None
 

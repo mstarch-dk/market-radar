@@ -2,6 +2,8 @@
 rate on a day."""
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from .values import num
@@ -60,6 +62,8 @@ def parse_amount(text) -> float:
         v = float(t) * mult
     except ValueError:
         raise ValueError(f"not an amount: {text}") from None
+    if not math.isfinite(v):                     # float() reads "nan" and "inf" too
+        raise ValueError(f"not an amount: {text}")
     if v <= 0:
         raise ValueError("the amount must be positive")
     return v

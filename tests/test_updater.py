@@ -69,6 +69,32 @@ def test_a_failing_name_lookup_does_not_stop_the_other_sources(tmp_data, monkeyp
     assert any("names.csv is broken" in line for line in lines)
 
 
+def test_the_prices_step_says_which_tickers_are_late_short_or_missing(tmp_data, monkeypatch):
+    from radar import ops, tracked
+
+    late = [f"L{i:02}" for i in range(14)]
+    monkeypatch.setattr(universe, "all_price_tickers", lambda *a, **k: ["A"])
+    monkeypatch.setattr(ingest, "update_prices", lambda *a, **k: {
+        "rows": 1234, "new": 1, "asof": "2026-10-16", "behind": set(late), "short": {"S1"}, "deepened": 2,
+        "rebased": ["R1"], "missing": ["M1", "M2"]})
+    monkeypatch.setattr(universe, "names", lambda t: None)
+    monkeypatch.setattr(universe, "sectors", lambda t: None)
+    monkeypatch.setattr(tracked, "stock_groups", lambda: {})
+    monkeypatch.setattr(ingest, "update_fred", lambda series: ["DGS10"])
+    monkeypatch.setattr(updater, "update_external", lambda log: None)
+    updater.update(lambda m: None)
+    log = sourcelog.load_log()
+    msg = log["prices"]["detail"]
+    assert msg.startswith("1,234 rows, 1 new tickers; 14 without a bar for 2026-10-16")
+    assert "L11 and 2 more" in msg and "L12" not in msg                      # twelve named, the rest counted
+    assert "1 with a Yahoo history shorter than the one stored" in msg and "S1" in msg
+    assert "2 downloaded again further back" in msg and "re-based the history: R1" in msg
+    assert msg.endswith("no data for 2: M1, M2")
+    warns = [e["message"] for e in ops.events() if e["kind"] == "source" and e["level"] == "warn"]
+    assert any("14 without a bar" in w for w in warns) and any("shorter than the one stored" in w for w in warns)
+    assert log["fred"]["error"] == "RuntimeError: failed: DGS10; those series keep their cached values"
+
+
 # ---------------- updater: one failing step never stops the rest ----------------
 
 def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
@@ -77,7 +103,7 @@ def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
     def boom():
         ran.append("b")
         raise RuntimeError("source down")
-    updater._steps({"a": ("Step A", lambda: ran.append("a") or "3 rows"),
+    updater.run_steps({"a": ("Step A", lambda: ran.append("a") or "3 rows"),
                     "b": ("Step B", boom),
                     "c": ("Step C", lambda: ran.append("c") or "fine")}, lines.append)
     assert ran == ["a", "b", "c"]
@@ -90,9 +116,9 @@ def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
 
 
 def test_a_failure_keeps_the_last_success_time_of_the_source(tmp_data):
-    updater._steps({"a": ("A", lambda: "ok")}, lambda m: None)
+    updater.run_steps({"a": ("A", lambda: "ok")}, lambda m: None)
     first = sourcelog.load_log()["a"]["last_success"]
-    updater._steps({"a": ("A", lambda: (_ for _ in ()).throw(ValueError("bad shape")))}, lambda m: None)
+    updater.run_steps({"a": ("A", lambda: (_ for _ in ()).throw(ValueError("bad shape")))}, lambda m: None)
     entry = sourcelog.load_log()["a"]
     assert entry["last_success"] == first and entry["error"] == "ValueError: bad shape"
 

@@ -123,7 +123,7 @@ def test_picks_without_a_known_name_are_refused(market):
         picks.run(market, day(), [{"ticker": "NOPE"}], "x")
     with pytest.raises(ValueError):
         picks.run(market, day(), [{"ticker": "S1"}, {"ticker": "S1"}], "x")
-    assert np.isclose(sum(p["weight"] for p in picks._resolve([{"ticker": "S1"}, {"ticker": "S2"}],
+    assert np.isclose(sum(p["weight"] for p in picks.resolve_picks([{"ticker": "S1"}, {"ticker": "S2"}],
                                                              picks.ranked(study.panels(market), IDX[D]))), 1)
 
 
@@ -133,6 +133,6 @@ def test_the_studys_score_equals_the_rules_score(market):
     p = study.panels(market)
     ctx = pit.Context.build(market, {"S3", "E2"})
     for i in (255, 270, N - 1):
-        s = study._score(p, IDX[i])
+        s = study.BY_KEY["score"].fn(p, IDX[i])
         for t in ("S3", "E2"):
             assert ctx.score(t, IDX[i]) == pytest.approx(round(float(s[t]), 1))

@@ -136,7 +136,7 @@ def test_a_repeat_pause_within_a_day_lasts_longer(fake_time, monkeypatch):
     ops.set_cooldown("h.example.org", t0 - timedelta(minutes=1), "earlier", strikes=1)   # expired, 1 strike
     for _ in range(3):
         ops.record_request("h.example.org", "/", "GET", 429, False, 1.0)
-    net._note_429("h.example.org")
+    net.note_429("h.example.org")
     st = ops.host_state("h.example.org")
     assert st["strikes"] == 2 and st["cooldown_until"] == ops.timestamp(t0 + timedelta(minutes=30))
 

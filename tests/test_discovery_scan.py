@@ -74,7 +74,7 @@ def test_discovery_stays_out_of_the_daily_radar(tmp_data, monkeypatch):
     _seed(tmp_data)
     scan.build_report(set(universe.all_price_tickers(offline=True)))
     assert "NEW1" not in universe.all_price_tickers(offline=True)
-    rows = {r["key"]: r for r in coverage._discovery_rows(pd.Timestamp.today().date(),
+    rows = {r["key"]: r for r in coverage.discovery_rows(pd.Timestamp.today().date(),
                                                            {"discovery_universe": 45, "discovery_prices": 10}, {})}
     assert rows["discovery_universe"]["coverage"] == "5 names"
     assert rows["discovery_prices"]["status"] == "ok"
@@ -110,7 +110,7 @@ def test_us_market_keeps_only_sp500_members_with_caps_and_index_sectors(monkeypa
     monkeypatch.setattr(sources, "screen_sectors", lambda codes: pytest.fail("no sector screen for the US"))
     mk = {"label": "US (S&P 500)", "kind": "stock", "index": "sp500", "members_only": True,
           "exchanges": ["NMS", "NYQ"], "screen_min_cap": 2e9}
-    df = scan._stocks("us", mk, {"DKK": 1.0, "USD": 6.5}, log=lambda s: None).set_index("ticker")
+    df = scan.stock_market("us", mk, {"DKK": 1.0, "USD": 6.5}, log=lambda s: None).set_index("ticker")
     assert calls == [2e9, 2e9]
     assert "PLTR" not in df.index                                   # not a member
     assert ("GOOGL" in df.index) != ("GOOG" in df.index)            # one row per company, not re-added as extra

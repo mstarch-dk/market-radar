@@ -133,10 +133,11 @@ def _open_home() -> tuple[str, str | None]:
     return gate
 
 
-def _rebuild_if_older() -> None:
+def rebuild_if_older(gate: tuple[str, str | None]) -> None:
     """A dashboard built by a version with an older shape is rebuilt at start (no downloads, about half a
-    minute), so a new section doesn't answer 503 until the next update."""
-    if _gate is None or _gate[0] != "ok":
+    minute), so a new section doesn't answer 503 until the next update. Only in a usable data home (`gate`, as
+    `home.gate()` gives it)."""
+    if gate[0] != "ok":
         return
     try:
         d = dashboard.load()
@@ -148,8 +149,7 @@ def _rebuild_if_older() -> None:
 
 @asynccontextmanager
 async def _lifespan(_app):
-    _open_home()
-    _rebuild_if_older()
+    rebuild_if_older(_open_home())
     yield
 
 
@@ -1195,7 +1195,7 @@ def guide_chapter(book: str, slug: str) -> dict:
 
 # ---------------- importing trades from broker exports ----------------
 
-def _has_prices(symbol: str) -> bool:
+def has_prices(symbol: str) -> bool:
     """Make sure prices exist for `symbol` (downloads an untracked one); False if Yahoo has none."""
     global _market
     try:
@@ -1217,7 +1217,7 @@ def _preview(body: bytes, filename: str, preset: str | None, mapping: str | None
         raise HTTPException(413, "That file is too large for a transaction export.")
     try:
         with _lock:
-            return importers.preview(body, filename, market, _has_prices, preset or None,
+            return importers.preview(body, filename, market, has_prices, preset or None,
                                      json.loads(mapping) if mapping else None, portfolio,
                                      json.loads(symbols) if symbols else None)
     except (ValueError, KeyError, UnicodeDecodeError) as e:

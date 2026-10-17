@@ -41,7 +41,7 @@ def test_fred():
 
 
 def test_oecd_cli():
-    areas = list(external._cfg().get("oecd_cli", {}))
+    areas = list(external.cfg().get("oecd_cli", {}))
     start = (TODAY - timedelta(days=400)).strftime("%Y-%m")
     df = external.parse_oecd_cli(_get(external.OECD_CLI_URL.format(areas="+".join(areas), start=start)).text)
     assert set(areas) <= set(df.columns), f"areas missing: {set(areas) - set(df.columns)}"
@@ -49,16 +49,16 @@ def test_oecd_cli():
 
 
 def test_ecb():
-    for key, (sid, _label) in external._cfg().get("ecb", {}).items():
+    for key, (sid, _label) in external.cfg().get("ecb", {}).items():
         s = external.parse_ecb(_get(external.ECB_URL.format(key=sid, start=(TODAY - timedelta(days=60)).isoformat())).text)
         _recent(s.index[-1], 10, f"ECB {key}")
 
 
 def test_cftc():
     dataset, groups = external.COT_DATASETS["tff"]
-    names = {str(code): name for name, code in external._cfg().get("cot", {}).get("tff", {}).items()}
-    raw = external._cot_fetch(dataset, list(names), TODAY - timedelta(days=30))
-    rows = external._cot_parse(raw, groups, names, "tff")
+    names = {str(code): name for name, code in external.cfg().get("cot", {}).get("tff", {}).items()}
+    raw = external.cot_fetch(dataset, list(names), TODAY - timedelta(days=30))
+    rows = external.cot_parse(raw, groups, names, "tff")
     assert not rows.empty
     _recent(rows["date"].max(), 14, "CFTC")
 
@@ -89,7 +89,7 @@ def test_damodaran_erp():
 
 
 def test_spy_holdings():
-    assert len(constituents._spy_holdings()) >= constituents.SPY_MIN_HOLDINGS
+    assert len(constituents.spy_holdings()) >= constituents.SPY_MIN_HOLDINGS
 
 
 @pytest.mark.parametrize("key", ["stoxx600", "sp500"])

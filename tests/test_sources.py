@@ -108,8 +108,8 @@ def test_cot_renamed_columns_fail_instead_of_storing_nothing():
     renamed = [{k.replace("asset_mgr", "assetmgr").replace("lev_money", "levmoney"): v for k, v in r.items()}
                for r in _cot("cftc_tff.json")]
     with pytest.raises(ValueError, match="CFTC format"):
-        external._cot_parse(renamed, external.COT_DATASETS["tff"][1], {"13874A": "S&P 500"}, "tff")
-    assert external._cot_parse([], external.COT_DATASETS["tff"][1], {}, "tff").empty   # no new weeks is fine
+        external.cot_parse(renamed, external.COT_DATASETS["tff"][1], {"13874A": "S&P 500"}, "tff")
+    assert external.cot_parse([], external.COT_DATASETS["tff"][1], {}, "tff").empty   # no new weeks is fine
 
 
 # ---------------- FactSet ----------------
@@ -129,7 +129,7 @@ def _factset_env(tmp_path, monkeypatch, text):
     class Resp:
         status_code, content = 200, b"%PDF-1.7 ..."
     monkeypatch.setattr(net.requests, "get", lambda *a, **k: Resp())
-    monkeypatch.setattr(external, "_factset_pages", lambda pdf: ["Key Metrics\n" + text])
+    monkeypatch.setattr(external, "factset_pages", lambda pdf: ["Key Metrics\n" + text])
 
 
 def test_update_factset_stores_a_parsed_report(tmp_path, monkeypatch):
@@ -268,7 +268,7 @@ def _oecd(areas, months=24, end="2026-08"):
 
 def test_oecd_header_only_answer_raises_and_writes_nothing(monkeypatch):
     from fakes import Resp, serve
-    areas = list(external._cfg().get("oecd_cli", {}))
+    areas = list(external.cfg().get("oecd_cli", {}))
     serve(monkeypatch, {"oecd": Resp(text=_oecd(areas))})
     external.update_oecd_cli()
     before = external.CLI_FILE.read_bytes()
@@ -280,7 +280,7 @@ def test_oecd_header_only_answer_raises_and_writes_nothing(monkeypatch):
 
 def test_oecd_area_missing_from_the_answer_keeps_its_stored_values(monkeypatch):
     from fakes import Resp, serve
-    areas = list(external._cfg().get("oecd_cli", {}))
+    areas = list(external.cfg().get("oecd_cli", {}))
     serve(monkeypatch, {"oecd": Resp(text=_oecd(areas))})
     external.update_oecd_cli()
     serve(monkeypatch, {"oecd": Resp(text=_oecd(areas[1:], end="2026-09"))})

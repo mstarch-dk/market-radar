@@ -107,7 +107,7 @@ def test_a_missing_price_is_a_gap_not_a_zero(market):
     per = res["stats"]["periods"]
     assert per["3m"]["portfolio"] == pytest.approx(1.001 ** 63 - 1)      # after the gap: known
     series = pd.Series([np.nan if v is None else v for v in idx], index=pd.to_datetime(dates))
-    assert performance._period(series, END - 130) is None                 # starts inside the gap: unknown
+    assert performance.period_return(series, END - 130) is None                 # starts inside the gap: unknown
     res = _run([_buy("NOPX", 100, 1, 10)], market)                    # never had prices
     assert res["missing"] == ["NOPX: no prices"] and all(v is None for v in res["series"]["value_dkk"])
 

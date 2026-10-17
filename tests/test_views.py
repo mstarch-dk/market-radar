@@ -191,7 +191,7 @@ def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkey
     viewstore.save_view(AI_BUBBLE)
     viewstore.save_view({**AI_BUBBLE, "statement": "Rates stay high"})
     before = viewstore.export_views_json()
-    real = viewstore._write_children
+    real = viewstore.write_children
     calls = []
 
     def flaky(con, view_id, v):
@@ -199,7 +199,7 @@ def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkey
         if len(calls) == 2:
             raise sqlite3.OperationalError("disk I/O error")
         return real(con, view_id, v)
-    monkeypatch.setattr(viewstore, "_write_children", flaky)
+    monkeypatch.setattr(viewstore, "write_children", flaky)
     with pytest.raises(sqlite3.OperationalError):
         viewstore.import_views_json(json.dumps([{**AI_BUBBLE, "statement": "new 1"}, {**AI_BUBBLE, "statement": "new 2"}]))
     assert viewstore.export_views_json() == before                          # all or nothing

@@ -45,7 +45,7 @@ def ecb_monthly():
 
 
 def oecd_cli():
-    areas = list(external._cfg().get("oecd_cli", {}))
+    areas = list(external.cfg().get("oecd_cli", {}))
     url = external.OECD_CLI_URL.format(areas="+".join(areas), start=(TODAY - timedelta(days=120)).strftime("%Y-%m"))
     return url, _text(url)
 

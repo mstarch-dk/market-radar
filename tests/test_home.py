@@ -10,6 +10,8 @@ from typer.testing import CliRunner
 
 from radar import api, cli, home, manifest, paths, userstore
 
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
+
 
 def _old_install(root, with_data=True):
     """A Market Radar folder from before the data home: data inside the install folder."""

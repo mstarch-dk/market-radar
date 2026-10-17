@@ -33,7 +33,7 @@ def test_every_caller_uses_the_same_rule():
     assert ms.mean_pct(df).equals(study.pct(df))
     assert np.allclose(ms.weighted_pct(df, dict.fromkeys(ms.COMPONENTS, 1.0)), ms.mean_pct(df), equal_nan=True)
     assert study.pct is ms.mean_pct and longrun.pct is ms.mean_pct and longrun.wpct is ms.weighted_pct
-    assert study._score is mp.score_at and picks.ranked is mp.ranked and study.Panels is mp.Panels
+    assert study.BY_KEY["score"].fn is mp.score_at and picks.ranked is mp.ranked and study.Panels is mp.Panels
 
 
 def test_the_share_strictly_below_with_ties():

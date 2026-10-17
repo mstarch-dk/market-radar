@@ -20,7 +20,7 @@ SPY_HOLDINGS = ("https://www.ssga.com/us/en/intermediary/library-content/product
 SPY_MIN_HOLDINGS = 450  # fewer means the file layout changed; the cached list is kept instead
 
 
-def _spy_holdings() -> pd.DataFrame:
+def spy_holdings() -> pd.DataFrame:
     resp = net.get(SPY_HOLDINGS, timeout=60)
     resp.raise_for_status()
     return parse_spy_holdings(resp.content)
@@ -57,7 +57,7 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
         from . import ops
 
         with ops.context(source="constituents"):
-            df = _spy_holdings()
+            df = spy_holdings()
     except Exception as e:
         if not cached:
             raise

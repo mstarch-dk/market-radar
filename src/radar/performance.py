@@ -342,7 +342,7 @@ def _last(s: pd.Series) -> float | None:
     return float(s.iloc[-1]) if len(s) else None
 
 
-def _period(index: pd.Series, n: int | None = None, since: pd.Timestamp | None = None,
+def period_return(index: pd.Series, n: int | None = None, since: pd.Timestamp | None = None,
             value: pd.Series | None = None) -> float | None:
     """The index's return over the last `n` sessions, or since a date. None when either end is unknown (a gap,
     or not that much history): a lookback never skips across a gap. A day without capital (value 0) is known
@@ -416,8 +416,8 @@ def analyze(b: Book, market, start=None, end=None) -> dict:
     ytd = pd.Timestamp(year=value.index[-1].year, month=1, day=1) if len(value) else None
     periods = {}
     for k, n in PERIODS.items():
-        periods[k] = {"portfolio": _period(index, n, value=value), "acwi": _period(b_index, n)}
-    periods["ytd"] = {"portfolio": _period(index, since=ytd, value=value), "acwi": _period(b_index, since=ytd)}
+        periods[k] = {"portfolio": period_return(index, n, value=value), "acwi": period_return(b_index, n)}
+    periods["ytd"] = {"portfolio": period_return(index, since=ytd, value=value), "acwi": period_return(b_index, since=ytd)}
     periods["since_start"] = {"portfolio": tot, "acwi": btot}
     stats = {
         "start": first.date().isoformat() if first is not None else None,

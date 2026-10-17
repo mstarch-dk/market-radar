@@ -2,13 +2,14 @@
 same as `uv run lint-imports`; see docs/architecture.md, *Layers*): the kernel imports neither the studies nor
 the app, the studies don't import the report builder, the app never imports a study, and every module sits in a
 layer that only imports downwards. The two checks import-linter doesn't make live here: no module reaching into
-another's private names, and no import cycles. Function-local imports count everywhere: they hide a
-dependency from the reader, not from the program.
+another's private names (the tests included), and no import cycles. Function-local imports count everywhere:
+they hide a dependency from the reader, not from the program.
 
 Run this file directly (`uv run python tests/test_layers.py`) to print the current findings."""
 from __future__ import annotations
 
 import ast
+import re
 from collections import defaultdict
 from functools import cache
 from pathlib import Path
@@ -17,6 +18,11 @@ from importlinter.cli import lint_imports
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
+TESTS = ROOT / "tests"
+
+# Test files allowed to read a module's private name: (test file, module, name). It only shrinks; empty since
+# Tranche 10 (a test that needs a stand-in or a helper of its own uses a public seam, docs/testing.md).
+TEST_PRIVATE_ALLOWED: frozenset[tuple[str, str, str]] = frozenset()
 
 @cache
 def _modules() -> dict[str, Path]:
@@ -79,6 +85,47 @@ def _scan() -> tuple[dict[str, set[str]], set[tuple[str, str, str]]]:
     return dict(deps), private
 
 
+def _private(name: str) -> bool:
+    return name.startswith("_") and not name.startswith("__")
+
+
+@cache
+def _scan_tests() -> set[tuple[str, str, str]]:
+    """The private names of radar modules the test files read: imported, as attributes of a module, patched by
+    name (`monkeypatch.setattr(mod, "_x", …)`) or by dotted string ("radar.mod._x")."""
+    mods = _modules()
+    found: set[tuple[str, str, str]] = set()
+    for path in sorted(TESTS.rglob("*.py")):
+        test = path.relative_to(TESTS).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        aliases: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (owner := _owner(node.module or "")) is not None:
+                for a in node.names:
+                    if f"{node.module}.{a.name}" in mods:
+                        aliases[a.asname or a.name] = f"{node.module}.{a.name}"
+                    elif _private(a.name):
+                        found.add((test, owner, a.name))
+            elif isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name in mods and a.asname:
+                        aliases[a.asname] = a.name
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in aliases
+                    and _private(node.attr)):
+                found.add((test, aliases[node.value.id], node.attr))
+            elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                  and node.func.attr in ("setattr", "delattr") and len(node.args) >= 2
+                  and isinstance(node.args[0], ast.Name) and node.args[0].id in aliases
+                  and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str)
+                  and _private(node.args[1].value)):
+                found.add((test, aliases[node.args[0].id], node.args[1].value))
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str) and (
+                    m := re.fullmatch(r"(radar(?:\.\w+)*)\.(_\w+)", node.value)) and _private(m[2]):
+                found.add((test, _owner(m[1]) or m[1], m[2]))
+    return found
+
+
 def _cycles() -> list[list[str]]:
     """The strongly connected components with more than one module (Tarjan)."""
     deps, _ = _scan()
@@ -129,6 +176,17 @@ def test_no_module_uses_another_modules_private_names():
     assert not found, "uses of another module's private names:\n" + "\n".join(f"  {x}" for x in found)
 
 
+def test_no_test_reads_a_private_name():
+    """A test that reaches into a module's internals breaks when they are refactored, though the behaviour holds.
+    Test through the public function, or make a real seam public (a config reader or a download a test replaces:
+    `external.cfg`, `factors.fetch`); the allowlist only shrinks."""
+    found = _scan_tests()
+    new = sorted(found - TEST_PRIVATE_ALLOWED)
+    assert not new, "tests reading a private name:\n" + "\n".join(f"  {x}" for x in new)
+    gone = sorted(TEST_PRIVATE_ALLOWED - found)
+    assert not gone, "no longer used, take them off TEST_PRIVATE_ALLOWED:\n" + "\n".join(f"  {x}" for x in gone)
+
+
 def test_no_import_cycles():
     """Modules in one cycle can only be understood, tested and changed together. A dependency points down a
     layer; when two modules need each other, the shared piece belongs below both."""
@@ -138,5 +196,7 @@ def test_no_import_cycles():
 if __name__ == "__main__":
     for a, b, n in sorted(_scan()[1]):
         print(f"{a} uses {b}.{n}")
+    for t, b, n in sorted(_scan_tests()):
+        print(f"tests/{t} uses {b}.{n}")
     for c in _cycles():
         print(f"cycle of {len(c)}: {', '.join(c)}")

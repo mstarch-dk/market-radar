@@ -8,10 +8,12 @@ import pytest
 
 from radar import backup, home, manifest, paths, userstore
 
+pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
+
 
 @pytest.fixture
 def data(tmp_path):
-    loc = home.create(tmp_path / "h", tmp_path / "c")
+    loc = home.create(tmp_path / "Mine Ø-filer" / "Market Radar", tmp_path / "c")   # a space and an ø, as on Windows
     pid = userstore.save_portfolio({"name": "Depot", "mode": "real", "kind": "ask"})
     userstore.add_tx({"portfolio_id": pid, "symbol": "MSFT", "date": "2026-01-05", "type": "BUY", "quantity": 1,
                       "price": 400.0})

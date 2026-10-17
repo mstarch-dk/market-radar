@@ -159,7 +159,7 @@ def _check_paused(host: str) -> None:
         raise Throttled(host, st["cooldown_until"], st["reason"])
 
 
-def _note_429(host: str) -> None:
+def note_429(host: str) -> None:
     """Count recent 429s; trip the host's cooldown when there are too many."""
     cfg = _cooldown_cfg()
     t = ops.now()
@@ -260,7 +260,7 @@ def get(url: str, *, source: str | None = None, timeout: float = 60, headers: di
             status = getattr(resp, "status_code", None)
             _note_budget(host, lim)
             if status == 429:
-                _note_429(host)
+                note_429(host)
             if isinstance(status, int) and (status == 429 or status >= 500) and attempt <= lim["retries"]:
                 wait = _retry_after(resp)
                 wait = _backoff(lim, attempt) if wait is None else wait
@@ -295,7 +295,7 @@ def _tracked_session_class():
             _record(host, path, str(method), resp, t0, 1)
             _note_budget(host, lim)
             if resp.status_code == 429:
-                _note_429(host)
+                note_429(host)
             return resp
 
     return TrackedSession

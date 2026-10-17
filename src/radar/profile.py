@@ -365,10 +365,10 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
         from . import market_views
 
         out["views"] = market_views.align_profile(identity, closes)
-    return _checked(clean(out))
+    return checked(clean(out))
 
 
-def _checked(p: dict) -> dict:
+def checked(p: dict) -> dict:
     """A profile against api_models.Profile (what the ticker page reads; extra fields an error): a shape the app
     can't show fails here, for `radar info` and the API alike, naming the field."""
     from pydantic import ValidationError

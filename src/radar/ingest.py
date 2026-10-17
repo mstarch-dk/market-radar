@@ -50,14 +50,14 @@ def download_bars(tickers: list[str], start: date, progress=None) -> pd.DataFram
             sub = raw[t].dropna(subset=["Close", "Adj Close"])
             if sub.empty:
                 continue
-            frames.append(_adjust(sub.reset_index(), t))
+            frames.append(adjust(sub.reset_index(), t))
     if unusable and not frames:   # no ticker came with both closes: Yahoo's or yfinance's format changed
         raise ValueError(f"no Close / Adj Close columns in Yahoo's answer ({', '.join(unusable[:5])}…): "
                          "has yfinance changed its download format?")
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=COLUMNS)
 
 
-def _adjust(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
+def adjust(raw: pd.DataFrame, ticker: str) -> pd.DataFrame:
     """Unadjusted yfinance bars → adjusted high/low/close plus the traded close (same as auto_adjust=True)."""
     factor = raw["Adj Close"] / raw["Close"]
     return pd.DataFrame({"date": raw["Date"], "ticker": ticker, "high": raw["High"] * factor,

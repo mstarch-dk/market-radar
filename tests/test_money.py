@@ -31,6 +31,6 @@ def test_no_usable_rate_is_none(fx):
 
 
 def test_parse_amount_refuses_what_isnt_a_positive_amount():
-    for bad in ("lots", "-5", "0", ""):
+    for bad in ("lots", "-5", "0", "", "nan", "inf", "1e400", "NaN k"):      # not a number, or not a finite one
         with pytest.raises(ValueError):
             money.parse_amount(bad)

@@ -30,7 +30,7 @@ REPORT_FILE = "longrun-study.json"
 BASELINE = "score"
 
 
-def _cfg() -> Longrun:
+def cfg() -> Longrun:
     return typed().longrun
 
 
@@ -107,7 +107,7 @@ def _market(name: str, data: pd.DataFrame) -> pd.Series:
 
 
 def load_panel(key: str, data: pd.DataFrame | None = None) -> Panel:
-    specs = _cfg().panels
+    specs = cfg().panels
     if key not in specs:
         raise ValueError(f"unknown panel {key} (known: {', '.join(specs)})")
     spec = specs[key]
@@ -153,9 +153,9 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
     study.summarize unchanged (top N excess over the panel's equal weight), plus the effective number of independent
     periods (dates / H), the top N against the panel's market and in DKK, and the splits (holdout, decade, the
     market's trend, US recessions)."""
-    cfg = _cfg()
-    horizons = [int(h) for h in (horizons or cfg.horizons)]
-    holdout = pd.Timestamp(cfg.holdout_from) if cfg.holdout_from else None
+    conf = cfg()
+    horizons = [int(h) for h in (horizons or conf.horizons)]
+    holdout = pd.Timestamp(conf.holdout_from) if conf.holdout_from else None
     keys = variants or [v.key for v in VARIANTS]
     unknown = [k for k in keys if k not in BY_KEY]
     if unknown:
@@ -169,8 +169,8 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
     fx = _fx(r.index)
     fx_ratio = {h: fx.shift(-h) / fx for h in horizons}
     level = (1 + panel.market.fillna(0)).cumprod().where(panel.market.notna())
-    trend = level >= level.rolling(cfg.regime_months, min_periods=cfg.regime_months).mean()
-    trend = trend.where(level.rolling(cfg.regime_months).count() >= cfg.regime_months)
+    trend = level >= level.rolling(conf.regime_months, min_periods=conf.regime_months).mean()
+    trend = trend.where(level.rolling(conf.regime_months).count() >= conf.regime_months)
     rec = _recessions(r.index)
 
     per: dict[int, dict[str, list[dict]]] = {h: {k: [] for k in keys} for h in horizons}
@@ -288,7 +288,7 @@ def base_rates(r: pd.Series) -> dict | None:
 def factor_base_rates(data: pd.DataFrame | None = None) -> dict:
     data = factors.load() if data is None else data
     out = {}
-    for label, (key, series) in _cfg().factors.items():
+    for label, (key, series) in cfg().factors.items():
         p = factors.panel(key, data)
         out[label] = base_rates(p[series]) if series in p else None
     return out
@@ -366,12 +366,12 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
     data = factors.load()
     if data.empty:
         raise ValueError("no long histories stored: run `radar update` (or `radar study longrun --fetch`) first")
-    keys = panels or list(_cfg().panels)
+    keys = panels or list(cfg().panels)
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "datasets_asof": factors.asof(data),
-           "settings": {"holdout_from": _cfg().holdout_from,
-                        "horizons": [int(h) for h in (horizons or _cfg().horizons)],
-                        "regime_months": _cfg().regime_months, "since": since},
+           "settings": {"holdout_from": cfg().holdout_from,
+                        "horizons": [int(h) for h in (horizons or cfg().horizons)],
+                        "regime_months": cfg().regime_months, "since": since},
            "panels": {}, "errors": {}}
     for k in keys:
         try:

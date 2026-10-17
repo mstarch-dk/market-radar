@@ -171,7 +171,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 ## Returns over time (`performance.py`)
 - Each portfolio is valued in DKK at every close of the benchmark's calendar (a row on a non-trading day counts on the
   next session). `reinvested` (default): adjusted closes, each lot's shares scaled by adjusted/traded close on its
-  trade date (as the holdings table's shadow method, `mine._vs_shadow`); `cash`: traded closes plus DIVIDEND rows.
+  trade date (as the holdings table's shadow method, `mine.vs_shadow`); `cash`: traded closes plus DIVIDEND rows.
 - **Funding**: `ledger` when the portfolio has deposits or withdrawals (value = holdings + cash; only deposits and
   withdrawals are money in or out); `implicit` otherwise (every buy is new money, every sale or income money taken
   out).

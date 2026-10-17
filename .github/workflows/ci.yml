@@ -1,9 +1,9 @@
 name: CI
 
 # Every pull request and every push to main: ruff, mypy on the typed modules, the tests with coverage (offline:
-# tests/conftest.py refuses network access), the guide's checks, and the web app. Ubuntu only for now: Windows
-# (where file replacing and locking behave differently) took several times as long; add windows-latest back to
-# the matrix to test there again.
+# tests/conftest.py refuses network access), the guide's checks, and the web app. The whole suite runs on Ubuntu;
+# the tests marked `os` (file replacing, locks, the data folder, backups and paths with a space and an ø) also run
+# on Windows and macOS, where the app runs too. A full Windows run took several times as long.
 on:
   push:
     branches: [main]
@@ -46,6 +46,23 @@ jobs:
           name: coverage-${{ matrix.os }}
           path: coverage.xml
           if-no-files-found: ignore
+
+  os:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked
+      - name: The tests that touch the operating system (marker `os`)
+        run: uv run pytest -q -m "os and not network and not slow"
 
   web:
     runs-on: ubuntu-latest

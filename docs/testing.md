@@ -60,6 +60,12 @@
   study over decades of synthetic months (`tests/test_longrun.py`). Mark a test `@pytest.mark.slow` when it takes more
   than a few seconds because of the data's size; keep a small-data test of the same code in the normal run. `uv run
   pytest -m slow -q` runs them; CI runs both.
+- **Property tests** (`tests/test_properties.py`, Hypothesis): the money and stats kernels against invariants over
+  generated inputs. A drawdown is never positive and doesn't depend on the unit, a worst window is missing when too
+  short and never worse than the drawdown, a rate is positive and finite or missing and never from a later day, an
+  amount round-trips as people write it, a replay never sells more than it holds and a sale leaves the average cost.
+  A failure prints the smallest breaking input: pin it as an example test in the kernel's own file (the first one
+  found `money.parse_amount("nan")`).
 
 ## Layers
 - `tests/test_layers.py` runs the import-linter contracts in `pyproject.toml` (the same as `uv run lint-imports`): the
@@ -72,6 +78,12 @@
   name public, or move it where it belongs), and there are no import cycles (a dependency points down a layer; when
   two modules need each other, the shared piece belongs below both). `uv run python tests/test_layers.py` prints the
   current findings.
+- The tests don't read private names either (imported, as `module._x`, `monkeypatch.setattr(module, "_x", …)` or
+  `"radar.module._x"`): test through the public function (a score variant through `study.BY_KEY[key].fn`), or use
+  the public seam a module offers for what a test replaces: its config reader (`external.cfg`, `factors.cfg`,
+  `longrun.cfg`, `valuation.screen_codes`), its download (`factors.fetch`, `external.cot_fetch`,
+  `constituents.spy_holdings`) or the settings file (`config.load_settings`, through `conftest.with_settings`).
+  `TEST_PRIVATE_ALLOWED` in `test_layers.py` is empty and only shrinks.
 - In-memory caches: each module that keeps one has a public `reset()` (`api`, `dashboard`, `performance`,
   `fundamentals.context`, `valuation`, `tickers`, `market_views`; also `net.reset()`). `conftest.reset_caches()`
   empties them before and after every test and in `tmp_data`; a test that needs a fresh read mid-way calls the
@@ -104,6 +116,9 @@
 - For a bug fix, write the test first and watch it fail on the old code.
 - Pin method-sensitive numbers (e.g. RRG values) so a change to a method is deliberate.
 - Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs ruff, mypy, `uv run lint-imports`, `uv run
-  pytest -q --cov` and `uv run pytest -q -m slow` on Ubuntu (Windows is switched off for now: add `windows-latest`
-  back to the matrix to test file replacing and locking there), and the web tests, build and an API-types check (`pnpm
-  -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.
+  pytest -q --cov` and `uv run pytest -q -m slow` on Ubuntu, the tests marked `os` on Windows and macOS, and the web
+  tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every
+  pull request and push to main.
+- Mark a test file `os` (`pytestmark = pytest.mark.os`) when it exercises what differs between operating systems:
+  replacing a file a reader holds open (`config.write_atomic`), `locks.file_lock`, the data folder's move, backups,
+  paths with spaces and non-ASCII letters. `uv run pytest -q -m os` runs them (about 20 seconds).

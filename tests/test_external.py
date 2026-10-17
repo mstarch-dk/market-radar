@@ -229,13 +229,7 @@ def test_analyst_partial_failure_keeps_going_and_retries_the_failed_one_next_tim
     assert fake.asked == [("info", "BBB")]
 
 
-# ---------------- Ticker detail: _frame, fetch_detail (the JSON cleaning: test_jsonsafe.py) ----------------
-
-def test_frame_is_rows_of_columns_and_nothing_for_none_or_empty():
-    df = pd.DataFrame({"current": [1.5, np.nan], "7daysAgo": [1.4, 2.0]}, index=["0q", "+1q"])
-    assert external._frame(df) == {"0q": {"current": 1.5, "7daysAgo": 1.4}, "+1q": {"current": None, "7daysAgo": 2.0}}
-    assert external._frame(None) == {} and external._frame(pd.DataFrame()) == {} and external._frame([1]) == {}
-
+# ---------------- Ticker detail: fetch_detail (the JSON cleaning: test_jsonsafe.py) ----------------
 
 class _FakeTicker:
     def __init__(self, quote="EQUITY"):
@@ -268,6 +262,20 @@ class _FakeTicker:
 def _detail(monkeypatch, quote):
     monkeypatch.setattr(net, "yf", lambda: SimpleNamespace(Ticker=lambda t: _FakeTicker(quote)))
     return external.fetch_detail("FAKE")
+
+
+def test_a_detail_table_is_rows_of_columns_and_nothing_for_none_or_empty(monkeypatch):
+    class Tables(_FakeTicker):
+        eps_trend = property(lambda self: pd.DataFrame({"current": [1.5, np.nan], "7daysAgo": [1.4, 2.0]},
+                                                       index=["0q", "+1q"]))
+        eps_revisions = property(lambda self: pd.DataFrame())
+        growth_estimates = property(lambda self: [1])
+
+    monkeypatch.setattr(net, "yf", lambda: SimpleNamespace(Ticker=lambda t: Tables()))
+    raw = external.fetch_detail("FAKE")
+    assert raw["eps_trend"] == {"0q": {"current": 1.5, "7daysAgo": 1.4}, "+1q": {"current": None, "7daysAgo": 2.0}}
+    assert raw["eps_revisions"] == {} and raw["growth_estimates"] == {} and raw["errors"] == {}
+    assert _detail(monkeypatch, "EQUITY")["growth_estimates"] == {}                    # None: nothing
 
 
 def test_fetch_detail_records_a_failing_block_and_fills_the_others(monkeypatch):

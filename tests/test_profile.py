@@ -164,5 +164,5 @@ def test_a_profile_the_app_cant_show_fails_naming_the_field():
     from radar import profile
 
     with pytest.raises(ValueError, match="the profile of X doesn't match api_models.Profile: generated"):
-        profile._checked({"symbol": "X"})
+        profile.checked({"symbol": "X"})
 

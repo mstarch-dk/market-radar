@@ -24,7 +24,7 @@ FACTSET_FILE = HISTORY / "factset.parquet"      # one row per weekly report; the
 FACTSET_TEXT = CACHE / "factset_latest.txt"
 
 
-def _cfg() -> dict:
+def cfg() -> dict:
     return universe_config().get("external", {})
 
 
@@ -37,7 +37,7 @@ COT_DATASETS = {  # Socrata dataset id, and which trader groups to keep (CFTC co
 COT_HISTORY_YEARS = 4
 
 
-def _cot_fetch(dataset: str, codes: list[str], since: date) -> list[dict]:
+def cot_fetch(dataset: str, codes: list[str], since: date) -> list[dict]:
     where = (f"cftc_contract_market_code in({','.join(repr(c) for c in codes)}) "
              f"AND report_date_as_yyyy_mm_dd > '{since.isoformat()}'")
     resp = net.get(f"https://publicreporting.cftc.gov/resource/{dataset}.json",
@@ -66,7 +66,7 @@ def cot_rows(raw: list[dict], groups: dict[str, str], names: dict[str, str]) -> 
 
 
 def update_cot(today: date | None = None) -> int:
-    contracts = _cfg().get("cot", {})
+    contracts = cfg().get("cot", {})
     existing = load_cot()
     full = (today or date.today()) - timedelta(days=int(365.25 * COT_HISTORY_YEARS))
     last = existing.groupby("market")["date"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
@@ -78,9 +78,9 @@ def update_cot(today: date | None = None) -> int:
         new = {c: n for c, n in names.items() if n not in last.index}
         if known:
             since = min(last[n] for n in known.values()).date()
-            frames.append(_cot_parse(_cot_fetch(dataset, list(known), since), groups, names, report))
+            frames.append(cot_parse(cot_fetch(dataset, list(known), since), groups, names, report))
         if new:
-            frames.append(_cot_parse(_cot_fetch(dataset, list(new), full), groups, names, report))
+            frames.append(cot_parse(cot_fetch(dataset, list(new), full), groups, names, report))
     df = pd.concat([f for f in frames if not f.empty], ignore_index=True) if any(not f.empty for f in frames) \
         else pd.DataFrame(columns=["date", "market", "group", "net", "net_pct_oi"])
     df = df.drop_duplicates(["date", "market", "group"], keep="last").sort_values(["market", "group", "date"])
@@ -88,7 +88,7 @@ def update_cot(today: date | None = None) -> int:
     return len(df) - len(existing)
 
 
-def _cot_parse(raw: list[dict], groups: dict[str, str], names: dict[str, str], report: str) -> pd.DataFrame:
+def cot_parse(raw: list[dict], groups: dict[str, str], names: dict[str, str], report: str) -> pd.DataFrame:
     """`cot_rows`, but records that yield nothing mean the CFTC renamed its columns: fail rather than store nothing."""
     rows = cot_rows(raw, groups, names)
     if raw and rows.empty:
@@ -137,7 +137,7 @@ def update_oecd_cli(today: date | None = None) -> str:
     """The CLI for the configured areas over a rolling six-year window. The answer is checked against what is
     stored before anything is written (guard): an area missing from it keeps its stored values (and says so); an
     area that ends earlier than stored, or has markedly fewer months, keeps the stored file."""
-    areas = _cfg().get("oecd_cli", {})
+    areas = cfg().get("oecd_cli", {})
     start = ((today or date.today()) - timedelta(days=365 * 6)).strftime("%Y-%m")
     resp = net.get(OECD_CLI_URL.format(areas="+".join(areas), start=start), timeout=60)
     resp.raise_for_status()
@@ -194,7 +194,7 @@ def parse_ecb(text: str) -> pd.Series:
 
 
 def update_ecb(today: date | None = None) -> str:
-    series = _cfg().get("ecb", {})
+    series = cfg().get("ecb", {})
     start = ((today or date.today()) - timedelta(days=365 * 6)).isoformat()
     out = {}
     for key, (sid, _label) in series.items():
@@ -255,7 +255,7 @@ def parse_factset(pages: list[str]) -> dict:
     return out
 
 
-def _factset_pages(pdf: bytes) -> list[str]:
+def factset_pages(pdf: bytes) -> list[str]:
     import pdfplumber
 
     with pdfplumber.open(io.BytesIO(pdf)) as p:
@@ -273,7 +273,7 @@ def update_factset(today: date | None = None) -> str | None:
         resp = net.get(FACTSET_URL.format(d=d), timeout=60, expected=(403, 404))
         if resp.status_code != 200 or not resp.content.startswith(b"%PDF"):
             continue
-        pages = _factset_pages(resp.content)
+        pages = factset_pages(resp.content)
         row = parse_factset(pages) | {"report_date": pd.Timestamp(d)}
         missing = [k for k in FACTSET_REQUIRED if row[k] is None]
         if missing:  # not stored, so the next run retries; the wording has probably changed

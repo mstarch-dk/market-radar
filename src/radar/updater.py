@@ -37,7 +37,7 @@ REPORT_BUSY = "the readings are already being built (in the app or in a terminal
 Log = Callable[[str], None]
 
 
-def _steps(steps: dict, log: Log) -> None:
+def run_steps(steps: dict, log: Log) -> None:
     """Run update steps {source key: (label, fn)}; a failure is logged and the cached data is kept."""
     for key, (label, step) in steps.items():
         try:
@@ -92,7 +92,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
             raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
         return f"{len(series)} series"
 
-    _steps({"prices": ("Prices", prices)}, log)
+    run_steps({"prices": ("Prices", prices)}, log)
     log("Looking up names and sectors (the first time this takes a few minutes)…")
     try:   # a cache, not a source: a failure is logged and the remaining steps still run
         with ops.context(source="reference"):
@@ -101,7 +101,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
     except Exception as e:
         log(f"Names and sectors: FAILED ({type(e).__name__}: {e}); using the cached ones.")
         ops.event("error", "source", f"names and sectors: {type(e).__name__}: {e}", source="reference", exc=e)
-    _steps({"fred": ("Macro (FRED)", fred)}, log)
+    run_steps({"fred": ("Macro (FRED)", fred)}, log)
     update_external(log)
 
 
@@ -109,7 +109,7 @@ def update_external(log: Log = print) -> None:
     """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
     mine = universe.held_or_watched()
     stocks = universe.tracked_stocks()
-    _steps({
+    run_steps({
         "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),
         "oecd": ("OECD leading indicators", external.update_oecd_cli),
         "factset": ("FactSet earnings insight",
@@ -239,7 +239,7 @@ def discover(log: Log, progress: Callable[[int, int], None], refresh_universe: b
     scan.run(set(universe.all_price_tickers(offline=True)), log, progress, refresh_universe)
 
 
-def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
+def rebuild_readings(log: Log, progress: Callable[[int, int], None]) -> None:
     """The readings rebuilt from the data already downloaded: after an upgrade, an edited settings.yaml or a
     terminal update without a report. The config files are read again, as a new `radar report` would."""
     from .config import reload, universe_config
@@ -252,4 +252,4 @@ def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
 
 JOB = UpdateJob()
 DISCOVER_JOB = UpdateJob(discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
-REPORT_JOB = UpdateJob(_rebuild, "Building the readings", "report")  # no downloads (the Rebuild button)
+REPORT_JOB = UpdateJob(rebuild_readings, "Building the readings", "report")  # no downloads (the Rebuild button)

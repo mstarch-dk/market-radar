@@ -85,7 +85,7 @@ For dine beholdninger og watchlist beregnes `rel_r3m` (kolonnen *Rel 3m*) på sa
 
 ### Dine beholdninger mod skygge-ACWI
 
-På [Mine beholdninger](/me) viser kolonnerne *Since buy (DKK)* og *ACWI (DKK)* (`since_buy` og `bench_since_buy`) din positions totalafkast i DKK og skyggepositionens. Metoden i `mine._vs_shadow`:
+På [Mine beholdninger](/me) viser kolonnerne *Since buy (DKK)* og *ACWI (DKK)* (`since_buy` og `bench_since_buy`) din positions totalafkast i DKK og skyggepositionens. Metoden i `mine.vs_shadow`:
 
 1. Hvert køb koster $q \cdot \text{kurs} + \text{kurtage}$ i handelsvalutaen, omregnet til DKK med valutakursen på handelsdagen. Samme DKK-beløb købes i ACWI-i-DKK samme dag.
 2. Et salg fjerner samme *andel* fra både positionen og skyggen (gennemsnitsmetoden). Kostprisen reduceres forholdsmæssigt.

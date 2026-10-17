@@ -207,7 +207,7 @@ def random_percentile(pool: pd.DataFrame, ret: pd.Series, n: int, actual: float,
 
 # ---------------- the basket ----------------
 
-def _resolve(picks: list[dict], df: pd.DataFrame) -> list[dict]:
+def resolve_picks(picks: list[dict], df: pd.DataFrame) -> list[dict]:
     """Picks by ticker or blind id -> tickers with normalised weights; refuses unknown names and duplicates."""
     by_id = dict(zip(df["id"], df["ticker"]))
     known = set(df["ticker"])
@@ -286,7 +286,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     control = select(df, n, caps["max_per_sector"], caps["max_per_group"], bool(meta.get("trend")),
                      meta.get("weighting", "equal") if picks is None else "equal")
     mechanical = picks is None
-    chosen = control if picks is None else _resolve(picks, df)
+    chosen = control if picks is None else resolve_picks(picks, df)
     if mechanical:
         meta.setdefault("basis", "score")
     if not chosen:

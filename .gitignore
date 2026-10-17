@@ -41,4 +41,5 @@ marketing/site/img/
 .mypy_cache/
 .import_linter_cache/
 .coverage
+.hypothesis/
 coverage.xml

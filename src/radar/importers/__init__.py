@@ -569,7 +569,7 @@ def _yahoo_rows(path: str) -> YahooExport:
     return YahooExport(rows, watch, skipped, unreadable)
 
 
-def _import_market():
+def import_market():
     """The stored prices, to check imported prices against the day's close; None before the first download."""
     from ..market import Market
     from ..paths import PRICES_FILE
@@ -598,7 +598,7 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     future = sorted({r["symbol"] for r in rows if r["date"] > date.today().isoformat()})
     if future:
         raise ValueError(f"trades dated in the future for {', '.join(future)}: nothing was changed")
-    market = _import_market()
+    market = import_market()
     if market is not None:
         for r in rows:
             pc = portfolio.price_check(market, r["symbol"], r["date"], r["price"])
