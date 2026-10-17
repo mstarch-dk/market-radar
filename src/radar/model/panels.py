@@ -12,7 +12,7 @@ from .. import fxrates, tracked, universe
 from ..config import settings
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
-from .score import COMPONENTS, mean_pct
+from ..signals.score import COMPONENTS, mean_pct
 
 
 @dataclass

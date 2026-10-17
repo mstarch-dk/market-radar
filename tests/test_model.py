@@ -7,8 +7,8 @@ from radar import propose, tracked
 from radar.backtest import longrun, picks, study
 from radar.model import panels as mp
 from radar.model import paths as mpaths
-from radar.model import score as ms
 from radar.signals import momentum
+from radar.signals import score as ms
 
 
 def _dist(seed: int = 1, n: int = 40) -> pd.DataFrame:

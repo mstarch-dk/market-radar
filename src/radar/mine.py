@@ -7,9 +7,9 @@ import pandas as pd
 
 from . import external, fxrates, tracked, trades, universe
 from .model.inputs import level_etfs, level_universe  # noqa: F401 (re-exported)
-from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
+from .signals.score import score_vs
 
 METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "history",
                "above50", "above200", "trend_ok")

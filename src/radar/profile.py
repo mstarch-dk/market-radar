@@ -14,9 +14,9 @@ from .config import settings, universe_config
 from .jsonsafe import clean
 from .market import Market
 from .model import inputs
-from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
+from .signals.score import score_vs
 from .universe import REGION_SUFFIXES, region_for  # noqa: F401 (re-exported)
 
 OK, STALE, MISSING = "ok", "stale", "missing"

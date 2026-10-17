@@ -6,7 +6,7 @@ import pytest
 
 from radar import dashboard, fxrates, ingest, paths, tracked, universe
 from radar.mine import _vs_shadow
-from radar.model.score import score_vs
+from radar.signals.score import score_vs
 
 
 def _bars(ticker, closes, start="2026-01-05"):

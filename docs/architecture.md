@@ -136,9 +136,8 @@ change to the model and to its schema version.
 
 ### Kernel
 - `model/`: what the app and the studies must compute the same way, defined once, so what is tested is what is
-  shown: the score's percentile rule, point-in-time panels and the month-end calendar, selection under caps, the
-  trend exit, the shared statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run
-  prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
+  shown: point-in-time panels and the month-end calendar, selection under caps, the trend exit, the shared
+  statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
 
 ### Domain
 - `universe.py`: everything the radar downloads prices for (incl. holdings), names, sectors, region, how far
@@ -176,7 +175,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
 - `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
 - `sentiment.py`: CBOE put/call and the AAII survey.
 - `fundamentals/`: financial statements from SEC EDGAR (US, with filing dates) and Yahoo (every stock,
-  append-only) in one long fact format; the period arithmetic as known on any day; which tickers are due.
+  append-only) in one long fact format (its period arithmetic is pure, in `signals/periods.py`); which tickers
+  are due.
 - `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
 - `constituents.py`: the S&P 500 and MSCI ACWI holdings.
 - `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
@@ -189,7 +189,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
 
 ### Pure readings
 - `signals/`: pure functions from data to readings: risk and the series math everything shares, gauges, rotation,
-  momentum, regime, stop levels, technicals, valuation, quality and value scores, views, discovery scores. No I/O.
+  momentum and its score's percentile rule, regime, stop levels, technicals, valuation, quality and value scores,
+  the statement periods (TTM, latest instant, fiscal years as known on a day), views, discovery scores. No I/O.
 
 ### Infrastructure
 - `config.py`, `config_schema.py`: the config files, checked settings, the atomic writers.

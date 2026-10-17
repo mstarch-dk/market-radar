@@ -13,10 +13,10 @@ from .. import external, tracked, universe, valuation
 from ..config import settings, universe_config
 from ..model import inputs as minputs
 from ..model import paths as mpaths
-from ..model.score import score_vs
 from ..signals import levels as lv
 from ..signals import momentum, regime, rotation
 from ..signals import valuation as sv
+from ..signals.score import score_vs
 
 REGIME_ROWS = 320          # sessions of prices the regime reads (252-day highs/lows + 10-day smoothing + 1 month)
 
@@ -80,7 +80,7 @@ class Context:
 
     def score(self, t: str, day: pd.Timestamp) -> float | None:
         """The momentum score on `day`: the percentile of 12-1, 6- and 3-month returns against every stock in the
-        universe that day, as on My holdings (model.score.score_vs). The universe is today's list (survivorship)."""
+        universe that day, as on My holdings (signals.score.score_vs). The universe is today's list (survivorship)."""
         r = self.row(t, day)
         if r is None or day not in self.dist["r3m"].index:
             return None

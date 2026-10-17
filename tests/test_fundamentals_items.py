@@ -5,12 +5,14 @@ from pathlib import Path
 
 import radar
 from radar.fundamentals import items
+from radar.signals import periods
 
 
 def test_keys_are_unique_and_indexed():
     keys = [i.key for i in items.ITEMS]
     assert len(keys) == len(set(keys)) and set(items.BY_KEY) == set(keys)
     assert {i.key for i in items.ITEMS if i.flow} == items.FLOWS
+    assert {i.key for i in items.ITEMS if i.unit == "shares"} == periods.SHARE_COUNTS   # the TTM rule's share counts
 
 
 def test_every_item_has_a_source_and_a_known_unit():

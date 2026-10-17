@@ -16,8 +16,6 @@ from .. import money, performance, simulate, tracked
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
-from ..model.score import COMPONENTS
-from ..model.score import mean_pct as pct
 from ..model.stats import (  # noqa: F401 (re-exported)
     QUANTILES,
     cross_section,
@@ -31,6 +29,8 @@ from ..model.stats import (  # noqa: F401 (re-exported)
     variant_verdict,
 )
 from ..model.stats import mean as _mean
+from ..signals.score import COMPONENTS
+from ..signals.score import mean_pct as pct
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
 GROUP_MIN = 10                                   # names a stock group needs on a date for its own IC

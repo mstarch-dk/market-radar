@@ -97,10 +97,6 @@ layers = [
     "config : config_schema : guard : jsonsafe : locks : money : net : ops : paths : sourcelog : values",
 ]
 ignore_imports = [
-    # pure readings that use the kernel or the fact store
-    "radar.signals.fundamentals -> radar.fundamentals.store",
-    "radar.signals.momentum -> radar.model.score",
-    # the rest
     "radar.tickers -> radar.dashboard",
     "radar.updates -> radar.home",
 ]

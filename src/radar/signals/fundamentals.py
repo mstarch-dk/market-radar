@@ -12,8 +12,8 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from ..fundamentals import store
 from ..values import num
+from . import periods
 
 QUALITY: dict[str, dict[str, tuple[str, ...]]] = {
     "standard": {"profitability": ("fcf_margin", "roic"), "durability": ("gm_stability", "rev_stability"),
@@ -101,26 +101,26 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     value metrics' own history), `mcap` today's market value in the reporting currency. Returns {"values": what
     is shown, "rank": oriented so higher is better, "notes", "period_end", "basis"}."""
     asof = pd.Timestamp(asof)
-    facts, known_by = store.view(facts, known_by), None     # resolved once: every lookup below reads the view
+    facts, known_by = periods.view(facts, known_by), None     # resolved once: every lookup below reads the view
     notes: list[str] = []
     rng = cfg.get("ranges") or {}
     ttm_age, fy_age = cfg["ttm_max_age_days"], cfg["annual_max_age_days"]
 
     def ttm(item):
-        return _fresh(store.ttm(facts, item, known_by), asof, ttm_age)
+        return _fresh(periods.ttm(facts, item, known_by), asof, ttm_age)
 
     def bal(item, on=None):
-        v = store.instant(facts, item, known_by, on)
+        v = periods.instant(facts, item, known_by, on)
         return v if on is not None else _fresh(v, asof, ttm_age)
 
     def annual(item):
-        return _years(store.annual(facts, item, known_by), asof, cfg["stability_years"], fy_age)
+        return _years(periods.annual(facts, item, known_by), asof, cfg["stability_years"], fy_age)
 
     rev, ebit, cfo, capex = ttm("revenue"), ttm("operating_income"), ttm("cfo"), ttm("capex")
     ni, pretax, tax, dna, interest = ttm("net_income"), ttm("pretax"), ttm("income_tax"), ttm("dna"), ttm("interest")
     assets, cl, cash = bal("total_assets"), bal("current_liabilities"), bal("cash")
     equity = bal("equity")
-    latest = store.latest_end(facts, known_by)
+    latest = periods.latest_end(facts, known_by)
     if rev is None and latest is not None and (asof - latest).days > ttm_age:
         notes.append(f"latest report ends {latest:%d %b %Y}, more than {ttm_age} days ago: left out")
     debt_parts = [bal("debt_current"), bal("debt_noncurrent")]
@@ -265,18 +265,18 @@ def _own_history(facts, item: str, ev_based: bool | None, now: float | None, pri
     `ey_history_min_points` points, today included."""
     if now is None or price_on is None:
         return None
-    fy = store.annual(facts, item, known_by)
+    fy = periods.annual(facts, item, known_by)
     fy = fy[fy.index >= asof - pd.DateOffset(years=cfg["ey_history_years"])]
     hist = []
     for end, flow in fy.items():
         px = price_on(end)
-        sh = store.instant(facts, "shares", known_by, on=end + timedelta(days=60))
+        sh = periods.instant(facts, "shares", known_by, on=end + timedelta(days=60))
         if px is None or sh is None or abs((sh.end - end).days) > 100:
             continue
         mc = px * sh.value
         if ev_based:
-            d = sum(_v(store.instant(facts, i, known_by, on=end)) or 0.0 for i in ("debt_current", "debt_noncurrent"))
-            c = _v(store.instant(facts, "cash", known_by, on=end))
+            d = sum(_v(periods.instant(facts, i, known_by, on=end)) or 0.0 for i in ("debt_current", "debt_noncurrent"))
+            c = _v(periods.instant(facts, "cash", known_by, on=end))
             if c is None:
                 continue
             ev = mc + d - c

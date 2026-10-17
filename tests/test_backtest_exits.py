@@ -11,8 +11,8 @@ import world
 from radar import fees, performance, profile, simulate, userstore
 from radar.backtest import exit_rules, exits, pit, redeploy
 from radar.model import inputs as minputs
-from radar.model.score import score_vs
 from radar.signals import momentum, regime
+from radar.signals.score import score_vs
 from world import IDX, N
 
 FX = 6.5
