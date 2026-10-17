@@ -59,7 +59,7 @@ def market(tmp_data, monkeypatch):
     c["backtest"] |= {"study_min_names": 4, "fill": "next", "fee_bps": 10}
     from radar.backtest import picks, propose_study, study
 
-    for mod in (propose, propose_study, study, picks):
+    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store, propose_study, study, picks):   # where settings() is read
         monkeypatch.setattr(mod, "settings", lambda: c)
     # ACWI's weights from the trimmed real file
     df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
@@ -470,7 +470,7 @@ def test_study_view_shrinks_toward_the_prior(market, monkeypatch):
     c = market.cfg["propose"] | {"prior": {"tau_annual": 0.0}}
     kept = {"all": {"dates": 40, "gross_mean": 0.10, "mean": 0.09, "t": 3.0}}
     rep = _study({"momentum": {"5": {"6": {"kept": kept}}}})
-    monkeypatch.setattr(propose, "long_prior", lambda tilt, h, trend, c=None: {"mean": 0.01, "se": 0.03})
+    monkeypatch.setattr(propose.drift, "long_prior", lambda tilt, h, trend, c=None: {"mean": 0.01, "se": 0.03})
     v = propose.study_view(rep, "momentum", 5, 6, None, c, "up")
     short = 0.10 * (1 - c["survivorship_haircut"])
     assert v["drift_short"] == pytest.approx(short) and v["se_short"] == pytest.approx(0.03)
