@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from radar import backup, export, home, paths, trades, userstore
+from radar import backup, export, home, manifest, paths, trades, userstore
 
 HOMES = Path(__file__).parent / "fixtures" / "homes"
 FIXTURES = sorted(p for p in HOMES.iterdir() if (p / "expected.json").exists())
@@ -30,7 +30,7 @@ def test_a_released_data_folder_opens_with_nothing_lost(fixture, tmp_path):
         loc = home.use(src, tmp_path / "cache")
     assert home.gate() == ("ok", None)
     if exp["layout"] == "home":                     # a moved folder starts fresh; the old one is its backup
-        assert backup.before_upgrade() is not None or exp["made_by"] == home.app_version()
+        assert backup.before_upgrade() is not None or exp["made_by"] == manifest.app_version()
 
     tables = home.table_counts(loc.userdata / home.DB_NAME)               # the schema may have grown since
     for t, n in exp["tables"].items():

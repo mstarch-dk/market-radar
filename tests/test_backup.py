@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import pytest
 
-from radar import backup, home, paths, userstore
+from radar import backup, home, manifest, paths, userstore
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def test_a_backup_holds_your_data_and_history_not_the_cache(data):
         meta = json.loads(z.read("backup.json"))
     assert {"radar.db", "notes/investor.md", "history/snapshots/2026-10-01_momentum.parquet"} <= names
     assert not any("prices" in n for n in names)
-    assert meta["tables"]["transactions"] == 1 and meta["app_version"] == home.app_version()
+    assert meta["tables"]["transactions"] == 1 and meta["app_version"] == manifest.app_version()
     assert backup.listing()[0]["name"] == f.name and backup.listing()[0]["kind"] == "manual"
 
 
@@ -93,8 +93,8 @@ def test_a_copy_goes_to_the_second_folder(data, tmp_path):
 
 
 def test_a_new_version_backs_up_before_its_first_use(data):
-    m = home.read_manifest(data.home)
-    home.write_manifest(data.home, m | {"last_app_version": "0.0.1"})
+    m = manifest.read_manifest(data.home)
+    manifest.write_manifest(data.home, m | {"last_app_version": "0.0.1"})
     f = backup.before_upgrade()
     assert f is not None and "-upgrade-before-v" in f.name
     home.touch(data.home)

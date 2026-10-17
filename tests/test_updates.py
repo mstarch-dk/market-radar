@@ -3,7 +3,7 @@ import copy
 
 import pytest
 
-from radar import config, home, net, updates
+from radar import config, home, manifest, net, updates
 
 
 class Resp:
@@ -20,7 +20,7 @@ def checks(tmp_path, monkeypatch):
     s = copy.deepcopy(config.settings())
     s["updates"] = {"repo": "someone/market-radar"}
     monkeypatch.setattr(updates, "settings", lambda: s)
-    monkeypatch.setattr(home, "app_version", lambda: "0.2.0")
+    monkeypatch.setattr(manifest, "app_version", lambda: "0.2.0")
     calls = []
 
     def fake(url, **kw):

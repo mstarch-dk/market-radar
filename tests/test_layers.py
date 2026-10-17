@@ -116,8 +116,8 @@ def _cycles() -> list[list[str]]:
 
 
 def test_the_import_contracts_hold(capsys):
-    """A broken contract names the chain of imports: move the shared piece down a layer rather than adding an
-    exception. An exception that no longer matches fails too: delete it from ignore_imports."""
+    """A broken contract names the chain of imports: move the shared piece down a layer, or pass it in from above,
+    rather than adding an exception (ignore_imports is empty)."""
     code = lint_imports(config_filename=str(ROOT / "pyproject.toml"), no_cache=True, no_logo=True)
     assert code == 0, capsys.readouterr().out
 

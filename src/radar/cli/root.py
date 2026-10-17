@@ -9,7 +9,7 @@ FREE = {"setup", "paths", "serve", "doctor", "openapi", "ticker"}     # run befo
 
 def _version(value: bool) -> None:
     if value:
-        from ..home import app_version
+        from ..manifest import app_version
 
         typer.echo(f"Market Radar {app_version()}")
         raise typer.Exit()

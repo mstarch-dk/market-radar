@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from . import home, paths, trades, userstore
+from . import home, manifest, paths, trades, userstore
 from .userstore import viewstore
 
 EXPORT_FORMAT = 1
@@ -127,9 +127,9 @@ def build() -> bytes:
             root = paths.HOME / d
             for p in home.files_under(root.now()):
                 z.write(p, f"{d}/{p.relative_to(root.now()).as_posix()}")
-        z.writestr("EXPORT.md", README.format(created=created, version=home.app_version(), fmt=EXPORT_FORMAT))
+        z.writestr("EXPORT.md", README.format(created=created, version=manifest.app_version(), fmt=EXPORT_FORMAT))
         z.writestr("export.json", json.dumps({"export_format": EXPORT_FORMAT, "created": created,
-                                              "app_version": home.app_version()}, indent=1))
+                                              "app_version": manifest.app_version()}, indent=1))
     return buf.getvalue()
 
 

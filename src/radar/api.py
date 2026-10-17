@@ -19,6 +19,7 @@ from . import (
     dashboard,
     home,
     importers,
+    manifest,
     mine,
     net,
     ops,
@@ -150,7 +151,7 @@ async def _lifespan(_app):
     yield
 
 
-app = FastAPI(title="Market Radar", version=home.app_version(), lifespan=_lifespan)
+app = FastAPI(title="Market Radar", version=manifest.app_version(), lifespan=_lifespan)
 _lock = threading.Lock()  # one price download / market reload at a time
 _market: profile.Market | None = None
 

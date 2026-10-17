@@ -12,22 +12,20 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 import sqlite3
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
-from . import paths
-from .config import ROOT, write_text
+from . import manifest, paths
+from .config import ROOT
 
 # Changes to the data folder's layout (a folder renamed, a file moved between tiers): one function per step, taking
 # the home Path; step i turns format i into i + 1. Append only, never edit a released step, never delete user data
 # (copy or rename). They run after the backup a new version takes before its first use (`upgrade`).
 HOME_MIGRATIONS: list = []
 HOME_FORMAT = 1 + len(HOME_MIGRATIONS)
-MANIFEST = "market-radar.json"
 DB_NAME = "radar.db"
 PERSONAL = ("notes", "briefs", "research", "journal", "exports")          # folders copied as they are
 APP_FILES = {"imports": {"README.md", "positivliste.xlsx"}}                # shipped with the app, not yours
@@ -59,77 +57,33 @@ Læg i stedet backups der (se guiden: Dine data, backup og opdatering).
 """
 
 
-def app_version() -> str:
-    """From pyproject.toml beside the code (a release zip and a checkout both have it, and it can't be stale like an
-    installed package's metadata), else the installed metadata."""
-    import tomllib
-
-    try:
-        return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    except (OSError, KeyError, ValueError):
-        from importlib.metadata import PackageNotFoundError, version
-
-        try:
-            return version("market-radar")
-        except PackageNotFoundError:
-            return "0.0.0"
-
-
-def version_tuple(v: str) -> tuple:
-    """A version as numbers, so versions compare right: "0.2.10" is (0, 2, 10); a part that isn't a number is 0."""
-    return tuple(int(p) if p.isdigit() else 0 for p in v.split("."))
-
-
 def schema_known() -> int:
     from . import userstore
 
     return len(userstore.MIGRATIONS)
 
 
-# ---------------- manifest ----------------
-
-def read_manifest(home: Path) -> dict | None:
-    f = Path(home) / MANIFEST
-    try:
-        return json.loads(f.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-
-
-def write_manifest(home: Path, m: dict) -> None:
-    """Write the data home's market-radar.json."""
-    f = Path(home) / MANIFEST
-    write_text(f, json.dumps(m, indent=1, ensure_ascii=False))
-
-
-def add_log(m: dict, event: str, **kw) -> dict:
-    """Append an event (with the time and this app version) to a manifest's log; returns the manifest."""
-    m.setdefault("log", []).append({"at": datetime.now().isoformat(timespec="seconds"),
-                                    "app_version": app_version(), "event": event} | kw)
-    return m
-
-
 def touch(home: Path) -> dict:
     """Record that this app version opened the home (once per version). Returns the manifest."""
-    m = read_manifest(home)
+    m = manifest.read_manifest(home)
     if m is None:
         return {}
-    v = app_version()
+    v = manifest.app_version()
     if m.get("last_app_version") != v and not _newer(m):
         m["last_app_version"] = v
-        write_manifest(home, add_log(m, "opened"))
+        manifest.write_manifest(home, manifest.add_log(m, "opened"))
     return m
 
 
 def upgrade(home: Path) -> list[int]:
     """Bring an older data folder's layout up to HOME_FORMAT, one recorded step at a time. Returns the steps run."""
-    m = read_manifest(home)
+    m = manifest.read_manifest(home)
     done = []
     while m and m.get("home_format", 1) < HOME_FORMAT:
         step = m.get("home_format", 1)
         HOME_MIGRATIONS[step - 1](Path(home))
         m["home_format"] = step + 1
-        write_manifest(home, add_log(m, "upgraded", to_format=step + 1))
+        manifest.write_manifest(home, manifest.add_log(m, "upgraded", to_format=step + 1))
         done.append(step + 1)
     return done
 
@@ -153,10 +107,10 @@ def read_only() -> str | None:
         loc = paths.locations()
     except paths.NotSetUp:
         return None
-    m = read_manifest(loc.home)
+    m = manifest.read_manifest(loc.home)
     if _newer(m):
         return (f"Your data was last used by Market Radar {m.get('last_app_version', '?')} (data format "
-                f"{m['home_format']}); this is {app_version()}. Start the newer version.")
+                f"{m['home_format']}); this is {manifest.app_version()}. Start the newer version.")
     dv = db_version(loc.userdata / DB_NAME)
     if dv is not None and dv > schema_known():
         return (f"radar.db was upgraded by a newer Market Radar (schema {dv}; this version knows {schema_known()}). "
@@ -170,7 +124,7 @@ def gate() -> tuple[str, str | None]:
     if src == "unset":
         return "unset", None
     loc = paths.locations()
-    if src in ("pointer", "env", "portable", "option") and not (loc.home / MANIFEST).exists():
+    if src in ("pointer", "env", "portable", "option") and not (loc.home / manifest.MANIFEST).exists():
         return "missing", None                    # chosen once, now gone (another drive, renamed, deleted)
     ro = read_only()
     return ("newer" if ro else "ok"), ro
@@ -179,7 +133,7 @@ def gate() -> tuple[str, str | None]:
 def status() -> dict:
     """What the app should do at start: run, ask where the data is, or refuse to write."""
     state, ro = gate()
-    out = {"state": state, "source": paths.source(), "app_version": app_version(),
+    out = {"state": state, "source": paths.source(), "app_version": manifest.app_version(),
            "pointer": str(paths.pointer_file()), "default_home": str(paths.default_home()),
            "default_cache": str(paths.default_cache()), "home": None, "cache": None, "read_only": ro,
            "warning": None, "found": []}
@@ -305,7 +259,7 @@ def table_counts(db: Path) -> dict[str, int]:
 
 
 def _check_target(home: Path) -> None:
-    if (home / MANIFEST).exists() or (home / DB_NAME).exists():
+    if (home / manifest.MANIFEST).exists() or (home / DB_NAME).exists():
         raise HomeError(f"{home} already holds Market Radar data: choose it as your folder, or pick another one")
     if home.exists() and any(home.iterdir()):
         raise HomeError(f"{home} is not empty: choose an empty or new folder")
@@ -316,13 +270,13 @@ def _init(home: Path, m: dict) -> None:
     for f in (*PERSONAL, "imports", "history", "backups"):
         (home / f).mkdir(exist_ok=True)
     (home / "README.txt").write_text(README, encoding="utf-8")
-    write_manifest(home, m)
+    manifest.write_manifest(home, m)
 
 
 def _manifest(event: str, **kw) -> dict:
     now = datetime.now().isoformat(timespec="seconds")
-    return add_log({"home_format": HOME_FORMAT, "created": now, "created_by": app_version(),
-                 "last_app_version": app_version()}, event, **kw)
+    return manifest.add_log({"home_format": HOME_FORMAT, "created": now, "created_by": manifest.app_version(),
+                             "last_app_version": manifest.app_version()}, event, **kw)
 
 
 def create(home: Path | None = None, cache: Path | None = None, pointer: bool = True) -> paths.Locations:
@@ -341,8 +295,8 @@ def create(home: Path | None = None, cache: Path | None = None, pointer: bool = 
 def use(home: Path, cache: Path | None = None, pointer: bool = True) -> paths.Locations:
     """Point this computer at an existing data home (moved, or set up by another version)."""
     home = Path(home).expanduser()
-    if not (home / MANIFEST).exists():
-        raise HomeError(f"{home} is not a Market Radar data folder (no {MANIFEST} in it)")
+    if not (home / manifest.MANIFEST).exists():
+        raise HomeError(f"{home} is not a Market Radar data folder (no {manifest.MANIFEST} in it)")
     pointer = pointer and paths.remembers()
     loc = paths.Locations.at(home, cache)
     if pointer:
