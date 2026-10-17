@@ -450,7 +450,7 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
     real = set(userstore.portfolio_ids("real", include_archived=True))
     scope = real if target is None or target in real else set()       # as add_import checks duplicates
     seen = [t for t in stored if t["portfolio_id"] in scope or t["portfolio_id"] == target]
-    keys = {userstore._key(t) for t in seen}
+    keys = {userstore.trade_key(t) for t in seen}
     refs = {t["ext_ref"] for t in seen if t.get("ext_ref")}
     known = {x["name"]: x["id"] for x in userstore.portfolios()}
     new_ids: dict[str, int] = {}                           # portfolios named in the file, created on commit
@@ -468,7 +468,7 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
         tx = {k: r[k] for k in ("symbol", "date", "type", "quantity", "price", "fee", "amount")} | {"portfolio_id": pid}
         if r["amount"] is not None:
             tx["currency"] = "DKK"
-        r["duplicate"] = (r["ext_ref"] in refs) if r["ext_ref"] else userstore._key(tx) in keys
+        r["duplicate"] = (r["ext_ref"] in refs) if r["ext_ref"] else userstore.trade_key(tx) in keys
         if r["duplicate"]:
             continue
         if tx["symbol"]:

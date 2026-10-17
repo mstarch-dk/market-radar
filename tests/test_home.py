@@ -107,9 +107,9 @@ def test_a_missing_home_is_never_replaced_silently(tmp_path, unset):
 def test_data_from_a_newer_version_is_read_only(tmp_path, unset):
     home.create(tmp_path / "h", tmp_path / "c")
     m = home.read_manifest(tmp_path / "h")
-    home._write_manifest(tmp_path / "h", m | {"home_format": home.HOME_FORMAT + 1, "last_app_version": "9.0.0"})
+    home.write_manifest(tmp_path / "h", m | {"home_format": home.HOME_FORMAT + 1, "last_app_version": "9.0.0"})
     assert home.gate()[0] == "newer" and "9.0.0" in home.read_only()
-    home._write_manifest(tmp_path / "h", m)
+    home.write_manifest(tmp_path / "h", m)
     userstore.watch("A")                                                  # creates radar.db at today's schema
     with closing(sqlite3.connect(tmp_path / "h" / "radar.db")) as con:
         con.execute(f"PRAGMA user_version = {home.schema_known() + 1}")
@@ -147,8 +147,8 @@ def test_the_app_shows_setup_until_a_folder_is_chosen(tmp_path, unset):
 def test_the_app_refuses_writes_to_newer_data(tmp_path, unset, monkeypatch):
     home.create(tmp_path / "h", tmp_path / "c")
     m = home.read_manifest(tmp_path / "h")
-    home._write_manifest(tmp_path / "h", m | {"home_format": home.HOME_FORMAT + 1})
-    monkeypatch.setattr(api, "_gate", None)
+    home.write_manifest(tmp_path / "h", m | {"home_format": home.HOME_FORMAT + 1})
+    api.reset()
     c = TestClient(api.app)
     assert c.get("/api/portfolios").status_code == 200
     r = c.put("/api/watchlist/MSFT")
@@ -163,7 +163,7 @@ def test_a_layout_change_runs_once_after_the_backup(tmp_path, unset, monkeypatch
     monkeypatch.setattr(home, "HOME_MIGRATIONS", [lambda h: moved.append(h)])
     monkeypatch.setattr(home, "HOME_FORMAT", 2)
     m = home.read_manifest(tmp_path / "h")
-    home._write_manifest(tmp_path / "h", m | {"last_app_version": "0.0.1"})
+    home.write_manifest(tmp_path / "h", m | {"last_app_version": "0.0.1"})
     assert backup.before_upgrade() is not None                           # first the copy, then the change
     assert home.upgrade(tmp_path / "h") == [2] and home.upgrade(tmp_path / "h") == []
     assert moved == [tmp_path / "h"] and home.read_manifest(tmp_path / "h")["home_format"] == 2

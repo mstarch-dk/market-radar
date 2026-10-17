@@ -43,7 +43,7 @@ def test_a_snapshot_is_due_once_the_last_is_snapshot_days_old(tmp_path):
 def test_a_run_in_the_next_week_appends(tmp_path):
     path = tmp_path / "s.parquet"
     old = snap("2026-10-09", ["AAA"])                                          # Fri, week 41
-    assert valuation._store(path, old, new(["AAA"]), date(2026, 10, 12)) == 0   # Mon, week 42
+    assert valuation.store_snapshot(path, old, new(["AAA"]), date(2026, 10, 12)) == 0   # Mon, week 42
     df = pd.read_parquet(path)
     assert sorted(df["date"].dt.strftime("%Y-%m-%d")) == ["2026-10-09", "2026-10-12"]
 
@@ -52,7 +52,7 @@ def test_a_second_run_in_the_same_week_replaces_it_and_carries_missed_names(tmp_
     path = tmp_path / "s.parquet"
     old = pd.concat([snap("2026-10-05", ["AAA"]),                              # week 41: kept
                      snap("2026-10-12", ["AAA", "BBB", "CCC"], note=[None, None, "odd EPS"])])   # week 42
-    carried = valuation._store(path, old, new(["AAA"]), date(2026, 10, 15))    # Thu, week 42
+    carried = valuation.store_snapshot(path, old, new(["AAA"]), date(2026, 10, 15))    # Thu, week 42
     assert carried == 2
     df = pd.read_parquet(path)
     assert sorted(df["date"].dt.strftime("%Y-%m-%d").unique()) == ["2026-10-05", "2026-10-15"]
@@ -71,12 +71,12 @@ def test_new_years_day_is_still_the_old_years_iso_week_53():
 
 def test_across_new_year_the_iso_week_decides_replace_or_append(tmp_path):
     path = tmp_path / "s.parquet"
-    valuation._store(path, pd.DataFrame(), new(["AAA", "BBB"]), date(2026, 12, 31))   # Thu, 2026-W53
-    carried = valuation._store(path, pd.read_parquet(path), new(["AAA"]), date(2027, 1, 1))  # Fri, 2026-W53
+    valuation.store_snapshot(path, pd.DataFrame(), new(["AAA", "BBB"]), date(2026, 12, 31))   # Thu, 2026-W53
+    carried = valuation.store_snapshot(path, pd.read_parquet(path), new(["AAA"]), date(2027, 1, 1))  # Fri, 2026-W53
     df = pd.read_parquet(path)
     assert carried == 1 and list(df["date"].dt.strftime("%Y-%m-%d").unique()) == ["2027-01-01"]
     assert sorted(df["ticker"]) == ["AAA", "BBB"]
-    valuation._store(path, df, new(["AAA"]), date(2027, 1, 4))                          # Mon, 2027-W01
+    valuation.store_snapshot(path, df, new(["AAA"]), date(2027, 1, 4))                          # Mon, 2027-W01
     df = pd.read_parquet(path)
     assert df.groupby(df["date"].dt.strftime("%Y-%m-%d"))["ticker"].apply(sorted).to_dict() == {
         "2027-01-01": ["AAA", "BBB"], "2027-01-04": ["AAA"]}
@@ -85,7 +85,7 @@ def test_across_new_year_the_iso_week_decides_replace_or_append(tmp_path):
 def test_the_same_week_number_a_year_later_is_not_the_same_week(tmp_path):
     path = tmp_path / "s.parquet"
     old = snap("2025-10-13", ["AAA", "BBB"])                                   # 2025-W42
-    assert valuation._store(path, old, new(["AAA"]), date(2026, 10, 12)) == 0  # 2026-W42: appended
+    assert valuation.store_snapshot(path, old, new(["AAA"]), date(2026, 10, 12)) == 0  # 2026-W42: appended
     assert len(pd.read_parquet(path)) == 3
 
 

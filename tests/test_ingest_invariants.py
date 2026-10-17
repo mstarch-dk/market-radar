@@ -236,7 +236,7 @@ class Prices(Source):
         def download(tickers, start, progress=None):
             frames = [w[w["date"] >= pd.Timestamp(start)] for t, w in world.items() if t in tickers]
             return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=ingest.COLUMNS)
-        mp.setattr(ingest, "_download", download)
+        mp.setattr(ingest, "download_bars", download)
         mp.setattr(ingest, "settings", lambda: {"history_years": 1})
 
     def good(self, mp):
@@ -266,7 +266,7 @@ class DiscoveryPrices(Source):
         def download(tickers, start, progress=None):
             frames = [_bars(t, str(start), "2026-10-14") for t in tickers if t in names]
             return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=ingest.COLUMNS)
-        mp.setattr(ingest, "_download", download)
+        mp.setattr(ingest, "download_bars", download)
 
     def good(self, mp):
         self._serve(mp, self.NAMES)

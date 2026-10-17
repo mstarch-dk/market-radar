@@ -878,9 +878,9 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
             if rule_spec:
                 from .backtest import study
 
-                spec = next((x for x in study._exit_variants() if x.key == rule_spec), None)
+                spec = next((x for x in study.exit_rule_variants() if x.key == rule_spec), None)
                 if spec is None:
-                    raise ValueError(f"no rule variant {rule_spec} (known: {', '.join(x.key for x in study._exit_variants())})")
+                    raise ValueError(f"no rule variant {rule_spec} (known: {', '.join(x.key for x in study.exit_rule_variants())})")
             rep = exits.refresh(ids, market, variants, start, end, fill, spec=spec)
         except ValueError as e:
             raise typer.Exit(f"Not simulated: {e}")

@@ -63,8 +63,8 @@ def test_the_presets_are_valid_dated_and_sourced():
 def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     return TestClient(api.app)
 
 

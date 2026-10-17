@@ -12,3 +12,9 @@ def num(v) -> float | None:
     except (TypeError, ValueError):
         return None
     return f if math.isfinite(f) else None
+
+
+def whole(v) -> int | None:
+    """`v` as an int (an id, a count); None when it isn't a finite number."""
+    f = num(v)
+    return None if f is None else int(f)

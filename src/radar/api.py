@@ -181,6 +181,14 @@ ScopeQ = Query(None, description="real | virtual | all (when no portfolio or tag
 
 
 _gate: tuple[str, str | None] | None = None      # (state, why read-only), from home.gate() at start
+
+
+def reset() -> None:
+    """Forget the loaded prices and the data home's state (tests; a new data home)."""
+    global _market, _gate
+    _market, _gate = None, None
+
+
 SETUP_FREE = ("/api/setup", "/api/guide", "/api/ops/doctor")    # usable before the data folder is chosen
 READS = {"GET", "HEAD", "OPTIONS"}
 
@@ -254,7 +262,7 @@ def _folders() -> list[dict]:
             ("history", "History", loc.history, "history"), ("cache", "Market data (cache)", loc.cache, "cache")]
     out = []
     for key, label, d, tier in rows:
-        fs = h._files(d) if key != "data" else ([loc.userdata / h.DB_NAME] if (loc.userdata / h.DB_NAME).exists() else [])
+        fs = h.files_under(d) if key != "data" else ([loc.userdata / h.DB_NAME] if (loc.userdata / h.DB_NAME).exists() else [])
         out.append({"key": key, "label": label, "path": str(d), "tier": tier, "files": len(fs),
                     "mb": round(sum(f.stat().st_size for f in fs) / 1e6, 1)})
     return out

@@ -9,7 +9,7 @@ from functools import cache
 import pandas as pd
 
 from . import external, ingest, universe, userstore
-from .config import _load
+from .config import load_yaml
 from .signals import views as sv
 
 DISCLAIMER = ("These are your own subjective beliefs about where markets are heading, not facts or forecasts. "
@@ -23,7 +23,7 @@ HORIZONS = ["3m", "6m", "12m", "3y"]
 
 @cache
 def config() -> dict:
-    return _load("views.yaml")
+    return load_yaml("views.yaml")
 
 
 def templates() -> list[dict]:
@@ -42,7 +42,7 @@ def catalogue() -> dict:
             "etfs": etfs, "sectors": SECTORS, "regions": REGIONS, "horizons": HORIZONS}
 
 
-def _ucits_map() -> dict[str, str]:
+def ucits_map() -> dict[str, str]:
     """UCITS listing -> the US ETF it stands in for (so VVSM.DE counts as SMH)."""
     return {e.ucits: e.ticker for e in universe.etfs() if e.ucits}
 
@@ -78,7 +78,7 @@ def align_profile(identity: dict, closes: pd.DataFrame, views: list[dict] | None
         return None
     t = identity["symbol"]
     meta = pd.DataFrame([{k: identity.get(k) for k in ("sector", "industry", "region", "country")}], index=[t])
-    ctx = sv.contexts([t], meta, closes, universe.benchmark(), sv.view_etfs(views), _ucits_map(), config())[t]
+    ctx = sv.contexts([t], meta, closes, universe.benchmark(), sv.view_etfs(views), ucits_map(), config())[t]
     out = sv.align(ctx, views, config())
     status = {v["id"]: v["evidence"]["verdict"] for v in with_evidence("active", closes)}
     for row in out["views"]:
@@ -87,6 +87,11 @@ def align_profile(identity: dict, closes: pd.DataFrame, views: list[dict] | None
 
 
 _cache: dict = {}
+
+
+def reset() -> None:
+    """Forget the cached evidence."""
+    _cache.clear()
 
 
 def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
@@ -120,7 +125,7 @@ def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
     closes = ingest.wide(prices)
     if bench not in closes:
         return {}
-    ctxs = sv.contexts(tickers, meta, closes, bench, sv.view_etfs(views), _ucits_map(), config())
+    ctxs = sv.contexts(tickers, meta, closes, bench, sv.view_etfs(views), ucits_map(), config())
     out = {}
     for t in tickers:
         a = sv.align(ctxs.get(t) or {"ticker": t}, views, config())

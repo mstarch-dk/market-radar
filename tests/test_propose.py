@@ -46,7 +46,7 @@ def market(tmp_data, monkeypatch):
     from radar.fundamentals import context as fcontext
 
     monkeypatch.setattr(ingest, "load_prices", noisy_prices)
-    monkeypatch.setattr(fcontext, "_ctx", None)
+    fcontext.reset()
     monkeypatch.setattr(universe, "sectors", lambda ts: pd.DataFrame(
         {"sector": [SECTORS.get(t, "") for t in ts], "industry": "x"}, index=pd.Index(ts, name="ticker")))
     pd.DataFrame({"ticker": list(SECTORS), "sector": list(SECTORS.values()), "industry": "x"}).to_csv(

@@ -654,7 +654,7 @@ def _r6(v) -> float | None:
     return None if v is None else round(float(v), 6)
 
 
-def _key(r: dict) -> tuple:
+def trade_key(r: dict) -> tuple:
     """What makes two rows the same trade, whichever portfolio they are in."""
     return (r.get("symbol"), str(r["date"])[:10], r["type"], _r6(r.get("quantity")), _r6(r.get("price")),
             _r6(r.get("amount")))
@@ -677,14 +677,14 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
             "SELECT t.symbol, t.date, t.type, t.quantity, t.price, t.amount, t.ext_ref FROM transactions t "
             "JOIN portfolios p ON p.id = t.portfolio_id WHERE t.portfolio_id = ? OR (p.mode = 'real' AND "
             "(SELECT mode FROM portfolios WHERE id = ?) = 'real')", (target, target))]
-        keys = {_key(r) for r in existing}
+        keys = {trade_key(r) for r in existing}
         refs = {r["ext_ref"] for r in existing if r["ext_ref"]}
         imp = con.execute("INSERT INTO imports (source, file_name, at, portfolio_id, rows_replaced, backup) "
                           "VALUES (?, ?, ?, ?, ?, ?)",
                           (source, file_name, _now(), target, replaced, Path(copy).name if copy else None)).lastrowid
         added = skipped = 0
         for r in rows:
-            if (r.get("ext_ref") and r["ext_ref"] in refs) or _key(r) in keys:
+            if (r.get("ext_ref") and r["ext_ref"] in refs) or trade_key(r) in keys:
                 skipped += 1
                 continue
             pid = _target(con, r, target, create=True)

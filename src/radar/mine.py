@@ -18,9 +18,6 @@ RS_HIGH_DAYS = 5      # flag: the RS line against ACWI (both in DKK) made a new 
 CROSS_DAYS = 20       # flag: the 50-day average crossed the 200-day within this many sessions
 
 
-_fx_to_dkk = universe.fx_to_dkk
-
-
 def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Series,
                raw: pd.Series | None = None) -> tuple[float, float] | None:
     """Total return of the open position vs. a shadow ACWI position with identical DKK cash flows.
@@ -71,7 +68,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     df["score"] = [score_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
 
     ccy = universe.currencies([*df["symbol"], bench])
-    bench_dkk = (b * _fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
+    bench_dkk = (b * universe.fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
     tx = universe.transactions(portfolios)
     since, bench_since, since_sell, flags = [], [], [], []
     for _, r in df.iterrows():
@@ -83,7 +80,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
                 x_ret = None
         since_sell.append(x_ret)
         if r["status"] == "holding" and pd.notna(r["last"]):
-            fx = _fx_to_dkk(closes, ccy.get(r["symbol"]))
+            fx = universe.fx_to_dkk(closes, ccy.get(r["symbol"]))
             raw = raw_closes[r["symbol"]] if raw_closes is not None and r["symbol"] in raw_closes else None
             res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw) \
                 if fx is not None else None
@@ -109,7 +106,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
             if r["from_high"] > -0.03:
                 f.append("near 52w high")
             c = closes[r["symbol"]]
-            fx_t = _fx_to_dkk(closes, ccy.get(r["symbol"]))
+            fx_t = universe.fx_to_dkk(closes, ccy.get(r["symbol"]))
             if r["symbol"] != bench and fx_t is not None and technicals.rs_new_high(
                     c * fx_t.reindex(c.index).ffill(), bench_dkk, RS_HIGH_DAYS):
                 f.append("RS line at 52w high")

@@ -118,7 +118,7 @@ def test_repeated_429s_pause_the_host_across_processes(fake_time, monkeypatch):
     _replies(monkeypatch, *[Resp(429) for _ in range(3)])
     net.get("https://slow.example.org/x", retries=2)       # 3 × 429 = the trip count
     st = ops.host_state("slow.example.org")
-    assert st["cooldown_until"] > ops._ts() and st["strikes"] == 1 and "429" in st["reason"]
+    assert st["cooldown_until"] > ops.timestamp() and st["strikes"] == 1 and "429" in st["reason"]
     assert any(e["kind"] == "throttle" for e in ops.events())
     net.reset()                                             # a new process: only ops.db remembers
     calls = _replies(monkeypatch, Resp(200))
@@ -138,7 +138,7 @@ def test_a_repeat_pause_within_a_day_lasts_longer(fake_time, monkeypatch):
         ops.record_request("h.example.org", "/", "GET", 429, False, 1.0)
     net._note_429("h.example.org")
     st = ops.host_state("h.example.org")
-    assert st["strikes"] == 2 and st["cooldown_until"] == ops._ts(t0 + timedelta(minutes=30))
+    assert st["strikes"] == 2 and st["cooldown_until"] == ops.timestamp(t0 + timedelta(minutes=30))
 
 
 def test_over_budget_is_a_warning_not_a_block(fake_time, monkeypatch):

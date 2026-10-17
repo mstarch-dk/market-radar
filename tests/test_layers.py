@@ -5,9 +5,8 @@ layer that only imports downwards. The two checks import-linter doesn't make liv
 another's private names, and no import cycle growing. Function-local imports count everywhere: they hide a
 dependency from the reader, not from the program.
 
-The allowlists hold what was already there when the checks came in. They only shrink: a new entry fails the
-test, and so does an entry that no longer occurs (delete it then). Run this file directly
-(`uv run python tests/test_layers.py`) to print the current findings in the lists' format."""
+The cycle limit only goes down: a smaller largest cycle fails the test until MAX_CYCLE is lowered to match. Run
+this file directly (`uv run python tests/test_layers.py`) to print the current findings."""
 from __future__ import annotations
 
 import ast
@@ -19,38 +18,6 @@ from importlinter.cli import lint_imports
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-
-# (module, other module, private name) used today
-PRIVATE_ALLOWED: set[tuple[str, str, str]] = {
-    ('radar.abtest', 'radar.performance', '_calendar'),
-    ('radar.abtest', 'radar.performance', '_portfolio_book'),
-    ('radar.api', 'radar.home', '_files'),
-    ('radar.backtest.longrun', 'radar.backtest.study', '_diff_t'),
-    ('radar.backtest.longrun', 'radar.backtest.study', '_verdict'),
-    ('radar.backtest.picks', 'radar.backtest.study', '_value_return'),
-    ('radar.backtest.picks', 'radar.market_views', '_ucits_map'),
-    ('radar.backup', 'radar.home', '_copy_db'),
-    ('radar.backup', 'radar.home', '_files'),
-    ('radar.backup', 'radar.home', '_log'),
-    ('radar.backup', 'radar.home', '_sha'),
-    ('radar.backup', 'radar.home', '_write_manifest'),
-    ('radar.cli', 'radar.backtest.study', '_exit_variants'),
-    ('radar.discovery.scan', 'radar.ingest', '_download'),
-    ('radar.discovery.scan', 'radar.ingest', '_norm_dates'),
-    ('radar.export', 'radar.home', '_files'),
-    ('radar.fundamentals.context', 'radar.valuation', '_store'),
-    ('radar.importers', 'radar.userstore', '_key'),
-    ('radar.market_views', 'radar.config', '_load'),
-    ('radar.net', 'radar.ops', '_ts'),
-    ('radar.portfolio', 'radar.universe', '_int'),
-    ('radar.portfolio', 'radar.userstore', '_key'),
-    ('radar.profile', 'radar.mine', '_fx_to_dkk'),
-    ('radar.simulate', 'radar.performance', '_calendar'),
-    ('radar.simulate', 'radar.portfolio', '_session'),
-    ('radar.updates', 'radar.home', '_log'),
-    ('radar.updates', 'radar.home', '_vt'),
-    ('radar.updates', 'radar.home', '_write_manifest'),
-}
 
 # the largest import cycle today, in modules; it may only get smaller
 MAX_CYCLE = 10
@@ -163,14 +130,8 @@ def test_the_import_contracts_hold(capsys):
 def test_no_module_uses_another_modules_private_names():
     """A name with a leading underscore is free to change with its module. One that another module needs is part
     of the API: make it public there, or move it where it belongs."""
-    found = _scan()[1]
-    new, gone = sorted(found - PRIVATE_ALLOWED), sorted(PRIVATE_ALLOWED - found)
-    msg = []
-    if new:
-        msg.append("new uses of another module's private names:\n" + "\n".join(f"  {x}" for x in new))
-    if gone:
-        msg.append("no longer used, delete from PRIVATE_ALLOWED:\n" + "\n".join(f"  {x}," for x in gone))
-    assert not msg, "\n".join(msg)
+    found = sorted(_scan()[1])
+    assert not found, "uses of another module's private names:\n" + "\n".join(f"  {x}" for x in found)
 
 
 def test_import_cycles_dont_grow():
@@ -181,9 +142,7 @@ def test_import_cycles_dont_grow():
 
 
 if __name__ == "__main__":
-    print("PRIVATE_ALLOWED: set[tuple[str, str, str]] = {")
     for a, b, n in sorted(_scan()[1]):
-        print(f"    ({a!r}, {b!r}, {n!r}),")
-    print("}\n")
+        print(f"{a} uses {b}.{n}")
     for c in _cycles():
         print(f"cycle of {len(c)}: {', '.join(c)}")

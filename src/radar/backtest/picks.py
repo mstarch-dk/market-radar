@@ -156,7 +156,7 @@ def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
     m = pd.DataFrame({"sector": sec["sector"], "industry": sec["industry"],
                       "region": [region_for(t) for t in sec.index], "country": None}, index=sec.index)
     closes = market.closes.loc[:day]
-    ctxs = sv.contexts(tickers, m, closes, universe.benchmark(), sv.view_etfs(vs), mv._ucits_map(), mv.config())
+    ctxs = sv.contexts(tickers, m, closes, universe.benchmark(), sv.view_etfs(vs), mv.ucits_map(), mv.config())
     names = {}
     for t in tickers:
         a = sv.align(ctxs.get(t) or {"ticker": t}, vs, mv.config())
@@ -362,7 +362,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
                          "return_local": _clean(ret_l.get(t)), "return_dkk": rd,
                          "contribution_dkk": c["weight"] * rd if rd is not None else None})
     rows_by = {r["portfolio"]["id"]: r for r in cmp["rows"]}
-    value_ret = {kind: study._value_return(rs, market, end_ts, capital) for kind, rs in runs}
+    value_ret = {kind: study.value_return(rs, market, end_ts, capital) for kind, rs in runs}
     out = {
         "name": name, "slug": s, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
         "asof": day.date().isoformat(), "fill": fday.date().isoformat(), "end": end_ts.date().isoformat(),

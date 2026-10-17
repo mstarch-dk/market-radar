@@ -37,7 +37,7 @@ def edgar(rows: pd.DataFrame | None = None) -> pd.DataFrame:
 @pytest.fixture
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
-    monkeypatch.setattr(fcontext, "_ctx", None)
+    fcontext.reset()
     return profile.Market.load()
 
 

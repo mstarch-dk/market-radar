@@ -134,7 +134,7 @@ def record_due(market, today: date | None = None, ranked: dict | None = None) ->
     ps = portfolios()
     if not ps:
         return None
-    asof = performance._calendar(market)[-1].date().isoformat()
+    asof = performance.benchmark_sessions(market)[-1].date().isoformat()
     params = next(iter(ps.values()))["params"]
     done = {_month(r["date"]) for p in ps.values() for r in p["params"].get("rebalances", [])}
     if _month(asof) in done:
@@ -175,7 +175,7 @@ class ScoreRebalance:
         return float(s.iloc[-1]), float(rate)
 
     def rows(self, market, start, end, capital_dkk: float, params: dict) -> list[dict]:
-        cal = performance._calendar(market)
+        cal = performance.benchmark_sessions(market)
         bps = float(params.get("fee_bps", 0)) / 1e4
         held: dict[str, float] = {}
         cash, rows = 0.0, []
@@ -272,7 +272,7 @@ def view(market) -> dict:
     cmp = performance.compare(market, ids=ids)
     weekly = {}
     for k in order:
-        b = performance._portfolio_book(ps[k], market)
+        b = performance.portfolio_book(ps[k], market)
         if b is not None:
             weekly[LABELS[k]] = _weekly(b)
     bench = performance.bench_dkk(market)

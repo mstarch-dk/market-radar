@@ -424,6 +424,12 @@ def outdated(d: dict) -> dict | None:
 _cache: tuple[float, dict, str] | None = None  # (mtime, data, path)
 
 
+def reset() -> None:
+    """Forget the loaded dashboard.json (it is read again on the next load())."""
+    global _cache
+    _cache = None
+
+
 def path():
     return REPORTS / FILE_NAME
 

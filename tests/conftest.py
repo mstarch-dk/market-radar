@@ -4,12 +4,23 @@ from pathlib import Path
 
 import pytest
 
-from radar import coverage, net, paths, tickers, universe, valuation
+from radar import coverage, net, paths, universe
 
 pytest_plugins = ["pytester"]  # tests/test_offline.py runs a nested session
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LOCAL = {"localhost", "127.0.0.1", "::1", "", None}
+
+
+CACHED = ("radar.api", "radar.dashboard", "radar.performance", "radar.fundamentals.context", "radar.valuation",
+          "radar.tickers", "radar.market_views")
+
+
+def reset_caches() -> None:
+    """Every in-memory cache empty again (each module's reset()); a module not imported yet has none."""
+    for name in CACHED:
+        if name in sys.modules:
+            sys.modules[name].reset()
 
 
 class NetworkBlocked(RuntimeError):
@@ -76,11 +87,11 @@ def _paths(tmp_path_factory, monkeypatch):
     monkeypatch.setattr(paths, "default_home", lambda: defaults / "Market Radar")
     monkeypatch.setattr(paths, "default_cache", lambda: defaults / "cache")
     paths.configure(paths.Locations.flat(tmp_path_factory.mktemp("radar")))
-    if "radar.api" in sys.modules:
-        monkeypatch.setattr(sys.modules["radar.api"], "_gate", None)
+    reset_caches()
     net.reset()
     yield
     net.reset()
+    reset_caches()
     paths.configure(None)
 
 
@@ -90,6 +101,5 @@ def tmp_data(tmp_path, monkeypatch):
     paths.configure(paths.Locations.flat(tmp_path))
     monkeypatch.setattr(coverage, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
     monkeypatch.setattr(universe, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
-    monkeypatch.setattr(tickers, "_cache", None)
-    monkeypatch.setattr(valuation, "_ctx", None)
+    reset_caches()
     return tmp_path

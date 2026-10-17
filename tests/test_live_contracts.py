@@ -123,7 +123,7 @@ def test_yahoo_statements():
 
 def test_yahoo_daily_bars_reach_the_latest_session():
     """The failure behind PR #34: every ticker, European listings too, has a recent bar, adjusted close included."""
-    df = ingest._norm_dates(ingest._download(["SPY", "RHM.DE", "NOVO-B.CO", "7203.T"], TODAY - timedelta(days=20)))
+    df = ingest.norm_dates(ingest.download_bars(["SPY", "RHM.DE", "NOVO-B.CO", "7203.T"], TODAY - timedelta(days=20)))
     assert set(df["ticker"]) == {"SPY", "RHM.DE", "NOVO-B.CO", "7203.T"}
     last = df.groupby("ticker")["date"].max()
     for t, d in last.items():

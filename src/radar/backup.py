@@ -67,7 +67,7 @@ def set_mirror(path: Path | None) -> Path | None:
         if path.resolve() == folder().resolve() or loc.home.resolve() in path.resolve().parents:
             raise BackupError("the second backup folder must be outside the data folder")
     m["backup_mirror"] = str(path) if path else None
-    home._write_manifest(loc.home, home._log(m, "backup_mirror", path=m["backup_mirror"]))
+    home.write_manifest(loc.home, home.add_log(m, "backup_mirror", path=m["backup_mirror"]))
     return path
 
 
@@ -76,13 +76,13 @@ def _sources() -> list[tuple[str, Path]]:
     loc = paths.locations()
     out = []
     for f in home.PERSONAL:
-        out += [(f"{f}/{p.relative_to(loc.home / f).as_posix()}", p) for p in home._files(loc.home / f)]
+        out += [(f"{f}/{p.relative_to(loc.home / f).as_posix()}", p) for p in home.files_under(loc.home / f)]
     out += [(f"imports/{p.relative_to(loc.imports).as_posix()}", p)
-            for p in home._files(loc.imports, home.APP_FILES["imports"])]
+            for p in home.files_under(loc.imports, home.APP_FILES["imports"])]
     for e in paths.REGISTRY["history"]:
         src = loc.history / e.rstrip("/")
         if e.endswith("/"):
-            out += [(f"history/{e}{p.relative_to(src).as_posix()}", p) for p in home._files(src)]
+            out += [(f"history/{e}{p.relative_to(src).as_posix()}", p) for p in home.files_under(src)]
         elif src.exists():
             out.append((f"history/{e}", src))
     return out
@@ -108,7 +108,7 @@ def create(reason: str = "manual", kind: str = "manual") -> Path:
         db = loc.userdata / home.DB_NAME
         if db.exists():
             copy = Path(t) / home.DB_NAME
-            home._copy_db(db, copy)
+            home.copy_db(db, copy)
             meta["db_version"] = home.db_version(copy)
             meta["tables"] = home.table_counts(copy)
             files.append(_add(z, home.DB_NAME, copy))
@@ -124,7 +124,7 @@ def create(reason: str = "manual", kind: str = "manual") -> Path:
 
 def _add(z: zipfile.ZipFile, name: str, p: Path) -> dict:
     z.write(p, name)
-    return {"path": name, "size": p.stat().st_size, "sha256": home._sha(p)}
+    return {"path": name, "size": p.stat().st_size, "sha256": home.file_sha256(p)}
 
 
 def _mirror_copy(f: Path) -> None:
@@ -268,6 +268,6 @@ def restore(zf: Path) -> dict:
     shutil.rmtree(old, ignore_errors=True)        # it is in `before`
     m = home.read_manifest(loc.home)
     if m:
-        home._write_manifest(loc.home, home._log(m, "restored", backup=zf.name, saved_first=before.name))
+        home.write_manifest(loc.home, home.add_log(m, "restored", backup=zf.name, saved_first=before.name))
     return {"restored": zf.name, "created": meta["created"], "files": len(meta["files"]),
             "tables": meta.get("tables", {}), "saved_first": before.name}

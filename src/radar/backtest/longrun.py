@@ -42,7 +42,7 @@ from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # n
 from ..model.score import COMPONENTS, weighted_pct
 from ..model.score import mean_pct as pct
 from ..model.stats import mean as _mean
-from .study import QUANTILES, _diff_t, _verdict, cross_section, nw_t, summarize
+from .study import QUANTILES, cross_section, holdout_diff_t, nw_t, summarize, variant_verdict
 
 REPORT_FILE = "longrun-study.json"
 BASELINE = "score"
@@ -244,8 +244,9 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
                                  for lbl, v in (("recession", True), ("expansion", False))},
             }
         base = results[str(h)][BASELINE]
-        verdicts[str(h)] = {k: _verdict(results[str(h)][k], base, _diff_t(per[h][k], per[h][BASELINE], holdout, lag))
-                            for k in keys if k != BASELINE}
+        verdicts[str(h)] = {
+            k: variant_verdict(results[str(h)][k], base, holdout_diff_t(per[h][k], per[h][BASELINE], holdout, lag))
+            for k in keys if k != BASELINE}
     return {
         "panel": panel.key, "label": panel.label,
         "members": int(r.notna().any().sum()), "n_top": panel.n_top, "min_names": panel.min_names,

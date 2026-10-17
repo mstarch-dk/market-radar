@@ -213,15 +213,15 @@ def update_prices(tickers: list[str], progress: Progress | None = None, log: Log
     """Re-download the whole window (cheap at this length, and always consistently adjusted). Names Yahoo
     refused (rate limit) are asked for again after a pause, twice."""
     start = (today or date.today()) - timedelta(days=discovery_config()["history_days"])
-    frames = [ingest._download(tickers, start, progress)]
+    frames = [ingest.download_bars(tickers, start, progress)]
     for wait in waits:
         missing = sorted(set(tickers) - set(pd.concat(frames)["ticker"]))
         if not missing or len(missing) < 0.02 * len(tickers):
             break
         log(f"  {len(missing)} names got no prices (Yahoo's rate limit?): trying again in {wait} s…")
         sleep(wait)
-        frames.append(ingest._download(missing, start, progress))
-    df = ingest._norm_dates(pd.concat(frames, ignore_index=True)).drop_duplicates(["ticker", "date"], keep="last")
+        frames.append(ingest.download_bars(missing, start, progress))
+    df = ingest.norm_dates(pd.concat(frames, ignore_index=True)).drop_duplicates(["ticker", "date"], keep="last")
     got = set(df["ticker"])
     if len(got) < 0.5 * len(tickers):
         raise RuntimeError(f"prices for only {len(got)} of {len(tickers)} names; keeping the previous download")

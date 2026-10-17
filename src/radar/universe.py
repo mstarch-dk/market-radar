@@ -13,6 +13,7 @@ import pandas as pd
 from . import net
 from .config import POSITIVE_LIST_FILE, settings, universe_config, write_csv
 from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
+from .values import whole
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
 SPY_HOLDINGS = ("https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/"
@@ -414,16 +415,12 @@ def positions(tx: pd.DataFrame, by_portfolio: bool = False) -> tuple[pd.DataFram
         sym = key[0] if isinstance(key, tuple) else key
         row, warn = replay(lots)
         names = sorted(a for a in lots["portfolio"].unique() if a)
-        extra = {"portfolio_id": _int(lots["portfolio_id"].iloc[0]), "portfolio": key[1] or None} if by_portfolio else {}
+        extra = {"portfolio_id": whole(lots["portfolio_id"].iloc[0]), "portfolio": key[1] or None} if by_portfolio else {}
         rows.append({"symbol": sym, **row, "portfolios": ", ".join(names) or None, **extra})
         if warn:
             label = f"{sym} in {key[1]}" if by_portfolio and key[1] else sym
             warnings.setdefault(sym, []).extend(warn if label == sym else [f"{label}: {w}" for w in warn])
     return pd.DataFrame(rows, columns=cols), warnings
-
-
-def _int(v) -> int | None:
-    return None if v is None or pd.isna(v) else int(v)
 
 
 def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]], list[str]]:

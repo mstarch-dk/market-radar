@@ -126,7 +126,8 @@ def _session(idx: pd.DatetimeIndex, day: pd.Timestamp) -> int | None:
     return i if i < len(idx) else None
 
 
-def _calendar(market) -> pd.DatetimeIndex:
+def benchmark_sessions(market) -> pd.DatetimeIndex:
+    """The trading days: the sessions the benchmark has a close on."""
     return market.closes[universe.benchmark()].dropna().index
 
 
@@ -140,7 +141,7 @@ def book(rows: list[dict], market, dividends: str = "reinvested") -> Book | None
     rows = [r for r in rows if r["type"] in TRADE_TYPES or r["type"] in EXTERNAL or r["type"] in INCOME]
     if not rows:
         return None
-    cal = _calendar(market)
+    cal = benchmark_sessions(market)
     first_row = pd.Timestamp(min(str(r["date"])[:10] for r in rows))
     idx = cal[cal >= first_row]
     if idx.empty:
@@ -460,7 +461,13 @@ def analyze(b: Book, market, start=None, end=None) -> dict:
 _cache: dict = {}
 
 
-def _portfolio_book(p: dict, market) -> Book | None:
+def reset() -> None:
+    """Forget the cached portfolio books."""
+    _cache.clear()
+
+
+def portfolio_book(p: dict, market) -> Book | None:
+    """The book (daily DKK value, flows) of one portfolio from the store, with its dividend policy."""
     from . import userstore
 
     return book(userstore.transactions(portfolios=[p["id"]]), market, p["dividends"])
@@ -487,7 +494,7 @@ def portfolio_performance(pid: int, market, start=None, end=None) -> dict | None
         return None
 
     def run():
-        b = _portfolio_book(p, market)
+        b = portfolio_book(p, market)
         out = analyze(b, market, start, end) if b is not None else _empty()
         return out | {"portfolio": _identity(p), "asof": _asof(market)}
     return _cached(("one", pid, start, end, market.mtime, userstore.transactions_version()), run)
@@ -513,12 +520,12 @@ def compare(market, ids: list[int] | None = None, tags: list[str] | None = None,
         for pid in ids or []:
             p = userstore.get_portfolio(pid)
             if p:
-                lines.append(({"kind": "portfolio", "label": p["name"], "portfolio": _identity(p)}, _portfolio_book(p, market)))
+                lines.append(({"kind": "portfolio", "label": p["name"], "portfolio": _identity(p)}, portfolio_book(p, market)))
         for tag in tags or []:
             t = userstore.norm_tag(tag)
             members = [p for p in userstore.portfolios() if t in p["tags"]]
             lines.append(({"kind": "tag", "label": f"#{t}", "tag": t, "members": [m["name"] for m in members]},
-                          pool([_portfolio_book(m, market) for m in members])))
+                          pool([portfolio_book(m, market) for m in members])))
         firsts = []
         for _, b in lines:
             if b is not None:

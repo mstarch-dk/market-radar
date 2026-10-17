@@ -12,8 +12,8 @@ from radar import api, api_models, dashboard, ingest, report
 def client(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})   # Yahoo knows nothing new
-    monkeypatch.setattr(api, "_market", None)
-    monkeypatch.setattr(dashboard, "_cache", None)
+    api.reset()
+    dashboard.reset()
     return TestClient(api.app)
 
 
