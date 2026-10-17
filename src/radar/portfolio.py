@@ -10,7 +10,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import universe, userstore
+from . import money, universe, userstore
 from .values import whole
 
 ERROR, WARNING = "error", "warning"
@@ -53,9 +53,9 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
         return out
     d, close = found
     fx = u.fx_to_dkk(market.closes, ccy)
-    rate = fx.dropna().asof(d) if fx is not None else None
+    rate = money.rate_on(fx, d)
     out |= {"close": close, "close_date": d.date().isoformat(), "verdict": "ok",
-            "fx": float(rate) if rate is not None and pd.notna(rate) else None}
+            "fx": rate}
     if price is None or price <= 0:
         return out
     r = price / close

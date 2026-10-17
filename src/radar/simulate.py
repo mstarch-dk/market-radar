@@ -20,7 +20,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from . import performance, universe, userstore
+from . import money, performance, universe, userstore
 from .config import settings
 from .fees import SimFees
 
@@ -56,12 +56,12 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         sym, qty = p["symbol"], float(p["quantity"])
         found = _close(market, sym, day)
         fx = performance.fx_series(market, sym)
-        rate = fx.dropna().asof(day) if fx is not None else None
-        if found is None or rate is None or pd.isna(rate):
+        rate = money.rate_on(fx, day)
+        if found is None or rate is None:
             problems.append(f"{sym}: no {'price' if found is None else 'DKK rate'} on {day:%Y-%m-%d}")
             continue
         buys.append({"symbol": sym, "date": day.date().isoformat(), "type": "BUY", "quantity": qty, "price": found[1],
-                     "fee": 0.0, "fx_rate": float(rate), "ext_ref": f"fork:{src_id}:{sym}"})
+                     "fee": 0.0, "fx_rate": rate, "ext_ref": f"fork:{src_id}:{sym}"})
         total += qty * found[1] * float(rate)
     if problems:
         raise ValueError("can't value the portfolio that day: " + "; ".join(problems))
@@ -75,7 +75,7 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         raise ValueError(f"{src['name']} held nothing on {day:%Y-%m-%d}")
     deposit = {"date": day.date().isoformat(), "type": "DEPOSIT", "amount": total, "currency": "DKK",
                "note": f"forked from {src['name']} at the close of {day:%Y-%m-%d}"}
-    fees = SimFees.for_portfolio(src, float((settings().get("backtest") or {}).get("fee_bps", 0)))
+    fees = SimFees.for_portfolio(src, money.fee_bps(settings().get("backtest")))
     return userstore.create_with_rows(
         {"name": name, "mode": "virtual", "kind": src["kind"], "dividends": src["dividends"], "origin": "fork",
          "parent_id": src_id, "forked_at": day.date().isoformat(), "tags": list(tags),
@@ -158,3 +158,29 @@ def run(strategy: Strategy, pid: int, start, end, capital_dkk: float, market, pa
     params = params or {}
     rows = strategy.rows(market, pd.Timestamp(start), pd.Timestamp(end), capital_dkk, params)
     return write_run(pid, strategy.key, params, start, end, rows, market)
+
+
+def basket_rows(market, weights: dict[str, float], day: pd.Timestamp, capital: float, fee_bps: float) -> tuple[list[dict], list[str]]:
+    """A deposit of `capital` DKK and a buy of each name for its weight at `day`'s traded close (or the last one
+    in the 7 days before), paying the fee. Names without a price or DKK rate are left out (listed); the rest keep
+    their weights, so some cash stays uninvested."""
+    ds = day.date().isoformat()
+    rows = [{"date": ds, "type": "DEPOSIT", "amount": float(capital), "currency": "DKK", "note": "basket capital"}]
+    problems = []
+    for t, w in weights.items():
+        b = market.bars(t) if t in market.closes.columns else pd.DataFrame()
+        col = "raw_close" if "raw_close" in b else "close"
+        s = b[col].dropna()[:day] if len(b) else pd.Series(dtype=float)
+        fx = performance.fx_series(market, t)
+        rate = money.rate_on(fx, day)
+        if not len(s) or (day - s.index[-1]).days > 7:
+            problems.append(f"{t}: no traded price by {ds}")
+            continue
+        if rate is None:
+            problems.append(f"{t}: no DKK rate on {ds}")
+            continue
+        px = float(s.iloc[-1])
+        qty = w * capital / (px * rate * (1 + money.bps(fee_bps)))
+        rows.append({"symbol": t, "date": ds, "type": "BUY", "quantity": qty, "price": px,
+                     "fee": qty * px * money.bps(fee_bps), "fx_rate": rate, "note": f"basket: {w:.1%}"})
+    return (rows if len(rows) > 1 else []), problems

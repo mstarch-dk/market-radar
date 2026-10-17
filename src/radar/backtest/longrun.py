@@ -42,6 +42,7 @@ from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # n
 from ..model.score import COMPONENTS, weighted_pct
 from ..model.score import mean_pct as pct
 from ..model.stats import mean as _mean
+from ..signals.risk import MONTHS_PER_YEAR, underwater
 from .study import QUANTILES, cross_section, holdout_diff_t, nw_t, summarize, variant_verdict
 
 REPORT_FILE = "longrun-study.json"
@@ -265,8 +266,7 @@ def drawdown(r: pd.Series) -> dict:
     """The worst peak-to-trough fall of the compounded series, when it started and bottomed, and how many months
     from the peak until it was made good (None while it hasn't been)."""
     lvl = (1 + r).cumprod()
-    peak = lvl.cummax()
-    dd = lvl / peak - 1
+    dd = underwater(lvl)
     trough = dd.idxmin()
     start = lvl.loc[:trough].idxmax()
     after = lvl.loc[trough:]
@@ -282,9 +282,9 @@ def base_rates(r: pd.Series) -> dict | None:
     n = len(r)
     sd = float(r.std())
     out = {"first": r.index[0], "last": r.index[-1], "months": n,
-           "ann_return": float(r.mean() * 12), "ann_vol": sd * math.sqrt(12),
+           "ann_return": float(r.mean() * MONTHS_PER_YEAR), "ann_vol": sd * math.sqrt(MONTHS_PER_YEAR),
            "t": float(r.mean() / (sd / math.sqrt(n))) if sd > 0 else None,
-           "sharpe": float(r.mean() / sd * math.sqrt(12)) if sd > 0 else None,
+           "sharpe": float(r.mean() / sd * math.sqrt(MONTHS_PER_YEAR)) if sd > 0 else None,
            "drawdown": drawdown(r)}
     for m in (6, 12):
         w = window(r.to_frame("f"), m)["f"].dropna()

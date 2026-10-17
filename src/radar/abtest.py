@@ -23,7 +23,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import performance, simulate, universe, userstore
+from . import money, performance, simulate, universe, userstore
 from .config import settings
 from .model.select import capped
 
@@ -107,7 +107,7 @@ def create(market, capital: float | None = None, n: int | None = None, max_per_s
     cfg = _cfg()
     params = {"n": int(n or cfg["n"]), "max_per_sector": max_per_sector if max_per_sector is not None
               else cfg["max_per_sector"], "capital": float(capital or cfg["capital"]),
-              "value_score": value_score or cfg["value_score"], "fee_bps": settings()["backtest"]["fee_bps"]}
+              "value_score": value_score or cfg["value_score"], "fee_bps": money.fee_bps(settings().get("backtest"))}
     if params["value_score"] not in ("qv", "value"):
         raise ValueError("value_score is qv (kvalitet + værdi) or value (værdiscore alone)")
     ranked = rankings(market, params["value_score"])
@@ -169,14 +169,14 @@ class ScoreRebalance:
         col = "raw_close" if "raw_close" in b else "close"
         s = b[col].dropna()[:day] if len(b) else pd.Series(dtype=float)
         fx = performance.fx_series(market, t)
-        rate = fx.dropna().asof(day) if fx is not None and len(fx.dropna()) else None
-        if not len(s) or (day - s.index[-1]).days > 7 or rate is None or pd.isna(rate) or rate <= 0:
+        rate = money.rate_on(fx, day)
+        if not len(s) or (day - s.index[-1]).days > 7 or rate is None:
             return None
-        return float(s.iloc[-1]), float(rate)
+        return float(s.iloc[-1]), rate
 
     def rows(self, market, start, end, capital_dkk: float, params: dict) -> list[dict]:
         cal = performance.benchmark_sessions(market)
-        bps = float(params.get("fee_bps", 0)) / 1e4
+        bps = money.bps(params.get("fee_bps", 0))
         held: dict[str, float] = {}
         cash, rows = 0.0, []
         for rec in params.get("rebalances", []):
@@ -242,7 +242,7 @@ def refresh(market, today: date | None = None, ranked: dict | None = None, log=N
         notes += [f"{LABELS[key]}: {n}" for n in strat.notes]
         if rows:
             recs = p["params"]["rebalances"]
-            run_params = p["params"] | {"fee_model": {"kind": "bps", "bps": float(p["params"].get("fee_bps", 0))}}
+            run_params = p["params"] | {"fee_model": {"kind": "bps", "bps": money.fee_bps(p["params"])}}
             runs[key] = simulate.write_run(p["id"], ScoreRebalance.key, run_params,
                                            recs[0]["date"], recs[-1]["date"], rows, market)
     if log:

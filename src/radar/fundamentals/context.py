@@ -12,7 +12,7 @@ from datetime import date
 
 import pandas as pd
 
-from .. import universe, valuation
+from .. import money, universe, valuation
 from ..config import settings
 from ..paths import CACHE, HISTORY
 from ..signals import fundamentals as sf
@@ -133,7 +133,7 @@ class Context:
             return None
         mcap = shares * float(px.iloc[-1])
         yahoo = snap_row.get("market_cap") if snap_row is not None and "market_cap" in snap_row else None
-        if yahoo is not None and pd.notna(yahoo) and quote and quote != "GBp":
+        if yahoo is not None and pd.notna(yahoo) and quote and not money.is_pence(quote):
             a, b = universe.fx_to_dkk(closes, quote), universe.fx_to_dkk(closes, fin)
             if quote == fin:
                 ym = float(yahoo)

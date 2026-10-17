@@ -26,11 +26,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import propose, universe
+from .. import money, propose, universe
 from ..config import settings
 from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
+from ..model.stats import path_stats
 from . import study
 
 CAVEATS = [
@@ -137,11 +138,9 @@ class Paths:
 
     @staticmethod
     def _stats(v: pd.Series, cost: float, prefix: str) -> dict:
-        w20 = (v / v.shift(20) - 1).dropna()
-        gross = float(v.iloc[-1] - 1)
-        return {prefix + "gross": gross, prefix + "net": float(v.iloc[-1] * (1 - cost) ** 2 - 1),
-                prefix + "max_dd": float(min((v / v.cummax() - 1).min(), 0.0)),
-                prefix + "worst20": float(w20.min()) if len(w20) else None}
+        p = path_stats(v)
+        return {prefix + "gross": p["ret"], prefix + "net": float(v.iloc[-1] * (1 - cost) ** 2 - 1),
+                prefix + "max_dd": p["max_dd"], prefix + "worst20": p["worst20"]}
 
 
 def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_regime: bool = True,
@@ -171,11 +170,11 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     acwi = universe.acwi_weights(offline=True)
     ccy = universe.currencies(list(p.closes.columns))
     meta = pd.DataFrame({"sector": p.sector.replace("", "?").fillna("?"), "region": p.group.fillna("?"),
-                         "currency": pd.Series({t: ("GBP" if ccy.get(t) == "GBp" else ccy.get(t) or "?")
+                         "currency": pd.Series({t: (money.main_unit(ccy.get(t)) or "?")
                                                 for t in p.closes.columns})}).reindex(p.closes.columns)
     W = p.dkk.resample("W-FRI").last().pct_change(fill_method=None)
     paths = Paths(p, settings()["stops"]["trend_sma"], c)
-    cost = c["study_cost_bps"] / 1e4
+    cost = money.bps(c["study_cost_bps"])
     ctx = None
     if with_regime:
         from .pit import Context

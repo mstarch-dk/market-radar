@@ -45,7 +45,7 @@ from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
-from .. import performance, simulate, universe, userstore
+from .. import money, performance, simulate, universe, userstore
 from ..config import settings, write_text
 from ..fees import SimFees, Terms
 from ..jsonsafe import dumps
@@ -153,8 +153,7 @@ class Replay:
 
     def rate(self, sym: str, day: pd.Timestamp) -> float | None:
         fx = self.fx(sym)
-        v = fx.dropna().asof(day) if fx is not None else None
-        return float(v) if v is not None and pd.notna(v) and v > 0 else None
+        return money.rate_on(fx, day)
 
     def bars(self, sym: str) -> pd.DataFrame:
         if sym not in self._bars:
@@ -186,8 +185,8 @@ class Replay:
             if ccy == "DKK":
                 return amount / rate
             fx = universe.fx_to_dkk(self.market.closes, ccy)
-            v = fx.dropna().asof(day) if fx is not None and len(fx.dropna()) else None
-            return amount * float(v) / rate if v is not None and pd.notna(v) and v > 0 else None
+            v = money.rate_on(fx, day)
+            return amount * v / rate if v is not None else None
         return self.fees.terms(sym, self._ccy[sym], convert, count)
 
     def buy_qty(self, sym: str, day: pd.Timestamp, dkk: float, px: float, rate: float) -> float:
@@ -524,11 +523,11 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         raise ValueError("redeploy needs the rules variant and a picker")
     bt = settings().get("backtest") or {}
     market = ctx.market
-    rows = sorted([r for r in real_rows if r["type"] in ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST", "DIVIDEND")],
+    rows = sorted([r for r in real_rows if r["type"] in userstore.TYPES],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
                 bt.get("park") or universe.benchmark(), rule,
-                fees or SimFees(float(bt.get("fee_bps", 0) if fee_bps is None else fee_bps)), spec, picker)
+                fees or SimFees(money.fee_bps(bt) if fee_bps is None else float(fee_bps)), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
     if not rows:
@@ -672,7 +671,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
         for v in variants:
             if spec is not None and spec.reentry and v != "rules":
                 continue
-            fees = SimFees.for_portfolio(p, float(bt.get("fee_bps", 0)))
+            fees = SimFees.for_portfolio(p, money.fee_bps(bt))
             rep = replay(rows[p["id"]], ctx, v, start, end, fill, spec=spec, fees=fees)
             params = {"variant": v, "fill": fill or bt.get("fill", "next"), "start": start, "end": end,
                       "fee_bps": fees.bps, "fee_model": fees.report(), "spec": spec.key if spec else "rule"}

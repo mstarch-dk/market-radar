@@ -11,6 +11,7 @@ import pandas as pd
 from .. import universe
 from ..config import settings
 from ..signals import momentum
+from ..signals.risk import TRADING_DAYS
 from .score import COMPONENTS, mean_pct
 
 
@@ -37,7 +38,7 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
     stocks = sorted(t for t in (tickers or group) if t in market.closes.columns)
     c = market.closes[stocks]
     m = momentum.metrics_panel(market.closes, stocks, settings()["momentum"]["min_history_days"])
-    vol = np.log(c).diff().rolling(63, min_periods=32).std() * math.sqrt(252)
+    vol = np.log(c).diff().rolling(63, min_periods=32).std() * math.sqrt(TRADING_DAYS)
     ccy = universe.currencies(stocks)
     fx_cache: dict = {}
     dkk = {}

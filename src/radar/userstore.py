@@ -551,6 +551,9 @@ def import_portfolios_json(text: str) -> int:
 TX_FIELDS = ("symbol", "date", "type", "quantity", "price", "fee", "amount", "currency", "fx_rate", "note", "ext_ref")
 TRADE_TYPES = ("BUY", "SELL")
 CASH_TYPES = ("DEPOSIT", "WITHDRAW", "DIVIDEND", "FEE", "INTEREST")
+# every row type there is; the schema's CHECK (a migration, never edited) and api_models.TxType list the same
+# (tests/test_userstore.py holds them to it)
+TYPES = TRADE_TYPES + CASH_TYPES
 
 
 def transactions(symbol: str | None = None, portfolios: list[int] | None = None, types=None) -> list[dict]:

@@ -1104,7 +1104,7 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
     from pathlib import Path
 
     from . import profile
-    from .backtest import study
+    from .backtest import exits, study
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
@@ -1165,7 +1165,7 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
         typer.echo(f"\nStop/take-profit rule on each date's top {e['n_top']}, {e['months']} months, fees {e['fee_bps']:g} bp:")
         typer.echo(f"  held: mean {_pct(s['hold']['mean'])} (ACWI {_pct(s['hold']['acwi_mean'])}), ahead of ACWI on "
                    f"{_pct(s['hold']['beats_acwi'], False)} of {s['both']['dates']} dates")
-        for rule in ("both", "stop", "take_profit"):
+        for rule in exits.RULES:
             x = s[rule]
             typer.echo(f"  {rule:<12} vs held: mean {_pct(x['mean_diff'])} (t {_num(x['t'], '+.1f')}), helped on "
                        f"{_pct(x['helped'], False)} of dates, worst {_pct(x['worst'])}, best {_pct(x['best'])}, "

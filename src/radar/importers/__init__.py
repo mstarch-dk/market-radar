@@ -20,6 +20,8 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from .. import money
+
 FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref",
           "cash_amount"]
 REQUIRED = ["date", "quantity", "price"]          # plus one of symbol / isin / name
@@ -345,7 +347,7 @@ def _ccy(c: str | None) -> str | None:
     if not c or not str(c).strip():
         return None
     c = str(c).strip()
-    return "GBP" if c.upper() in ("GBP", "GBX") or c == "GBp" else c.upper()
+    return "GBP" if c.upper() in ("GBP", "GBX") or money.is_pence(c) else c.upper()
 
 
 def currency_issues(file_ccy: str | None, quote_ccy: str | None, symbol: str, fee: float | None) -> list[dict]:

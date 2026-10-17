@@ -39,24 +39,34 @@ sector-neutral variant says so). Adjusted prices are rewritten after each divide
 barely moves returns."""
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
-from .. import universe
+from .. import money, performance, simulate, universe
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
 from ..model.score import COMPONENTS
 from ..model.score import mean_pct as pct
+from ..model.stats import (  # noqa: F401 (re-exported)
+    QUANTILES,
+    cross_section,
+    daily_rf,
+    holdout_diff_t,
+    nw_t,  # noqa: F401 (re-exported)
+    path_stats,
+    risk_adjusted,
+    summarize,
+    turnover,
+    variant_verdict,
+)
 from ..model.stats import mean as _mean
-from ..model.stats import nw_t  # noqa: F401 (re-exported)
+from ..signals.risk import annualised_vol
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
-QUANTILES = 5
 GROUP_MIN = 10                                   # names a stock group needs on a date for its own IC
 SECTOR_MIN = 5                                   # names a sector needs for the sector-neutral variant
 REPORT_FILE = "score-study.json"
@@ -278,53 +288,6 @@ SIGNALS = {
 
 # ---------------- statistics ----------------
 
-def cross_section(x: pd.Series, y: pd.Series, n_top: int, min_names: int, y_dkk: pd.Series | None = None) -> dict | None:
-    """One date: IC, quintile excess returns, spread and the top N, over the names with both a value and a
-    forward return. None with fewer than `min_names`."""
-    d = pd.concat({"x": x, "y": y}, axis=1).dropna()
-    if len(d) < max(min_names, QUANTILES):
-        return None
-    ex = d["y"] - d["y"].mean()
-    ic = d["x"].rank().corr(d["y"].rank())
-    q = pd.qcut(d["x"].rank(method="first"), QUANTILES, labels=False)
-    qm = ex.groupby(q).mean().reindex(range(QUANTILES))
-    top = d["x"].sort_values(ascending=False, kind="stable").index[:n_top]
-    out = {"n": int(len(d)), "ic": None if pd.isna(ic) else float(ic), "q": [float(v) for v in qm],
-           "spread": float(qm.iloc[-1] - qm.iloc[0]), "top_excess": float(ex[top].mean()),
-           "top_hit": float((ex[top] > 0).mean()), "ew": float(d["y"].mean()), "top": list(top)}
-    if y_dkk is not None:
-        t = y_dkk.reindex(top).dropna()
-        out["top_dkk"] = float(t.mean()) if len(t) else None
-    return out
-
-
-def summarize(rows: list[dict], lag: int) -> dict | None:
-    """Across dates: means, Newey-West t-statistics and shares."""
-    rows = [r for r in rows if r is not None]
-    if not rows:
-        return None
-    ics = [r["ic"] for r in rows]
-    q = [_mean([r["q"][i] for r in rows]) for i in range(QUANTILES)]
-    top_dkk = [r.get("top_dkk") for r in rows]
-    acwi = [r.get("acwi_dkk") for r in rows]
-    beat = [a < b for a, b in zip(acwi, top_dkk) if a is not None and b is not None]
-    return {
-        "dates": len(rows), "n_mean": _mean([r["n"] for r in rows]),
-        "ic_mean": _mean(ics), "ic_t": nw_t(ics, lag), "ic_pos": _mean([float(i > 0) for i in ics if i is not None]),
-        "q": q, "spread": _mean([r["spread"] for r in rows]), "spread_t": nw_t([r["spread"] for r in rows], lag),
-        "monotone": all(a is not None and b is not None and a < b for a, b in zip(q, q[1:])),
-        "top_excess": _mean([r["top_excess"] for r in rows]), "top_excess_t": nw_t([r["top_excess"] for r in rows], lag),
-        "top_hit": _mean([r["top_hit"] for r in rows]),
-        "top_dkk": _mean(top_dkk), "acwi_dkk": _mean(acwi), "top_beats_acwi": _mean([float(b) for b in beat]),
-    }
-
-
-def turnover(tops: list[set]) -> float | None:
-    """Mean share of the top quintile replaced from one date to the next."""
-    v = [1 - len(a & b) / len(b) for a, b in zip(tops, tops[1:]) if b]
-    return _mean(v)
-
-
 # ---------------- the study ----------------
 
 def forward(p: Panels, fi: int, h: int, dkk: bool = False) -> pd.Series | None:
@@ -457,7 +420,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "asof": p.sessions[-1].date().isoformat(),
         "settings": {"n_top": n_top, "min_names": min_names, "fill": fill, "seasoned": seasoned,
                      "holdout_from": holdout.date().isoformat() if holdout is not None else None,
-                     "horizons": {str(h): HORIZONS[h] for h in horizons}, "fee_bps": float(bt.get("fee_bps", 0))},
+                     "horizons": {str(h): HORIZONS[h] for h in horizons}, "fee_bps": money.fee_bps(bt)},
         "universe": {"tickers": int(len(p.closes.columns)),
                      "groups": {g: int((p.group == g).sum()) for g in p.group.dropna().unique()},
                      "first": dates_out[0]["date"], "last": dates_out[-1]["date"]},
@@ -493,48 +456,18 @@ CAVEATS = [
 ]
 
 
-def holdout_diff_t(rows: list[dict], base: list[dict], holdout, lag: int) -> float | None:
-    """Newey-West t of the holdout's per-date IC difference (variant − baseline), on the dates both have."""
-    b = {r["date"]: r["ic"] for r in base if holdout is not None and r["date"] >= holdout}
-    d = [r["ic"] - b[r["date"]] for r in rows if r["date"] in b and r["ic"] is not None and b[r["date"]] is not None]
-    return nw_t(d, lag)
-
-
-def variant_verdict(res: dict, base: dict, diff_t: float | None = None) -> dict:
-    """Better than the baseline only when it is so in-sample and in the holdout, with a holdout IC t above 2; a
-    holdout difference whose own t is below 2 is called small (it may still be chance)."""
-    def ic(r, part):
-        return ((r or {}).get(part) or {}).get("ic_mean")
-    i, o, bi, bo = ic(res, "in_sample"), ic(res, "holdout"), ic(base, "in_sample"), ic(base, "holdout")
-    t = ((res or {}).get("holdout") or {}).get("ic_t")
-    if None in (i, o, bi, bo):
-        label = "not enough data"
-    elif i > bi and o > bo and t is not None and t > 2:
-        label = "candidate improvement" if diff_t is not None and diff_t > 2 else "candidate, but the difference is small"
-    elif i > bi and o <= bo:
-        label = "better in-sample only (likely chance)"
-    elif o > bo:
-        label = "better in the holdout only"
-    else:
-        label = "not better"
-    return {"label": label, "in_sample_ic": i, "holdout_ic": o, "baseline_in_sample_ic": bi,
-            "baseline_holdout_ic": bo, "holdout_ic_t": t, "holdout_diff_t": diff_t}
-
-
 # ---------------- the exit rule across dates ----------------
 
 def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: int, log) -> dict:
     """Each date's top-N basket (production score, equal weights) held for `months` against the same buys with the
     rule (both halves, stop only, take-profit only), in DKK, fees included."""
-    from .. import performance
     from . import exits as ex
-    from . import picks
 
     if months not in HORIZONS:
         raise ValueError(f"the exit study horizon must be one of {', '.join(map(str, HORIZONS))} months")
     h = HORIZONS[months]
     bt = settings().get("backtest") or {}
-    fee = float(bt.get("fee_bps", 0))
+    fee = money.fee_bps(bt)
     park = bt.get("park") or universe.benchmark()
     capital = 100_000.0
     baskets = []
@@ -555,14 +488,14 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
     rule_days = 0
     for i, (ds, fi, tickers) in enumerate(baskets):
         f, e = p.sessions[fi], p.sessions[fi + h]
-        rows, problems = picks.basket_rows(market, {t: 1 / len(tickers) for t in tickers}, f, capital, fee)
+        rows, problems = simulate.basket_rows(market, {t: 1 / len(tickers) for t in tickers}, f, capital, fee)
         if not rows:
             continue
         rec = {"date": ds, "fill": f.date().isoformat(), "end": e.date().isoformat(), "skipped": problems}
-        rec["hold"] = value_return(rows, market, e, capital)
+        rec["hold"] = performance.return_on_paid_in(rows, market, e)
         for rule in ex.RULES:
             rep = ex.replay(rows, ctx, "rules", end=e, rule=rule, fee_bps=fee)
-            rec[rule] = value_return(rep["rows"], market, e, capital)
+            rec[rule] = performance.return_on_paid_in(rep["rows"], market, e)
             rec[f"{rule}_exits"] = len(rep["exits"])
             if rule == "both":
                 c = rep["counts"]
@@ -619,22 +552,6 @@ def fast(ctx, p: Panels):
     return ctx
 
 
-def value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -> float | None:
-    """The return of trade rows on the money paid in, valued at `end`; None when their book doesn't reach `end` or
-    nothing went in."""
-    from .. import performance
-
-    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
-    b = performance.book(rows, market)
-    if b is None:
-        return None
-    v = b.value.loc[:end].dropna()
-    if not len(v) or v.index[-1] != end:
-        return None
-    ext = float((b.inflow - b.outflow).loc[:end].sum())
-    return float(v.iloc[-1] / ext - 1) if ext > 0 else None
-
-
 def write(rep: dict) -> None:
     artifacts.write("score-study", rep, data_asof=rep["asof"],
                     file=SIGNALS[rep.get("signal", "momentum")].report)
@@ -675,8 +592,6 @@ def path(rows: list[dict], market, start: pd.Timestamp, end: pd.Timestamp, bench
     put in (the first day's buying fees included). None when the value at the end is unknown. With `rf` (a daily
     return series): Sharpe and Sortino of the daily returns over it, annualised; with `bench` (ACWI in DKK): the
     information ratio and tracking error against it. Calmar is the annualised return over the max drawdown."""
-    from .. import performance
-
     rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
     b = performance.book(rows, market)
     if b is None:
@@ -689,52 +604,11 @@ def path(rows: list[dict], market, start: pd.Timestamp, end: pd.Timestamp, bench
         return None
     idx = v / ext
     r = idx.pct_change().dropna()
-    w20 = (idx / idx.shift(20) - 1).dropna()
-    out = {"ret": float(idx.iloc[-1] - 1), "max_dd": float(min((idx / idx.cummax() - 1).min(), 0.0)),
-           "vol": float(r.std() * math.sqrt(252)) if len(r) > 2 else None,
-           "worst20": float(w20.min()) if len(w20) else None}
+    p = path_stats(idx)
+    out = {"ret": p["ret"], "max_dd": p["max_dd"], "vol": annualised_vol(r) if len(r) > 2 else None,
+           "worst20": p["worst20"]}
     out |= risk_adjusted(idx, out["max_dd"], bench, rf)
     return out
-
-
-def risk_adjusted(idx: pd.Series, max_dd: float, bench: pd.Series | None, rf: pd.Series | None) -> dict:
-    """Sharpe, Sortino (downside deviation of the excess returns), Calmar, information ratio and tracking error of
-    a daily value index; a statistic whose input is missing (no `rf` / `bench`, too few days) is None."""
-    r = idx.pct_change().dropna()
-    out = {"ann_ret": None, "sharpe": None, "sortino": None, "calmar": None, "ir": None, "te": None}
-    if len(r) < 20:
-        return out
-    ann = float(idx.iloc[-1] / idx.iloc[0]) ** (252 / len(r)) - 1
-    out["ann_ret"] = ann
-    out["calmar"] = ann / -max_dd if max_dd < 0 else None
-    sd = float(r.std())
-    if rf is not None:
-        f = rf.reindex(rf.index.union(r.index)).ffill().reindex(r.index)
-        if not f.isna().any():
-            ex = r - f
-            down = math.sqrt(float((ex.clip(upper=0) ** 2).mean()))
-            out["sharpe"] = float(ex.mean() / sd * math.sqrt(252)) if sd > 0 else None
-            out["sortino"] = float(ex.mean() / down * math.sqrt(252)) if down > 0 else None
-    if bench is not None:
-        b = bench.reindex(bench.index.union(idx.index)).ffill().reindex(idx.index)
-        if not b.isna().any():
-            act = r - b.pct_change().dropna().reindex(r.index)
-            te = float(act.std() * math.sqrt(252))
-            out["te"] = te
-            out["ir"] = float(act.mean() * 252 / te) if te > 0 else None
-    return out
-
-
-def daily_rf(market) -> pd.Series | None:
-    """The ECB deposit rate (FRED ECBDFR, % a year) as a daily return: the krone follows the euro, so it is the
-    nearest risk-free rate for DKK returns in the data. None without it."""
-    try:
-        f = market.fred()
-    except Exception:  # noqa: BLE001 - no FRED cache: the statistics that need it stay None
-        return None
-    if "ECBDFR" not in f or f["ECBDFR"].dropna().empty:
-        return None
-    return (1 + f["ECBDFR"].dropna().sort_index() / 100) ** (1 / 252) - 1
 
 
 def _pct(v, q):
@@ -801,11 +675,10 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     from dataclasses import replace
 
     from . import exits as ex
-    from . import picks
     from .pit import Context
 
     bt = settings().get("backtest") or {}
-    fee = float(bt.get("fee_bps", 0))
+    fee = money.fee_bps(bt)
     park = bt.get("park") or universe.benchmark()
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
     specs = exit_rule_variants()
@@ -850,7 +723,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     recs = []
     for day, fi, names in baskets:
         f = p.sessions[fi]
-        rows, problems = picks.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
+        rows, problems = simulate.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
         if not rows:
             recs.append(None)
             continue
@@ -858,7 +731,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
         ends = {h: p.sessions[fi + HORIZONS[h]] for h in horizons if fi + HORIZONS[h] < len(p.sessions)}
         by = {"hold": {h: path(rows, market, f, e) for h, e in ends.items()}}
         for w in MIXES:
-            mix, _ = picks.basket_rows(market, {**{t: w / len(names) for t in names}, park: 1 - w}, f, 100_000.0, fee)
+            mix, _ = simulate.basket_rows(market, {**{t: w / len(names) for t in names}, park: 1 - w}, f, 100_000.0, fee)
             by[_mix_key(w)] = {h: path(mix, market, f, e) for h, e in ends.items()} if mix else {}
         recs.append({"date": day, "fill": f, "_rows": rows, "_end": end, "_by": by, "skipped": problems,
                      **{f"{_mix_key(w)}_exits": 0 for w in MIXES}})
@@ -1060,11 +933,10 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
     parked in ACWI and redeployed into the next momentum name, and against a month-end rotation with and without
     the rules: return, risk and risk-adjusted return per horizon, in-sample and holdout, with a verdict per arm."""
     from . import exits as ex
-    from . import picks
     from .pit import Context
 
     bt = settings().get("backtest") or {}
-    fee = float(bt.get("fee_bps", 0))
+    fee = money.fee_bps(bt)
     park = bt.get("park") or universe.benchmark()
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
     arms = _redeploy_arms(buffer, cooldown)
@@ -1098,7 +970,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
     recs = []
     for day, fi, names in baskets:
         f = p.sessions[fi]
-        rows, problems = picks.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
+        rows, problems = simulate.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
         if not rows:
             recs.append(None)
             continue
@@ -1106,7 +978,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
         end = p.sessions[min(fi + HORIZONS[longest], len(p.sessions) - 1)]
         by = {"hold": {h: path(rows, market, f, e, bench, rf) for h, e in ends.items()}}
         for key, w in (("mix50", 0.5), ("acwi", 0.0)):
-            mix, _ = picks.basket_rows(market, {**({t: w / len(names) for t in names} if w else {}), park: 1 - w},
+            mix, _ = simulate.basket_rows(market, {**({t: w / len(names) for t in names} if w else {}), park: 1 - w},
                                        f, 100_000.0, fee)
             by[key] = {h: path(mix, market, f, e, bench, rf) for h, e in ends.items()} if mix else {}
         recs.append({"date": day, "fill": f, "_rows": rows, "_end": end, "_ends": ends, "_by": by, "skipped": problems,

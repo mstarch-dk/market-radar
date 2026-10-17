@@ -19,6 +19,7 @@ from functools import cache
 
 import yaml
 
+from . import money
 from .config import CONFIG
 
 MARKETS = ("DK", "NORDIC", "US", "EU", "UK", "OTHER")
@@ -182,7 +183,7 @@ class SimFees:
     def terms(self, symbol: str, quote_ccy: str | None, convert: Callable[[float, str], float | None],
               count: bool = True) -> Terms:
         """The terms a trade in `symbol` pays (`count`: it is the trade itself, not its sizing)."""
-        flat = Terms(self.bps / 1e4)
+        flat = Terms(money.bps(self.bps))
         if not self.schedule:
             return flat
         t = terms(self.schedule, symbol, quote_ccy, convert)
