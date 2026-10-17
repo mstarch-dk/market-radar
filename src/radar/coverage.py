@@ -281,16 +281,17 @@ def _valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str
 def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
     """Financial statements: how many companies have them and when they were fetched. Each company is fetched on
     its own schedule, so the source's age is its newest fetch; the oldest fetch is in the detail."""
+    from . import universe, userstore
     from .fundamentals import edgar, schedule, yahoo
 
     rows = []
-    for key, path, names, label in (("fundamentals_edgar", edgar.LOG_FILE, edgar.us_tickers(), "US stocks"),
+    for key, path, names, label in (("fundamentals_edgar", edgar.LOG_FILE, edgar.us_tickers(universe.tracked_stocks()), "US stocks"),
                                     ("fundamentals_yahoo", yahoo.LOG_FILE, stock_tickers, "tracked stocks")):
         d = schedule.load_log(path)
         good = d[d["ok"] & d["last_end"].notna() & d["ticker"].isin(set(names))]
         detail = (f"oldest fetch {_d(good['fetched'].min())}; latest periods from {_d(good['last_end'].min())} "
                   f"to {_d(good['last_end'].max())}" if not good.empty else "not fetched yet")
-        if key == "fundamentals_edgar" and not edgar.contact():
+        if key == "fundamentals_edgar" and not userstore.sec_contact():
             detail = "needs a contact e-mail for SEC (Data page, or radar fundamentals contact EMAIL)"
         rows.append(_row(key, d["fetched"].max() if not d.empty else None, ref, max_age.get(key),
                          f"{len(good)} of {len(names)} {label}", detail, log))

@@ -10,7 +10,20 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 
-from . import external, factors, ingest, locks, ops, report, sentiment, sourcelog, tracked, trades, universe, valuation
+from . import (
+    external,
+    factors,
+    ingest,
+    locks,
+    ops,
+    report,
+    sentiment,
+    sourcelog,
+    tracked,
+    universe,
+    userstore,
+    valuation,
+)
 from .config import settings
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
@@ -93,8 +106,8 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
 
 def update_external(log: Log = print) -> None:
     """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
-    h = trades.holdings()
-    mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
+    mine = universe.held_or_watched()
+    stocks = universe.tracked_stocks()
     _steps({
         "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),
         "oecd": ("OECD leading indicators", external.update_oecd_cli),
@@ -107,11 +120,13 @@ def update_external(log: Log = print) -> None:
         "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
         "factors": ("Long factor histories (French, JKP; monthly)", factors.update_factors),
-        "valuation_etfs": ("ETF valuation (Yahoo fund data)", valuation.update_etfs),
-        "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)", valuation.update_stocks),
+        "valuation_etfs": ("ETF valuation (Yahoo fund data)", lambda: valuation.update_etfs(universe.etf_tickers())),
+        "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)",
+                             lambda: valuation.update_stocks(stocks)),
         # after the valuation snapshot: it names each stock's reporting currency and next earnings date
-        "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)", edgar.update_edgar),
-        "fundamentals_yahoo": ("Financial statements (Yahoo)", yahoo.update_yahoo),
+        "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)",
+                               lambda: edgar.update_edgar(stocks, userstore.sec_contact())),
+        "fundamentals_yahoo": ("Financial statements (Yahoo)", lambda: yahoo.update_yahoo(stocks)),
     }, log)
 
 

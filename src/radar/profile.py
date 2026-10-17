@@ -142,7 +142,8 @@ def quality_card(ticker: str, market: Market) -> dict | None:
     price store and statement update)."""
     from .fundamentals import context as fcontext
 
-    return fcontext.context(market.closes, market.raw_closes(), market.mtime).card(ticker)
+    return fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(),
+                            market.mtime).card(ticker)
 
 
 # ---------------- the profile ----------------

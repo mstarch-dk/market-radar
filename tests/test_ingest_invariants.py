@@ -203,13 +203,12 @@ class Etfs(Source):
     TICKERS = [f"ETF{i}" for i in range(10)]
 
     def _install(self, mp, funds):
-        mp.setattr(valuation, "etf_tickers", lambda: list(self.TICKERS))
         fake_yf(mp, funds=funds)
 
     def good(self, mp):
         eh = pd.DataFrame({"fund": {"Price/Earnings": 0.05, "Price/Book": 0.4}})
         self._install(mp, {t: eh for t in self.TICKERS})
-        valuation.update_etfs(today=TODAY - timedelta(days=3))       # Monday of the same ISO week
+        valuation.update_etfs(self.TICKERS, today=TODAY - timedelta(days=3))       # Monday of the same ISO week
 
     def bad(self, mp, mode):
         eh = pd.DataFrame({"fund": {"Price/Earnings": 0.05, "Price/Book": 0.4}})
@@ -218,7 +217,7 @@ class Etfs(Source):
                  "short": {t: (eh if t == "ETF0" else RuntimeError("429")) for t in self.TICKERS},
                  "missing": {t: (eh if t != "ETF9" else None) for t in self.TICKERS}}[mode]
         self._install(mp, funds)
-        valuation.update_etfs(force=True, today=TODAY)
+        valuation.update_etfs(self.TICKERS, force=True, today=TODAY)
 
 
 def _bars(t: str, start: str, end: str, close: float = 100.0, factor: float = 1.0) -> pd.DataFrame:
@@ -289,13 +288,11 @@ class Edgar(Source):
 
     def _serve(self, mp, aapl):
         mp.setattr(tracked, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
-        mp.setattr(valuation, "tracked_stocks", lambda: ["AAPL", "MSFT"])
         serve(mp, {"company_tickers": Resp(json=SEC_TICKERS), "0000320193": aapl})
 
     def good(self, mp):
-        edgar.set_contact("someone@example.com")
         self._serve(mp, Resp(text=AAPL_FACTS.read_text(encoding="utf-8")))
-        edgar.update_edgar(today=TODAY)
+        edgar.update_edgar(["AAPL", "MSFT"], "someone@example.com", today=TODAY)
 
     def bad(self, mp, mode):
         js = json.loads(AAPL_FACTS.read_text(encoding="utf-8"))
@@ -306,7 +303,7 @@ class Edgar(Source):
         answer = {"error": Resp(500), "empty": Resp(json={"cik": 320193, "facts": {}}), "short": Resp(json=js),
                   "missing": Resp(404)}[mode]
         self._serve(mp, answer)
-        edgar.update_edgar(today=TODAY, force=True)
+        edgar.update_edgar(["AAPL", "MSFT"], "someone@example.com", today=TODAY, force=True)
 
 
 class YahooStatements(Source):
@@ -315,12 +312,11 @@ class YahooStatements(Source):
     NAMES = ["AAPL", "RR.L"]
 
     def _install(self, mp, answers):
-        mp.setattr(valuation, "tracked_stocks", lambda: list(self.NAMES))
         fake_yf(mp, statements=answers)
 
     def good(self, mp):
         self._install(mp, {t: statements(t) for t in self.NAMES})
-        yahoo.update_yahoo(today=TODAY)
+        yahoo.update_yahoo(self.NAMES, today=TODAY)
 
     def bad(self, mp, mode):
         aapl = statements("AAPL")
@@ -329,7 +325,7 @@ class YahooStatements(Source):
                    "short": {"AAPL": {k: v.iloc[:, :1] for k, v in aapl.items()}, "RR.L": {}},
                    "missing": {"AAPL": aapl, "RR.L": RuntimeError("404")}}[mode]
         self._install(mp, answers)
-        yahoo.update_yahoo(today=TODAY, force=True)
+        yahoo.update_yahoo(self.NAMES, today=TODAY, force=True)
 
 
 SOURCES = [Fred(), Oecd(), Ecb(), Aaii(), Cape(), Erp(), Etfs(), Prices(), DiscoveryPrices(), Edgar(),

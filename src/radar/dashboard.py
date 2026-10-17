@@ -282,7 +282,7 @@ def compute() -> Computed:
     raw_closes = wide(prices, "raw_close") if "raw_close" in prices else None
 
     # --- kvalitetsscore and værdiscore (stored statements; no network)
-    fctx = fcontext.Context(closes, raw_closes, asof)
+    fctx = fcontext.Context(closes, raw_closes, universe.tracked_stocks(), asof)
     quality, quality_snap = quality_section(fctx, groups, labels, lead, cfg)
 
     mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"])
@@ -328,7 +328,7 @@ def compute() -> Computed:
     cov = coverage.build(
         asof, prices, universe.all_price_tickers(offline=True), fred, tracked.macro_fred(), cot, cot_markets,
         cli_raw, ext.get("oecd_cli", {}), fs_hist, external.load_analyst(),
-        sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else [],
+        universe.held_or_watched(),
         sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)
 
     head = {"generated": datetime.now().isoformat(timespec="seconds"), "asof": asof.isoformat(),

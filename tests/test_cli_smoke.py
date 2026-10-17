@@ -170,8 +170,8 @@ def test_portfolios_lifecycle(built):
 def test_fundamentals_update_show_check_and_contact(built, monkeypatch):
     from radar.fundamentals import edgar, yahoo
 
-    monkeypatch.setattr(edgar, "update_edgar", lambda force=False, tickers=None: "0 companies (stand-in)")
-    monkeypatch.setattr(yahoo, "update_yahoo", lambda force=False, tickers=None: "0 companies (stand-in)")
+    monkeypatch.setattr(edgar, "update_edgar", lambda *a, force=False, tickers=None: "0 companies (stand-in)")
+    monkeypatch.setattr(yahoo, "update_yahoo", lambda *a, force=False, tickers=None: "0 companies (stand-in)")
     assert "SEC EDGAR: 0 companies (stand-in)" in run("fundamentals", "update")
     assert "S1" in run("fundamentals", "show", "S1")
     assert run_json("fundamentals", "show", "S1", "--json")

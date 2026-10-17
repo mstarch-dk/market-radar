@@ -45,6 +45,7 @@ def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
     """Today's candidates per basket from the radar's stock lists: ticker, score, sector, group, sorted best first,
     only names with a price and a DKK rate. K+V (or the værdiscore, `abtest.value_score`) from fundamentals/context.py;
     momentum as the momentum score pooled over every stock group (one ranking, not one per region)."""
+    from . import universe
     from .fundamentals import context as fcontext
     from .signals import momentum
 
@@ -54,7 +55,7 @@ def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
     ok = {t for t in names if (fx := performance.fx_series(market, t)) is not None and len(fx.dropna())}
     m = momentum.metrics(market.closes, market.volumes, names, settings()["momentum"]["min_history_days"])
     m = m.assign(score=momentum.score(m))                         # pooled: one ranking over every group
-    fctx = fcontext.context(market.closes, market.raw_closes(), market.mtime)
+    fctx = fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(), market.mtime)
     t = fctx.table()
     q = t[t["region"].notna()][["ticker", value_score]].rename(columns={value_score: "score"}) if not t.empty \
         else pd.DataFrame(columns=["ticker", "score"])

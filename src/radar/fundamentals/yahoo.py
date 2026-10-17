@@ -125,13 +125,12 @@ def _earnings_dates() -> dict[str, pd.Timestamp]:
     return {t: pd.Timestamp(d) for t, d in now["earnings_date"].dropna().items()}
 
 
-def update_yahoo(today: date | None = None, force: bool = False, tickers: list[str] | None = None) -> str:
-    """Fetch statements for the tracked stocks that are due (or `tickers`, or all with `force`); add what is new."""
-    from .. import valuation
-
+def update_yahoo(stocks: list[str], today: date | None = None, force: bool = False,
+                 tickers: list[str] | None = None) -> str:
+    """Fetch statements for the tracked `stocks` that are due (or `tickers`, or all with `force`); add what is new."""
     cfg = _cfg()
     today = today or date.today()
-    names = tickers or valuation.tracked_stocks()
+    names = tickers or stocks
     log = schedule.load_log(LOG_FILE)
     if tickers or force:
         batch = list(names)

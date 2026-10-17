@@ -104,6 +104,28 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     return sorted(tickers)
 
 
+def held_or_watched() -> list[str]:
+    """The symbols you hold or watch, in any portfolio."""
+    h = trades.holdings()
+    return sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
+
+
+def tracked_stocks() -> list[str]:
+    """The stocks the valuation snapshot and the statements cover: the stock groups, plus what you hold or watch."""
+    etfs_ = {i.ticker for i in etfs()} | {benchmark()}
+    names = {t for g in stock_groups(offline=True).values() for t in g} | set(held_or_watched())
+    return sorted(names - etfs_)
+
+
+def etf_tickers() -> list[str]:
+    """The funds the ETF valuation snapshot covers: the config's, the benchmarks, and held or watched funds
+    (stocks among them are skipped by the lookup)."""
+    out = {i.ticker for i in etfs()} | {benchmark()}
+    out |= {b["ticker"] for b in group_benchmarks().values()}
+    stocks = {t for g in stock_groups(offline=True).values() for t in g}
+    return sorted(out | (set(held_or_watched()) - stocks))
+
+
 # Exchange suffix -> region, for stocks outside the stock groups (region_for)
 REGION_SUFFIXES = {
     "nordic": (".CO", ".ST", ".OL", ".HE", ".IC"),

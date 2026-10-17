@@ -50,8 +50,8 @@ class Context:
     of `asof` from the facts and prices given only: Yahoo's latest snapshot (quote currency, market value check) is
     today's, so it is left out."""
 
-    def __init__(self, closes: pd.DataFrame, raw: pd.DataFrame | None, asof=None, edgar: pd.DataFrame | None = None,
-                 yahoo: pd.DataFrame | None = None, tickers: list[str] | None = None, pit: bool = False):
+    def __init__(self, closes: pd.DataFrame, raw: pd.DataFrame | None, tickers: list[str], asof=None,
+                 edgar: pd.DataFrame | None = None, yahoo: pd.DataFrame | None = None, pit: bool = False):
         cfg = self.cfg = _cfg()
         self.asof = pd.Timestamp(asof) if asof is not None else pd.Timestamp(closes.dropna(how="all").index[-1])
         e = store.as_known(store.load_edgar() if edgar is None else edgar)     # resolved once for every ticker
@@ -59,14 +59,13 @@ class Context:
         by_e = {t: g for t, g in e.groupby("ticker")} if not e.empty else {}
         by_y = {t: g for t, g in y.groupby("ticker")} if not y.empty else {}
         self.groups = {t: g for g, ts in tracked.stock_groups(offline=True).items() for t in ts}
-        names = tickers if tickers is not None else sorted(set(self.groups) | set(valuation.tracked_stocks()))
         snap = valuation.latest(valuation.load_stocks()) if not pit else pd.DataFrame()
         sec = _csv("sectors.csv", ["ticker", "sector", "industry"]).set_index("ticker")
         cur = dict(_csv("currencies.csv", ["ticker", "currency"]).values)
         fin_ind = cfg["financial_industries"]
         self.info: dict[str, dict] = {}
         rows = []
-        for t in names:
+        for t in tickers:
             core_e = by_e.get(t)
             facts = core_e if core_e is not None and set(CORE) <= set(core_e["item"]) else by_y.get(t)
             if facts is None or facts.empty:
@@ -238,11 +237,12 @@ def reset() -> None:
     _ctx = None
 
 
-def context(closes: pd.DataFrame, raw: pd.DataFrame | None, stamp: float = 0.0) -> Context:
-    """A Context for the API, rebuilt when the fact stores, the valuation snapshot or the prices (`stamp`) change."""
+def context(closes: pd.DataFrame, raw: pd.DataFrame | None, tickers: list[str], stamp: float = 0.0) -> Context:
+    """A Context for the API, rebuilt when the fact stores, the valuation snapshot, the prices (`stamp`) or the
+    `tickers` change."""
     global _ctx
     key = tuple(p.stat().st_mtime if p.exists() else 0.0 for p in (store.EDGAR_FILE, store.YAHOO_FILE,
-                                                                     valuation.STOCKS_FILE)) + (stamp,)
+                                                                     valuation.STOCKS_FILE)) + (stamp, tuple(tickers))
     if _ctx is None or _ctx[0] != key:
-        _ctx = (key, Context(closes, raw))
+        _ctx = (key, Context(closes, raw, tickers))
     return _ctx[1]

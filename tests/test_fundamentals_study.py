@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 import world
-from radar import profile
+from radar import profile, universe
 from radar.backtest import study
 from radar.backtest.fund import FundPIT
 from radar.config import settings
@@ -81,7 +81,8 @@ def test_the_pit_context_ignores_todays_yahoo_snapshot(market):
     e = edgar()
     day = _day(e)
     args = (market.closes.loc[:day], market.raw_closes().loc[:day])
-    kw = {"asof": day, "edgar": e[e["known"] <= day], "yahoo": pd.DataFrame(columns=store.COLS)}
+    kw = {"asof": day, "edgar": e[e["known"] <= day], "yahoo": pd.DataFrame(columns=store.COLS),
+          "tickers": universe.tracked_stocks()}
     live = fcontext.Context(*args, **kw)
     pit = fcontext.Context(*args, **kw, pit=True)
     assert not any("Yahoo's used" in n for i in pit.info.values() for n in i["notes"])

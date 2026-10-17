@@ -39,9 +39,11 @@ def pool(market, prices: pricing.Prices, p=None, day=None, fund_table: pd.DataFr
         df["last_bar"] = day
         df["price_dkk"] = p.dkk.loc[day].reindex(tick)
     if fund_table is None and live:
+        from .. import universe
         from ..fundamentals import context as fcontext
 
-        t = fcontext.context(market.closes, market.raw_closes(), market.mtime).table()
+        t = fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(),
+                                 market.mtime).table()
         fund_table = t.set_index("ticker") if not t.empty else pd.DataFrame()
     for k in ("qv", "quality", "value"):
         df[k] = fund_table[k].reindex(tick).astype(float) if fund_table is not None and k in fund_table else np.nan

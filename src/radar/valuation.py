@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import guard, money, net, trades
+from . import guard, money, net
 from .config import discovery_config, settings, write_parquet
 from .paths import CACHE, HISTORY
 from .values import num
@@ -183,20 +183,9 @@ def store_snapshot(path, old: pd.DataFrame, new: pd.DataFrame, today: date | Non
     return len(carried)
 
 
-def tracked_stocks() -> list[str]:
-    from . import tracked
-
-    names = {t for g in tracked.stock_groups(offline=True).values() for t in g}
-    h = trades.holdings()
-    if not h.empty:
-        names |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna())
-    etfs = {i.ticker for i in tracked.etfs()} | {tracked.benchmark()}
-    return sorted(names - etfs)
-
-
-def update_stocks(force: bool = False, today: date | None = None) -> str:
-    """The weekly stock snapshot: Yahoo's screener per exchange, then one-by-one lookups for tracked names it
-    missed. An exchange returning fewer names than expected raises (the last snapshot stays)."""
+def update_stocks(stocks: list[str], force: bool = False, today: date | None = None) -> str:
+    """The weekly stock snapshot: Yahoo's screener per exchange, then one-by-one lookups for the tracked `stocks`
+    it missed. An exchange returning fewer names than expected raises (the last snapshot stays)."""
     from .discovery import scan, sources
 
     cfg = _cfg()
@@ -214,13 +203,13 @@ def update_stocks(force: bool = False, today: date | None = None) -> str:
             rows.setdefault(q["symbol"], quote_valuation(q, fx, rng))
     if short:
         raise ValueError("too few names from Yahoo's screener (" + ", ".join(short) + "): keeping the last snapshot")
-    missing = [t for t in tracked_stocks() if t not in rows][: cfg["fallback_max"]]
+    missing = [t for t in stocks if t not in rows][: cfg["fallback_max"]]
     looked, failed = _lookups(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
     carried = store_snapshot(STOCKS_FILE, old, df, today)
-    have = sum(t in rows for t in tracked_stocks())
+    have = sum(t in rows for t in stocks)
     with_pe = df["pe_fy1"].notna().sum()
-    return (f"{len(df):,} names, {with_pe:,} with a forward P/E; {have} of {len(tracked_stocks())} tracked stocks"
+    return (f"{len(df):,} names, {with_pe:,} with a forward P/E; {have} of {len(stocks)} tracked stocks"
             f" ({looked} looked up one by one" + (f", {len(failed)} lookups failed" if failed else "") + ")"
             + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
@@ -269,19 +258,8 @@ def fund_valuation(holdings: dict, pe_range: tuple[float, float] = (3, 150)) -> 
     return out | {"note": "; ".join(notes) or None}
 
 
-def etf_tickers() -> list[str]:
-    from . import tracked
-
-    out = {i.ticker for i in tracked.etfs()} | {tracked.benchmark()}
-    out |= {b["ticker"] for b in tracked.group_benchmarks().values()}
-    h = trades.holdings()
-    stocks = {t for g in tracked.stock_groups(offline=True).values() for t in g}
-    if not h.empty:  # held or watched funds; stocks among them are skipped by the lookup
-        out |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) - stocks
-    return sorted(out)
-
-
-def update_etfs(force: bool = False, today: date | None = None) -> str:
+def update_etfs(tickers: list[str], force: bool = False, today: date | None = None) -> str:
+    """The weekly fund snapshot (Yahoo fund data) for `tickers`; stocks among them are skipped."""
     import logging
 
     yf = net.yf()
@@ -291,7 +269,6 @@ def update_etfs(force: bool = False, today: date | None = None) -> str:
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
-    tickers = etf_tickers()
     rows = []
     for t in tickers:
         try:
