@@ -48,7 +48,8 @@ def test_a_changed_rule_makes_the_study_stale(market, tmp_data, monkeypatch):  #
     assert got.report.rule_hash == rep["settings_hash"] and got.report.data_asof.isoformat() == rep["asof"]
     c = copy.deepcopy(market.cfg)
     c["propose"]["max_corr"] = 0.5
-    monkeypatch.setattr(propose, "settings", lambda: c)
+    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store):
+        monkeypatch.setattr(mod, "settings", lambda: c)
     assert propose.load_study().status == "stale"
     assert propose.study_view(propose.load_study(), "momentum", 2, 1, None, c["propose"])["drift_gross"] is None
 
@@ -58,7 +59,7 @@ def test_exits_equal_kept_when_nothing_triggers(market, monkeypatch):  # noqa: F
     c["propose"]["require_trend_from"] = 2
     c["propose"]["exit"] |= {"min_score": -1}                      # no signal exit can fire
     c["stops"] = dict(c["stops"], trend_sma=10_000)                  # no average to fall below
-    for mod in (propose, ps):
+    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store, ps):
         monkeypatch.setattr(mod, "settings", lambda: c)
     rep = ps.run(market, ["momentum"], [2], [1], with_regime=False)
     arms = rep["results"]["momentum"]["2"]["1"]
