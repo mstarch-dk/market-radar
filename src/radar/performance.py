@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from . import money, tracked, universe
+from . import fxrates, money, tracked
 from .signals.risk import annualised_vol, deepest_drawdown
 from .userstore import TRADE_TYPES
 
@@ -29,7 +29,7 @@ def fx_series(market, symbol: str | None) -> pd.Series | None:
     """DKK per unit of the symbol's quoted price (None when the currency or its rate is unknown)."""
     if not symbol:
         return None
-    return universe.fx_to_dkk(market.closes, universe.currencies([symbol]).get(symbol))
+    return fxrates.fx_to_dkk(market.closes, fxrates.currencies([symbol]).get(symbol))
 
 
 def trade_fx(row: dict, fx: pd.Series | None) -> float | None:
@@ -314,7 +314,7 @@ def _mwr(dates: pd.DatetimeIndex, inflow: pd.Series, outflow: pd.Series, final_v
 def bench_dkk(market) -> pd.Series:
     b = tracked.benchmark()
     px = market.closes[b].dropna()
-    fx = universe.fx_to_dkk(market.closes, universe.currencies([b])[b])
+    fx = fxrates.fx_to_dkk(market.closes, fxrates.currencies([b])[b])
     return (px * fx.reindex(px.index).ffill()).dropna() if fx is not None else pd.Series(dtype=float)
 
 

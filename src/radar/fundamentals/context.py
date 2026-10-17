@@ -12,7 +12,7 @@ from datetime import date
 
 import pandas as pd
 
-from .. import money, tracked, universe, valuation
+from .. import fxrates, money, tracked, valuation
 from ..config import settings
 from ..paths import CACHE, HISTORY
 from ..signals import fundamentals as sf
@@ -111,7 +111,7 @@ class Context:
         px = raw[t].dropna()
         if quote == fin:
             return px
-        a, b = universe.fx_to_dkk(closes, quote), universe.fx_to_dkk(closes, fin)
+        a, b = fxrates.fx_to_dkk(closes, quote), fxrates.fx_to_dkk(closes, fin)
         if a is None or b is None:
             notes.append(f"no {quote}→{fin} rate: value metrics left out")
             return None
@@ -134,7 +134,7 @@ class Context:
         mcap = shares * float(px.iloc[-1])
         yahoo = snap_row.get("market_cap") if snap_row is not None and "market_cap" in snap_row else None
         if yahoo is not None and pd.notna(yahoo) and quote and not money.is_pence(quote):
-            a, b = universe.fx_to_dkk(closes, quote), universe.fx_to_dkk(closes, fin)
+            a, b = fxrates.fx_to_dkk(closes, quote), fxrates.fx_to_dkk(closes, fin)
             if quote == fin:
                 ym = float(yahoo)
             elif a is not None and b is not None and len(a.dropna()) and len(b.dropna()):

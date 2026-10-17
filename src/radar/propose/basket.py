@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .. import fees, money, positive_list, universe
+from .. import fees, fxrates, money, positive_list
 from ..values import num
 from . import exposure, pricing, rules
 
@@ -219,7 +219,7 @@ def terms_for(prices: pricing.Prices, sf: fees.SimFees, t: str) -> fees.Terms:
     def convert(amount: float, k: str) -> float | None:
         if k == "DKK":
             return amount / rate
-        fx = universe.fx_to_dkk(prices.market.closes, k)
+        fx = fxrates.fx_to_dkk(prices.market.closes, k)
         v = fx.dropna().iloc[-1] if fx is not None and len(fx.dropna()) else None
         return amount * float(v) / rate if v is not None and v > 0 else None
     return sf.terms(t, ccy, convert, count=False)

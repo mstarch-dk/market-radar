@@ -104,7 +104,7 @@ Til beregninger stiller `ingest.wide()` kurserne op i en matrix med én række p
 
 ### Omregning til DKK
 
-Omregning sker med Yahoos valutakryds mod DKK (`universe.fx_to_dkk`): `USDDKK=X`, `EURDKK=X`, `GBPDKK=X`, `SEKDKK=X`, `NOKDKK=X`, `CHFDKK=X`, `PLNDKK=X`, `JPYDKK=X`, `HKDDKK=X` og `CADDKK=X`. Yahoo har ingen kurs mellem DKK og koreanske won eller taiwanske dollar, så de regnes om via dollar: `USDDKK=X` divideret med `USDKRW=X` eller `USDTWD=X`. Valutakursen fremskrives over huller. For pence-noterede aktier (`GBp`) bruges `GBPDKK=X` ganget med 0,01, så faktoren er "DKK pr. kursenhed". DKK-noterede aktier får faktor 1. En valuta uden et kryds (fx CNY) giver intet DKK-beløb: hellere et manglende tal end et forkert.
+Omregning sker med Yahoos valutakryds mod DKK (`fxrates.fx_to_dkk`): `USDDKK=X`, `EURDKK=X`, `GBPDKK=X`, `SEKDKK=X`, `NOKDKK=X`, `CHFDKK=X`, `PLNDKK=X`, `JPYDKK=X`, `HKDDKK=X` og `CADDKK=X`. Yahoo har ingen kurs mellem DKK og koreanske won eller taiwanske dollar, så de regnes om via dollar: `USDDKK=X` divideret med `USDKRW=X` eller `USDTWD=X`. Valutakursen fremskrives over huller. For pence-noterede aktier (`GBp`) bruges `GBPDKK=X` ganget med 0,01, så faktoren er "DKK pr. kursenhed". DKK-noterede aktier får faktor 1. En valuta uden et kryds (fx CNY) giver intet DKK-beløb: hellere et manglende tal end et forkert.
 
 Hvor bruges DKK, og hvor ikke?
 

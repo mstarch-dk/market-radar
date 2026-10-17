@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import tracked, universe
+from .. import fxrates, tracked, universe
 from ..config import settings
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
@@ -39,13 +39,13 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
     c = market.closes[stocks]
     m = momentum.metrics_panel(market.closes, stocks, settings()["momentum"]["min_history_days"])
     vol = np.log(c).diff().rolling(63, min_periods=32).std() * math.sqrt(TRADING_DAYS)
-    ccy = universe.currencies(stocks)
+    ccy = fxrates.currencies(stocks)
     fx_cache: dict = {}
     dkk = {}
     for t in stocks:
         k = ccy.get(t)
         if k not in fx_cache:
-            fx_cache[k] = universe.fx_to_dkk(market.closes, k)
+            fx_cache[k] = fxrates.fx_to_dkk(market.closes, k)
         fx = fx_cache[k]
         dkk[t] = c[t] * fx.reindex(c.index) if fx is not None else pd.Series(np.nan, index=c.index)
     from .. import performance

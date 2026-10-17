@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from .. import ingest, net, ops, positive_list, sourcelog, tracked, universe
+from .. import fxrates, ingest, net, ops, positive_list, sourcelog, tracked
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
@@ -48,25 +48,25 @@ def fx_rates() -> dict[str, float]:
     stored = ingest.load_prices()
     older: dict[str, float] = {}
     if not stored.empty:
-        fx = stored[stored["ticker"].isin(universe.FX_TICKERS)].copy()
+        fx = stored[stored["ticker"].isin(fxrates.FX_TICKERS)].copy()
         fx["date"] = pd.to_datetime(fx["date"])
         last = fx.sort_values("date").groupby("ticker").last()
         recent = last[last["date"] >= pd.Timestamp.today().normalize() - pd.Timedelta(days=7)]
-        out = universe.dkk_rates(recent["close"].astype(float).to_dict())
+        out = fxrates.dkk_rates(recent["close"].astype(float).to_dict())
         if set(out) >= FX_NEEDED:   # a rate still missing (e.g. a new currency) leaves those caps unknown
             return out
-        older = universe.dkk_rates(last["close"].astype(float).to_dict())
-    raw = sources.retry(lambda: yf.download(universe.FX_TICKERS, period="10d", auto_adjust=False,
+        older = fxrates.dkk_rates(last["close"].astype(float).to_dict())
+    raw = sources.retry(lambda: yf.download(fxrates.FX_TICKERS, period="10d", auto_adjust=False,
                                             progress=False, group_by="ticker"))
     last = {}
-    for t in universe.FX_TICKERS:
+    for t in fxrates.FX_TICKERS:
         try:
             s = raw[t]["Close"].dropna()
         except KeyError:
             continue
         if len(s):
             last[t] = float(s.iloc[-1])
-    out = universe.dkk_rates(last)
+    out = fxrates.dkk_rates(last)
     if len(out) < 4 and not older:
         raise RuntimeError("no FX rates from Yahoo")
     out = {c: r for c, r in older.items() if c not in out} | out
@@ -180,7 +180,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     need_ccy = df.loc[df["currency"].isna() | (df["currency"] == ""), "ticker"].tolist()
     if need_ccy:
         log(f"  looking up quote currencies for {len(need_ccy)} ETFs (cached)…")
-        cur = universe.currencies(need_ccy)
+        cur = fxrates.currencies(need_ccy)
         df.loc[df["ticker"].isin(need_ccy), "currency"] = df["ticker"].map(cur)
     known = CACHE / "sectors.csv"
     ind = pd.read_csv(known, keep_default_na=False).set_index("ticker")["industry"] if known.exists() else pd.Series(dtype=str)
@@ -244,7 +244,8 @@ def _wide(prices: pd.DataFrame, field: str) -> pd.DataFrame:
     return prices.pivot(index="date", columns="ticker", values=field).sort_index()
 
 
-def build_report(fx: dict[str, float] | None = None) -> dict:
+def build_report(radar_tickers: set[str], fx: dict[str, float] | None = None) -> dict:
+    """Score the stored scan; `radar_tickers` (what the radar itself tracks) are marked as such."""
     from ..jsonsafe import clean as _clean
 
     cfg = discovery_config()
@@ -258,9 +259,8 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
     volumes = _wide(prices, "volume")
     bench = tracked.benchmark()
     asof = closes[bench].dropna().index[-1] if bench in closes else closes.index[-1]
-    fx = fx or universe.dkk_rates({t: float(closes[t].dropna().iloc[-1]) for t in universe.FX_TICKERS
+    fx = fx or fxrates.dkk_rates({t: float(closes[t].dropna().iloc[-1]) for t in fxrates.FX_TICKERS
                                    if t in closes and closes[t].notna().any()})
-    radar_tickers = set(universe.all_price_tickers(offline=True))
     s = settings()
     df = sig.compute(closes, raw, volumes, meta, bench, fx, radar_tickers, cfg, s["momentum"]["min_history_days"], asof,
                      s["rotation"]["window"])
@@ -304,17 +304,18 @@ def load_report() -> dict | None:
 
 # ---------------- the whole scan ----------------
 
-def run(log: Log = print, progress: Progress | None = None, refresh_universe: bool = False) -> dict:
+def run(radar_tickers: set[str], log: Log = print, progress: Progress | None = None,
+        refresh_universe: bool = False) -> dict:
     """Universe (when older than `universe_max_age_days`, or asked), prices, report. Steps are logged in
     data/sources.json; a failing step keeps its cached data. One scan at a time (`locks.Busy` otherwise)."""
     from .. import locks
 
     with locks.file_lock(SCAN_LOCK, timeout=0,
                          what="a discovery scan is already running (in the app or in a terminal): wait for it to finish"):
-        return _run(log, progress, refresh_universe)
+        return _run(radar_tickers, log, progress, refresh_universe)
 
 
-def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
+def _run(radar_tickers: set[str], log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
     cfg = discovery_config()
     t0 = time.time()
     age = universe_age_days()
@@ -332,7 +333,7 @@ def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
                 raise
             log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
     meta = load_universe()
-    tickers = sorted(set(meta["ticker"]) | {tracked.benchmark()} | set(universe.FX_TICKERS))
+    tickers = sorted(set(meta["ticker"]) | {tracked.benchmark()} | set(fxrates.FX_TICKERS))
     log(f"Downloading prices for {len(tickers)} names…")
     try:
         with ops.context(source="discovery_prices"):
@@ -344,7 +345,7 @@ def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
     except Exception as e:
         sourcelog.record("discovery_prices", False, error=f"{type(e).__name__}: {e}", exc=e)
         log(f"Prices: FAILED ({type(e).__name__}: {e}); using the previous download.")
-    out = build_report()
+    out = build_report(radar_tickers)
     log(f"Discovery: {out['scored']} of {out['names']} names scored (data as of {out['asof']}) in "
         f"{round(time.time() - t0)} s.")
     return out

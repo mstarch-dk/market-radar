@@ -483,8 +483,8 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
             market_has(tx["symbol"])
         r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
         if r["type"] in ("BUY", "SELL") and r.get("currency") and tx["symbol"]:
-            from .. import universe
-            quote = universe.currencies([tx["symbol"]]).get(tx["symbol"])
+            from .. import fxrates
+            quote = fxrates.currencies([tx["symbol"]]).get(tx["symbol"])
             r["issues"] += currency_issues(r["currency"], quote, tx["symbol"], r["fee"])
         for field, value in r.get("ambiguous") or []:
             dot, comma = parse_number(value, "."), parse_number(value, ",")

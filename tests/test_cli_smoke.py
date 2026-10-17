@@ -81,7 +81,7 @@ def test_discover_runs_the_scan(built, monkeypatch):
     from radar.discovery import scan
 
     seen = {}
-    monkeypatch.setattr(scan, "run", lambda log, progress, refresh: seen.update(refresh=refresh) or progress(1, 1))
+    monkeypatch.setattr(scan, "run", lambda tracked, log, progress, refresh: seen.update(refresh=refresh) or progress(1, 1))
     assert "1 of 1" in run("discover", "--refresh-universe") and seen == {"refresh": True}
 
 

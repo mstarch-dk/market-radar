@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import dashboard, ingest, paths, tracked, universe
+from radar import dashboard, fxrates, ingest, paths, tracked, universe
 from radar.mine import _vs_shadow
 from radar.model.score import score_vs
 
@@ -84,24 +84,24 @@ def test_shadow_return_is_in_dkk():
 def test_fx_to_dkk_handles_pence_and_unknown_currencies():
     closes = pd.DataFrame({"GBPDKK=X": [8.5, np.nan, 8.6], "USDDKK=X": [6.9, 7.0, 7.1]},
                           index=pd.bdate_range("2026-01-05", periods=3))
-    assert universe.fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
-    assert universe.fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
-    assert (universe.fx_to_dkk(closes, "DKK") == 1.0).all()
-    assert universe.fx_to_dkk(closes, "XYZ") is None and universe.fx_to_dkk(closes, None) is None
-    assert universe.fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
+    assert fxrates.fx_to_dkk(closes, "GBp").tolist() == pytest.approx([0.085, 0.085, 0.086])   # pence, ffilled
+    assert fxrates.fx_to_dkk(closes, "GBP").iloc[-1] == pytest.approx(8.6)
+    assert (fxrates.fx_to_dkk(closes, "DKK") == 1.0).all()
+    assert fxrates.fx_to_dkk(closes, "XYZ") is None and fxrates.fx_to_dkk(closes, None) is None
+    assert fxrates.fx_to_dkk(closes, "SEK") is None             # rate not downloaded: no silent 1.0
 
 
 def test_won_and_taiwan_dollar_cross_via_usd():
-    from radar import universe
+    from radar import fxrates
     closes = pd.DataFrame({"USDDKK=X": [7.0, 6.8, np.nan], "USDKRW=X": [1400.0, np.nan, 1360.0],
                            "USDTWD=X": [32.0, 34.0, 34.0]}, index=pd.date_range("2025-01-01", periods=3))
-    assert universe.fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
-    assert universe.fx_to_dkk(closes, "TWD").tolist() == pytest.approx([7 / 32, 0.2, 0.2])
-    assert universe.fx_to_dkk(closes.drop(columns="USDKRW=X"), "KRW") is None   # either leg missing: no rate
-    assert universe.fx_to_dkk(closes.drop(columns="USDDKK=X"), "TWD") is None
-    rates = universe.dkk_rates({"USDDKK=X": 6.8, "USDKRW=X": 1360.0, "GBPDKK=X": 8.6})
+    assert fxrates.fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled
+    assert fxrates.fx_to_dkk(closes, "TWD").tolist() == pytest.approx([7 / 32, 0.2, 0.2])
+    assert fxrates.fx_to_dkk(closes.drop(columns="USDKRW=X"), "KRW") is None   # either leg missing: no rate
+    assert fxrates.fx_to_dkk(closes.drop(columns="USDDKK=X"), "TWD") is None
+    rates = fxrates.dkk_rates({"USDDKK=X": 6.8, "USDKRW=X": 1360.0, "GBPDKK=X": 8.6})
     assert rates == pytest.approx({"DKK": 1.0, "USD": 6.8, "GBP": 8.6, "KRW": 0.005})   # no TWD, no GBp
-    assert "KRW" not in universe.dkk_rates({"USDKRW=X": 1360.0})
+    assert "KRW" not in fxrates.dkk_rates({"USDKRW=X": 1360.0})
 
 
 def test_pct_vs_is_the_mean_percentile_against_the_region():
@@ -200,7 +200,7 @@ def test_a_deeper_start_downloads_a_shallow_history_again_once(price_store):
 def test_history_start_reaches_back_before_your_first_trade(tmp_data, monkeypatch):
     from datetime import date
 
-    from radar import universe, userstore
+    from radar import userstore
     monkeypatch.setattr(universe, "settings", lambda: {"history_years": 3,
                                                        "backtest": {"warmup_days": 400, "max_years": 10}})
     today = date(2026, 10, 14)
@@ -253,7 +253,7 @@ def test_tickers_without_the_benchmarks_last_session_are_asked_again(price_store
 def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch):
     from types import SimpleNamespace
 
-    from radar import profile, universe
+    from radar import profile
     idx = pd.bdate_range("2026-10-01", periods=5)
     closes = pd.DataFrame({"ACWI": range(5), "RHM.DE": [1.0, 2, 3, 4, np.nan]}, index=idx, dtype=float)
     market = SimpleNamespace(closes=closes)

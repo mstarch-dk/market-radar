@@ -209,10 +209,11 @@ def _daily_backup(log: Log) -> None:
         ops.event("error", "job", f"backup: {type(e).__name__}: {e}", source="backup", exc=e)
 
 
-def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
+def discover(log: Log, progress: Callable[[int, int], None], refresh_universe: bool = False) -> None:
+    """The discovery scan, told which names the radar already tracks."""
     from .discovery import scan
 
-    scan.run(log, progress)
+    scan.run(set(universe.all_price_tickers(offline=True)), log, progress, refresh_universe)
 
 
 def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
@@ -227,5 +228,5 @@ def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
 
 
 JOB = UpdateJob()
-DISCOVER_JOB = UpdateJob(_discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
+DISCOVER_JOB = UpdateJob(discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
 REPORT_JOB = UpdateJob(_rebuild, "Building the readings", "report")  # no downloads (the Rebuild button)

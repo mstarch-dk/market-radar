@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, external, ingest, mine, money, positive_list, tracked, trades, universe
+from . import dashboard, external, fxrates, ingest, mine, money, positive_list, tracked, trades, universe
 from .config import settings, universe_config
 from .jsonsafe import clean
 from .market import Market
@@ -184,7 +184,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     industry = info.get("industry") or (sec.loc[ticker, "industry"] if sec is not None else "") or None
     if look and look["sector_weights"] and look["sector_weights"][0]["weight"] >= 0.5:
         sector = look["sector_weights"][0]["sector"]       # a sector fund: compare it with that sector
-    currency = info.get("currency") or universe.currencies([ticker])[ticker]
+    currency = info.get("currency") or fxrates.currencies([ticker])[ticker]
     is_tracked = ticker in set(universe.all_price_tickers(offline=True))
     groups = tracked.stock_groups(offline=True)
     isin = etf_cfg.isin if etf_cfg else None
@@ -204,7 +204,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
         notes.append("Not tracked by the radar: prices are fetched on lookup, not in the daily update")
 
     # --- price development
-    fx = universe.fx_to_dkk(closes, currency)
+    fx = fxrates.fx_to_dkk(closes, currency)
     local = _windows(close, last_date)
     dkk = _windows((close * fx.reindex(close.index).ffill()).dropna(), last_date) if fx is not None else None
     if fx is None:
@@ -390,7 +390,7 @@ def risk_section(ticker: str, market: Market, close: pd.Series, fx: pd.Series | 
     rc = settings()["risk"]
     closes = market.closes
     bench = tracked.benchmark()
-    usd = universe.fx_to_dkk(closes, universe.currencies([bench])[bench])
+    usd = fxrates.fx_to_dkk(closes, fxrates.currencies([bench])[bench])
     if fx is None or usd is None:
         return _section(MISSING, "radar (prices, FRED 3m T-bill)", asof, currency="DKK", benchmark=bench,
                         windows={}, factors=None, budget=None, notes=["no DKK rate for this currency"])
@@ -550,7 +550,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
 
     # ACWI: the zero-effort alternative every candidate has to beat
     closes = market.closes
-    usd = universe.fx_to_dkk(closes, universe.currencies([bench])[bench])
+    usd = fxrates.fx_to_dkk(closes, fxrates.currencies([bench])[bench])
     b = closes[bench].dropna()
     mkt = risk.weekly((b * usd.reindex(b.index).ffill()).dropna()) if usd is not None else None
     rf = market.fred()["DGS3MO"] if "DGS3MO" in market.fred() else None
@@ -567,7 +567,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
                                if personal else []):
         if sym not in closes:
             continue
-        fx = universe.fx_to_dkk(closes, universe.currencies([sym])[sym])
+        fx = fxrates.fx_to_dkk(closes, fxrates.currencies([sym])[sym])
         if fx is not None:
             s = closes[sym].dropna()
             series[sym] = risk.weekly((s * fx.reindex(s.index).ffill()).dropna())

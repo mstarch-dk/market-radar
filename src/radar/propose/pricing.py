@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from .. import money, universe
+from .. import fxrates, money
 from ..values import num
 
 
@@ -17,16 +17,16 @@ class Prices:
 
     def ccy(self, t: str) -> str | None:
         if t not in self._ccy:
-            self._ccy |= universe.currencies([t])
+            self._ccy |= fxrates.currencies([t])
         return self._ccy.get(t)
 
     def preload(self, tickers) -> None:
         need = [t for t in tickers if t not in self._ccy]
         if need:
-            self._ccy |= universe.currencies(need)
+            self._ccy |= fxrates.currencies(need)
 
     def fx(self, t: str) -> pd.Series | None:
-        return universe.fx_to_dkk(self.market.closes, self.ccy(t))
+        return fxrates.fx_to_dkk(self.market.closes, self.ccy(t))
 
     def rate(self, t: str, day=None) -> float | None:
         return money.rate_on(self.fx(t), day)

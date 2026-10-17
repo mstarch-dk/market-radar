@@ -94,7 +94,7 @@ def for_trade(row: dict, quote_ccy: str | None, quote_dkk: float | None, closes:
     `closes()` gives the price store's closes, only asked for when a minimum or maximum needs converting."""
     import pandas as pd
 
-    from . import universe, userstore
+    from . import fxrates, userstore
 
     pid = row["portfolio_id"] or userstore.default_portfolio()
     p = userstore.get_portfolio(pid) if pid else None
@@ -107,7 +107,7 @@ def for_trade(row: dict, quote_ccy: str | None, quote_dkk: float | None, closes:
             return None
         if ccy == "DKK":
             return amount / quote_dkk
-        rate = money.rate_on(universe.fx_to_dkk(closes(), ccy), day)
+        rate = money.rate_on(fxrates.fx_to_dkk(closes(), ccy), day)
         return amount * rate / quote_dkk if rate is not None else None
 
     return estimate(p["fee_schedule"], row["symbol"], row["quantity"], row["price"], quote_ccy, convert)

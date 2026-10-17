@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
-from .. import money, performance, simulate, tracked, universe, userstore
+from .. import fxrates, money, performance, simulate, tracked, userstore
 from ..config import settings, write_text
 from ..fees import SimFees, Terms
 from ..jsonsafe import dumps
@@ -153,12 +153,12 @@ class Replay:
         if not self.fees.schedule:
             return self.fees.terms(sym, None, None)
         if sym not in self._ccy:
-            self._ccy[sym] = universe.currencies([sym]).get(sym)
+            self._ccy[sym] = fxrates.currencies([sym]).get(sym)
 
         def convert(amount: float, ccy: str) -> float | None:
             if ccy == "DKK":
                 return amount / rate
-            fx = universe.fx_to_dkk(self.market.closes, ccy)
+            fx = fxrates.fx_to_dkk(self.market.closes, ccy)
             v = money.rate_on(fx, day)
             return amount * v / rate if v is not None else None
         return self.fees.terms(sym, self._ccy[sym], convert, count)
