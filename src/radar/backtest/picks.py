@@ -246,8 +246,13 @@ def _resolve(picks: list[dict], df: pd.DataFrame) -> list[dict]:
     return out
 
 
+def portfolio_name(name: str, kind: str) -> str:
+    """The simulated portfolio a basket keeps for each run kind (hold, exits, control): "<name> · <kind>"."""
+    return f"{name} · {kind}"
+
+
 def _sim(name: str, kind: str, params: dict, tags: list[str]) -> int:
-    pname = f"{name} · {kind}"
+    pname = portfolio_name(name, kind)
     p = userstore.portfolio_by_name(pname)
     if p:
         if p["origin"] != "sim" or p.get("strategy") != STRATEGIES[kind]:
@@ -384,6 +389,13 @@ def baskets(tag: str | None = None) -> list[dict]:
     t = userstore.norm_tag(tag) if tag else None
     return [p for p in userstore.portfolios() if p["origin"] == "sim" and p.get("strategy") == STRATEGIES["hold"]
             and (t is None or t in p["tags"])]
+
+
+def find(name: str) -> list[dict]:
+    """The stored baskets (their hold portfolios) by basket name, or every basket with a tag ("tag:<tag>")."""
+    if name.startswith("tag:"):
+        return baskets(name[4:])
+    return [h for h in baskets() if h["name"] == portfolio_name(name, "hold")]
 
 
 def rerun(market, hold: dict, p: mp.Panels | None = None) -> dict:

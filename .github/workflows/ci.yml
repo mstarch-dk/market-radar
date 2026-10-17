@@ -36,7 +36,7 @@ jobs:
       - name: Types (the modules listed in pyproject.toml [tool.mypy] files)
         run: uv run mypy
       - run: uv run lint-imports
-      - name: Tests, with coverage (reported, no floor yet)
+      - name: Tests, with coverage (the floor is fail_under in pyproject.toml)
         run: uv run pytest -q --cov --cov-report=term --cov-report=xml
       - name: The slow tests (studies on real-size data)
         run: uv run pytest -q -m slow

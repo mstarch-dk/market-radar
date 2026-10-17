@@ -41,6 +41,16 @@ def evaluation_file(fname: str):
     return rules.PROPOSALS / fname.replace(".json", "-evaluation.json")
 
 
+def keep_evaluation(picks_file: str, ev: dict) -> str | None:
+    """Save the evaluation beside its picks when the picks file is a frozen one in exports/proposals/ (an
+    evaluation of a copy elsewhere isn't kept); returns where it went."""
+    from pathlib import Path
+
+    if Path(picks_file).resolve().parent != Path(rules.PROPOSALS).resolve():
+        return None
+    return save_evaluation(Path(picks_file).name, ev)
+
+
 def save_evaluation(fname: str, ev: dict) -> str:
     rules.PROPOSALS.mkdir(parents=True, exist_ok=True)
     f = evaluation_file(fname)

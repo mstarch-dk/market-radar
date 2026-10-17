@@ -40,3 +40,26 @@ def rate_on(fx: pd.Series | None, day=None) -> float | None:
     v = s.asof(pd.Timestamp(day)) if day is not None else s.iloc[-1]
     v = num(v)
     return v if v is not None and v > 0 else None
+
+
+def parse_amount(text) -> float:
+    """An amount in DKK as people write it: 50000, 50.000, 50,000, 50k, 1.5m, 12,5k ("kr"/"dkk" ignored).
+    ValueError for anything else or an amount that isn't positive."""
+    import re
+
+    t = str(text).strip().lower().replace(" ", "").replace("dkk", "").replace("kr", "")
+    mult = 1.0
+    if t.endswith("k"):
+        mult, t = 1e3, t[:-1]
+    elif t.endswith("m"):
+        mult, t = 1e6, t[:-1]
+    if re.fullmatch(r"\d{1,3}([.,]\d{3})+", t):
+        t = re.sub(r"[.,]", "", t)
+    t = t.replace(",", ".")
+    try:
+        v = float(t) * mult
+    except ValueError:
+        raise ValueError(f"not an amount: {text}") from None
+    if v <= 0:
+        raise ValueError("the amount must be positive")
+    return v

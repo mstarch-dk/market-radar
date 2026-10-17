@@ -31,7 +31,15 @@
 ## Static checks
 - `uv run ruff check`: the linter (rules and the few deliberate ignores in pyproject.toml `[tool.ruff]`; lint only,
   no formatter). `uv run mypy`: type checks the modules listed in `[tool.mypy] files` (the pure ones first; add a
-  module once it passes). `uv run pytest -q --cov`: coverage, reported but without a floor yet.
+  module once it passes). `uv run pytest -q --cov`: coverage with a floor (`[tool.coverage.report] fail_under`):
+  raise it when coverage rises, never lower it to let a change in.
+
+## The command line
+- Every `radar` command runs in a test: `tests/test_cli_smoke.py` (the data folder, market data, the app, portfolios,
+  fundamentals, the A/B test), `test_cli_studies.py` (`sim`, `study`) and `test_cli_propose.py` (`propose`), each
+  invoking the command once on the synthetic world and checking its exit code and a line of output; only network
+  sources, the web server and the browser are stand-ins, so the printers run too. `test_every_command_has_a_test_that_runs_it`
+  fails for a command no test invokes. A `--json` test reads stdout only (`run_json`): progress goes to stderr.
 
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.

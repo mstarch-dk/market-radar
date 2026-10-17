@@ -123,6 +123,7 @@ and which tickers get levels, which regime groups vote and the regime voted with
   holdings bundle's packing/unpacking (`holdings_zip`, `restore_holdings`).
 - `updates.py`: the opt-in daily check of the public repo's latest GitHub release (settings.yaml `updates.repo`).
 - `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).
+- `cli/`: the `radar` command, one module per command group (`data`, `market`, `server`, `portfolios`, `sim`, `study`, `propose`, `fundamentals`, `abtest`), the Typer app in `root.py`, what they share in `common.py` (`job`: a command recorded as an ops job, its progress on stderr so `--json` stays valid JSON on stdout). A command parses its options, calls one function of the module that owns the work and prints the result; rules and lookups live in those modules (e.g. `userstore.save_portfolio` checks kind, mode and that a simulation stays virtual, for the CLI and the API alike).
 
 ## `guide/`
 The user-facing documentation, in Danish: `brugervejledning/` (the user guide, page by page) and `laerebog/` (the textbook: the theory behind every reading, with "Sådan gør radaren" sections that describe the code as it is). Served by `guide.py` and rendered on the app's Guide page. `guide/STIL.md` holds the writing conventions (terms, chapter template, placeholders, links). Shipped publicly like the rest of the app. A user-facing change updates its chapter in the same change; `tests/test_guide.py` checks titles, placeholders, links and anchors.

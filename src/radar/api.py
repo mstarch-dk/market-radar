@@ -20,7 +20,6 @@ from . import (
     home,
     importers,
     mine,
-    money,
     net,
     ops,
     paths,
@@ -886,28 +885,14 @@ def check_transaction(body: TxIn, id: int | None = None) -> dict:
 
 
 def _fee_estimate(row: dict, pc: dict) -> dict | None:
-    """The commission the trade's portfolio schedule gives (None without a schedule or an exchange rate)."""
+    """The commission the trade's portfolio schedule gives (fees.for_trade): your fx rate, else Yahoo's that day."""
     from . import fees
 
-    pid = row["portfolio_id"] or userstore.default_portfolio()
-    p = userstore.get_portfolio(pid) if pid else None
-    if not p or not p.get("fee_schedule"):
-        return None
-    quote = pc.get("currency")
-    quote_dkk = row["fx_rate"] or pc.get("fx")          # DKK per unit of price: yours, else Yahoo's that day
-    day = pd.Timestamp(row["date"])
-
-    def convert(amount: float, ccy: str) -> float | None:
-        if not quote_dkk:
-            return None
-        if ccy == "DKK":
-            return amount / quote_dkk
+    def closes():
         with _lock:
-            fx = universe.fx_to_dkk(market().closes, ccy)
-        rate = money.rate_on(fx, day)
-        return amount * rate / quote_dkk if rate is not None else None
+            return market().closes
 
-    return fees.estimate(p["fee_schedule"], row["symbol"], row["quantity"], row["price"], quote, convert)
+    return fees.for_trade(row, pc.get("currency"), row["fx_rate"] or pc.get("fx"), closes)
 
 
 @app.post("/api/portfolio/transactions", response_model=TxResult)
@@ -986,23 +971,22 @@ def _portfolio_or_404(pid: int) -> dict:
 def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
     import sqlite3
 
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(422, "The portfolio needs a name.")
-    other = userstore.portfolio_by_name(name)
-    if other and other["id"] != pid:
-        raise HTTPException(409, f"There is already a portfolio called {name}.")
     if pid is not None:
-        old = _portfolio_or_404(pid)
-        if old["origin"] == "sim" and body.mode == "real":
-            raise HTTPException(422, "A simulated portfolio stays virtual: its trades never happened.")
-    data = body.model_dump() | {"name": name}
+        _portfolio_or_404(pid)
+    data = body.model_dump()
     if "fee_schedule" not in body.model_fields_set:      # an older client: keep the schedule as it is
         data.pop("fee_schedule")
     try:
         return userstore.get_portfolio(userstore.save_portfolio(data, pid))
-    except (ValueError, sqlite3.IntegrityError) as e:
-        raise HTTPException(422, str(e)) from e
+    except userstore.NameTaken as e:
+        raise HTTPException(409, _sentence(e)) from e
+    except (ValueError, sqlite3.IntegrityError) as e:       # the store's rules (kind, mode, a simulation stays virtual)
+        raise HTTPException(422, _sentence(e)) from e
+
+
+def _sentence(e: Exception) -> str:
+    s = str(e)
+    return s[:1].upper() + s[1:] + ("" if s.endswith(".") else ".")
 
 
 @app.get("/api/portfolios", response_model=list[Portfolio])

@@ -28,3 +28,9 @@ def test_no_usable_rate_is_none(fx):
     if fx is not None:
         fx.index = pd.to_datetime(["2026-10-12"] * len(fx))
     assert money.rate_on(fx, "2026-10-12") is None
+
+
+def test_parse_amount_refuses_what_isnt_a_positive_amount():
+    for bad in ("lots", "-5", "0", ""):
+        with pytest.raises(ValueError):
+            money.parse_amount(bad)
