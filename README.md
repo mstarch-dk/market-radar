@@ -18,6 +18,29 @@ helps you spot:
 > be used for your own, non-commercial purposes. Don't host Market Radar for others or share the downloaded data.
 > See [DATA_LICENSE.md](DATA_LICENSE.md) for what's allowed, source by source.
 
+## About this project
+
+Market Radar is the public version of a market analysis framework by Martin Starch. It asks of every idea:
+is it better than simply owning the world index (MSCI ACWI)? Each copy runs on its owner's computer and
+downloads its own data. What's in it:
+
+- **The analysis engine** (`src/radar/`): data from more than fifteen sources (prices, rates, credit, earnings
+  revisions, sentiment, positioning, fund holdings, financial statements), paced, cached and failing loudly
+  (missing data is shown as missing, never as zero). On top of that come sector, region and theme rotation,
+  momentum leaders per region, a risk-on/risk-off regime model, and returns in DKK per portfolio (TWR and MWR)
+  against ACWI.
+- **Studies that test the method**: the momentum score at every past month-end (information coefficient,
+  quintiles, a holdout, random baskets), an exit rule tested point in time, decades of factor history, and
+  fee-aware basket proposals checked against ACWI and the alternatives.
+- **The app** (`web/`, React + TypeScript), served locally by FastAPI with types generated from the API models.
+- **Claude Code skills** (`.claude/skills/`) for market briefs, research memos, comparisons, a decision journal
+  and basket proposals, built on the radar's own data.
+- **A Danish user guide and textbook** (`guide/`), shown in the app, on the methods and their limits.
+- **Tests** with a synthetic market whose answers are known in advance, upgrade tests for every earlier
+  release's data folder, and CI on Windows, macOS and Linux.
+
+Much of it was written together with Claude (Anthropic's AI).
+
 ---
 
 ## Get started (Windows, Mac or Linux)

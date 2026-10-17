@@ -3,7 +3,11 @@ name: Smoke test
 # The same steps a new user's computer goes through, on Windows, macOS and Linux.
 on:
   push:
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   smoke:

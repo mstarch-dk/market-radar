@@ -226,9 +226,11 @@ Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don'
 `summary.json`.
 
 ## Sharing and releases
-- This repo is private (its history holds personal briefs). `scripts/publish_public.py` exports HEAD without the
-  paths in `publish/exclude.txt`, adds `publish/overlay/` (the public repo's workflows), runs a leak check and
-  commits into a clone of the public repo. Pushing and tagging are manual.
+- The repo is public. Nothing personal is committed: the user's data lives in the data folder, and
+  `scripts/leak_check.py` (installed as a pre-push hook with `--install-hook`) refuses a push whose files or
+  commit messages hold a pattern from the local `notes/leak-patterns.txt` (holdings, account names) or the
+  private git email. `--history` checks every file version ever committed. The history before 0.2 was
+  rewritten once (git filter-repo) to drop an early brief and rank snapshots before the repo went public.
 - `marketing/` holds the Danish brochure; the PDF and its sources are committed, the screenshots are rebuilt.
   `scripts/marketing.py` builds a portable demo copy seeded with a fictional investor, so screenshots never see
   the user's data folder.
@@ -236,8 +238,8 @@ Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don'
   refuses without them, then sets the version. `scripts/release.py fixture` writes a small data folder made by
   that version into `tests/fixtures/homes/` (never changed afterwards), which `tests/test_upgrade.py` opens with
   the current code.
-- A `v*` tag in the public repo builds the release zip (`scripts/build_release_zip.py`) with start scripts for
-  each OS. The public smoke workflow sets up a data folder (a path with a space and "ø"), backs up, restores,
+- A `v*` tag builds the release zip (`scripts/build_release_zip.py`) with start scripts for
+  each OS. The smoke workflow sets up a data folder (a path with a space and "ø"), backs up, restores,
   exports and moves the legacy fixture on all three OSes.
 
 ## Local vs committed
@@ -245,7 +247,7 @@ Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don'
   folders until `radar setup` copies them out; `.gitignore` leaves them out, anchored with `/` so the fixture
   data folders are committed.
 - The monthly brief runs on this machine: a Claude desktop scheduled task runs `/market-brief` on the 1st.
-- CI (`.github/workflows/ci.yml`, left out of the public export) runs the tests and web checks on every pull
+- CI (`.github/workflows/ci.yml`) runs the tests and web checks on every pull
   request and push to main.
 - Line endings are LF (`.gitattributes`), except the `.cmd` start script. The one-off renormalisation commit is in
   `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.

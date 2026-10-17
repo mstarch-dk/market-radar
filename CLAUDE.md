@@ -8,6 +8,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - Adding, removing or changing a data source: update `DATA_LICENSE.md` and the guide chapter `guide/brugervejledning/datalicenser.md` (its terms and what it's used for). Downloaded data is for personal, non-commercial use; never build features that redistribute it.
 - Prefer the proper fix over a workaround. If a better data source or tool would clearly help, propose it.
 - The user's data lives outside the repo, in the data folder (`~/Market Radar`: radar.db, notes, briefs, research, journal, exports, imports, history) and the cache folder (market data, reports); `uv run radar paths` lists them. Never commit or copy them into the repo. A checkout from before the data folder may still hold `data/`, `reports/`, `imports/*`, `notes/`, `userdata/`, `exports/`, `briefs/`, `research/`, `journal/` at its root: gitignored, never commit them.
+- The repo is public: never commit personal data (holdings, account names, briefs, the user's notes). Run `uv run python scripts/leak_check.py --install-hook` once per clone; the hook checks every push.
 - Every file the code writes has a tier in `src/radar/paths.py` (`REGISTRY`): personal, history (can't be downloaded again) or cache. Build paths from `paths` (never from `config.ROOT`); schema and layout migrations are append-only and never delete user data (docs/architecture.md, *Where data lives*).
 
 ## Main commands

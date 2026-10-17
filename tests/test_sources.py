@@ -114,13 +114,13 @@ def test_cot_renamed_columns_fail_instead_of_storing_nothing():
 
 # ---------------- FactSet ----------------
 
-def test_factset_real_report_text():
+def test_factset_report_text():
     r = external.parse_factset([(FIXTURES / "factset_excerpt.txt").read_text(encoding="utf-8")])
-    assert r == {"quarter": "Q3 2026", "growth_now": 29.6, "growth_start": 26.7, "guidance_neg": 44,
-                 "guidance_pos": 72, "fwd_pe": 19.1, "fwd_pe_5y": 19.8, "fwd_pe_10y": 19.1, "cy_next_growth": 15.8,
-                 "rev_up_sectors": "Energy, Information Technology, Financials",
-                 "rev_down_sectors": "Materials, Health Care, Consumer Staples"}
-    # the same text also holds the *trailing* P/E averages (24.4 / 23.6): the forward ones must win
+    assert r == {"quarter": "Q3 2026", "growth_now": 11.4, "growth_start": 9.8, "guidance_neg": 51,
+                 "guidance_pos": 38, "fwd_pe": 21.3, "fwd_pe_5y": 20.1, "fwd_pe_10y": 18.7, "cy_next_growth": 13.5,
+                 "rev_up_sectors": "Utilities, Industrials, Energy",
+                 "rev_down_sectors": "Real Estate, Materials"}
+    # the same text also holds the *trailing* P/E averages (23.9 / 22.4): the forward ones must win
 
 
 def _factset_env(tmp_path, monkeypatch, text):
@@ -136,7 +136,7 @@ def test_update_factset_stores_a_parsed_report(tmp_path, monkeypatch):
     _factset_env(tmp_path, monkeypatch, (FIXTURES / "factset_excerpt.txt").read_text(encoding="utf-8"))
     assert external.update_factset() is not None
     row = external.load_factset().iloc[-1]
-    assert (row["growth_now"], row["growth_start"]) == (29.6, 26.7)
+    assert (row["growth_now"], row["growth_start"]) == (11.4, 9.8)
 
 
 def test_update_factset_reworded_report_fails_and_is_not_stored(tmp_path, monkeypatch):

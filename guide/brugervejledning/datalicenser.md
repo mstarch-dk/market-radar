@@ -45,6 +45,8 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **SKAT**, positivlisten | Positivliste-status | Ja | Ja (offentlige danske data) |
 | **Saxo, Danske Bank**, offentlige prislister (skrevet af i hånden i `config/fee_presets.yaml` med dato og kilde; intet hentes) | Skabeloner til kurtage-estimatet | Ja | Ja, med kilde og dato |
 
+Testdataene i `tests/fixtures/` er små prøver i hver kildes format, så programmets læsere kan testes uden net. Fra de åbne kilder er det beskårne, ægte svar; fra de andre kun en håndfuld tal i kildens opstilling, og al tekst (FactSets rapporttekst, Yahoos virksomhedsbeskrivelser) er opdigtet. De er ikke en kopi af kildernes data og skal ikke bruges som data.
+
 Benchmarket bygger på kurserne for iShares MSCI ACWI-ETF'en fra Yahoo, ikke på MSCI's egne indeksdata. "MSCI" og "ACWI" er MSCI's varemærker. Market Radar er hverken tilknyttet eller godkendt af MSCI eller af nogen anden kilde i tabellen.
 
 ## Praktiske regler for din kopi

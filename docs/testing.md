@@ -12,8 +12,11 @@
   build` type-checks the UI against the generated API schema.
 
 ## Fixtures
-- `tests/fixtures/` holds trimmed copies of real payloads (FRED, OECD, CFTC, FactSet text, Yahoo ticker detail). When
-  a source changes format, fix the parser and refresh its fixture from a real response.
+- `tests/fixtures/` holds small samples in each source's format: trimmed real answers from the open sources (FRED,
+  ECB, OECD, CFTC, SEC EDGAR, Damodaran), and from the others only a few numbers in their layout. A source's prose
+  is never committed: the FactSet excerpt is invented text in the report's wording, and the Yahoo business
+  summaries are placeholders (DATA_LICENSE.md, *Test fixtures*). When a source changes format, fix the parser and
+  refresh its fixture from a real response, trimmed the same way.
 - `tests/world.py` is a small synthetic market whose answers are known in advance (geometric prices, one holding, one
   watchlist name). It is shared by the report, profile and API tests; `world.install()` patches config, caches and
   Yahoo lookups.

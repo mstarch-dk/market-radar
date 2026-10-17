@@ -73,8 +73,8 @@ def test_seed_is_fictional_and_relative():
     patterns = ROOT / "notes" / "leak-patterns.txt"
     if patterns.exists():  # local only: the owner's names, accounts and holdings must not be in the demo
         sys.path.insert(0, str(ROOT / "scripts"))
-        import publish_public
+        import leak_check
 
         text = (MKT / "demo" / "seed.yaml").read_text(encoding="utf-8")
-        hits = [p for p in publish_public.leak_patterns() if p.lower() in text.lower()]
+        hits = [p for p in leak_check.leak_patterns() if p.lower() in text.lower()]
         assert not hits, "the demo seed contains a personal pattern (see notes/leak-patterns.txt)"

@@ -1,10 +1,21 @@
 """The `radar` command: the Typer app, `--version`, `--home`, and the gate before a command touches the data folder."""
+import sys
+
 import typer
 
 app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, regime and holdings signals.")
 
 
 FREE = {"setup", "paths", "serve", "doctor", "openapi", "ticker"}     # run before a data folder is chosen
+
+
+def utf8_console() -> None:
+    """Write UTF-8 to a console or pipe that uses another code page (Windows: cp1252, cp850), so text with → or ø
+    never stops a command. A console that can't show a character shows a substitute instead."""
+    for stream in (sys.stdout, sys.stderr):
+        enc = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if enc != "utf8" and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def _version(value: bool) -> None:
@@ -27,6 +38,7 @@ def _root(ctx: typer.Context,
     from .. import home as homes
     from .. import paths
 
+    utf8_console()
     if home:
         paths.configure(paths.Locations.at(Path(home)), source="option")
     if ctx.invoked_subcommand in FREE:

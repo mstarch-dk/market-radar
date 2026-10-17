@@ -52,6 +52,11 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 | **SKAT** positive list (you download it into `imports/`) | UCITS / positive-list flag | Danish public-sector data. | Yes | Yes |
 | **Saxo, Danske Bank** public price lists (copied by hand into `config/fee_presets.yaml`, dated, nothing downloaded) | Fee presets for estimating a trade's commission | A few published prices, restated as facts with their source. | Yes | Yes, with the source and date |
 
+**Test fixtures** (`tests/fixtures/`): small samples in each source's format, so the parsers can be tested
+offline. From the open sources they are trimmed real answers; from the others only a handful of numbers in
+their layout, and any prose (FactSet's report text, Yahoo's company descriptions) is invented. They are not a
+copy of any source's data and are not meant to be used as data.
+
 **MSCI ACWI**: the radar uses the iShares MSCI ACWI ETF's prices (from Yahoo), not MSCI's index data. "MSCI"
 and "ACWI" are MSCI trademarks. Market Radar is not affiliated with or endorsed by MSCI, nor by any other
 source above.

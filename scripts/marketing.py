@@ -1,6 +1,6 @@
 """Danish marketing material (marketing/) from a demo copy of the app with a fictional portfolio.
 
-The demo runs from its own copy in .demo/: the working tree's tracked and new files minus publish/exclude.txt,
+The demo runs from its own copy in .demo/: the working tree's tracked and new files (never ignored ones),
 in portable mode (.demo/portable.json: its data folder is .demo/home, its market data .demo/cache), with a copy
 of the market data and history and a database filled from marketing/demo/seed.yaml. Your own data folder is
 never read or written, and this computer's remembered data folder is never changed.
@@ -35,7 +35,7 @@ import httpx
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import publish_public as pub  # noqa: E402  (apply_excludes, leak_patterns, leak_check)
+import leak_check as leaks  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / ".demo"
@@ -81,7 +81,7 @@ def server_up(wait: float = 0) -> bool:
 
 def export_worktree(dest: Path) -> None:
     """The working tree as git sees it: tracked and new files, never ignored ones (userdata/, notes/, data/, …).
-    Unlike the public export (HEAD only), this shows work that isn't committed yet."""
+    This shows work that isn't committed yet."""
     out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
                          check=True, capture_output=True).stdout.decode("utf-8")
     for rel in filter(None, out.split("\0")):
@@ -99,7 +99,6 @@ def workspace() -> None:
         shutil.rmtree(DEMO)
     DEMO.mkdir()
     export_worktree(DEMO)
-    pub.apply_excludes(DEMO)
     demo_home()
     run(["uv", "sync", "--directory", str(DEMO)])
     run(["pnpm", "-C", str(DEMO / "web"), "install", "--frozen-lockfile", "--prefer-offline"])
@@ -439,7 +438,7 @@ def check() -> None:
     html = (SITE / "index.html").read_text(encoding="utf-8")
     # the import presets' broker names are features of the app (the brochure lists them), not personal data
     presets = {re.split(r" \(", p["label"])[0] for p in load(ROOT / "src/radar/importers/presets.yaml").values() if "label" in p}
-    hits = pub.leak_check(MKT, [x for x in pub.leak_patterns() if not any(x.lower() == n.lower() for n in presets)])
+    hits = leaks.leak_check(MKT, [x for x in leaks.leak_patterns() if not any(x.lower() == n.lower() for n in presets)])
     problems += [f"leak: {h}" for h in hits]
     used = set(re.findall(r'src="img/([^"]+)"', html))
     have = {p.name for p in IMG.glob("*.png")}

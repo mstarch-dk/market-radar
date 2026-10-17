@@ -5,7 +5,8 @@
 
 Run by hand when a source changed (a failing `pytest -m network`) or a parser gets a new contract test; never in
 CI. Requests go through net.get / net.yf(), so they are paced and recorded like any other. Copies are trimmed to
-a few rows or tickers: enough to pin the format, not a copy of the data (see DATA_LICENSE.md). Commit the file
+a few rows or tickers: enough to pin the format, not a copy of the data (see DATA_LICENSE.md). Replace any prose
+(report text, company descriptions) with invented text in the same wording before committing; commit the file
 with the printed source line in the message.
 """
 from __future__ import annotations

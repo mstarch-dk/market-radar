@@ -4,8 +4,10 @@ code behind each command runs for real, so the printers are exercised too. Comma
 test_cli_studies.py (sim, study), test_cli_propose.py (propose)."""
 from __future__ import annotations
 
+import io
 import json
 import socket
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -212,3 +214,15 @@ def test_every_command_has_a_test_that_runs_it():
     missing = [" ".join(cmd) for cmd in leaves(typer.main.get_command(cli.app))
                if not any(args[:len(cmd)] == cmd for args in invoked)]
     assert not missing, "commands no test runs: " + ", ".join(sorted(missing))
+
+
+def test_a_console_on_another_code_page_gets_utf8(monkeypatch):
+    """Windows consoles and CI runners default to cp1252: text with → must not stop a command (radar doctor did)."""
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", out)
+    from radar.cli.root import utf8_console
+
+    utf8_console()
+    print("Data → cache, ø")
+    out.flush()
+    assert out.buffer.getvalue().decode("utf-8").startswith("Data → cache, ø")

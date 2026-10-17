@@ -133,6 +133,11 @@ Your data now lives apart from the program, so a new version never touches it.
 - `radar report` checks every dashboard section, and each ticker profile, against the models the app reads before
   writing it: a shape the app can't show fails the build naming the field, instead of an error page later. A
   frozen proposal file is checked on freeze and when `review` / `check` read it.
+- **The repository is public** (github.com/mstarch-dk/market-radar). `scripts/leak_check.py` replaces the old
+  export script: it checks the working tree, a commit range or the whole history for personal strings and runs
+  as a pre-push hook. The release and smoke workflows live in `.github/workflows/` with CI. The opt-in check
+  for a new version points at the public repo. Test fixtures hold no prose from paid sources (DATA_LICENSE.md,
+  *Test fixtures*).
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the
 old data). Afterwards you can delete the old program folder.
