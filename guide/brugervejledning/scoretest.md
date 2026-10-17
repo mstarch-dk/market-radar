@@ -76,7 +76,7 @@ Under tabellerne står scorens IC pr. årti, i op- og nedtrend (markedet over el
 
 Derefter følger **basisrater** for momentum, værdi og kvalitet som lang-kort-faktorer: afkast og t-tal over hele historikken og de seneste 10 år, hvor ofte et 6- og et 12-måneders vindue tabte, det største fald og hvor længe det tog at komme tilbage. Det er de tal, en tilt mod momentum eller værdi bør måles mod, når de korte tests ser lovende ud.
 
-Til sidst en grov **måling af survivorship bias**: den bedste femtedels merafkast i `radar study score` (dagens univers) ved siden af det samme for alle amerikanske aktier uden survivorship bias i de samme måneder (Frenchs momentumdeciler), og den nedskrivning, forskellen svarer til, mod den faste nedskrivning på {{settings:propose.survivorship_haircut|pct}} i porteføljeforslagene.
+Til sidst en grov **måling af survivorship bias**: den bedste femtedels merafkast i `radar study score` (dagens univers) ved siden af det samme for alle amerikanske aktier uden survivorship bias i de samme måneder (Frenchs ligevægtede momentumdeciler efter 12-2-måneders afkast: de to bedste deciler mod gennemsnittet af alle ti), og den nedskrivning, forskellen svarer til, mod den faste nedskrivning på {{settings:propose.survivorship_haircut|pct}} i porteføljeforslagene. Målingen er grov: universerne og signalerne er forskellige.
 
 Rapporten hedder `longrun-study.json` i cache-mappens `reports/`. Den har også de **priorer**, porteføljeforslagene trækker deres forventede merafkast mod: for hver hældning og horisont, hvad den bedste tredjedel af aktierne på de samme egenskaber har givet over gennemsnittet i udviklede markeder, uden for USA og i USA siden {{settings:propose.prior.since}}, i alt og pr. trend. Se [Porteføljeforslag](laerebog/portefoeljeforslag#sådan-gør-radaren).
 
@@ -144,7 +144,7 @@ Hver kurv bliver til virtuelle porteføljer med tagget `picks`: *‹navn› · h
 
 `/hindsight` i Claude Code (se [Claude Code-skills](brugervejledning/claude-code#hindsight)) stiller spørgsmålene for dig: hvor langt tilbage, om kurven skal vælges af scoren alene, af scoren og dine markedssyn eller af scoren og Claudes vurdering, hvor mange aktier og hvor spredt. Derefter vælger, kører og beskriver Claude kurven i `research/hindsight/` i datamappen.
 
-Claude kender markedet frem til sin egen vidensgrænse. En kurv valgt af Claude til en dag *før* den grænse kan være påvirket af, hvad Claude ved skete bagefter. Derfor vælger Claude på sådan en dag blindt (aktierne hedder C001, C002 …), og notatet siger, at det ikke helt kan udelukkes. Dage efter grænsen er rene. Dine markedssyn bruges kun, hvis de var oprettet senest på dagen.
+Claude kender markedet frem til sin egen vidensgrænse. En kurv valgt af Claude til en dag *før* den grænse kan være påvirket af, hvad Claude ved skete bagefter. Derfor vælger Claude på sådan en dag blindt (aktierne hedder C001, C002 …), og notatet siger, at det ikke helt kan udelukkes. Dage efter grænsen er rene. Dine markedssyn bruges kun, hvis de var oprettet senest på dagen. Et markedssyn, der er ændret efter dagen, markeres, fordi teksten kan rumme bagklogskab.
 
 ## Papirsporet
 

@@ -1,21 +1,8 @@
-"""Study reports that production code reads, as typed contracts with one loader.
+"""Study reports that production code reads, as typed contracts with one loader: a model per report for the parts
+that are consumed, under a common header (`Header`), written by `write` and read by `load`.
 
-`radar study …` writes JSON reports into the reports cache tier; the proposals act on three of them (the rule
-study's drift, the long-run study's survivorship gauge, the exit studies' run time) and the long-run study reads
-the score study. Each of those has a model here for the parts that are consumed, under a common header:
-
-- `schema_version`: this module's `SCHEMA_VERSION` when it was written. A report from a newer version is refused.
-  A report from before the header (no `schema_version`) is read as version 0: its `generated`, `asof` /
-  `data_asof` and `settings_hash` stand in for the header, and the result says it is `legacy`.
-- `kind`: the report's name (`ARTIFACTS`).
-- `created`: when the study ran (local time, as `generated`).
-- `data_asof`: the last day of data the study saw (prices' last session, or the long histories' last month-end).
-- `rule_hash`: the rule the study tested, where a rule can change under it (the proposal rule's settings hash).
-
-`write` stamps the header and checks the report against its model before anything is written, so a writer can't
-put out a report its readers can't read. `load` returns a `Loaded`: `ok`, `stale` (the report is there but tested
-another rule: its numbers are given, never acted on), `missing` or `invalid`, each with a reason. Never a silent
-fallback: what a reader does without the report is its own, stated choice."""
+The design: docs/architecture.md, *Study reports*.
+"""
 from __future__ import annotations
 
 import json
@@ -41,6 +28,10 @@ class _Open(BaseModel):
 
 
 class Header(_Open):
+    """Every consumed report's header. `schema_version`: `SCHEMA_VERSION` when it was written; `kind`: the
+    report's name (a key of `ARTIFACTS`); `created`: when the study ran (local time, as `generated`); `data_asof`:
+    the last day of data the study saw (prices' last session, or the long histories' last month-end); `rule_hash`:
+    the rule the study tested, where a rule can change under it (the proposal rule's settings hash)."""
     schema_version: int
     kind: str
     created: datetime
@@ -176,6 +167,8 @@ def month_end(month: str) -> str:
 
 
 def _upgrade(raw: dict, name: str) -> dict:
+    """A report from before the header (version 0): its `generated`, `asof` / `data_asof` and `settings_hash`
+    stand in for the header."""
     head = {"schema_version": 0, "kind": name, "created": raw.get("generated"), "data_asof": _asof(raw),
             "rule_hash": raw.get("settings_hash")}
     if isinstance(raw.get("data_asof"), dict):       # the long-run study's last month per dataset, now its own key
@@ -195,7 +188,10 @@ _cache: dict = {}
 
 def load(name: str, *, rule_hash: str | None = None) -> Loaded:
     """The report `name` (a key of `ARTIFACTS`) as its model. `rule_hash`: the rule the reader acts on; a report
-    that tested another one is `stale`. Cached per file version."""
+    that tested another one is `stale` (its numbers are given, never acted on). Otherwise `ok`, `missing` or
+    `invalid` (unreadable, another kind, a newer schema, or not matching the model), each with a reason; a report
+    from before the header is `legacy`. Never a silent fallback: what a reader does without the report is its own,
+    stated choice. Cached per file version."""
     spec = _spec(name)
     f = (REPORTS / spec.file).now()
     try:
@@ -248,7 +244,8 @@ def stamp(name: str, rep: dict, data_asof: str | None, rule_hash: str | None = N
 def write(name: str, rep: dict, *, data_asof: str | None, rule_hash: str | None = None,
           file: str | None = None) -> Path:
     """Stamp, check against the contract, then write `rep` to the reports folder (as `file` when the same contract
-    is written under another name, e.g. score-study-<signal>.json). Raises when the report breaks the contract."""
+    is written under another name, e.g. score-study-<signal>.json). Raises when the report breaks the contract, so a
+    writer can't put out a report its readers can't read."""
     spec = _spec(name)
     text = dumps(stamp(name, rep, data_asof, rule_hash), indent=1)
     try:

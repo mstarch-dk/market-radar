@@ -1,20 +1,8 @@
-"""Hindsight baskets: a basket chosen on a past day D from what the radar knew then, simulated from there, for
-inspiration and as single-date illustrations of the score (the evidence is the rolling study, backtest/study.py).
+"""Hindsight baskets (`radar sim picks`, `/hindsight`): a basket chosen on a past day D from what the radar knew
+then, simulated from there into virtual portfolios (never yours) next to ACWI, the score's own top N and random
+baskets. Single-date illustrations for inspiration; the evidence is the rolling study (backtest/study.py).
 
-- **Candidates** (`candidates`): the stock universe ranked on D (mp.Panels, row D): score, its components,
-  trend, volatility, close. Nothing after D. `blind` replaces tickers and names with C001… (by rank on D, so the
-  same data gives the same ids), for picking on a date before the picker's knowledge cutoff. With `views`, your
-  market views created by D, aligned with prices up to D (a view edited after D is flagged).
-- **Basket** (`run`): one deposit and one buy per pick at the fill session's traded close (`backtest.fill`),
-  paying `backtest.fee_bps`. Three simulated portfolios, so the Returns page shows them next to ACWI:
-  `<name> · hold` (kept), `<name> · exits` (the stop/take-profit rule followed, exits parked in ACWI;
-  exits.replay "rules") and `<name> · control` (the score's own top N with the same caps, equal weights).
-  Picks and settings are stored in the portfolios' params, so `rerun` repeats the same basket on newer prices.
-- **Yardsticks**: ACWI in DKK, the equal-weight universe, and the basket's percentile among random baskets of the
-  same size and caps on the same date (seeded), plus the score check of that date (quintiles and IC up to the
-  end).
-
-Simulated rows only ever go into virtual portfolios: never yours."""
+How to use and read it: guide/brugervejledning/scoretest.md (*En kurv valgt på en dag i fortiden*)."""
 from __future__ import annotations
 
 import re
@@ -82,6 +70,9 @@ ranked = mp.ranked
 
 def candidates(market, asof, blind: bool = False, views: bool = False, top: int | None = None,
                model_cutoff: str | None = None, p: mp.Panels | None = None, fund: bool = False) -> dict:
+    """The stock universe ranked on D (mp.Panels, row D): score, its components, trend, volatility, close; nothing
+    after D. `blind` replaces tickers and names with C001… by rank on D (so the same data gives the same ids), for
+    picking on a date before the picker's knowledge cutoff. `views` adds your market views created by D."""
     p = p or mp.panels(market)
     day, note = resolve_asof(asof, p.sessions, (settings().get("backtest") or {}).get("fill", "next"))
     df = ranked(p, day)
@@ -144,7 +135,8 @@ def _after_cutoff(day: pd.Timestamp, cutoff: str | None) -> bool | None:
 
 
 def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
-    """Your views created by `day`, aligned with prices up to `day` (personal)."""
+    """Your views created by `day`, aligned with prices up to `day` (personal); a view edited after `day` is flagged
+    (`edited_after`), since its text may hold hindsight."""
     from .. import market_views as mv
     from ..signals import views as sv
     from ..universe import region_for
@@ -272,7 +264,11 @@ def _ret(c: pd.DataFrame, t: str, f, e) -> float | None:
 def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_000.0, meta: dict | None = None,
         end=None, model_cutoff: str | None = None, tags=(), write: bool = True, p: mp.Panels | None = None) -> dict:
     """Simulate a basket picked on `asof` (picks by ticker or blind id; None = the score's own top N from `meta`)
-    into three simulated portfolios, and build the report (reports/sim-picks/<slug>.json)."""
+    into three simulated portfolios, and build the report (reports/sim-picks/<slug>.json). One deposit and one buy
+    per pick at the fill session's traded close (`backtest.fill`), paying `backtest.fee_bps`: `<name> · hold` (kept),
+    `<name> · exits` (the stop/take-profit rule followed, exits parked; exits.replay "rules") and `<name> · control`
+    (the score's own top N with the same caps, equal weights). The picks and settings go into the portfolios' params,
+    so `rerun` repeats the same basket."""
     meta = dict(meta or {})
     bt = settings().get("backtest") or {}
     fee = money.fee_bps(bt)
@@ -381,6 +377,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
 
 
 def _seed(day: pd.Timestamp, n: int) -> int:
+    """The random baskets' seed: fixed by the date and the basket's size, so a rerun draws the same baskets."""
     return int(day.strftime("%Y%m%d")) * 100 + n
 
 

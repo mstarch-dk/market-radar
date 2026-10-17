@@ -1,7 +1,13 @@
+"""The discovery universe's sources offline: index holdings files, Yahoo screener paging and sector screens,
+iShares holdings over HTTP."""
+from datetime import date
+
 import pandas as pd
 import pytest
 
 from conftest import FIXTURES
+from fakes import Resp, serve
+from radar import net
 from radar.discovery import sources
 
 FX = {"DKK": 1.0, "EUR": 7.46, "USD": 6.5, "GBP": 8.6, "CHF": 8.0, "SEK": 0.65}
@@ -153,7 +159,6 @@ def test_isin_lookups_stop_when_yahoo_keeps_refusing(monkeypatch):
 
 
 def test_an_unresolved_isin_is_searched_again_after_a_while():
-    from datetime import date
 
     import pandas as pd
 
@@ -170,3 +175,127 @@ def test_an_unresolved_isin_is_searched_again_after_a_while():
     row = out[out["isin"] == "IE0000000001"].iloc[-1]
     assert row["symbol"] == "XYZ.DE" and row["searched"] == "2026-10-15"
     assert (out["isin"] == "IE0000000001").sum() == 1      # replaced, not duplicated
+
+
+# ---------------- Yahoo screener ----------------
+
+class FakeScreener:
+    """yfinance's EquityQuery + screen: a query is kept as nested tuples; `screen` answers from `pages(query,
+    offset, size)` and records (query, offset, size)."""
+
+    def __init__(self, pages):
+        self.pages, self.calls = pages, []
+
+    def EquityQuery(self, op, args):  # noqa: N802 (yfinance's name)
+        return (op, tuple(args))
+
+    def screen(self, query, size, offset, sortField, sortAsc):  # noqa: N803
+        self.calls.append((query, offset, size))
+        return self.pages(query, offset, size)
+
+
+def _install(monkeypatch, pages) -> FakeScreener:
+    fake = FakeScreener(pages)
+    monkeypatch.setattr(net, "yf", lambda: fake)
+    return fake
+
+
+def _quotes(n):
+    return [{"symbol": f"S{i}"} for i in range(n)]
+
+
+def _paged(all_quotes, total=True):
+    def pages(query, offset, size):
+        res = {"quotes": all_quotes[offset:offset + size]}
+        return res | ({"total": len(all_quotes)} if total else {})
+    return pages
+
+
+def test_screener_pages_are_followed_until_the_last_short_page(monkeypatch):
+    fake = _install(monkeypatch, _paged(_quotes(5)))
+    out = sources.screen_exchange("CPH", page=2)
+    assert [q["symbol"] for q in out] == ["S0", "S1", "S2", "S3", "S4"]
+    assert [c[1] for c in fake.calls] == [0, 2, 4]
+
+
+def test_screener_stops_when_total_is_reached_without_asking_for_an_empty_page(monkeypatch):
+    fake = _install(monkeypatch, _paged(_quotes(4)))
+    assert len(sources.screen_exchange("CPH", page=2)) == 4
+    assert [c[1] for c in fake.calls] == [0, 2]
+
+
+def test_screener_without_a_total_still_reads_every_page(monkeypatch):
+    _install(monkeypatch, _paged(_quotes(5), total=False))
+    assert len(sources.screen_exchange("CPH", page=2)) == 5
+
+
+def test_screener_stops_at_the_limit_even_when_yahoo_has_more(monkeypatch):
+    fake = _install(monkeypatch, _paged(_quotes(10)))
+    assert len(sources.screen_exchange("CPH", page=2, limit=4)) == 4     # the cap is a hard stop
+    assert len(fake.calls) == 2
+
+
+def test_screener_query_asks_for_the_exchange_above_min_cap_and_the_sector(monkeypatch):
+    fake = _install(monkeypatch, _paged(_quotes(1)))
+    sources.screen_exchange("STO", min_cap=3e8, sector="Energy")
+    query = fake.calls[0][0]
+    assert query == ("and", (("eq", ("exchange", "STO")), ("gt", ("intradaymarketcap", 3e8)),
+                             ("eq", ("sector", "Energy"))))
+
+
+def test_screener_waits_and_retries_when_yahoo_throttles(monkeypatch):
+    answers = [RuntimeError("Too Many Requests"), {"quotes": _quotes(1), "total": 1}]
+
+    def pages(query, offset, size):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
+    _install(monkeypatch, pages)
+    waits = []
+    monkeypatch.setattr("time.sleep", waits.append)
+    assert len(sources.screen_exchange("CPH")) == 1 and waits == [20.0]
+
+
+def test_sector_screen_maps_each_symbol_to_the_sector_it_was_found_under(monkeypatch):
+    found = {("CPH", "Energy"): ["ORSTED.CO"], ("STO", "Technology"): ["ERIC-B.ST"],
+             ("CPH", "Healthcare"): ["NOVO-B.CO"]}
+
+    def pages(query, offset, size):
+        parts = dict((a[0], a[1]) for op, a in query[1] if op == "eq")
+        syms = found.get((parts["exchange"], parts["sector"]), [])
+        return {"quotes": [{"symbol": s} for s in syms], "total": len(syms)}
+    fake = _install(monkeypatch, pages)
+    out = sources.screen_sectors(["CPH", "STO"], min_cap=1e8)
+    assert out == {"ORSTED.CO": "Energy", "ERIC-B.ST": "Technology", "NOVO-B.CO": "Healthcare"}
+    assert len(fake.calls) == 2 * len(sources.SECTORS)                 # one call per exchange and sector
+    assert all(c[0][1][1] == ("gt", ("intradaymarketcap", 1e8)) for c in fake.calls)
+
+
+# ---------------- iShares holdings over HTTP ----------------
+
+BOM = b"\xef\xbb\xbf"
+
+
+@pytest.mark.parametrize("key, file, minimum, symbol", [
+    ("stoxx600", "ishares_exsa_holdings.csv", 30, "ASML.AS"),
+    ("sp500", "ishares_cspx_holdings.csv", 5, "NVDA"),
+])
+def test_index_holdings_with_a_byte_order_mark_parse(monkeypatch, key, file, minimum, symbol):
+    url, _, what = sources.INDEXES[key]
+    monkeypatch.setitem(sources.INDEXES, key, (url, minimum, what))      # the fixtures are trimmed
+    calls = serve(monkeypatch, {"ishares": Resp(content=BOM + (FIXTURES / file).read_bytes())})
+    df = sources.fetch_index(key)
+    assert symbol in set(df["ticker"]) and calls == [url]
+
+
+def test_index_holdings_file_shorter_than_the_index_raises(monkeypatch):
+    serve(monkeypatch, {"ishares": Resp(content=BOM + (FIXTURES / "ishares_exsa_holdings.csv").read_bytes())})
+    with pytest.raises(ValueError, match="only .* STOXX 600"):
+        sources.fetch_index("stoxx600")                                  # 46 rows < 550
+
+
+def test_index_holdings_http_error_raises(monkeypatch):
+    serve(monkeypatch, {"ishares": Resp(404)})
+    with pytest.raises(Exception, match="404"):
+        sources.fetch_index("sp500")

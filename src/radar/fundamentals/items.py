@@ -1,18 +1,7 @@
 """The canonical items read from financial statements, and where each one is found in each source.
 
-One item can be reported under several names: a company switches XBRL tag (revenue moved from `SalesRevenueNet` to
-`RevenueFromContractWithCustomer…` with ASC 606 in 2018), and Yahoo's rows differ between companies. Each source
-lists its names in order of preference; the first that has a value for a period is used for that period, and the
-name used is stored with the value (`tag`).
-
-An EDGAR recipe is a tuple of tags summed for the same period and filing: ("LongTermDebtCurrent",
-"ShortTermBorrowings") adds the two when a company doesn't report total current debt; a tag the company doesn't
-use counts as nothing to add. A recipe applies to a period when its first tag has it, and of those the one that
-finds the most of its tags wins (on a tie, the earlier one).
-
-`flow` items cover a period (revenue in a quarter or a year); the others are balances on a day (assets). Yahoo
-reports cash going out (capex, dividends, buybacks) as negative numbers; they are stored as positive amounts
-(`outflow`).
+`ITEMS` lists each item with its names in EDGAR (us-gaap tag recipes) and in Yahoo's statement rows, in order of
+preference; `Item` says how they are chosen. The fact store that holds the values: fundamentals/store.py.
 """
 from __future__ import annotations
 
@@ -21,6 +10,18 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Item:
+    """One item and its names per source. An item can be reported under several names: a company switches XBRL tag
+    (revenue moved from `SalesRevenueNet` to `RevenueFromContractWithCustomer…` with ASC 606 in 2018), and Yahoo's
+    rows differ between companies. The first name that has a value for a period is used for that period, and the
+    name used is stored with the value (`tag`).
+
+    An EDGAR recipe is a tuple of tags summed for the same period and filing: ("LongTermDebtCurrent",
+    "ShortTermBorrowings") adds the two when a company doesn't report total current debt; a tag the company doesn't
+    use counts as nothing to add. A recipe applies to a period when its first tag has it, and of those the one that
+    finds the most of its tags wins (on a tie, the earlier one; edgar.parse_companyfacts). `flow` items cover a
+    period (revenue in a quarter or a year); the others are balances on a day (assets). Yahoo reports cash going out
+    (capex, dividends, buybacks) as negative numbers; they are stored as positive amounts (`outflow`)."""
+
     key: str
     flow: bool                                   # a period's amount (True) or a balance on a day (False)
     edgar: tuple[tuple[str, ...], ...] = ()      # recipes of us-gaap (or dei:) tags, in order of preference

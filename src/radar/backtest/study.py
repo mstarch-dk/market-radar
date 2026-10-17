@@ -1,40 +1,9 @@
-"""How well the momentum score ranked stocks on past days, judged on the returns that followed: the evidence for
-(or against) the score, and a fair test of variants that might improve it. `radar study score` writes
-reports/score-study.json.
+"""How well the momentum score (with `signal=`, the kvalitets- and værdiscore) ranked stocks at every past month-end,
+judged on the returns that followed: the evidence for the score and a fair test of variants that might improve it
+(`radar study score` writes reports/score-study.json). The exit rule's variants are backtest/exit_rules.py,
+redeploying the exit money backtest/redeploy.py.
 
-- **Formation dates**: the last session of each completed month on the benchmark calendar. On each date D the
-  score and every variant are computed from prices up to D only (momentum.metrics_panel, row D, as pit.py).
-- **Forward return** over H ∈ {1, 3, 6, 12} months (21/63/126/252 sessions): adjusted close from the fill session
-  (`backtest.fill`: the session after D, or D itself) to H sessions later, in the listing's currency. It is
-  judged as **excess over the equal-weight universe** on the same date, so a market that rose or fell for every
-  stock doesn't count for or against the score. A name without a forward return is left out and counted, never
-  counted as 0. Top-N baskets are also given in DKK against ACWI in DKK.
-- **Per date and horizon**: Spearman rank correlation (IC) between the variant and the forward return, the
-  mean excess return per quintile, the top-quintile minus bottom-quintile spread, and the top N's excess return
-  and hit rate (the share that beat the universe). A date needs `backtest.study_min_names` ranked names.
-- **Across dates**: means with Newey-West t-statistics (lag H−1 months: monthly dates with longer horizons
-  overlap, so neighbouring months are not independent), the share of dates with IC > 0, splits by year, by
-  regime on D (pit.Context.regime), by stock group, and in-sample against the holdout
-  (`backtest.study_holdout_from` on).
-- **Variants**: the score's components alone and a few published alternatives (VARIANTS). The production score
-  is the baseline. A variant counts as an improvement only when it beats the baseline in-sample **and** in the
-  holdout, with a holdout IC t-statistic above 2; the report says how many were tried, since some will look
-  better by chance.
-- **The exit rule over many dates** (`exits=H`): each date's top-N basket (production score, equal weights,
-  fees) held for H against the same buys with the stop/take-profit rule (both halves, stop only, take-profit
-  only; backtest/exits.py, rule exits parked in ACWI), in DKK.
-- **Elsewhere**: the exit rule's variants on return and risk are backtest/exit_rules.py (`radar study exits`),
-  redeploying the exit money instead of parking it is backtest/redeploy.py (`radar study redeploy`).
-
-- **Other signals** (`signal=`, SIGNALS): the kvalitetsscore, værdiscore and K+V on US stocks from SEC EDGAR
-  (backtest/fund.py: the live scoring code on the facts known by D), with their pillars, single metrics and a few
-  published combinations as variants, the same statistics and verdict rule, their own report file
-  (`score-study-<signal>.json`), and each date's rank correlation with the momentum score.
-
-What it can't fix: the universe is today's (S&P 500 constituents and curated lists), so names that left it are
-missing; that flatters momentum, whose winners are the ones that get added. Sectors are today's (the
-sector-neutral variant says so). Adjusted prices are rewritten after each dividend, which moves levels but
-barely moves returns."""
+The method: guide/laerebog/test-af-scoren.md; the data rules: docs/data-conventions.md, *Point-in-time backtests*."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -299,6 +268,12 @@ def forward(p: Panels, fi: int, h: int, dkk: bool = False) -> pd.Series | None:
 def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top: int = 15, exits: int | None = None,
         seasoned: bool = False, since=None, with_regime: bool = True, log=lambda *_: None, p: Panels | None = None,
         signal: str = "momentum") -> dict:
+    """The study at every month-end D on the benchmark calendar: each variant from prices up to D only
+    (momentum.metrics_panel, row D, as pit.py), judged on the adjusted return from the fill session over H sessions in
+    the listing's currency, as excess over the equal-weight universe on D (the top N also in DKK against ACWI). A name
+    without a forward return is left out and counted, never 0. Across dates: means with Newey-West t (lag H−1 months),
+    the splits and each variant's verdict against the baseline. A fundamental signal (`signal=`) scores the facts
+    known by D with backtest/fund.py and writes score-study-<signal>.json; `exits=H` adds exit_study."""
     if signal not in SIGNALS:
         raise ValueError(f"unknown signal {signal} (known: {', '.join(SIGNALS)})")
     sig = SIGNALS[signal]

@@ -1,21 +1,8 @@
-"""Your own stateful data, kept in radar.db in the data folder (SQLite; paths.py says where; never committed).
+"""Your own stateful data in radar.db in the data folder (SQLite; never committed): portfolios (real and virtual,
+with tags), transactions (the source of truth), imports, sim_runs, symbol_map, watchlist edits, meta and market
+views. It is the one place that decides which portfolios count as yours.
 
-- **transactions**: every buy and sell (and cash row), the source of truth for the portfolios. Positions and average costs are
-  derived from them (trades.holdings). Each row records where it came from (manual entry or an import).
-- **imports**: one row per import run, so an import can be undone as a whole.
-- **portfolios**: real ones (your accounts, e.g. ASK and frie midler) and virtual ones (simulations, A/B
-  tests), each with a tax kind and free-form **portfolio_tags**. Every transaction belongs to one; only real
-  portfolios count as "yours" unless others are chosen explicitly (portfolio_ids). **sim_runs** records
-  simulated runs.
-- **symbol_map**: broker identifiers (ISIN, names) the user has matched to Yahoo symbols, reused next time.
-- **watchlist**: edits made in the app, an overlay on the watchlist ('add' / 'remove').
-- **meta**: small key/value facts (e.g. the Yahoo watchlist from the last Yahoo import).
-- **views**, **view_exposures**, **view_indicators**: your market views (subjective beliefs), what each helps or
-  hurts, and which readings would confirm it (signals/views.py).
-
-Schema changes are new entries in MIGRATIONS, never edits to old ones (a tuple of statements runs as one unit,
-for rebuilding a table). A copy of the database is kept in
-backups/ before every import and every undo (backup.py makes the full backups).
+The rules: docs/data-conventions.md, *Your portfolios*; the migrations: docs/architecture.md, *Where data lives*.
 """
 from __future__ import annotations
 
@@ -32,6 +19,8 @@ from . import backups
 
 DB_NAME = "radar.db"
 
+# Append-only: a schema change is a new entry, never an edit to an old one. A tuple of statements runs as one unit
+# (for rebuilding a table); see _migrate.
 MIGRATIONS = [
     """CREATE TABLE watchlist (
          symbol TEXT PRIMARY KEY,

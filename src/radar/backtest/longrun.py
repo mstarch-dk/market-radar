@@ -1,30 +1,10 @@
-"""The momentum score's rule tested over decades, on portfolios with no survivorship bias: `radar study longrun`
-writes reports/longrun-study.json.
+"""The momentum score's rule tested over decades, on monthly panels of US industries and developed-market countries
+with no survivorship bias (factors.py): `radar study longrun` writes reports/longrun-study.json, with the factors'
+base rates, the survivorship gauge and the proposals' long-run priors. What carries over is the rule, not a figure.
 
-`radar study score` ranks today's stocks, so it has about five years of month-ends and names that left the
-universe are missing. This study asks the same question of long monthly histories built by researchers from every
-listed stock at the time (factors.py): US industries since 1926 (Fama-French 49) and developed-market countries
-since 1986 (JKP). These are cross-sections of industries and countries, not of stocks: what carries over is the
-rule (which lookbacks, which weights), the base rates and the rotation idea, not a stock-level figure.
-
-- **Formation dates**: every month-end with `min_names` ranked members. On date t the score and its variants use
-  returns up to t only; the forward return is the compounded return over months t+1..t+H. A member without a
-  return in a window has no value there (missing, never 0).
-- **The score**: as in production (momentum.py) on months instead of sessions: the mean percentile of the 12-1
-  (months t-11..t-1), 6- and 3-month returns. Variants change the components and their weights; the verdict rule is
-  `radar study score`'s (better in-sample and in the holdout, holdout IC t above 2), and the number tried is given.
-- **Statistics**: study.cross_section and study.summarize unchanged (IC, quintiles, top N excess over the panel's
-  equal weight, Newey-West t with lag H-1), plus the effective number of independent periods (dates / H). The
-  top N is also given against the panel's market (the US market, or JKP's world market) and in DKK (DEXDNUS).
-- **Splits**: in-sample against the holdout (`longrun.holdout_from`), by decade, by the market's trend on t (above
-  or below its 10-month average) and by US recession months (NBER, FRED USREC; dated after the fact, so a label
-  for the split, never an input).
-- **Base rates** for the tilts: the long-short momentum, value and quality factors (French, JKP) over their full
-  history: return, volatility, t, the share of 6- and 12-month windows that lost, the worst drawdown and how long
-  it took to recover, and the last ten years against the rest.
-- **Survivorship gauge**: `radar study score`'s top-quintile excess (today's universe) next to the survivorship-
-  free top two momentum deciles of all US stocks (French, 12-2 months, equal-weighted) in the same months. A rough
-  gauge: different universes and signals.
+The method: guide/brugervejledning/scoretest.md (*Testen over årtier*) and guide/laerebog/statistik.md (*Lange
+serier uden survivorship bias*); the data rules (windows on months, DKK, recessions): docs/data-conventions.md,
+*Long histories*.
 """
 from __future__ import annotations
 
@@ -168,6 +148,11 @@ def _eff(summary: dict | None, h: int) -> dict | None:
 
 
 def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=None, log=lambda *_: None) -> dict:
+    """The score and its variants on every month-end with `min_names` ranked members, from returns up to that month
+    only, judged on the compounded return over the next H months. The statistics are study.cross_section and
+    study.summarize unchanged (top N excess over the panel's equal weight), plus the effective number of independent
+    periods (dates / H), the top N against the panel's market and in DKK, and the splits (holdout, decade, the
+    market's trend, US recessions)."""
     cfg = _cfg()
     horizons = [int(h) for h in (horizons or cfg.get("horizons", [1, 3, 6, 12]))]
     holdout = pd.Timestamp(cfg["holdout_from"]) if cfg.get("holdout_from") else None

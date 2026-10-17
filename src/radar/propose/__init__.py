@@ -1,31 +1,7 @@
-"""Proposals: a fee-aware basket of new stocks for one of your portfolios, tested against the alternatives
-(`radar propose`, the /propose-portfolio skill). Analysis, not advice.
-
-- **Context**: the portfolio, its fee schedule (fees.SimFees), its holdings valued in DKK today, and your whole real
-  book (every real portfolio) for overlap and the position limit. ACWI's own sector, region and currency weights
-  come from the iShares MSCI ACWI UCITS holdings file (constituents.acwi_holdings); without it the active weights are
-  unknown and said so.
-- **Gates**: a name is left out, and listed with why, when it has no score the tilt needs, no DKK rate, a stale
-  price, a short history, thin trading, a share price above the ticket, or (tilts led by momentum) no uptrend.
-- **Score** (`score`): the proposal score is a weighted mean of percentiles in the gated pool (the momentum score
-  and K+V, by the tilt's pre-registered weights in settings.yaml `propose.tilts`) less penalties for volatility,
-  a one-month spike and correlation with the portfolio. The weights are part of the rule the rule study tests
-  (backtest/propose_study.py); changing them makes the study stale.
-- **Selection** (`select`): greedy by score under caps on the portfolio *after* the addition: active weight vs
-  ACWI by sector, region and currency (a bucket's first name is always allowed: one ticket is not a pile-up),
-  new names per sector, a correlation cap against the picks and the holdings, and a position limit against your
-  whole real book.
-- **Sizing** (`size`): at least `min_ticket_dkk` per name, equal or inverse-volatility weights, whole shares, the
-  portfolio's broker schedule with its FX surcharge, and an estimated half-spread by liquidity. Leftover cash
-  goes to the ETF filler (ACWI UCITS; on an aktiesparekonto only if it is on the positive list) or stays cash.
-- **Evaluation** (`evaluate`): exposures before → after, risk from a shrunk covariance of weekly DKK returns,
-  the drawdown three ways (the rule study's realised drawdowns, a vol-scaled block bootstrap, historical stress
-  windows), the expected excess over ACWI from the rule study only, the alternatives A0-A6 on the same metrics,
-  and the pre-committed decision rule.
-- **Follow-up**: `shadow` (virtual copies: the proposal, ACWI and the rule-only basket), `review` (how past
-  proposals did against their model) and `check` (each pick's exit criteria today).
-
-Missing is missing: a number that can't be computed is None with a note, never 0.
+"""Proposals: a fee-aware basket of new stocks for one of your portfolios, tested against ACWI and the alternatives
+(`radar propose`, the /propose-portfolio skill). Analysis, not advice; a number that can't be computed is None with
+a note, never 0. The method: guide/laerebog/portefoeljeforslag.md (*Sådan gør radaren*); the steps as you meet
+them: guide/brugervejledning/claude-code.md (*/propose-portfolio*).
 
 The package, in the order they build on each other: `rules`, `pricing`, `exposure`, `basket`, `riskmodel`,
 `drift`, `draft`, `evaluation`, `store`. Every public name is re-exported here: callers use `propose.<name>`."""

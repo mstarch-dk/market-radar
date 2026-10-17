@@ -1,22 +1,9 @@
-"""Portfolio returns over time, in DKK, against ACWI: a value series per portfolio, its time-weighted return
-(TWR: the investments' own performance, independent of when money came in) and money-weighted return (MWR /
-XIRR: what your actual timing earned), and the same for ACWI given the same cash flows. Used for comparing
-real and virtual portfolios (A/B tests) on equal terms.
+"""Portfolio returns over time, in DKK, against ACWI: a value series per portfolio, its time-weighted (TWR) and
+money-weighted (MWR / XIRR) return, and ACWI with the same cash flows, for real and virtual portfolios (A/B tests)
+alike.
 
-Conventions (docs/data-conventions.md):
-- **Calendar**: the benchmark's sessions. A row on a non-trading day counts on the next session.
-- **Value**: holdings in DKK at each close (+ cash when the portfolio keeps a cash ledger). With the default
-  dividend policy `reinvested`, holdings are valued on adjusted closes with each lot's shares scaled by
-  adjusted/traded close on its trade date (as mine._vs_shadow), so dividends count as reinvested and DIVIDEND
-  rows are ignored (they'd be counted twice). With `cash`, traded closes are used and DIVIDEND rows add cash.
-- **Funding**: `ledger` when the portfolio has DEPOSIT/WITHDRAW rows: value = holdings + cash, and only
-  deposits and withdrawals are external flows. `implicit` otherwise: every buy is new money and every sale or
-  income is money taken out (the per-holding shadow method on My holdings).
-- **TWR**: inflows count at the start of a day and outflows at its end: r = (V + out) / (V_prev + in) − 1,
-  chained into an index (100 before the first day). A day without capital, or with a held symbol's price or
-  DKK rate missing, is a gap (None), never 0; the return across a gap is chained from the last valid value.
-- **Benchmark**: ACWI in DKK, from the close of the first day; "same flows into ACWI" buys and sells ACWI
-  units with the external flows at each day's close.
+The method: guide/laerebog/twr-og-mwr.md; the conventions (calendar, funding, dividends, gaps):
+docs/data-conventions.md, *Returns over time*.
 """
 from __future__ import annotations
 

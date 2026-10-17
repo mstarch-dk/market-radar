@@ -1,25 +1,8 @@
 """The fact store: statement values from SEC EDGAR and Yahoo in one long format, and the period arithmetic on top.
 
-One row per value as a source reported it:
-
-    ticker, source (edgar | yahoo), item (items.py), start, end, value, currency, form, fp, filed, known,
-    fetched, tag, accn, assumed
-
-`start` is the first day of a flow's period (EDGAR only; Yahoo gives the period's end and its kind in `fp`: FY, Q
-or TTM). `known` is the first day the radar could have known the value: for EDGAR the filing date plus a day; for
-Yahoo the first day a fetch saw it. Values fetched from Yahoo the first time a ticker is fetched get an assumed
-date (`assumed`), since Yahoo doesn't say when they were published; those never feed a test on past data.
-
-A value that is restated is kept twice (two `filed` dates), so the arithmetic below can be done as it was known
-on any day: every function takes `known_by` (None: everything known now). Live scores and the point-in-time study
-call the same functions.
-
-TTM (the last twelve months) of a flow, from the latest period end that has one:
-- EDGAR: the fiscal year when it ends there; else the year to date plus the last fiscal year minus the same
-  period a year earlier (10-Q cash flows are reported year to date, and there is no Q4 10-Q). A missing piece
-  gives no TTM from that end (never a sum of mismatched periods).
-- Yahoo: four consecutive quarters summed; else Yahoo's own trailing column (half-year reporters); else the year.
-The basis is kept with the value. Missing is None, never 0.
+Every function takes `known_by`, so the same arithmetic gives the live scores and the point-in-time study. Where
+the data comes from: guide/brugervejledning/data-og-daekning.md (Regnskaber); how the scores use it (TTM, market
+value): guide/laerebog/kvalitetsscore.md.
 """
 from __future__ import annotations
 
@@ -35,6 +18,11 @@ from .items import BY_KEY
 EDGAR_FILE = CACHE / "fundamentals" / "edgar.parquet"       # can be fetched again from SEC: cache
 YAHOO_FILE = HISTORY / "fundamentals" / "yahoo.parquet"     # Yahoo keeps ~4 years: what scrolls out is history
 
+# One row per value as a source reported it. `start` is the first day of a flow's period (EDGAR only; Yahoo gives
+# the period's end and its kind in `fp`: FY, Q or TTM). `known` is the first day the radar could have known the
+# value: for EDGAR the filing date plus a day; for Yahoo the first day a fetch saw it, or an assumed date (`assumed`)
+# for values seen in a ticker's first fetch, since Yahoo doesn't say when they were published; those never feed a
+# test on past data. `tag` is the source's name for the item (items.py), `accn` EDGAR's filing number.
 COLS = ["ticker", "source", "item", "start", "end", "value", "currency", "form", "fp", "filed", "known", "fetched",
         "tag", "accn", "assumed"]
 DATES = ("start", "end", "filed", "known", "fetched")
@@ -82,7 +70,8 @@ def save(df: pd.DataFrame, path) -> None:
 # ---------------- point in time ----------------
 
 def as_known(df: pd.DataFrame, known_by: date | pd.Timestamp | None = None) -> pd.DataFrame:
-    """The latest version of each value known by `known_by` (None: now): a restatement filed later doesn't count."""
+    """The latest version of each value known by `known_by` (None: now): a restatement filed later doesn't count.
+    A restated value is kept twice in the store (two `filed` dates), so any day's view can be rebuilt."""
     if df.empty:
         return df
     if known_by is not None:
@@ -168,6 +157,9 @@ def _near(a: pd.Timestamp, b: pd.Timestamp, days: int) -> bool:
 
 
 def _edgar_ttm(rows: list[Row]) -> Value | None:
+    """From the latest period end that gives one: the fiscal year when it ends there; else the year to date plus the
+    last fiscal year minus the same period a year earlier (10-Q cash flows are reported year to date, and there is
+    no Q4 10-Q). A missing piece gives no TTM from that end, never a sum of mismatched periods."""
     rows = [r for r in rows if r.kind]
     if not rows:
         return None
@@ -191,6 +183,8 @@ def _edgar_ttm(rows: list[Row]) -> Value | None:
 
 
 def _yahoo_ttm(rows: list[Row]) -> Value | None:
+    """Four consecutive quarters summed; else Yahoo's own trailing column (half-year reporters); else the year.
+    The latest period end wins."""
     cands: list[tuple[pd.Timestamp, int, Value]] = []
     q = [r for r in rows if r.fp == "Q"][-4:]
     if len(q) == 4 and all(80 <= (b.end - a.end).days <= 100 for a, b in zip(q, q[1:])):
@@ -208,7 +202,8 @@ def _yahoo_ttm(rows: list[Row]) -> Value | None:
 
 def ttm(facts, item: str, known_by=None) -> Value | None:
     """The last twelve months of a flow item for one ticker's facts (one source; a frame or a View), or None. A
-    share count (the period's weighted average) doesn't add up over quarters: its latest period's value is used."""
+    share count (the period's weighted average) doesn't add up over quarters: its latest period's value is used.
+    The basis (`Value.basis`) is kept with the value; missing is None, never 0."""
     v = view(facts, known_by)
     rows = v.rows(item)
     if not rows:

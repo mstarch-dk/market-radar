@@ -1,19 +1,8 @@
-"""The one network layer: every external request goes through here, so each one is rate-limited per host, recorded in
-the operations log (ops.py) and, for plain HTTP, retried by one policy.
+"""The one network layer: every external request goes through here, so each one is paced per host, recorded in the
+operations log (ops.py) and, for plain HTTP, retried by one policy; `install_yfinance` routes yfinance through it too.
+The limits are in settings.yaml `network`.
 
-- **Per-host limits** (settings.yaml `network.hosts`, glob patterns, first match wins, else `network.default`): a token
-  bucket (`rate` requests a second, `burst`) and a cap on parallel requests (`concurrency`). Hosts matching the same
-  pattern share them (all of Yahoo's hosts are one budget).
-- **Retry** (`get` only): 429, 5xx, timeouts and connection errors are retried with exponential backoff and jitter,
-  obeying `Retry-After`; anything else (404, a parse error later) is not retried, it fails loudly.
-- **Cooldown**: `trip` 429s from a host within `window_min` minutes pause it for `cooldown_min` minutes, doubling per
-  repeat (`strikes`, reset after a quiet day) up to `max_cooldown_min`. While paused, requests fail at once with
-  `Throttled`, so the step keeps its cached data. The pause is stored in ops.db, so the CLI and the server share it.
-- **Budget**: a soft daily request count per pattern (`budget`); going over is a warning event, never a block.
-- yfinance: `install_yfinance()` makes yfinance's one shared session (`YfData`) a recording, rate-limited session.
-  yfinance does its own retries; we only see, pace and pause.
-
-The User-Agent says what we are; we don't rotate identities or use proxies to get around limits.
+The rules: docs/data-conventions.md, *External requests and the operations log*.
 """
 from __future__ import annotations
 

@@ -1,18 +1,8 @@
-"""Virtual portfolios for A/B tests and simulations.
+"""Virtual portfolios for A/B tests and simulations: `fork` copies a portfolio as it stood on a day, and `write_run`
+is the one interface simulations (a `Strategy`, e.g. backtest/exits.py) write their rows through. Simulated trades
+never count as yours: they only go into virtual portfolios.
 
-- **fork**: copy a portfolio as it stood at the close of a day into a new virtual one (one deposit, one buy per
-  holding at that day's traded close and DKK rate), so the two can be compared from there on equal terms
-  (/api/portfolios/compare with start = that day). The copy holds the same shares and cash; dividends the
-  original earned before that day stay with the original, so its value can be a little higher. The copy's buys
-  pay no fee (they copy holdings, not trades); the fork takes over the source's broker fee schedule, so the trades
-  you make in it later pay what the source's broker would charge (fees.SimFees; without one, `backtest.fee_bps`),
-  and its params record which (`fee_model`).
-- **simulations**: a `Strategy` turns prices into rows (trades and cash) for a period; `write_run` checks the
-  whole ledger and stores it as one run in a virtual portfolio made for it, replacing the previous run. The
-  same inputs give the same rows, so a rerun is idempotent. The strategies themselves (rule engines, e.g.
-  backtest/exits.py) live elsewhere; this is the interface they write through.
-
-Simulated trades never count as yours: they only go into virtual portfolios.
+Comparing them: docs/data-conventions.md, *Returns over time*; which portfolios count: *Your portfolios*.
 """
 from __future__ import annotations
 
@@ -37,7 +27,11 @@ def _close(market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | 
 def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=()) -> int:
     """A virtual copy of portfolio `src_id` as it stood at the close of `at`: one deposit of its value then (plus
     `extra_cash_dkk`), and a buy of each holding at that day's traded close and DKK rate. Refused (ValueError)
-    when a holding has no price or rate that day."""
+    when a holding has no price or rate that day. Compare the two from that day (/api/portfolios/compare with
+    start = `at`): the copy holds the same shares and cash, but dividends the original earned before then stay
+    with it, so its value can be a little higher. The copy's buys pay no fee (they copy holdings, not trades); it
+    takes over the source's broker fee schedule, so later trades in it pay what that broker would charge
+    (`fees.SimFees`; without one, `backtest.fee_bps`), and its params record which (`fee_model`)."""
     src = userstore.get_portfolio(src_id)
     if not src:
         raise ValueError(f"no portfolio {src_id}")
@@ -136,8 +130,9 @@ def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[
 
 
 def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market, message: str | None = None) -> dict:
-    """Check a run's rows and store them in simulated portfolio `pid`, replacing its previous run. Raises
-    ValueError (nothing stored) when the portfolio isn't a simulation or the rows don't add up."""
+    """Check a run's rows (the whole ledger) and store them in simulated portfolio `pid` as one run, replacing its
+    previous run: the same inputs give the same rows, so a rerun is idempotent. Raises ValueError (nothing stored)
+    when the portfolio isn't a simulation or the rows don't add up."""
     p = userstore.get_portfolio(pid)
     if not p or p["mode"] != "virtual" or p["origin"] != "sim":
         raise ValueError("simulated runs go only into a virtual portfolio made for simulations (new_sim_portfolio)")

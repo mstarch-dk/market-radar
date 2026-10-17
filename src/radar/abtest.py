@@ -1,21 +1,7 @@
-"""The forward A/B test: a kvalitet+værdi basket, a momentum basket and a 50/50 blend, run from today on, against
-ACWI and against each other.
-
-Three virtual portfolios (simulations, never yours), tagged `ab-qvm`. Once a calendar month, the first report of
-the month records each basket's picks from that day's scores: the top `n` under a cap per sector, equal weights;
-the blend holds both lists at half weight each (a name in both gets both halves). A record is frozen once
-written (in the portfolio's params), so the test can't look ahead or be tuned afterwards: it is the clean,
-out-of-sample counterpart to the backtests.
-
-The trades are replayed from the records (`ScoreRebalance`): on the session after each record, sell what left
-the list, then trade every holding to its target weight at that day's traded closes and DKK rates, paying
-`backtest.fee_bps` on what is traded (they come from no account, so no broker schedule applies; each run's
-params say so, `fee_model`). Buys never spend more cash than there is. A record whose next session
-isn't in the prices yet waits. `simulate.write_run` stores each portfolio's run, so a rerun gives the same rows.
-
-Scores: K+V (or the værdiscore, `abtest.value_score`) from fundamentals/context.py; momentum as the momentum
-score pooled over every stock group (one ranking, not one per region). Both use the radar's stock lists; a name
-needs a price and a DKK rate to be bought.
+"""The forward A/B test: a kvalitet+værdi basket, a momentum basket and a 50/50 blend as three virtual portfolios
+(tag `ab-qvm`), picked once a month and frozen when recorded (in the portfolio's params), run from today on against
+ACWI and each other: the clean, out-of-sample counterpart to the backtests. The rules as the user sees them:
+guide/brugervejledning/portefoljer-og-tags.md (*A/B-test*); side by side: guide/laerebog/diversifikation.md.
 """
 from __future__ import annotations
 
@@ -56,8 +42,9 @@ def _sectors() -> dict[str, str]:
 
 
 def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
-    """Today's candidates per basket: ticker, score, sector, group, sorted best first, only names with a price
-    and a DKK rate."""
+    """Today's candidates per basket from the radar's stock lists: ticker, score, sector, group, sorted best first,
+    only names with a price and a DKK rate. K+V (or the værdiscore, `abtest.value_score`) from fundamentals/context.py;
+    momentum as the momentum score pooled over every stock group (one ranking, not one per region)."""
     from .fundamentals import context as fcontext
     from .signals import momentum
 
@@ -156,7 +143,10 @@ def record_due(market, today: date | None = None, ranked: dict | None = None) ->
 # ---------------- replaying the records ----------------
 
 class ScoreRebalance:
-    """A simulate.Strategy that replays a portfolio's recorded rebalances (params["rebalances"])."""
+    """A simulate.Strategy that replays a portfolio's recorded rebalances (params["rebalances"]): on the session
+    after each record, sell what left the list, then trade every holding to its target weight at that day's traded
+    closes and DKK rates, paying `backtest.fee_bps` on what is traded (no account, so no broker schedule). Buys never
+    spend more cash than there is; a record whose next session isn't in the prices yet waits."""
     key = "ab-rebalance"
 
     def __init__(self):
@@ -229,7 +219,8 @@ class ScoreRebalance:
 
 
 def refresh(market, today: date | None = None, ranked: dict | None = None, log=None) -> dict:
-    """Record this month's picks if due, then replay every A/B portfolio from its records."""
+    """Record this month's picks if due, then replay every A/B portfolio from its records. `simulate.write_run`
+    stores each run, its params saying how fees were charged (`fee_model`), so a rerun gives the same rows."""
     ps = portfolios()
     if not ps:
         return {"recorded": None, "runs": {}, "notes": []}

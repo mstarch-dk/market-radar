@@ -1,4 +1,7 @@
+"""The discovery scan offline: the report, its price store, the DKK rates it needs and how one failed market is
+handled while the universe is rebuilt."""
 import json
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -7,7 +10,8 @@ from fastapi.testclient import TestClient
 
 import world
 from conftest import FIXTURES
-from radar import api, coverage, universe
+from fakes import fake_yf
+from radar import api, coverage, ingest, sourcelog, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
 from radar.discovery import scan, sources
@@ -114,3 +118,136 @@ def test_us_market_keeps_only_sp500_members_with_caps_and_index_sectors(monkeypa
     assert {"AMZN", "CBOE"} <= set(df.index)                        # members the screen missed are kept…
     assert pd.isna(df.loc["AMZN", "market_cap_dkk"])                # …with their size unknown, not 0
     assert df.loc["BRK-B", "sector"] == "Financial Services" and (df["kind"] == "stock").all()
+
+
+# ---------------- FX ----------------
+
+RATES = {"USDDKK=X": 6.5, "EURDKK=X": 7.46, "GBPDKK=X": 8.6, "SEKDKK=X": 0.65, "NOKDKK=X": 0.62,
+         "CHFDKK=X": 8.0}
+
+
+def _store_fx(days_ago: int, rates=RATES):
+    d = pd.Timestamp(date.today() - timedelta(days=days_ago))
+    df = pd.DataFrame([{"date": d, "ticker": t, "high": v, "low": v, "close": v, "raw_close": v, "volume": 0.0}
+                       for t, v in rates.items()], columns=ingest.COLUMNS)
+    ingest.PRICES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(ingest.PRICES_FILE, index=False)
+
+
+def _yahoo_fx(rates):
+    def download(tickers, start):
+        idx = pd.date_range(end=pd.Timestamp(date.today()), periods=2)
+        cols = pd.MultiIndex.from_tuples([(t, "Close") for t in rates])
+        return pd.DataFrame([[rates[t] for t in rates]] * 2, index=idx, columns=cols)
+    return download
+
+
+def test_fx_from_a_recent_price_store_does_not_ask_yahoo(monkeypatch):
+    _store_fx(days_ago=2)
+    fake = fake_yf(monkeypatch, download=lambda t, s: pytest.fail("asked Yahoo"))
+    out = scan.fx_rates()
+    assert out["DKK"] == 1.0 and out["EUR"] == 7.46 and out["CHF"] == 8.0 and fake.asked == []
+
+
+@pytest.mark.parametrize("days_ago, rates", [(30, RATES),                         # stale store
+                                              (1, {k: v for k, v in RATES.items() if k != "CHFDKK=X"})])
+def test_fx_from_a_stale_or_incomplete_store_falls_back_to_yahoo(monkeypatch, days_ago, rates):
+    _store_fx(days_ago, rates)
+    fake = fake_yf(monkeypatch, download=_yahoo_fx(RATES | {"CHFDKK=X": 8.1}))
+    out = scan.fx_rates()
+    assert out["CHF"] == 8.1 and [k for k, _ in fake.asked] == ["download"]
+
+
+def test_fx_without_a_store_uses_yahoo(monkeypatch):
+    fake_yf(monkeypatch, download=_yahoo_fx(RATES))
+    assert scan.fx_rates()["SEK"] == pytest.approx(RATES["SEKDKK=X"])
+
+
+def test_fx_a_rate_yahoo_misses_comes_from_the_store_at_any_age(monkeypatch):
+    _store_fx(days_ago=40)                                         # too old to use as a whole
+    fake_yf(monkeypatch, download=_yahoo_fx({k: v for k, v in RATES.items() if k != "SEKDKK=X"}))
+    assert scan.fx_rates()["SEK"] == pytest.approx(RATES["SEKDKK=X"])
+
+
+def test_fx_a_needed_rate_missing_everywhere_raises_rather_than_dropping_a_market(monkeypatch):
+    fake_yf(monkeypatch, download=_yahoo_fx({"USDDKK=X": 6.5, "EURDKK=X": 7.46, "GBPDKK=X": 8.6}))
+    with pytest.raises(RuntimeError, match="no DKK rate for CHF, NOK, SEK"):
+        scan.fx_rates()
+
+
+def test_fx_with_too_few_rates_from_yahoo_raises(monkeypatch):
+    fake_yf(monkeypatch, download=_yahoo_fx({"USDDKK=X": 6.5, "EURDKK=X": 7.46}))
+    with pytest.raises(RuntimeError, match="no FX rates"):
+        scan.fx_rates()
+
+
+# ---------------- build_universe ----------------
+
+MARKETS = {"nordic": {"label": "Nordic", "kind": "stock", "exchanges": ["CPH"]},
+           "europe": {"label": "Europe", "kind": "stock", "exchanges": ["GER"]}}
+
+
+def _q(sym, name, ccy, cap):
+    return {"symbol": sym, "longName": name, "currency": ccy, "financialCurrency": ccy, "marketCap": cap,
+            "quoteType": "EQUITY"}
+
+
+SCREENS = {"CPH": [_q("NOVO-B.CO", "Novo Nordisk A/S", "DKK", 1e12)],
+           "GER": [_q("SIE.DE", "Siemens AG", "EUR", 2e11), _q("NOV.DE", "Novo Nordisk A/S", "EUR", 1.3e11)]}
+
+
+def _setup(monkeypatch, failing=()):
+    monkeypatch.setattr(scan, "discovery_config", lambda: {"markets": MARKETS})
+    monkeypatch.setattr(scan, "fx_rates", lambda: {"DKK": 1.0, "EUR": 7.46})
+    monkeypatch.setattr(scan, "INDEX_KEEP", set())
+
+    def screen(code, min_cap=5e7, **kw):
+        if code in failing:
+            raise ValueError(f"screener broke for {code}")
+        return SCREENS[code]
+    monkeypatch.setattr(sources, "screen_exchange", screen)
+    monkeypatch.setattr(sources, "screen_sectors", lambda codes: {})
+    monkeypatch.setattr(sources, "fetch_index", lambda key: pytest.fail("no index in these markets"))
+    monkeypatch.setattr(universe, "currencies", lambda t: pytest.fail(f"currency lookup for {t}"))
+
+
+def _cached(rows):
+    scan.DIR.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).reindex(columns=scan.UNIVERSE_COLS).to_csv(scan.UNIVERSE_FILE, index=False)
+
+
+def _row(ticker, name, market, exchange, ccy):
+    return {"ticker": ticker, "name": name, "market": market, "kind": "stock", "exchange": exchange,
+            "currency": ccy, "market_cap_dkk": 1e9, "sector": ""}
+
+
+def test_a_failed_market_keeps_its_cached_names_and_the_others_are_rebuilt(monkeypatch):
+    _setup(monkeypatch, failing={"GER"})
+    _cached([_row("OLD.CO", "Old Nordic A/S", "nordic", "CPH", "DKK"),       # rebuilt away
+             _row("BAS.DE", "BASF SE", "europe", "GER", "EUR"),               # kept (market failed)
+             _row("NOV.DE", "Novo Nordisk A/S", "europe", "GER", "EUR")])     # kept, but already in Nordic
+    logs = []
+    with pytest.raises(sourcelog.PartialFailure, match=r"Europe \(ValueError: screener broke for GER\)"):
+        scan.build_universe(logs.append)
+    df = scan.load_universe().set_index("ticker")
+    assert dict(df["market"]) == {"NOVO-B.CO": "nordic", "BAS.DE": "europe"}
+    assert any("Europe: FAILED" in m and "keeping 2 cached names" in m for m in logs)
+
+
+def test_a_company_in_two_markets_stays_only_in_the_first(monkeypatch):
+    _setup(monkeypatch)
+    df = scan.build_universe(lambda m: None).set_index("ticker")
+    assert dict(df["market"]) == {"NOVO-B.CO": "nordic", "SIE.DE": "europe"}
+    assert df.loc["SIE.DE", "market_cap_dkk"] == pytest.approx(2e11 * 7.46)
+
+
+def test_all_markets_failing_still_keep_cached_rows_and_with_none_cached_raise(monkeypatch):
+    _setup(monkeypatch, failing={"CPH", "GER"})
+    _cached([_row("BAS.DE", "BASF SE", "europe", "GER", "EUR")])
+    with pytest.raises(sourcelog.PartialFailure):          # the cached Europe rows still make a universe
+        scan.build_universe(lambda m: None)
+    assert list(scan.load_universe()["ticker"]) == ["BAS.DE"]
+    scan.UNIVERSE_FILE.unlink()
+    with pytest.raises(RuntimeError, match="no market could be built"):
+        scan.build_universe(lambda m: None)
+    assert not scan.UNIVERSE_FILE.exists()
