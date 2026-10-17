@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 import typer
 
-from . import importers, trades, universe
+from . import importers, sourcelog, trades, universe
 
 app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, regime and holdings signals.")
 
@@ -1655,7 +1655,7 @@ def fundamentals_update(tickers: list[str] = typer.Argument(None, help="Only the
                         all_: bool = typer.Option(False, "--all", help="Every tracked stock, due or not (slow)")):
     """Fetch statements now: the companies that are due (a new report expected, or not fetched for a while), the
     tickers named, or with --all every one. `radar update` fetches the due ones each day."""
-    from . import coverage, ops
+    from . import ops
     from .fundamentals import edgar, yahoo
 
     steps = {"fundamentals_edgar": ("SEC EDGAR", edgar.update_edgar),
@@ -1671,11 +1671,11 @@ def fundamentals_update(tickers: list[str] = typer.Argument(None, help="Only the
                 with ops.context(source=key):
                     msg = fn(force=all_, tickers=[t.upper() for t in tickers] if tickers else None)
                 log(f"{label}: {msg}.")
-                coverage.record(key, True, msg)
+                sourcelog.record(key, True, msg)
             except Exception as e:  # noqa: BLE001 (report it and go on to the other source)
                 failed = True
                 log(f"{label}: FAILED ({type(e).__name__}: {e})")
-                coverage.record(key, False, error=f"{type(e).__name__}: {e}", exc=e)
+                sourcelog.record(key, False, error=f"{type(e).__name__}: {e}", exc=e)
     raise typer.Exit(1 if failed else 0)
 
 

@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from radar import constituents, coverage
+from radar import constituents, coverage, sourcelog
 from radar.signals import levels
 
 
@@ -16,10 +16,10 @@ def test_status_boundaries():
 
 
 def test_record_keeps_last_success_on_failure(tmp_data):
-    coverage.record("fred", True, "4 series")
-    ok = coverage.load_log()["fred"]["last_success"]
-    coverage.record("fred", False, error="HTTPError: 503")
-    entry = coverage.load_log()["fred"]
+    sourcelog.record("fred", True, "4 series")
+    ok = sourcelog.load_log()["fred"]["last_success"]
+    sourcelog.record("fred", False, error="HTTPError: 503")
+    entry = sourcelog.load_log()["fred"]
     assert entry["error"] == "HTTPError: 503" and entry["last_success"] == ok
 
 
@@ -31,7 +31,7 @@ def test_constituents_fall_back_to_cache_when_download_fails(tmp_data, monkeypat
         raise ConnectionError("ssga down")
     monkeypatch.setattr(constituents, "_spy_holdings", boom)
     assert constituents.us_constituents(refresh=True) == ["AAPL", "MSFT"]
-    assert "ssga down" in coverage.load_log()["constituents"]["error"]
+    assert "ssga down" in sourcelog.load_log()["constituents"]["error"]
     assert constituents.us_constituents(offline=True) == ["AAPL", "MSFT"]
 
 

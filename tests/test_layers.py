@@ -2,11 +2,10 @@
 same as `uv run lint-imports`; see docs/architecture.md, *Layers*): the kernel imports neither the studies nor
 the app, the studies don't import the report builder, the app never imports a study, and every module sits in a
 layer that only imports downwards. The two checks import-linter doesn't make live here: no module reaching into
-another's private names, and no import cycle growing. Function-local imports count everywhere: they hide a
+another's private names, and no import cycles. Function-local imports count everywhere: they hide a
 dependency from the reader, not from the program.
 
-The cycle limit only goes down: a smaller largest cycle fails the test until MAX_CYCLE is lowered to match. Run
-this file directly (`uv run python tests/test_layers.py`) to print the current findings."""
+Run this file directly (`uv run python tests/test_layers.py`) to print the current findings."""
 from __future__ import annotations
 
 import ast
@@ -18,10 +17,6 @@ from importlinter.cli import lint_imports
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-
-# the largest import cycle today, in modules; it may only get smaller
-MAX_CYCLE = 8
-
 
 @cache
 def _modules() -> dict[str, Path]:
@@ -134,11 +129,10 @@ def test_no_module_uses_another_modules_private_names():
     assert not found, "uses of another module's private names:\n" + "\n".join(f"  {x}" for x in found)
 
 
-def test_import_cycles_dont_grow():
-    """Modules in one cycle can only be understood, tested and changed together."""
-    largest = max((len(c) for c in _cycles()), default=1)
-    assert largest <= MAX_CYCLE, f"an import cycle of {largest} modules (at most {MAX_CYCLE}): {_cycles()}"
-    assert largest == MAX_CYCLE, f"the largest cycle is down to {largest} modules: lower MAX_CYCLE to {largest}"
+def test_no_import_cycles():
+    """Modules in one cycle can only be understood, tested and changed together. A dependency points down a
+    layer; when two modules need each other, the shared piece belongs below both."""
+    assert not _cycles(), "import cycles:\n" + "\n".join(f"  {', '.join(c)}" for c in _cycles())
 
 
 if __name__ == "__main__":

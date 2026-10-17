@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import coverage, external, factors, ingest, net, sentiment, trades, updater, valuation
+from radar import external, factors, ingest, net, sentiment, sourcelog, trades, updater, valuation
 from radar.fundamentals import edgar, yahoo
 
 # ---------------- updater: one failing step never stops the rest ----------------
@@ -22,7 +22,7 @@ def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
                     "b": ("Step B", boom),
                     "c": ("Step C", lambda: ran.append("c") or "fine")}, lines.append)
     assert ran == ["a", "b", "c"]
-    log = coverage.load_log()
+    log = sourcelog.load_log()
     assert log["a"]["detail"] == "3 rows" and log["a"]["error"] is None and "last_success" in log["a"]
     assert log["b"]["error"] == "RuntimeError: source down" and "last_success" not in log["b"]
     assert log["c"]["detail"] == "fine" and log["c"]["error"] is None
@@ -32,9 +32,9 @@ def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
 
 def test_a_failure_keeps_the_last_success_time_of_the_source(tmp_data):
     updater._steps({"a": ("A", lambda: "ok")}, lambda m: None)
-    first = coverage.load_log()["a"]["last_success"]
+    first = sourcelog.load_log()["a"]["last_success"]
     updater._steps({"a": ("A", lambda: (_ for _ in ()).throw(ValueError("bad shape")))}, lambda m: None)
-    entry = coverage.load_log()["a"]
+    entry = sourcelog.load_log()["a"]
     assert entry["last_success"] == first and entry["error"] == "ValueError: bad shape"
 
 
@@ -66,7 +66,7 @@ def test_every_external_source_is_tried_even_when_one_raises(tmp_data, monkeypat
     updater.update_external(lines.append)
     assert ran == ["cftc", "oecd", "factset", "analyst", "ecb", "cape", "erp", "putcall", "aaii", "factors",
                    "valuation_etfs", "valuation_stocks", "fundamentals_edgar", "fundamentals_yahoo"]
-    log = coverage.load_log()
+    log = sourcelog.load_log()
     assert log["ecb"]["error"] == "ValueError: ECB changed its format"
     assert log["cftc"]["detail"] == "5 new rows" and log["factset"]["detail"] == "no new report"
     assert all(log[k]["error"] is None for k in log if k != "ecb")

@@ -7,7 +7,7 @@ import pytest
 
 from conftest import FIXTURES
 from fakes import Resp, fake_yf, serve
-from radar import coverage, ingest, net, universe
+from radar import ingest, net, sourcelog, universe
 from radar.discovery import scan, sources
 
 # ---------------- Yahoo screener ----------------
@@ -241,7 +241,7 @@ def test_a_failed_market_keeps_its_cached_names_and_the_others_are_rebuilt(monke
              _row("BAS.DE", "BASF SE", "europe", "GER", "EUR"),               # kept (market failed)
              _row("NOV.DE", "Novo Nordisk A/S", "europe", "GER", "EUR")])     # kept, but already in Nordic
     logs = []
-    with pytest.raises(coverage.PartialFailure, match=r"Europe \(ValueError: screener broke for GER\)"):
+    with pytest.raises(sourcelog.PartialFailure, match=r"Europe \(ValueError: screener broke for GER\)"):
         scan.build_universe(logs.append)
     df = scan.load_universe().set_index("ticker")
     assert dict(df["market"]) == {"NOVO-B.CO": "nordic", "BAS.DE": "europe"}
@@ -258,7 +258,7 @@ def test_a_company_in_two_markets_stays_only_in_the_first(monkeypatch):
 def test_all_markets_failing_still_keep_cached_rows_and_with_none_cached_raise(monkeypatch):
     _setup(monkeypatch, failing={"CPH", "GER"})
     _cached([_row("BAS.DE", "BASF SE", "europe", "GER", "EUR")])
-    with pytest.raises(coverage.PartialFailure):          # the cached Europe rows still make a universe
+    with pytest.raises(sourcelog.PartialFailure):          # the cached Europe rows still make a universe
         scan.build_universe(lambda m: None)
     assert list(scan.load_universe()["ticker"]) == ["BAS.DE"]
     scan.UNIVERSE_FILE.unlink()

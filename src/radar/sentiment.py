@@ -44,7 +44,7 @@ def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str
     instead of staying a hole). A missing day (holiday, not yet published) is skipped; nothing new for a week of
     weekdays means the source has moved: raise. A failure part-way stores the days already fetched, then raises
     `PartialFailure`."""
-    from .coverage import PartialFailure
+    from .sourcelog import PartialFailure
 
     today = today or date.today()
     get = get or (lambda url: net.get(url, timeout=30, expected=(403, 404)))
