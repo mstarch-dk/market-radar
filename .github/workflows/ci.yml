@@ -31,6 +31,9 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv sync --locked
       - run: uv run pytest -q
+      - name: The slow tests (studies on real-size data)
+        run: uv run pytest -q -m slow
+      - run: uv run lint-imports
 
   web:
     runs-on: ubuntu-latest

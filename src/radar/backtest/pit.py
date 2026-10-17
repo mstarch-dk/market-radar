@@ -22,8 +22,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from .. import dashboard, external, mine, universe, valuation
+from .. import external, universe, valuation
 from ..config import settings, universe_config
+from ..model import inputs as minputs
 from ..model import paths as mpaths
 from ..model.score import score_vs
 from ..signals import levels as lv
@@ -73,7 +74,7 @@ class Context:
         twins = {i.ucits: i.ticker for i in insts if i.ucits}
         ah = external.load_analyst()
         analyst = {t: g.sort_values("fetched") for t, g in ah.groupby("ticker")} if not ah.empty else {}
-        eligible = mine.level_universe(mine.level_etfs(cfg["stops"]), ah)
+        eligible = minputs.level_universe(minputs.level_etfs(cfg["stops"]), ah)
         sec = universe.sectors(sorted(held))   # stocks you no longer hold have no fresh analyst row: Yahoo's sector says so
         eligible |= set(sec.index[sec["sector"].astype(str).str.strip() != ""])
         return cls(market, cfg, stops, panel, {k: uni[k] for k in ("r12_1", "r6m", "r3m")}, atr, quads, twins,
@@ -129,7 +130,7 @@ class Context:
             self._macro = {"fred": self.market.fred(), "cli": cli, "cli_labels": ucfg.get("external", {}).get("oecd_cli", {}),
                            "factset": fs, "valuation": valuation.load_market(), "groups": universe.stock_groups(offline=True),
                            "labels": universe.stock_group_labels(), "macro": universe.macro_yahoo(),
-                           "votes": dashboard.effective_votes()}
+                           "votes": minputs.effective_votes()}
         return self._macro
 
     def _regime_at(self, f: pd.Timestamp) -> dict:

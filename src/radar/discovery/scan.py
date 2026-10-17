@@ -245,7 +245,7 @@ def _wide(prices: pd.DataFrame, field: str) -> pd.DataFrame:
 
 
 def build_report(fx: dict[str, float] | None = None) -> dict:
-    from ..dashboard import _clean
+    from ..jsonsafe import clean as _clean
 
     cfg = discovery_config()
     meta = load_universe()

@@ -460,7 +460,7 @@ def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]],
 def _import_market():
     """The stored prices, to check imported prices against the day's close; None before the first download."""
     from .paths import PRICES_FILE
-    from .profile import Market
+    from .market import Market
 
     return Market.load() if PRICES_FILE.exists() else None   # no prices yet: the import works, unchecked
 
@@ -692,3 +692,21 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     tickers |= _every_portfolio_symbol()                  # virtual portfolios need prices too
     tickers |= set(FX_TICKERS)
     return sorted(tickers)
+
+
+# Exchange suffix -> region, for stocks outside the stock groups (region_for)
+REGION_SUFFIXES = {
+    "nordic": (".CO", ".ST", ".OL", ".HE", ".IC"),
+    "europe": (".DE", ".F", ".PA", ".AS", ".BR", ".L", ".MI", ".SW", ".MC", ".LS", ".VI", ".IR", ".WA"),
+    "asia": (".T", ".HK", ".TW", ".TWO", ".KS", ".KQ", ".SS", ".SZ", ".SI", ".AX", ".NS", ".BO"),
+}
+
+
+def region_for(ticker: str) -> str:
+    for region, tickers in stock_groups(offline=True).items():
+        if ticker in tickers:
+            return region
+    for region, suffixes in REGION_SUFFIXES.items():
+        if ticker.upper().endswith(suffixes):
+            return region
+    return "us"

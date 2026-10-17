@@ -111,7 +111,7 @@ def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
     else:
         prices = ingest.load_prices()
         sec = universe.sectors([t for t in tickers])
-        from .profile import region_for
+        from .universe import region_for
 
         meta = pd.DataFrame({"sector": sec["sector"], "industry": sec["industry"],
                              "region": [region_for(t) for t in sec.index], "country": None}, index=sec.index)

@@ -5,11 +5,9 @@ from there. Charts are series of numbers here; drawing them is the frontend's jo
 from __future__ import annotations
 
 import json
-import math
 from dataclasses import dataclass
 from datetime import date, datetime
 
-import numpy as np
 import pandas as pd
 
 from . import coverage, external, mine, sentiment, snapshot, universe, valuation
@@ -18,6 +16,8 @@ from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
 from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .ingest import load_fred, load_prices, wide
+from .jsonsafe import clean as _clean
+from .model.inputs import effective_votes
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation
 from .signals import valuation as sv
@@ -29,22 +29,6 @@ FORMAT = 1
 
 
 # ---------------- helpers ----------------
-
-def _clean(v):
-    if isinstance(v, dict):
-        return {str(k): _clean(x) for k, x in v.items()}
-    if isinstance(v, (list, tuple)):
-        return [_clean(x) for x in v]
-    if isinstance(v, np.generic):
-        v = v.item()
-    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-        return None
-    if isinstance(v, (pd.Timestamp, date)):
-        return v.isoformat()[:10]
-    if v is pd.NaT or v is pd.NA:
-        return None
-    return v
-
 
 def _records(df: pd.DataFrame) -> list[dict]:
     return [_clean(row) for row in df.to_dict("records")]
@@ -97,15 +81,6 @@ def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_
 # ---------------- regime votes (settings.yaml regime.votes, overridden from the Regime page) ----------------
 
 VOTE_GROUPS = {"credit_eu": "Euro high-yield spread", "valuation": "Valuation (CAPE, equity risk premium)"}
-
-
-def effective_votes() -> dict[str, bool]:
-    """Which indicator groups count in the regime vote: the defaults in settings.yaml, then your choice."""
-    from . import userstore
-
-    votes = {k: bool(v) for k, v in (settings()["regime"].get("votes") or {}).items()}
-    chosen = userstore.meta_get("regime_votes") or {}
-    return votes | {k: bool(v) for k, v in chosen.items() if k in votes}
 
 
 def regime_now(d: dict) -> tuple[dict, list[dict]]:

@@ -33,6 +33,7 @@ packages = ["src/radar"]
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "import-linter>=2.15",
     "pytest>=9.1.1",
 ]
 # screenshots and the PDF in marketing/ (scripts/marketing.py); drives the installed Microsoft Edge
@@ -43,5 +44,32 @@ marketing = [
 [tool.pytest.ini_options]
 markers = [
     "network: talks to the real sources (live contract checks); deselected unless run with -m network",
+    "slow: runs a study on real-size data (decades of months); deselected unless run with -m slow (CI runs both)",
 ]
-addopts = "-m 'not network'"
+addopts = "-m 'not network and not slow'"
+
+# Layers between the app and the studies (docs/architecture.md, *Layers*); `uv run lint-imports`, also run by
+# tests/test_layers.py. Forbidden contracts count indirect imports too, including imports inside functions.
+[tool.importlinter]
+root_package = "radar"
+
+[[tool.importlinter.contracts]]
+name = "The kernel (radar.model) stands on its own: no studies, no app, no report"
+type = "forbidden"
+source_modules = ["radar.model"]
+forbidden_modules = [
+    "radar.backtest", "radar.dashboard", "radar.api", "radar.cli", "radar.report", "radar.updater",
+    "radar.propose", "radar.abtest",
+]
+
+[[tool.importlinter.contracts]]
+name = "The studies (radar.backtest) read data, not the report builder or the app"
+type = "forbidden"
+source_modules = ["radar.backtest"]
+forbidden_modules = ["radar.dashboard", "radar.api", "radar.cli", "radar.mine", "radar.profile"]
+
+[[tool.importlinter.contracts]]
+name = "The app reads the studies' reports (model.artifacts), never runs a study"
+type = "forbidden"
+source_modules = ["radar.updater", "radar.report", "radar.api", "radar.abtest", "radar.propose"]
+forbidden_modules = ["radar.backtest"]

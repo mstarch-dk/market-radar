@@ -6,6 +6,7 @@
 - `paths`: the trend exit (a close below the n-day average, sold at the next close) and basket paths with it.
 - `stats`: the Newey-West t-statistic.
 - `prior`: the proposals' long-run prior from survivorship-free tercile portfolios.
+- `inputs`: which tickers get stop levels and which regime groups vote (the app and the point-in-time replay).
 - `artifacts`: the study reports production reads, as typed contracts with one loader.
 
 The studies (backtest/) validate exactly what the app shows and the proposals act on, because both call these.

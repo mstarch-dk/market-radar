@@ -153,7 +153,7 @@ def _after_cutoff(day: pd.Timestamp, cutoff: str | None) -> bool | None:
 def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
     """Your views created by `day`, aligned with prices up to `day` (personal)."""
     from .. import market_views as mv
-    from ..profile import region_for
+    from ..universe import region_for
     from ..signals import views as sv
 
     vs = [v for v in userstore.views() if str(v["created_at"])[:10] <= day.date().isoformat()]

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import math
 import os
-from dataclasses import dataclass, field
 from datetime import date
 
 import numpy as np
@@ -17,89 +16,24 @@ import pandas as pd
 
 from . import dashboard, external, ingest, mine, universe
 from .config import settings, universe_config
-from .paths import PRICES_FILE
+from .market import Market
 from .mine import _fx_to_dkk
 from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
+from .universe import REGION_SUFFIXES, region_for  # noqa: F401 (re-exported)
 
 OK, STALE, MISSING = "ok", "stale", "missing"
 WINDOWS = {"r1w": 5, "r1m": 21, "r3m": 63, "r6m": 126, "r1y": 252}
 # the chart's ranges, counted like the return windows (None = year to date)
 CHART_RANGES = {"1W": 5, "1M": 21, "3M": 63, "6M": 126, "YTD": None, "1Y": 252, "3Y": 756, "5Y": 1260}
-REGION_SUFFIXES = {
-    "nordic": (".CO", ".ST", ".OL", ".HE", ".IC"),
-    "europe": (".DE", ".F", ".PA", ".AS", ".BR", ".L", ".MI", ".SW", ".MC", ".LS", ".VI", ".IR", ".WA"),
-    "asia": (".T", ".HK", ".TW", ".TWO", ".KS", ".KQ", ".SS", ".SZ", ".SI", ".AX", ".NS", ".BO"),
-}
 
 
 class TickerNotFound(LookupError):
     pass
 
 
-# ---------------- market data, loaded once ----------------
-
-@dataclass
-class Market:
-    """The price store as wide frames, plus derived tables that are expensive to recompute per ticker."""
-    prices: pd.DataFrame
-    closes: pd.DataFrame
-    highs: pd.DataFrame
-    lows: pd.DataFrame
-    volumes: pd.DataFrame
-    mtime: float = 0.0
-    _leaders: pd.DataFrame | None = field(default=None, repr=False)
-    _isins: tuple | None = field(default=None, repr=False)
-    _raw: pd.DataFrame | None = field(default=None, repr=False)
-    _fred: pd.DataFrame | None = field(default=None, repr=False)
-
-    @classmethod
-    def load(cls) -> Market:
-        prices = ingest.load_prices()
-        if prices.empty:
-            raise SystemExit("No price data yet – run `radar update` first.")
-        prices["date"] = pd.to_datetime(prices["date"])
-        return cls(prices, ingest.wide(prices), ingest.wide(prices, "high"), ingest.wide(prices, "low"),
-                   ingest.wide(prices, "volume"), PRICES_FILE.stat().st_mtime if PRICES_FILE.exists() else 0.0)
-
-    def bars(self, ticker: str) -> pd.DataFrame:
-        """The ticker's own sessions, as Yahoo delivered them. The wide frames forward-fill gaps (right for
-        return windows); anything shown as a session (last price, day change, recent bars, chart) uses these."""
-        return self.prices[self.prices["ticker"] == ticker].set_index("date").sort_index()
-
-    def stale(self) -> bool:
-        return PRICES_FILE.exists() and PRICES_FILE.stat().st_mtime != self.mtime
-
-    def leaders(self) -> pd.DataFrame:
-        """Momentum metrics and scores for every tracked stock (as on the dashboard), with sectors."""
-        if self._leaders is None:
-            lead = momentum.leaders(self.closes, self.volumes, universe.stock_groups(offline=True),
-                                    settings()["momentum"]["min_history_days"])
-            sec = universe.sectors(list(lead["ticker"]))
-            self._leaders = lead.assign(sector=lead["ticker"].map(sec["sector"]),
-                                        industry=lead["ticker"].map(sec["industry"]))
-        return self._leaders
-
-    def fred(self) -> pd.DataFrame:
-        if self._fred is None:
-            self._fred = ingest.load_fred()
-        return self._fred
-
-    def raw_closes(self) -> pd.DataFrame | None:
-        """Traded (unadjusted) closes, for the dividend factor in holding returns."""
-        if self._raw is None and "raw_close" in self.prices:
-            self._raw = ingest.wide(self.prices, "raw_close")
-        return self._raw
-
-    def positive_list(self) -> set[str] | None:
-        if self._isins is None:
-            try:
-                self._isins = (universe.positive_list_isins(),)
-            except Exception:
-                self._isins = (None,)
-        return self._isins[0]
-
+# ---------------- market data (the Market reader is in market.py) ----------------
 
 def ensure_prices(ticker: str, market: Market | None = None, refresh: bool = False) -> Market:
     """Make sure `ticker` has a current history. Untracked tickers are downloaded (and kept in the price
@@ -187,16 +121,6 @@ def _windows(s: pd.Series, end) -> dict[str, float | None]:
 
 def _diff(a: dict, b: dict) -> dict:
     return {k: (a[k] - b[k]) if a.get(k) is not None and b.get(k) is not None else None for k in a}
-
-
-def region_for(ticker: str) -> str:
-    for region, tickers in universe.stock_groups(offline=True).items():
-        if ticker in tickers:
-            return region
-    for region, suffixes in REGION_SUFFIXES.items():
-        if ticker.upper().endswith(suffixes):
-            return region
-    return "us"
 
 
 def sector_etf(region: str, sector: str | None, industry: str | None) -> str | None:
