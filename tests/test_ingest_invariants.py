@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, never_shrank, serve, statements, stored
-from radar import external, ingest, sentiment, universe, valuation
+from radar import external, ingest, sentiment, tracked, valuation
 from radar.discovery import scan
 from radar.fundamentals import edgar, store, yahoo
 
@@ -288,7 +288,7 @@ class Edgar(Source):
     measure = {"key": "ticker", "date": "end"}
 
     def _serve(self, mp, aapl):
-        mp.setattr(universe, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
+        mp.setattr(tracked, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
         mp.setattr(valuation, "tracked_stocks", lambda: ["AAPL", "MSFT"])
         serve(mp, {"company_tickers": Resp(json=SEC_TICKERS), "0000320193": aapl})
 

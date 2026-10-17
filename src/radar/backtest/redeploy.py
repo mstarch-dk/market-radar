@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from .. import money, simulate, universe
+from .. import money, simulate, tracked
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at
@@ -149,7 +149,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
 
     bt = settings().get("backtest") or {}
     fee = money.fee_bps(bt)
-    park = bt.get("park") or universe.benchmark()
+    park = bt.get("park") or tracked.benchmark()
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
     arms = _redeploy_arms(buffer, cooldown)
     if keys:

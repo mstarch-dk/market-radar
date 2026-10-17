@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, universe
+from .. import money, performance, simulate, tracked
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
@@ -440,7 +440,7 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
     h = HORIZONS[months]
     bt = settings().get("backtest") or {}
     fee = money.fee_bps(bt)
-    park = bt.get("park") or universe.benchmark()
+    park = bt.get("park") or tracked.benchmark()
     capital = 100_000.0
     baskets = []
     for d in dates:

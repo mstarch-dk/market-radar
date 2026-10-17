@@ -9,7 +9,7 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from .. import external, universe, userstore
+from .. import external, tracked, userstore
 from ..config import settings
 from ..paths import REPORTS
 from ..signals import regime
@@ -25,12 +25,12 @@ def level_universe(etfs: set[str], analyst_hist: pd.DataFrame | None = None) -> 
     if not ah.empty and "sector" in ah:
         latest = ah.sort_values("fetched").groupby("ticker").last()
         equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
-    return equity | {t for g in universe.stock_groups(offline=True).values() for t in g} | set(etfs)
+    return equity | {t for g in tracked.stock_groups(offline=True).values() for t in g} | set(etfs)
 
 
 def level_etfs(cfg: dict) -> set[str]:
     """Sector/theme ETFs (and UCITS twins) that get stop levels; broad region funds don't."""
-    return {t for i in universe.etfs() if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
+    return {t for i in tracked.etfs() if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
 
 
 def effective_votes() -> dict[str, bool]:

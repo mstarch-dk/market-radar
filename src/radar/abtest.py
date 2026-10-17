@@ -9,7 +9,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import money, performance, simulate, universe, userstore
+from . import money, performance, simulate, tracked, userstore
 from .config import settings
 from .model.select import capped
 
@@ -48,7 +48,7 @@ def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
     from .fundamentals import context as fcontext
     from .signals import momentum
 
-    groups = {t: g for g, ts in universe.stock_groups(offline=True).items() for t in ts}
+    groups = {t: g for g, ts in tracked.stock_groups(offline=True).items() for t in ts}
     sectors = _sectors()
     names = [t for t in groups if t in market.closes.columns]
     ok = {t for t in names if (fx := performance.fx_series(market, t)) is not None and len(fx.dropna())}

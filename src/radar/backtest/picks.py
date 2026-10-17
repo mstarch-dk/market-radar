@@ -10,7 +10,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, universe, userstore
+from .. import money, performance, simulate, tracked, universe, userstore
 from ..config import settings, write_text
 from ..jsonsafe import clean as _clean
 from ..jsonsafe import dumps
@@ -151,7 +151,7 @@ def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
     m = pd.DataFrame({"sector": sec["sector"], "industry": sec["industry"],
                       "region": [region_for(t) for t in sec.index], "country": None}, index=sec.index)
     closes = market.closes.loc[:day]
-    ctxs = sv.contexts(tickers, m, closes, universe.benchmark(), sv.view_etfs(vs), mv.ucits_map(), mv.config())
+    ctxs = sv.contexts(tickers, m, closes, tracked.benchmark(), sv.view_etfs(vs), mv.ucits_map(), mv.config())
     names = {}
     for t in tickers:
         a = sv.align(ctxs.get(t) or {"ticker": t}, vs, mv.config())
@@ -300,7 +300,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
 
     from .pit import Context
 
-    park = bt.get("park") or universe.benchmark()
+    park = bt.get("park") or tracked.benchmark()
     ctx = Context.build(market, set(weights) | set(cw) | {park})
     rep = ex.replay(rows, ctx, "rules", end=end_ts, fee_bps=fee)
 

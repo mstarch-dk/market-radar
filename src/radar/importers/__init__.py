@@ -378,10 +378,10 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
     """For each (ident, symbol, isin, name): a suggested Yahoo symbol and how it was found, best first:
     remembered → the radar's own ISIN list → the symbol itself when Yahoo has prices → Yahoo search (ISIN, then
     name). `market_has(symbol)` says whether prices exist (it may download them)."""
-    from .. import universe, userstore
+    from .. import tracked, userstore
 
     isin_cfg = {}
-    for e in universe.etfs():
+    for e in tracked.etfs():
         if e.isin:
             isin_cfg[e.isin.upper()] = e.ucits or e.ticker
     out = {}

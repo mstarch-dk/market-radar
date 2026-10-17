@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from .. import ingest, net, ops, positive_list, sourcelog, universe
+from .. import ingest, net, ops, positive_list, sourcelog, tracked, universe
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
@@ -256,13 +256,13 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
     closes = _wide(prices, "close").ffill(limit=5)
     raw = _wide(prices, "raw_close")
     volumes = _wide(prices, "volume")
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     asof = closes[bench].dropna().index[-1] if bench in closes else closes.index[-1]
     fx = fx or universe.dkk_rates({t: float(closes[t].dropna().iloc[-1]) for t in universe.FX_TICKERS
                                    if t in closes and closes[t].notna().any()})
-    tracked = set(universe.all_price_tickers(offline=True))
+    radar_tickers = set(universe.all_price_tickers(offline=True))
     s = settings()
-    df = sig.compute(closes, raw, volumes, meta, bench, fx, tracked, cfg, s["momentum"]["min_history_days"], asof,
+    df = sig.compute(closes, raw, volumes, meta, bench, fx, radar_tickers, cfg, s["momentum"]["min_history_days"], asof,
                      s["rotation"]["window"])
     df = df.merge(meta.drop(columns=["market"]), on="ticker", how="left")
     isins = positive_list.isins()
@@ -332,7 +332,7 @@ def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
                 raise
             log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
     meta = load_universe()
-    tickers = sorted(set(meta["ticker"]) | {universe.benchmark()} | set(universe.FX_TICKERS))
+    tickers = sorted(set(meta["ticker"]) | {tracked.benchmark()} | set(universe.FX_TICKERS))
     log(f"Downloading prices for {len(tickers)} names…")
     try:
         with ops.context(source="discovery_prices"):

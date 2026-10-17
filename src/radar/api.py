@@ -26,6 +26,7 @@ from . import (
     portfolio,
     profile,
     tickers,
+    tracked,
     trades,
     universe,
     updater,
@@ -713,7 +714,7 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
                           settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
-        asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
+        asof = m.closes[tracked.benchmark()].dropna().index[-1].date().isoformat()
         from .fundamentals import context as fcontext
 
         fctx = fcontext.context(m.closes, m.raw_closes(), m.mtime)

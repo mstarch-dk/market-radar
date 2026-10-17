@@ -3,7 +3,7 @@ from collections import Counter
 
 import pytest
 
-from radar import coverage, positive_list, universe
+from radar import coverage, positive_list, tracked, universe
 from radar.config import settings, universe_config
 from test_levels import CFG as LEVELS_CFG
 from test_signals import CFG as REGIME_CFG
@@ -26,13 +26,13 @@ def test_isin_check_digit_helper():
 
 def test_etf_isins_are_valid():
     cfg = universe_config()
-    isins = [cfg["benchmark"].get("isin")] + [e.isin for e in universe.etfs()]
+    isins = [cfg["benchmark"].get("isin")] + [e.isin for e in tracked.etfs()]
     for isin in filter(None, isins):
         assert positive_list.ISIN_RE.match(isin) and _isin_ok(isin), isin
 
 
 def test_no_duplicate_tickers():
-    etf = [e.ticker for e in universe.etfs()]
+    etf = [e.ticker for e in tracked.etfs()]
     assert not [t for t, n in Counter(etf).items() if n > 1]
     for key, g in universe_config()["stock_groups"].items():
         tickers = g.get("tickers") or []

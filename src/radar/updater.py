@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 
-from . import external, factors, ingest, locks, ops, report, sentiment, sourcelog, trades, universe, valuation
+from . import external, factors, ingest, locks, ops, report, sentiment, sourcelog, tracked, trades, universe, valuation
 from .config import settings
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
@@ -48,7 +48,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
     log(f"Updating {len(tickers)} tickers…")
 
     def prices():
-        res = ingest.update_prices(tickers, progress, start=universe.history_start(), bench=universe.benchmark())
+        res = ingest.update_prices(tickers, progress, start=universe.history_start(), bench=tracked.benchmark())
         msg = f"{res['rows']:,} rows, {res['new']} new tickers"
         if res["behind"]:
             names = sorted(res["behind"])
@@ -72,7 +72,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
         return msg
 
     def fred():
-        series = list(universe.macro_fred()) + list(universe.macro_fred_views()) + list(universe.macro_fred_study())
+        series = list(tracked.macro_fred()) + list(tracked.macro_fred_views()) + list(tracked.macro_fred_study())
         failed = ingest.update_fred(series)
         if failed:
             raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
@@ -83,7 +83,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
     try:   # a cache, not a source: a failure is logged and the remaining steps still run
         with ops.context(source="reference"):
             universe.names(tickers)  # warm the name cache
-            universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
+            universe.sectors(sorted({t for g in tracked.stock_groups().values() for t in g}))  # warm the sector cache
     except Exception as e:
         log(f"Names and sectors: FAILED ({type(e).__name__}: {e}); using the cached ones.")
         ops.event("error", "source", f"names and sectors: {type(e).__name__}: {e}", source="reference", exc=e)

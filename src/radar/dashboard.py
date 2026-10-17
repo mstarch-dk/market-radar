@@ -10,7 +10,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import coverage, external, mine, positive_list, sentiment, snapshot, trades, universe, valuation
+from . import coverage, external, mine, positive_list, sentiment, snapshot, tracked, trades, universe, valuation
 from .config import CONFIG, settings, universe_config
 from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
@@ -178,7 +178,7 @@ def compute() -> Computed:
     seen = inputs()   # before reading: a file written during the build then shows as newer than it
     cfg = settings()
     ucfg = universe_config()
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     prices = load_prices()
     if prices.empty:
         raise SystemExit("No price data yet – run `radar update` first.")
@@ -188,14 +188,14 @@ def compute() -> Computed:
     asof = closes[bench].dropna().index[-1].date()
 
     # --- regime
-    groups = universe.stock_groups()
-    labels = universe.stock_group_labels()
+    groups = tracked.stock_groups()
+    labels = tracked.stock_group_labels()
     ext = ucfg.get("external", {})
     cli_raw = external.load_oecd_cli()
     cli = external.cli_table(cli_raw, ext.get("oecd_cli", {})) if not cli_raw.empty else pd.DataFrame()
     fs_hist = external.load_factset()
     fs = fs_hist.iloc[-1].to_dict() if not fs_hist.empty else None
-    macro = universe.macro_yahoo()
+    macro = tracked.macro_yahoo()
     mk = valuation.load_market()
     market_val = sv.market(valuation.market_series("cape", mk), valuation.market_series("erp", mk),
                            fs.get("fwd_pe") if fs else None,
@@ -240,7 +240,7 @@ def compute() -> Computed:
     vctx = valuation.Context()
 
     # --- rotation (sectors, regions, themes, factors)
-    insts = universe.etfs()
+    insts = tracked.etfs()
     rc = cfg["rotation"]
     rot = rotation.relative_table(closes, bench, insts, rc["window"], rc["tail"])
     prev_d, prev = snapshot.previous("rotation", cfg["snapshot_min_gap_days"])
@@ -252,7 +252,7 @@ def compute() -> Computed:
     rot["quadrant_local"] = None
 
     names = {i.ticker: i.name for i in insts}
-    local_bench = universe.group_benchmarks()
+    local_bench = tracked.group_benchmarks()
     rot_groups = []
     for key, g in ucfg["etf_groups"].items():
         tickers = [i.ticker for i in insts if i.group == key and i.ticker in closes.columns]
@@ -326,7 +326,7 @@ def compute() -> Computed:
     h = trades.holdings()
     cot_markets = [m for grp in ext.get("cot", {}).values() for m in grp]
     cov = coverage.build(
-        asof, prices, universe.all_price_tickers(offline=True), fred, universe.macro_fred(), cot, cot_markets,
+        asof, prices, universe.all_price_tickers(offline=True), fred, tracked.macro_fred(), cot, cot_markets,
         cli_raw, ext.get("oecd_cli", {}), fs_hist, external.load_analyst(),
         sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else [],
         sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)

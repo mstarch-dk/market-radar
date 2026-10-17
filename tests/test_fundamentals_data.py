@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, serve, statements
-from radar import sourcelog, universe, userstore, valuation
+from radar import sourcelog, tracked, userstore, valuation
 from radar.fundamentals import edgar, schedule, store, yahoo
 
 FIX = Path(__file__).parent / "fixtures"
@@ -185,7 +185,7 @@ def test_due_order_and_reasons():
 
 @pytest.fixture
 def us(monkeypatch):
-    monkeypatch.setattr(universe, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
+    monkeypatch.setattr(tracked, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
     monkeypatch.setattr(valuation, "tracked_stocks", lambda: ["AAPL", "MSFT"])
 
 

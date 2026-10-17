@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from .. import fees, universe
+from .. import fees, tracked
 from ..config import settings, universe_config
 from ..jsonsafe import clean as _clean
 from ..values import num
@@ -29,7 +29,7 @@ def picks_sha(doc: dict) -> str:
 def metrics(values: dict[str, float], ctx: draft.Ctx, cov: pd.DataFrame, R: pd.DataFrame, horizon: int, drift: float | None,
             cost_pct: float | None, c: dict, before: dict[str, float] | None = None, draws: int | None = None) -> dict:
     """One alternative on the common metrics: risk alone and in the portfolio, the bootstrap, costs, the drift."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     cc = dict(c, bootstrap=dict(c["bootstrap"], draws=draws or c["bootstrap"]["draws"]))
     rp = riskmodel.series(values, R, bench)
     weeks = round(horizon * rules.WEEKS_PER_MONTH)
@@ -58,7 +58,7 @@ def _cost_one(prices: pricing.Prices, sf: fees.SimFees, t: str, amount: float, a
     """Round-trip cost share of putting `amount` DKK into `t` (fees both ways, FX surcharge, half-spread)."""
     adv = adv if adv is not None else adv_dkk(prices, t)
     if adv is None and t in exposure.look_through():
-        adv = adv_dkk(prices, universe.benchmark())      # a world fund modelled with ACWI trades like it
+        adv = adv_dkk(prices, tracked.benchmark())      # a world fund modelled with ACWI trades like it
     rate = prices.rate(t)
     if rate is None:
         tm = sf.terms(t, None, None, count=False)
@@ -84,7 +84,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     if not name or amount <= 0:
         raise ValueError("the picks file needs meta.portfolio and meta.amount")
     ctx = draft.context(market, name, offline)
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     tickers = [x["ticker"] for x in doc["picks"]]
     n = len(tickers)
     ticket = amount / n
@@ -196,7 +196,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
 def factors(values: dict[str, float], R: pd.DataFrame, market) -> dict | None:
     from ..signals import risk as rk
 
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     rp = riskmodel.series(values, R, bench)
     if rp is None or bench not in R:
         return None
@@ -232,7 +232,7 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
                  weighting: str, max_position, horizon: int, cov: pd.DataFrame, R: pd.DataFrame,
                  vals: dict[str, float], meta: pd.DataFrame, c: dict) -> dict:
     """A0-A6 on the same metrics."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     study = drift.load_study()
     out = {}
 
@@ -309,7 +309,7 @@ def randoms(scored: pd.DataFrame, tickers: list[str], amount: float, n: int, ctx
             R: pd.DataFrame, vals: dict[str, float], c: dict, draws: int = 300) -> dict:
     """Random baskets of the same size from the gated pool under the same caps: where the proposal's ex-ante
     volatility, tracking error and diversification ratio sit among them."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     pool_ = [t for t in scored.index if t in cov.index]
     if len(pool_) < n * 2:
         return {"label": "Random baskets", "note": "too few names with a return history in the pool"}

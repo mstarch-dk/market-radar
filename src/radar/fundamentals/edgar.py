@@ -208,23 +208,23 @@ def _keep_or_replace(old: pd.DataFrame, new: pd.DataFrame, ticker: str) -> str |
 
 
 def us_tickers() -> list[str]:
-    from .. import universe, valuation
+    from .. import tracked, valuation
 
-    us = set(universe.stock_groups(offline=True).get("us", []))
-    tracked = set(valuation.tracked_stocks())
-    return sorted(us | {t for t in tracked if "." not in t and not t.startswith("^")})
+    us = set(tracked.stock_groups(offline=True).get("us", []))
+    stocks = set(valuation.tracked_stocks())
+    return sorted(us | {t for t in stocks if "." not in t and not t.startswith("^")})
 
 
 def update_edgar(today: date | None = None, force: bool = False, tickers: list[str] | None = None) -> str:
     """Fetch company facts for the US tickers that are due (or `tickers`, or all with `force`); store per ticker.
     A ticker whose fresh answer has less than what is stored keeps its stored values (and counts as failed)."""
-    from .. import universe
+    from .. import tracked
 
     cfg = _cfg()
     today = today or date.today()
     hdr = headers()
     cmap = cik_map(today, hdr=hdr)
-    us = universe.stock_groups(offline=True).get("us", [])
+    us = tracked.stock_groups(offline=True).get("us", [])
     if us:
         mapped = sum(sec_symbol(t) in cmap for t in us)
         if mapped < 0.95 * len(us):

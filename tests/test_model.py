@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import propose, universe
+from radar import propose, tracked
 from radar.backtest import longrun, picks, study
 from radar.model import panels as mp
 from radar.model import paths as mpaths
@@ -85,7 +85,7 @@ def test_review_and_the_proposal_study_exit_on_the_same_day(monkeypatch):
     falls = up.copy()
     falls[45:] = falls[44] * 0.9 ** np.arange(1, n - 44)     # breaks its 10-day average at session 45
     closes = pd.DataFrame({"UP": up, "FALL": falls, "ACWI": np.full(n, 50.0)}, index=idx)
-    monkeypatch.setattr(universe, "benchmark", lambda: "ACWI")
+    monkeypatch.setattr(tracked, "benchmark", lambda: "ACWI")
     start = idx[20]
     rev = propose.store._basket_path(_Prices(closes), ["UP", "FALL"], start, sma=10)
     below = mpaths.below_trend(closes["FALL"], 10)

@@ -12,7 +12,7 @@ from datetime import date
 
 import pandas as pd
 
-from .. import money, universe, valuation
+from .. import money, tracked, universe, valuation
 from ..config import settings
 from ..paths import CACHE, HISTORY
 from ..signals import fundamentals as sf
@@ -58,7 +58,7 @@ class Context:
         y = store.as_known(store.load_yahoo() if yahoo is None else yahoo)
         by_e = {t: g for t, g in e.groupby("ticker")} if not e.empty else {}
         by_y = {t: g for t, g in y.groupby("ticker")} if not y.empty else {}
-        self.groups = {t: g for g, ts in universe.stock_groups(offline=True).items() for t in ts}
+        self.groups = {t: g for g, ts in tracked.stock_groups(offline=True).items() for t in ts}
         names = tickers if tickers is not None else sorted(set(self.groups) | set(valuation.tracked_stocks()))
         snap = valuation.latest(valuation.load_stocks()) if not pit else pd.DataFrame()
         sec = _csv("sectors.csv", ["ticker", "sector", "industry"]).set_index("ticker")

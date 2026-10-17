@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import external, trades, universe
+from . import external, tracked, trades, universe
 from .model.inputs import level_etfs, level_universe  # noqa: F401 (re-exported)
 from .model.score import score_vs
 from .signals import gauges as gz
@@ -174,7 +174,7 @@ def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotat
     default: your real ones). `leaders` is the momentum table of the whole stock universe (the score is a
     percentile against it); `cfg` is settings(). `sessions(symbol)` gives the symbol's own closes (no
     gap-filled holidays), so its RSI matches the ticker page."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     me = _me_table(closes, volumes, leaders, bench, cfg["momentum"]["min_history_days"], raw_closes, portfolios)
     if me.empty:
         return []

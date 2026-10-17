@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from . import money, universe
+from . import money, tracked, universe
 from .signals.risk import annualised_vol, deepest_drawdown
 from .userstore import TRADE_TYPES
 
@@ -112,7 +112,7 @@ def _session(idx: pd.DatetimeIndex, day: pd.Timestamp) -> int | None:
 
 def benchmark_sessions(market) -> pd.DatetimeIndex:
     """The trading days: the sessions the benchmark has a close on."""
-    return market.closes[universe.benchmark()].dropna().index
+    return market.closes[tracked.benchmark()].dropna().index
 
 
 def book(rows: list[dict], market, dividends: str = "reinvested") -> Book | None:
@@ -312,7 +312,7 @@ def _mwr(dates: pd.DatetimeIndex, inflow: pd.Series, outflow: pd.Series, final_v
 
 
 def bench_dkk(market) -> pd.Series:
-    b = universe.benchmark()
+    b = tracked.benchmark()
     px = market.closes[b].dropna()
     fx = universe.fx_to_dkk(market.closes, universe.currencies([b])[b])
     return (px * fx.reindex(px.index).ffill()).dropna() if fx is not None else pd.Series(dtype=float)
@@ -485,7 +485,7 @@ def portfolio_performance(pid: int, market, start=None, end=None) -> dict | None
 
 
 def _asof(market) -> str:
-    return market.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
+    return market.closes[tracked.benchmark()].dropna().index[-1].date().isoformat()
 
 
 def _empty() -> dict:

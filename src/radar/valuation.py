@@ -184,13 +184,13 @@ def store_snapshot(path, old: pd.DataFrame, new: pd.DataFrame, today: date | Non
 
 
 def tracked_stocks() -> list[str]:
-    from . import universe
+    from . import tracked
 
-    names = {t for g in universe.stock_groups(offline=True).values() for t in g}
+    names = {t for g in tracked.stock_groups(offline=True).values() for t in g}
     h = trades.holdings()
     if not h.empty:
         names |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna())
-    etfs = {i.ticker for i in universe.etfs()} | {universe.benchmark()}
+    etfs = {i.ticker for i in tracked.etfs()} | {tracked.benchmark()}
     return sorted(names - etfs)
 
 
@@ -270,12 +270,12 @@ def fund_valuation(holdings: dict, pe_range: tuple[float, float] = (3, 150)) -> 
 
 
 def etf_tickers() -> list[str]:
-    from . import universe
+    from . import tracked
 
-    out = {i.ticker for i in universe.etfs()} | {universe.benchmark()}
-    out |= {b["ticker"] for b in universe.group_benchmarks().values()}
+    out = {i.ticker for i in tracked.etfs()} | {tracked.benchmark()}
+    out |= {b["ticker"] for b in tracked.group_benchmarks().values()}
     h = trades.holdings()
-    stocks = {t for g in universe.stock_groups(offline=True).values() for t in g}
+    stocks = {t for g in tracked.stock_groups(offline=True).values() for t in g}
     if not h.empty:  # held or watched funds; stocks among them are skipped by the lookup
         out |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) - stocks
     return sorted(out)
@@ -423,7 +423,7 @@ class Context:
     the cached lookups only (no network)."""
 
     def __init__(self, hist: pd.DataFrame | None = None, etf_hist: pd.DataFrame | None = None):
-        from . import universe
+        from . import tracked
         from .discovery import scan
         from .signals import valuation as sv
 
@@ -436,7 +436,7 @@ class Context:
         sec_file = CACHE / "sectors.csv"
         sectors = (pd.read_csv(sec_file, keep_default_na=False).set_index("ticker")["sector"].to_dict()
                    if sec_file.exists() else {})
-        self.radar_group = {t: g for g, ts in universe.stock_groups(offline=True).items() for t in ts}
+        self.radar_group = {t: g for g, ts in tracked.stock_groups(offline=True).items() for t in ts}
         disc = scan.load_universe()
         disc = disc[disc["kind"] == "stock"] if not disc.empty else disc
         self.disc_group = dict(zip(disc["ticker"], disc["market"])) if not disc.empty else {}
@@ -448,7 +448,7 @@ class Context:
         self.rev, self.rev_base = {}, {}
         for w in REVISION_WEEKS:
             self.rev[w], self.rev_base[w] = sv.revisions(hist, w)
-        self.etf = sv.etf_rows(etf_hist, universe.benchmark(), cfg["etf_history_weeks"])
+        self.etf = sv.etf_rows(etf_hist, tracked.benchmark(), cfg["etf_history_weeks"])
         self.etf_asof = pd.to_datetime(etf_hist["date"]).max().date().isoformat() if not etf_hist.empty else None
         self.band = cfg["revision_band"]
 
@@ -477,10 +477,10 @@ class Context:
 
     def breadth(self) -> dict:
         """EPS-revision breadth per radar region and per Discover market, for each comparison window."""
-        from . import universe
+        from . import tracked
         from .signals import valuation as sv
 
-        labels = universe.stock_group_labels()
+        labels = tracked.stock_group_labels()
         dmarkets = {k: m["label"] for k, m in discovery_config()["markets"].items()}
         out = {"weeks_stored": self.weeks, "asof": self.asof, "windows": []}
         for w, rev in self.rev.items():

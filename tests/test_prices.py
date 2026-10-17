@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import dashboard, ingest, paths, universe
+from radar import dashboard, ingest, paths, tracked, universe
 from radar.mine import _vs_shadow
 from radar.model.score import score_vs
 
@@ -258,7 +258,7 @@ def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch)
     closes = pd.DataFrame({"ACWI": range(5), "RHM.DE": [1.0, 2, 3, 4, np.nan]}, index=idx, dtype=float)
     market = SimpleNamespace(closes=closes)
     calls = []
-    monkeypatch.setattr(universe, "benchmark", lambda: "ACWI")
+    monkeypatch.setattr(tracked, "benchmark", lambda: "ACWI")
     monkeypatch.setattr(universe, "all_price_tickers", lambda **kw: ["ACWI", "RHM.DE"])
     monkeypatch.setattr(ingest, "update_prices", lambda t, **kw: calls.append((t, kw)))
     monkeypatch.setattr(profile.Market, "load", classmethod(lambda cls: market))

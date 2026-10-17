@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import constituents, fees, money, trades, universe, userstore
+from .. import constituents, fees, money, tracked, trades, universe, userstore
 from ..config import settings
 from ..jsonsafe import clean as _clean
 from ..model import inputs
@@ -55,7 +55,7 @@ def _trend(market, months: int | None = None) -> str | None:
     "down" (the split the long-run prior uses); None without enough history."""
     months = months or int((rules.cfg().get("prior") or {}).get("trend_months", 10))
     try:
-        s = market.closes[universe.benchmark()].dropna()
+        s = market.closes[tracked.benchmark()].dropna()
     except (KeyError, AttributeError):
         return None
     me = s.groupby(s.index.to_period("M")).last()
@@ -83,8 +83,8 @@ def ranked_pool(ctx: Ctx, tilt: str, ticket: float, p=None, raw: pd.DataFrame | 
     df = raw if raw is not None else basket.pool(ctx.market, ctx.prices, p)
     kept, excluded = basket.gates(df, tilt, ticket, c)
     vals = values_of(ctx.holdings)
-    R = ctx.prices.weekly(list(kept.index) + list(vals) + [universe.benchmark()], 52)
-    book_r = riskmodel.series(vals, R, universe.benchmark()) if vals else None
+    R = ctx.prices.weekly(list(kept.index) + list(vals) + [tracked.benchmark()], 52)
+    book_r = riskmodel.series(vals, R, tracked.benchmark()) if vals else None
     corr = basket.corr_to(R.reindex(columns=list(kept.index)), book_r, c["min_weeks"]) if book_r is not None else None
     kept = exposure.annotate(kept, exposure.info(list(kept.index), ctx.prices))
     return basket.score(kept, tilt, c, corr), excluded, df

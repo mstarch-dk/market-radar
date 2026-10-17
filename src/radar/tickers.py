@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, trades, universe
+from . import dashboard, tracked, trades, universe
+from .config import universe_config
 from .paths import CACHE
 
 _cache: tuple[tuple, list[dict]] | None = None
@@ -30,10 +31,10 @@ def _ret(s: pd.Series, n: int) -> float | None:
 
 def _market_rows(market) -> list[dict]:
     closes = market.closes
-    groups = universe.stock_groups(offline=True)
-    labels = universe.stock_group_labels()
-    etfs = universe.etfs()
-    etf_label = {k: g["label"] for k, g in universe.universe_config()["etf_groups"].items()}
+    groups = tracked.stock_groups(offline=True)
+    labels = tracked.stock_group_labels()
+    etfs = tracked.etfs()
+    etf_label = {k: g["label"] for k, g in universe_config()["etf_groups"].items()}
     group_of: dict[str, tuple[str, str]] = {}
     for key, ts in groups.items():
         for t in ts:
@@ -43,7 +44,7 @@ def _market_rows(market) -> list[dict]:
             if t:
                 group_of.setdefault(t, ("etf", etf_label.get(e.group, e.group)))
     h = trades.holdings()
-    symbols = sorted((set(group_of) | set(h["symbol"].dropna()) | {universe.benchmark()}) & set(closes.columns))
+    symbols = sorted((set(group_of) | set(h["symbol"].dropna()) | {tracked.benchmark()}) & set(closes.columns))
 
     d = dashboard.load() or {}
     quadrant = {}

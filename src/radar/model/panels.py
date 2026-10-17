@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import universe
+from .. import tracked, universe
 from ..config import settings
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
@@ -30,7 +30,7 @@ class Panels:
 
 
 def panels(market, tickers: list[str] | None = None) -> Panels:
-    groups = universe.stock_groups(offline=True)
+    groups = tracked.stock_groups(offline=True)
     group: dict[str, str] = {}
     for g, ts in groups.items():
         for t in ts:
@@ -52,7 +52,7 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
 
     sec = universe.sectors(stocks)["sector"].astype(str)
     return Panels(c, pd.DataFrame(dkk, index=c.index), m, vol, pd.Series(group).reindex(stocks), sec,
-                  market.closes[universe.benchmark()].dropna().index, performance.bench_dkk(market),
+                  market.closes[tracked.benchmark()].dropna().index, performance.bench_dkk(market),
                   market.volumes.reindex(columns=stocks) if getattr(market, "volumes", None) is not None else None)
 
 

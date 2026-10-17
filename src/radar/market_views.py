@@ -8,7 +8,7 @@ from functools import cache
 
 import pandas as pd
 
-from . import external, ingest, universe
+from . import external, ingest, tracked, universe
 from .config import load_yaml
 from .signals import views as sv
 from .userstore import viewstore
@@ -38,14 +38,14 @@ def templates() -> list[dict]:
 
 def catalogue() -> dict:
     """What the editor offers: indicators, ETFs (themes, factors, regions, sectors), sectors, regions."""
-    etfs = [{"ticker": e.ticker, "name": e.name, "group": e.group} for e in universe.etfs()]
+    etfs = [{"ticker": e.ticker, "name": e.name, "group": e.group} for e in tracked.etfs()]
     return {"indicators": [{"key": k, "label": v["label"], "kind": v["kind"]} for k, v in config()["indicators"].items()],
             "etfs": etfs, "sectors": SECTORS, "regions": REGIONS, "horizons": HORIZONS}
 
 
 def ucits_map() -> dict[str, str]:
     """UCITS listing -> the US ETF it stands in for (so VVSM.DE counts as SMH)."""
-    return {e.ucits: e.ticker for e in universe.etfs() if e.ucits}
+    return {e.ucits: e.ticker for e in tracked.etfs() if e.ucits}
 
 
 # ---------------- evidence ----------------
@@ -58,7 +58,7 @@ def reads(closes: pd.DataFrame | None = None) -> dict[str, dict]:
         prices["date"] = pd.to_datetime(prices["date"])
         closes = ingest.wide(prices)
     return sv.readings(config()["indicators"], closes, ingest.load_fred(), external.load_oecd_cli(),
-                       universe.benchmark())
+                       tracked.benchmark())
 
 
 def with_evidence(status: str | None = "active", closes: pd.DataFrame | None = None) -> list[dict]:
@@ -79,7 +79,7 @@ def align_profile(identity: dict, closes: pd.DataFrame, views: list[dict] | None
         return None
     t = identity["symbol"]
     meta = pd.DataFrame([{k: identity.get(k) for k in ("sector", "industry", "region", "country")}], index=[t])
-    ctx = sv.contexts([t], meta, closes, universe.benchmark(), sv.view_etfs(views), ucits_map(), config())[t]
+    ctx = sv.contexts([t], meta, closes, tracked.benchmark(), sv.view_etfs(views), ucits_map(), config())[t]
     out = sv.align(ctx, views, config())
     status = {v["id"]: v["evidence"]["verdict"] for v in with_evidence("active", closes)}
     for row in out["views"]:
@@ -104,7 +104,7 @@ def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
     key = (store, viewstore.views_version(), tuple(sorted(tickers)))
     if key in _cache:
         return _cache[key]
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     if store == "discovery":
         from .discovery import scan
 

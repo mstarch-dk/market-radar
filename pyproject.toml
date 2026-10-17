@@ -92,7 +92,7 @@ layers = [
     "abtest : api_models : backtest : coverage : dashboard : health : mine : profile : propose : report : updater",
     "model",
     "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : tickers : trades : universe : userstore",
-    "constituents : discovery : external : factors : fundamentals : ingest : positive_list : sentiment : updates : valuation",
+    "constituents : discovery : external : factors : fundamentals : ingest : positive_list : sentiment : tracked : updates : valuation",
     "signals",
     "config : config_schema : guard : jsonsafe : locks : money : net : ops : paths : sourcelog : values",
 ]
@@ -100,9 +100,7 @@ ignore_imports = [
     # data sources that read the universe or the store (tickers, currencies, the SEC contact)
     "radar.discovery.scan -> radar.universe",
     "radar.fundamentals.context -> radar.universe",
-    "radar.fundamentals.edgar -> radar.universe",
     "radar.fundamentals.edgar -> radar.userstore",
-    "radar.valuation -> radar.universe",
     "radar.valuation -> radar.trades",
     # pure readings that use the kernel or the fact store
     "radar.signals.fundamentals -> radar.fundamentals.store",

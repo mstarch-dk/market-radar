@@ -7,7 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, universe
+from .. import money, performance, simulate, tracked
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels
@@ -157,7 +157,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
 
     bt = settings().get("backtest") or {}
     fee = money.fee_bps(bt)
-    park = bt.get("park") or universe.benchmark()
+    park = bt.get("park") or tracked.benchmark()
     holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
     specs = exit_rule_variants()
     if keys:

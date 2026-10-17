@@ -1,44 +1,14 @@
 """Everything the radar tracks: ETFs, stock lists, macro tickers, holdings."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 
 import pandas as pd
 
-from . import constituents, money, net, trades
-from .config import settings, universe_config, write_csv
+from . import money, net, trades
+from .config import settings, write_csv
 from .paths import CACHE
-
-
-@dataclass(frozen=True)
-class Instrument:
-    ticker: str
-    name: str
-    group: str
-    region: str
-    ucits: str | None = None
-    isin: str | None = None
-    ucits_name: str | None = None
-
-
-def benchmark() -> str:
-    return universe_config()["benchmark"]["ticker"]
-
-
-def etfs() -> list[Instrument]:
-    out = []
-    for key, g in universe_config()["etf_groups"].items():
-        for it in g["items"]:
-            out.append(Instrument(it["ticker"], it["name"], key, g["region"], it.get("ucits"), it.get("isin"),
-                                  it.get("ucits_name")))
-    return out
-
-
-def group_benchmarks() -> dict[str, dict]:
-    """ETF groups with a home-market benchmark (key -> {ticker, name}), used for an extra RRG."""
-    return {k: g["benchmark"] for k, g in universe_config()["etf_groups"].items() if g.get("benchmark")}
-
+from .tracked import benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
 
 # ---------- MSCI ACWI's own weights (iShares MSCI ACWI UCITS holdings) ----------
 
@@ -149,35 +119,6 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
         CACHE.mkdir(parents=True, exist_ok=True)
         write_csv(pd.DataFrame(list(cached.items()), columns=["ticker", "currency"]), cache_file, index=False)
     return {t: cached.get(t) for t in tickers}
-
-
-def stock_groups(refresh: bool = False, offline: bool = False) -> dict[str, list[str]]:
-    groups = {}
-    for key, g in universe_config()["stock_groups"].items():
-        groups[key] = constituents.us_constituents(refresh, offline) if g.get("source") == "spy_holdings" else list(g["tickers"])
-    return groups
-
-
-def stock_group_labels() -> dict[str, str]:
-    return {k: g["label"] for k, g in universe_config()["stock_groups"].items()}
-
-
-def macro_yahoo() -> dict[str, str]:
-    return universe_config()["macro"]["yahoo"]
-
-
-def macro_fred() -> dict[str, str]:
-    return universe_config()["macro"]["fred"]
-
-
-def macro_fred_views() -> dict[str, str]:
-    """FRED series only the market-views evidence check reads (kept out of the regime's freshness check)."""
-    return universe_config()["macro"].get("fred_views") or {}
-
-
-def macro_fred_study() -> dict[str, str]:
-    """FRED series only `radar study longrun` reads (USD/DKK since 1971, US recessions)."""
-    return universe_config()["macro"].get("fred_study") or {}
 
 
 def history_gap(closes) -> tuple[date, date] | None:

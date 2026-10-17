@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, ingest, market_views, profile, universe, userstore
+from radar import api, api_models, ingest, market_views, profile, tracked, userstore
 from radar.signals import views as sv
 from radar.userstore import viewstore
 
@@ -54,7 +54,7 @@ def test_the_migration_keeps_an_existing_database(tmp_data):
 
 def test_templates_only_use_known_indicators_and_tracked_etfs():
     known = set(market_views.config()["indicators"])
-    etfs = {e.ticker for e in universe.etfs()}
+    etfs = {e.ticker for e in tracked.etfs()}
     for t in market_views.templates():
         assert {i["indicator"] for i in t["indicators"]} <= known, t["key"]
         assert {e["key"] for e in t["exposures"] if e["kind"] == "etf"} <= etfs, t["key"]

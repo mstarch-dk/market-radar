@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import universe
+from .. import tracked
 from ..fundamentals import context as fcontext
 from ..fundamentals import store
 from ..signals import fundamentals as sf
@@ -26,7 +26,7 @@ class FundPIT:
 
     def __init__(self, market, edgar: pd.DataFrame | None = None, tickers: list[str] | None = None):
         e = store.load_edgar() if edgar is None else edgar
-        us = set(universe.stock_groups(offline=True).get(GROUP, []))
+        us = set(tracked.stock_groups(offline=True).get(GROUP, []))
         names = sorted(set(tickers if tickers is not None else us) & set(e["ticker"].unique())) if not e.empty else []
         self.names = [t for t in names if t in market.closes.columns]
         self.edgar = e[e["ticker"].isin(self.names)]

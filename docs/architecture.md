@@ -12,7 +12,7 @@ kernel           model/
 domain           backup, export, fees, guide, home, importers/, market, market_views, notebook, performance,
                  portfolio, simulate, snapshot, tickers, trades, universe, userstore/
 data sources     constituents, discovery/, external, factors, fundamentals/, ingest, positive_list, sentiment,
-                 updates, valuation
+                 tracked, updates, valuation
 pure readings    signals/
 infrastructure   config, config_schema, guard, jsonsafe, locks, money, net, ops, paths, sourcelog, values
 ```
@@ -141,8 +141,8 @@ change to the model and to its schema version.
   prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
 
 ### Domain
-- `universe.py`: what is tracked and how it is quoted (config access, names, sectors, currencies, FX to DKK,
-  region, how far back prices go).
+- `universe.py`: what is tracked and how it is quoted (every price ticker incl. holdings, names, sectors,
+  currencies, FX to DKK, region, how far back prices go).
 - `market.py`: the price store as wide frames, loaded once and shared by the API, CLI and studies.
 - `userstore/`: the user's own edits in `radar.db` (SQLite, versioned by `PRAGMA user_version` and an append-only
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
@@ -179,6 +179,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   append-only) in one long fact format; the period arithmetic as known on any day; which tickers are due.
 - `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
 - `constituents.py`: the S&P 500 and MSCI ACWI holdings.
+- `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
+  sources.
 - `positive_list.py`: SKAT's positive list.
 - `discovery/`: the separate wide scan for names the radar doesn't track. Nothing here feeds the regime, breadth
   or the momentum page.
