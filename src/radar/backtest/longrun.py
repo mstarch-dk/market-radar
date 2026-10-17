@@ -41,7 +41,8 @@ from ..model import artifacts
 from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # noqa: F401 (re-exported)
 from ..model.score import COMPONENTS, weighted_pct
 from ..model.score import mean_pct as pct
-from .study import QUANTILES, _diff_t, _json, _mean, _verdict, cross_section, nw_t, summarize
+from ..model.stats import mean as _mean
+from .study import QUANTILES, _diff_t, _verdict, cross_section, nw_t, summarize
 
 REPORT_FILE = "longrun-study.json"
 BASELINE = "score"
@@ -400,4 +401,4 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
 def write(rep: dict) -> None:
     months = (rep.get("datasets_asof") or {}).values()
     artifacts.write("longrun-study", rep, data_asof=artifacts.month_end(max(months)) if months else None,
-                    default=_json, file=REPORT_FILE)
+                    file=REPORT_FILE)

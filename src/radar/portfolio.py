@@ -82,7 +82,7 @@ TYPE_WORDS = {"BUY": "buy", "SELL": "sale", "DEPOSIT": "deposit", "WITHDRAW": "w
 CASH_SLACK = 0.5                       # DKK: rounding, not a missing deposit
 
 
-def _num(v) -> bool:
+def _is_number(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
 
 
@@ -117,15 +117,15 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
     if trade:
         for f, label in (("quantity", "Quantity"), ("price", "Price")):
             v = row.get(f)
-            if not _num(v) or v <= 0:
+            if not _is_number(v) or v <= 0:
                 issues.append(_issue(ERROR, f, f"{label} must be more than 0."))
-        if not _num(fee) or fee < 0:
+        if not _is_number(fee) or fee < 0:
             issues.append(_issue(ERROR, "fee", "The fee can't be negative."))
-        if row.get("fx_rate") is not None and (not _num(row["fx_rate"]) or row["fx_rate"] <= 0):
+        if row.get("fx_rate") is not None and (not _is_number(row["fx_rate"]) or row["fx_rate"] <= 0):
             issues.append(_issue(ERROR, "fx_rate", "The exchange rate must be more than 0 (DKK per unit of price)."))
     elif cash_row:
         v = row.get("amount")
-        if not _num(v) or v <= 0:
+        if not _is_number(v) or v <= 0:
             issues.append(_issue(ERROR, "amount", "The amount must be more than 0."))
         if (row.get("currency") or "DKK").upper() != "DKK":
             issues.append(_issue(ERROR, "currency", "Cash rows are entered in DKK (convert at the rate your broker used)."))

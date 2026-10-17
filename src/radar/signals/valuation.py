@@ -5,19 +5,10 @@ everything missing stays missing (None), never 0.
 """
 from __future__ import annotations
 
-import math
-
 import pandas as pd
 
+from ..values import num
 from . import gauges as gz
-
-
-def _f(v) -> float | None:
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return None
-    return v if math.isfinite(v) else None
 
 
 def percentile(s: pd.Series, v: float) -> float | None:
@@ -50,7 +41,7 @@ def _snap(hist: pd.DataFrame, day: pd.Timestamp) -> pd.DataFrame:
 def eps_revision(new: dict, old: dict) -> float | None:
     """Change in the next-fiscal-year EPS estimate between two snapshots. When the fiscal year has rolled over
     (this year's estimate is now last time's "next year"), the comparison follows the same year."""
-    n_fy1, o_fy1, n_cy, o_cy = (_f(new.get("eps_fy1")), _f(old.get("eps_fy1")), _f(new.get("eps_cy")), _f(old.get("eps_cy")))
+    n_fy1, o_fy1, n_cy, o_cy = (num(new.get("eps_fy1")), num(old.get("eps_fy1")), num(new.get("eps_cy")), num(old.get("eps_cy")))
     if o_fy1 is None or not o_fy1:
         return None
     rolled = (n_cy is not None and o_cy and abs(n_cy / o_cy - 1) > 0.15 and abs(n_cy / o_fy1 - 1) < abs(n_cy / o_cy - 1))
@@ -105,12 +96,12 @@ def etf_rows(hist: pd.DataFrame, bench: str, min_weeks: int = 26) -> dict[str, d
         return {}
     d = pd.to_datetime(hist["date"])
     now = hist[d == d.max()].drop_duplicates("ticker", keep="last").set_index("ticker")
-    bench_pe = _f(now.loc[bench, "pe"]) if bench in now.index else None
+    bench_pe = num(now.loc[bench, "pe"]) if bench in now.index else None
     out = {}
     for t, r in now.iterrows():
-        pe = _f(r["pe"])
+        pe = num(r["pe"])
         past = hist[hist["ticker"] == t]["pe"].dropna()
-        out[t] = {"pe": pe, "pb": _f(r.get("pb")), "pe_vs_acwi": pe / bench_pe if pe and bench_pe else None,
+        out[t] = {"pe": pe, "pb": num(r.get("pb")), "pe_vs_acwi": pe / bench_pe if pe and bench_pe else None,
                   "pe_pct": percentile(past, pe) if pe is not None and len(past) >= min_weeks else None,
                   "weeks": int(len(past))}
     return out
@@ -172,6 +163,6 @@ def putcall(df: pd.DataFrame, lookback: int = 756) -> dict | None:
     v = float(avg.iloc[-1])
     hist = avg.iloc[-lookback:-1]
     last = df.sort_values("date").iloc[-1]
-    return {"asof": s.index[-1].date().isoformat(), "total": _f(last.get("total")), "equity": _f(last.get("equity")),
-            "index": _f(last.get("index")), "equity_10d": v, "pct": percentile(hist, v) if len(hist) >= 60 else None,
+    return {"asof": s.index[-1].date().isoformat(), "total": num(last.get("total")), "equity": num(last.get("equity")),
+            "index": num(last.get("index")), "equity_10d": v, "pct": percentile(hist, v) if len(hist) >= 60 else None,
             "days": int(len(s)), "gauge": gz.gauge("putcall_pct", percentile(hist, v) if len(hist) >= 60 else None)}

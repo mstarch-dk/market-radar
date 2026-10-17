@@ -275,5 +275,4 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
 
 
 def write(rep: dict) -> str:
-    return str(artifacts.write("propose-study", rep, data_asof=rep["asof"], rule_hash=rep["settings_hash"],
-                               default=study._json))
+    return str(artifacts.write("propose-study", rep, data_asof=rep["asof"], rule_hash=rep["settings_hash"]))

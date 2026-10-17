@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from ..fundamentals import store
+from ..values import num
 
 QUALITY: dict[str, dict[str, tuple[str, ...]]] = {
     "standard": {"profitability": ("fcf_margin", "roic"), "durability": ("gm_stability", "rev_stability"),
@@ -49,16 +50,8 @@ ALL_METRICS = sorted({m for s in QUALITY.values() for ms in s.values() for m in 
                                                                                     for m in s})
 
 
-def _num(v) -> float | None:
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
-        return None
-    return f if math.isfinite(f) else None
-
-
 def _v(x) -> float | None:
-    return None if x is None else _num(x.value)
+    return None if x is None else num(x.value)
 
 
 def is_financial(industry: str | None, financial_industries) -> bool:

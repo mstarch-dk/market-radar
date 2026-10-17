@@ -52,6 +52,7 @@ from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
 from ..model.score import COMPONENTS
 from ..model.score import mean_pct as pct
+from ..model.stats import mean as _mean
 from ..model.stats import nw_t  # noqa: F401 (re-exported)
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
@@ -295,11 +296,6 @@ def cross_section(x: pd.Series, y: pd.Series, n_top: int, min_names: int, y_dkk:
         t = y_dkk.reindex(top).dropna()
         out["top_dkk"] = float(t.mean()) if len(t) else None
     return out
-
-
-def _mean(v):
-    v = [x for x in v if x is not None and np.isfinite(x)]
-    return float(np.mean(v)) if v else None
 
 
 def summarize(rows: list[dict], lag: int) -> dict | None:
@@ -637,18 +633,8 @@ def _value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -
 
 
 def write(rep: dict) -> None:
-    artifacts.write("score-study", rep, data_asof=rep["asof"], default=_json,
+    artifacts.write("score-study", rep, data_asof=rep["asof"],
                     file=SIGNALS[rep.get("signal", "momentum")].report)
-
-
-def _json(v):
-    if isinstance(v, pd.Timestamp):
-        return v.date().isoformat()
-    if isinstance(v, set):
-        return sorted(v)
-    if hasattr(v, "item"):
-        return v.item()
-    return str(v)
 
 
 # ---------------- variants of the exit rule: return and risk ----------------
@@ -942,7 +928,7 @@ EXIT_REPORT_FILE = "exit-study.json"
 
 
 def write_exits(rep: dict) -> None:
-    artifacts.write("exit-study", rep, data_asof=rep["asof"], default=_json, file=EXIT_REPORT_FILE)
+    artifacts.write("exit-study", rep, data_asof=rep["asof"], file=EXIT_REPORT_FILE)
 
 
 # ---------------- redeploy: the exit money into the next momentum name ----------------
@@ -1208,4 +1194,4 @@ REDEPLOY_REPORT_FILE = "redeploy-study.json"
 
 
 def write_redeploy(rep: dict) -> None:
-    artifacts.write("redeploy-study", rep, data_asof=rep["asof"], default=_json, file=REDEPLOY_REPORT_FILE)
+    artifacts.write("redeploy-study", rep, data_asof=rep["asof"], file=REDEPLOY_REPORT_FILE)

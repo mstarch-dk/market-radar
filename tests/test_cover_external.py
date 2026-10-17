@@ -159,23 +159,7 @@ def test_analyst_partial_failure_keeps_going_and_retries_the_failed_one_next_tim
     assert fake.asked == [("info", "BBB")]
 
 
-# ---------------- Ticker detail: _jsonable, _frame, fetch_detail ----------------
-
-def test_jsonable_makes_numpy_dates_and_gaps_json_safe():
-    v = external._jsonable({1: [np.int64(3), np.float64("nan"), float("inf"), pd.Timestamp("2026-01-02 15:00")],
-                             "d": date(2026, 3, 4), "na": pd.NA, "t": (np.bool_(True), "x")})
-    assert v == {"1": [3, None, None, "2026-01-02"], "d": "2026-03-04", "na": None, "t": [True, "x"]}
-    json.dumps(v)
-
-
-def test_jsonable_turns_a_missing_timestamp_into_none():
-    assert external._jsonable(pd.NaT) is None
-
-
-def test_jsonable_turns_a_numpy_datetime_into_an_iso_date():
-    assert external._jsonable(np.datetime64("2026-01-02")) == "2026-01-02"
-    assert external._jsonable(np.datetime64("2026-01-02T00:00:00.000000000")) == "2026-01-02"
-
+# ---------------- Ticker detail: _frame, fetch_detail (the JSON cleaning: test_jsonsafe.py) ----------------
 
 def test_frame_is_rows_of_columns_and_nothing_for_none_or_empty():
     df = pd.DataFrame({"current": [1.5, np.nan], "7daysAgo": [1.4, 2.0]}, index=["0q", "+1q"])

@@ -118,6 +118,11 @@ Your data now lives apart from the program, so a new version never touches it.
 - New source: iShares MSCI ACWI UCITS holdings (ACWI's sector, region and currency weights), cached monthly.
 - The Notebook lists proposals; guide placeholders show large numbers with Danish thousands (10.000).
 - Linux start script `start-market-radar.sh`.
+- Proposals read the regime with your current choice of voting groups, like the start page and profiles
+  (before, the label `summary.json` had at the last `radar report`); `radar info A B` shows it the same way.
+- Study reports (`reports/*-study.json`, `sim-exits*.json`, `sim-picks/`) and every `--json` output write a
+  missing number as `null`, never `NaN` (which isn't JSON, and slipped past the readers' checks into a proposal's
+  drift); a missing date is `null`, not `"NaT"`.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the
 old data). Afterwards you can delete the old program folder.

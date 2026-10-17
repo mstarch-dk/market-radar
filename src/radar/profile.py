@@ -7,16 +7,14 @@ a source has no answer.
 """
 from __future__ import annotations
 
-import math
-from datetime import date
-
-import numpy as np
 import pandas as pd
 
 from . import dashboard, external, ingest, mine, universe
 from .config import settings, universe_config
+from .jsonsafe import clean
 from .market import Market
 from .mine import _fx_to_dkk
+from .model import inputs
 from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
@@ -52,23 +50,6 @@ def ensure_prices(ticker: str, market: Market | None = None, refresh: bool = Fal
 
 
 # ---------------- helpers ----------------
-
-def clean(v):
-    """JSON-safe: numpy → python, NaN/inf → None, timestamps → ISO dates, recursively."""
-    if isinstance(v, dict):
-        return {str(k): clean(x) for k, x in v.items()}
-    if isinstance(v, (list, tuple)):
-        return [clean(x) for x in v]
-    if isinstance(v, np.generic):
-        v = v.item()
-    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
-        return None
-    if isinstance(v, (pd.Timestamp, date)):
-        return v.isoformat()[:10]
-    if v is pd.NaT or v is pd.NA:
-        return None
-    return v
-
 
 def _ret(s: pd.Series, n: int) -> float | None:
     s = s.dropna()
@@ -129,15 +110,6 @@ def sector_etf(region: str, sector: str | None, industry: str | None) -> str | N
         if industry and industry.startswith(prefix):
             return etf
     return m.get(sector) if sector else None
-
-
-def _regime() -> dict:
-    """The overall regime from the last `radar run` (dashboard.json)."""
-    d = dashboard.load()
-    if d is None:
-        return {"label": None, "asof": None}
-    overall = dashboard.regime_now(d)[0]   # with your current choice of voting groups
-    return {"label": overall["label"], "asof": d["asof"], "net": overall.get("net")}
 
 
 def _valuation_snapshot(ticker: str) -> dict | None:
@@ -320,7 +292,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
 
     # --- stop / take-profit levels (the same rule as for holdings)
     row = m | {"score": None if score is None or pd.isna(score) else score}
-    regime = _regime()
+    regime = inputs.current_regime(dashboard.load())
     lv = levels.for_ticker(ticker, closes, market.highs, market.lows, row,
                            mine.iloc[0]["first_trade"] if status == "holding" else None, regime["label"], hist,
                            cfg["stops"] | {"analyst_max_age_days": cfg["coverage"]["max_age"]["analyst"]})
@@ -602,8 +574,9 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
     d = dashboard.load()
     regime = None
     if d:
-        regime = {"asof": d["asof"], "overall": d["regime"]["overall"],
-                  "indicators": [{k: i.get(k) for k in ("name", "value", "status", "gauge")} for i in d["regime"]["indicators"]]}
+        overall, inds = inputs.regime_now(d)                            # with your current choice of voting groups
+        regime = {"asof": d["asof"], "overall": overall,
+                  "indicators": [{k: i.get(k) for k in ("name", "value", "status", "gauge")} for i in inds]}
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "asof": closes[bench].dropna().index[-1].date().isoformat(),
            "personal_included": personal, "regime": regime, "benchmark": bench_block,

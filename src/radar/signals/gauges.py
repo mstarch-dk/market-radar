@@ -12,16 +12,9 @@ import math
 from collections.abc import Set as AbstractSet
 
 from ..config import settings
+from ..values import num
 
 LEVELS = 4  # levels run -LEVELS..LEVELS
-
-
-def _num(v) -> float | None:
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return None
-    return None if math.isnan(v) or math.isinf(v) else v
 
 
 def interpolate(anchors: list, x: float) -> float:
@@ -45,7 +38,7 @@ def label_for(labels: list, x: float) -> str:
 
 def make(spec: dict, value) -> dict | None:
     """The gauge for `value` under `spec`; None when the value is missing (never graded as 0)."""
-    x = _num(value)
+    x = num(value)
     if x is None:
         return None
     graded = x

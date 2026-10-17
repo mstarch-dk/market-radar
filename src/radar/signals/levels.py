@@ -15,6 +15,8 @@ import math
 
 import pandas as pd
 
+from ..values import num
+
 
 def atr(high: pd.Series, low: pd.Series, close: pd.Series, n: int = 14) -> pd.Series:
     """Wilder's average true range."""
@@ -52,22 +54,22 @@ def analyst_view(hist: pd.DataFrame, ticker: str, close: pd.Series, revision_day
         return None
     a = h.iloc[-1].to_dict()
     out = {"fetched": pd.Timestamp(a["fetched"]).date().isoformat(), "quote_type": a.get("quote_type"),
-           "n_analysts": _num(a.get("n_analysts")), "rec_key": a.get("rec_key") or None,
-           "rec_mean": _num(a.get("rec_mean"))}
+           "n_analysts": num(a.get("n_analysts")), "rec_key": a.get("rec_key") or None,
+           "rec_mean": num(a.get("rec_mean"))}
     close = close.dropna()
     if max_age_days is not None and not close.empty and (close.index[-1] - pd.Timestamp(a["fetched"])).days > max_age_days:
         return out | {"stale": True, "max_age_days": max_age_days}
-    cur, mean = _num(a.get("current_price")), _num(a.get("target_mean"))
+    cur, mean = num(a.get("current_price")), num(a.get("target_mean"))
     on_fetch = close[:pd.Timestamp(a["fetched"])]
     if not cur or mean is None or on_fetch.empty:
         return out
     unit = float(on_fetch.iloc[-1]) / cur
     for k in ("target_mean", "target_median", "target_high", "target_low"):
-        v = _num(a.get(k))
+        v = num(a.get(k))
         out[k] = None if v is None else v * unit
     out["upside"] = out["target_mean"] / float(close.iloc[-1]) - 1
     old = h[h["fetched"] <= pd.Timestamp(a["fetched"]) - pd.Timedelta(days=revision_days)]
-    old_mean = _num(old.iloc[-1]["target_mean"]) if not old.empty else None
+    old_mean = num(old.iloc[-1]["target_mean"]) if not old.empty else None
     out["target_change"] = mean / old_mean - 1 if old_mean else None
     return out
 
@@ -131,7 +133,7 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
     mode = cfg.get("mode", "atr")
     if mode == "trend":
         n = int(cfg.get("trend_sma", 200))
-        stop = _num(row.get("trend_level", row.get("sma200") if n == 200 else None))
+        stop = num(row.get("trend_level", row.get("sma200") if n == 200 else None))
         # k only sizes the ATR stop and the take-profit: in trend mode its moves are kept as notes, not effects
         reasons = [{"signal": r["signal"], "effect": 0, "detail": r["detail"]} for r in reasons] if cfg.get("take_profit") \
             else [r for r in reasons if not r["effect"]]
@@ -241,11 +243,3 @@ def trail(close: pd.Series, atr_series: pd.Series, start, k: float) -> tuple[pd.
 
 def _true(v) -> bool:
     return v is not None and not (isinstance(v, float) and math.isnan(v)) and bool(v)
-
-
-def _num(v) -> float | None:
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return None
-    return None if math.isnan(v) else v

@@ -103,6 +103,7 @@ from .api_models import (
     WatchState,
 )
 from .config import ROOT, settings
+from .model import inputs
 
 WEB_DIST = ROOT / "web" / "dist"
 
@@ -421,7 +422,7 @@ def context() -> dict:
     h = universe.holdings()
     h = h[h["status"].isin(["holding", "watch"])] if not h.empty else h
     names = universe.names(list(h["symbol"])) if not h.empty else {}
-    return {"regime": profile._regime(),
+    return {"regime": inputs.current_regime(dashboard.load()),
             "tickers": [{"symbol": s, "name": names.get(s), "status": st} for s, st in zip(h["symbol"], h["status"])]}
 
 
@@ -696,7 +697,7 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
     sel = _selection(portfolio, tag, scope)
     d = _dashboard()
     rot_rows = [r for g in d["rotation"]["groups"] for r in g["rows"]]
-    regime_label = dashboard.regime_now(d)[0]["label"]
+    regime_label = inputs.current_regime(d)["label"]
     with _lock:
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,

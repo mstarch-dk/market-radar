@@ -33,17 +33,19 @@ import json
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import date
 
 import numpy as np
 import pandas as pd
 
 from . import fees, universe, userstore
 from .config import settings, universe_config, write_text
-from .model import artifacts
+from .jsonsafe import clean as _clean
+from .model import artifacts, inputs
 from .model import paths as mpaths
 from .model import prior as mprior
-from .paths import HOME, REPORTS
+from .model.stats import mean as _mean
+from .paths import HOME
+from .values import num
 
 PROPOSALS = HOME / "exports" / "proposals"
 MEMOS = HOME / "research" / "proposals"
@@ -64,32 +66,6 @@ def rule_hash(c: dict | None = None) -> str:
     c = c or cfg()
     blob = json.dumps({k: c.get(k) for k in RULE_KEYS}, sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:12]
-
-
-def _f(v) -> float | None:
-    if v is None:
-        return None
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return None
-    return v if math.isfinite(v) else None
-
-
-def _clean(v):
-    if isinstance(v, dict):
-        return {str(k): _clean(x) for k, x in v.items()}
-    if isinstance(v, (list, tuple)):
-        return [_clean(x) for x in v]
-    if isinstance(v, (np.bool_, bool)):
-        return bool(v)
-    if isinstance(v, (pd.Timestamp, date)):
-        return v.isoformat()[:10]
-    if isinstance(v, (np.integer,)):
-        return int(v)
-    if isinstance(v, (float, np.floating)):
-        return _f(v)
-    return v
 
 
 def slug(s: str) -> str:
@@ -124,7 +100,7 @@ class Prices:
         if fx is None or not len(fx.dropna()):
             return None
         v = fx.dropna().asof(pd.Timestamp(day)) if day is not None else fx.dropna().iloc[-1]
-        return _f(v) if v is not None and pd.notna(v) and v > 0 else None
+        return num(v) if v is not None and pd.notna(v) and v > 0 else None
 
     def dkk(self, t: str) -> pd.Series | None:
         if t not in self._dkk:
@@ -141,7 +117,7 @@ class Prices:
         s = raw[t].dropna() if raw is not None and t in raw else pd.Series(dtype=float)
         if s.empty and t in self.market.closes:
             s = self.market.closes[t].dropna()
-        return _f(s.iloc[-1]) if len(s) else None
+        return num(s.iloc[-1]) if len(s) else None
 
     def weekly(self, tickers, weeks: int) -> pd.DataFrame:
         """Weekly (W-FRI) DKK returns of `tickers` over the last `weeks` (a column only where it has prices)."""
@@ -430,7 +406,7 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
         if why:
             passed[t] = why
             continue
-        picked.append({"ticker": t, "composite": _f(r["composite"]), "sector": r["sector"], "region": r["region"],
+        picked.append({"ticker": t, "composite": num(r["composite"]), "sector": r["sector"], "region": r["region"],
                        "currency": r["currency"]})
         per_sector[r["sector"]] = per_sector.get(r["sector"], 0) + 1
         for d in DIMS:
@@ -494,13 +470,13 @@ def size(amount: float, picks: list[dict], df: pd.DataFrame, prices: Prices, sf:
     if weighting not in WEIGHTINGS:
         raise ValueError(f"weighting is one of {', '.join(WEIGHTINGS)}")
     ticket = c["min_ticket_dkk"]
-    vols = [_f(df.at[x["ticker"], "vol"]) if x["ticker"] in df.index else None for x in picks]
+    vols = [num(df.at[x["ticker"], "vol"]) if x["ticker"] in df.index else None for x in picks]
     bud = budgets(amount, vols, weighting, ticket) if picks else []
     rows, flags = [], []
     for x, b in zip(picks, bud):
         t = x["ticker"]
         px, rate = prices.last_px(t), prices.rate(t)
-        adv = _f(df.at[t, "adv_dkk"]) if t in df.index else None
+        adv = num(df.at[t, "adv_dkk"]) if t in df.index else None
         hs = half_spread(adv, c)
         row = {"ticker": t, "budget_dkk": b, "price": px, "currency": prices.ccy(t), "rate": rate,
                "half_spread": hs, "quantity": None, "value_dkk": None, "cash_dkk": None, "fee_dkk": None,
@@ -875,15 +851,6 @@ class Ctx:
     trend: str | None = None       # ACWI above ("up") or below ("down") its prior.trend_months-month average
 
 
-def _regime() -> str | None:
-    f = REPORTS / "summary.json"
-    try:
-        r = json.loads(f.read_text(encoding="utf-8")).get("regime")
-    except (FileNotFoundError, ValueError):
-        return None
-    return (r or {}).get("label") if isinstance(r, dict) else r
-
-
 def context(market, name: str, offline: bool = False) -> Ctx:
     p = userstore.portfolio_by_name(name)
     if not p:
@@ -903,7 +870,7 @@ def context(market, name: str, offline: bool = False) -> Ctx:
     sf = fees.SimFees.for_portfolio(p, float((settings().get("backtest") or {}).get("fee_bps", 0)))
     if not sf.schedule:
         notes.append(f"{name} has no fee schedule: fees are the flat backtest.fee_bps")
-    return Ctx(market, prices, p, held, whole, sf, acwi, _regime(), notes, _trend(market))
+    return Ctx(market, prices, p, held, whole, sf, acwi, inputs.current_regime()["label"], notes, _trend(market))
 
 
 def _trend(market, months: int | None = None) -> str | None:
@@ -1099,7 +1066,7 @@ def adv_dkk(prices: Prices, t: str) -> float | None:
     if v is None or t not in v or s is None:
         return None
     x = (v[t].reindex(s.index) * s).dropna().iloc[-20:]
-    return _f(x.mean()) if len(x) else None
+    return num(x.mean()) if len(x) else None
 
 
 def _cost_one(prices: Prices, sf: fees.SimFees, t: str, amount: float, adv=None) -> float | None:
@@ -1216,9 +1183,9 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
         "meta": m, "regime": ctx.regime, "trend": ctx.trend, "notes": ctx.notes, "untested_kv": untested,
         "picks": [{**x, **{k: v for k, v in (next(r for r in sz["rows"] if r["ticker"] == x["ticker"])).items()},
                    "sector": pmeta["sector"].get(x["ticker"]), "region": pmeta["region"].get(x["ticker"]),
-                   "momentum_score": _f(frame.at[x["ticker"], "score"]) if "score" in frame else None,
-                   "qv": _f(frame.at[x["ticker"], "qv"]) if "qv" in frame else None,
-                   "vol": _f(frame.at[x["ticker"], "vol"]),
+                   "momentum_score": num(frame.at[x["ticker"], "score"]) if "score" in frame else None,
+                   "qv": num(frame.at[x["ticker"], "qv"]) if "qv" in frame else None,
+                   "vol": num(frame.at[x["ticker"], "vol"]),
                    "contribution": prop["risk"]["contributions"].get(x["ticker"])} for x in doc["picks"]],
         "size": sz, "filler": fl, "constraints": cons,
         "exposure": {"before": exposures(vals, meta, ctx.acwi), "after": exposures(after, meta, ctx.acwi),
@@ -1553,9 +1520,6 @@ def review(market) -> dict:
                    f"{len(judged)} proposal(s) with a result: fewer than {c['review_min']} say nothing about the method yet"})
 
 
-def _mean(v):
-    v = [float(x) for x in v if x is not None]
-    return float(np.mean(v)) if v else None
 
 
 def check(market, portfolio: str | None = None) -> dict:
@@ -1604,7 +1568,7 @@ def check(market, portfolio: str | None = None) -> dict:
             sig = ex.get("signal") or {}
             if sig.get("metric"):
                 col = "score" if sig["metric"] == "score" else sig["metric"]
-                v = _f(pl.at[t, col]) if t in pl.index and col in pl else None
+                v = num(pl.at[t, col]) if t in pl.index and col in pl else None
                 lim = float(sig["below"])
                 items.append({"criterion": f"{sig['metric']} below {lim:g}", "value": v,
                               "status": "unknown" if v is None else "triggered" if v < lim else
@@ -1612,7 +1576,7 @@ def check(market, portfolio: str | None = None) -> dict:
             for th in ex.get("thesis") or []:
                 if th.get("metric") and th.get("op") in ("<", ">") and th.get("value") is not None:
                     col = th["metric"]
-                    v = _f(pl.at[t, col]) if t in pl.index and col in pl else None
+                    v = num(pl.at[t, col]) if t in pl.index and col in pl else None
                     bad = None if v is None else (v < th["value"] if th["op"] == "<" else v > th["value"])
                     items.append({"criterion": th.get("text") or f"{col} {th['op']} {th['value']}", "value": v,
                                   "status": "unknown" if bad is None else "triggered" if bad else "intact"})
