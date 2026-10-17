@@ -15,7 +15,9 @@ import pandas as pd
 
 from ..values import num
 
+TRADING_DAYS = 252        # sessions a year: daily figures are annualised with these
 WEEKS_PER_YEAR = 52
+MONTHS_PER_YEAR = 12
 FLAT = 1e-12  # variance below this is treated as no movement (floating-point noise, not a signal)
 
 
@@ -54,10 +56,32 @@ def ols(y: np.ndarray, X: np.ndarray) -> dict:
             "r2": 1 - (resid @ resid) / tss if tss > 0 else float("nan"), "resid": resid}
 
 
+def underwater(level: pd.Series) -> pd.Series:
+    """How far a value series is below its running peak, each day (0 at a new high, negative below it)."""
+    return level / level.cummax() - 1
+
+
+def deepest_drawdown(level: pd.Series) -> float:
+    """The maximum drawdown of a value series: its deepest fall from a running peak (0 or negative; NaN when
+    empty)."""
+    return float(underwater(level).min())
+
+
+def annualised_vol(returns: pd.Series, per_year: int = TRADING_DAYS) -> float:
+    """The standard deviation of periodic returns, annualised (`per_year` periods a year)."""
+    return float(returns.std() * math.sqrt(per_year))
+
+
+def worst_window(level: pd.Series, n: int = 20) -> float | None:
+    """The worst change of a value series over any `n` periods; None when it is shorter than that."""
+    w = (level / level.shift(n) - 1).dropna()
+    return float(w.min()) if len(w) else None
+
+
 def drawdown(returns: pd.Series) -> tuple[float, int]:
     """Deepest fall from a peak of the cumulative return, and how many weeks the longest spell below a peak lasted."""
     wealth = (1 + returns).cumprod()
-    under = wealth / wealth.cummax() - 1
+    under = underwater(wealth)
     longest = run = 0
     for v in under:
         run = run + 1 if v < 0 else 0

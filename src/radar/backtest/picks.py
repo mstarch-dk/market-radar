@@ -22,13 +22,15 @@ import re
 import numpy as np
 import pandas as pd
 
-from .. import performance, simulate, universe, userstore
+from .. import money, performance, simulate, universe, userstore
 from ..config import settings, write_text
 from ..jsonsafe import clean as _clean
 from ..jsonsafe import dumps
 from ..model import panels as mp
 from ..model.select import capped
+from ..model.stats import cross_section
 from ..paths import REPORTS
+from ..simulate import basket_rows  # noqa: F401 (re-exported)
 from . import exits as ex
 from . import study
 
@@ -210,32 +212,6 @@ def random_percentile(pool: pd.DataFrame, ret: pd.Series, n: int, actual: float,
 
 # ---------------- the basket ----------------
 
-def basket_rows(market, weights: dict[str, float], day: pd.Timestamp, capital: float, fee_bps: float) -> tuple[list[dict], list[str]]:
-    """A deposit of `capital` DKK and a buy of each name for its weight at `day`'s traded close (or the last one
-    in the 7 days before), paying the fee. Names without a price or DKK rate are left out (listed); the rest keep
-    their weights, so some cash stays uninvested."""
-    ds = day.date().isoformat()
-    rows = [{"date": ds, "type": "DEPOSIT", "amount": float(capital), "currency": "DKK", "note": "basket capital"}]
-    problems = []
-    for t, w in weights.items():
-        b = market.bars(t) if t in market.closes.columns else pd.DataFrame()
-        col = "raw_close" if "raw_close" in b else "close"
-        s = b[col].dropna()[:day] if len(b) else pd.Series(dtype=float)
-        fx = performance.fx_series(market, t)
-        rate = fx.dropna().asof(day) if fx is not None and len(fx.dropna()) else None
-        if not len(s) or (day - s.index[-1]).days > 7:
-            problems.append(f"{t}: no traded price by {ds}")
-            continue
-        if rate is None or pd.isna(rate) or rate <= 0:
-            problems.append(f"{t}: no DKK rate on {ds}")
-            continue
-        px = float(s.iloc[-1])
-        qty = w * capital / (px * float(rate) * (1 + fee_bps / 1e4))
-        rows.append({"symbol": t, "date": ds, "type": "BUY", "quantity": qty, "price": px,
-                     "fee": qty * px * fee_bps / 1e4, "fx_rate": float(rate), "note": f"basket: {w:.1%}"})
-    return (rows if len(rows) > 1 else []), problems
-
-
 def _resolve(picks: list[dict], df: pd.DataFrame) -> list[dict]:
     """Picks by ticker or blind id -> tickers with normalised weights; refuses unknown names and duplicates."""
     by_id = dict(zip(df["id"], df["ticker"]))
@@ -293,7 +269,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     into three simulated portfolios, and build the report (reports/sim-picks/<slug>.json)."""
     meta = dict(meta or {})
     bt = settings().get("backtest") or {}
-    fee = float(bt.get("fee_bps", 0))
+    fee = money.fee_bps(bt)
     p = p or mp.panels(market)
     fill_mode = bt.get("fill", "next")
     day, note = resolve_asof(asof, p.sessions, fill_mode)
@@ -350,7 +326,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     acwi = float(b.asof(end_ts) / b.asof(fday) - 1) if len(b) else None
     rnd = random_percentile(df[df["score"].notna()], ret_d, len(weights), gross, caps["max_per_sector"],
                             caps["max_per_group"], int(bt.get("random_baskets", 1000)), seed=_seed(day, len(weights)))
-    check = study.cross_section(df.set_index("ticker")["score"], ret_l.reindex(uni), len(weights),
+    check = cross_section(df.set_index("ticker")["score"], ret_l.reindex(uni), len(weights),
                                 min(int(bt.get("study_min_names", 30)), max(len(df) // 2, 5)))
     per_pick = []
     for c in chosen:
@@ -362,7 +338,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
                          "return_local": _clean(ret_l.get(t)), "return_dkk": rd,
                          "contribution_dkk": c["weight"] * rd if rd is not None else None})
     rows_by = {r["portfolio"]["id"]: r for r in cmp["rows"]}
-    value_ret = {kind: study.value_return(rs, market, end_ts, capital) for kind, rs in runs}
+    value_ret = {kind: performance.return_on_paid_in(rs, market, end_ts) for kind, rs in runs}
     out = {
         "name": name, "slug": s, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
         "asof": day.date().isoformat(), "fill": fday.date().isoformat(), "end": end_ts.date().isoformat(),

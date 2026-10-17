@@ -20,15 +20,15 @@ Conventions (docs/data-conventions.md):
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-from . import universe
+from . import money, universe
+from .signals.risk import annualised_vol, deepest_drawdown
+from .userstore import TRADE_TYPES
 
-TRADE_TYPES = ("BUY", "SELL")
 EXTERNAL = {"DEPOSIT": 1.0, "WITHDRAW": -1.0}
 INCOME = {"DIVIDEND": 1.0, "INTEREST": 1.0, "FEE": -1.0}
 EPS = 1e-6
@@ -49,10 +49,7 @@ def trade_fx(row: dict, fx: pd.Series | None) -> float | None:
     """The DKK rate a trade was booked at: its own fx_rate, else Yahoo's rate that day (last one before)."""
     if row.get("fx_rate"):
         return float(row["fx_rate"])
-    if fx is None:
-        return None
-    v = fx.dropna().asof(pd.Timestamp(row["date"]))
-    return float(v) if pd.notna(v) and v > 0 else None
+    return money.rate_on(fx, row["date"])
 
 
 def trade_cash_dkk(row: dict, fx: pd.Series | None) -> float | None:
@@ -381,12 +378,12 @@ def _period(index: pd.Series, n: int | None = None, since: pd.Timestamp | None =
 
 def _max_drawdown(index: pd.Series) -> float | None:
     s = index.dropna()
-    return float((s / s.cummax() - 1).min()) if len(s) else None
+    return deepest_drawdown(s) if len(s) else None
 
 
 def _vol(index: pd.Series) -> float | None:
     r = index.pct_change(fill_method=None).dropna()
-    return float(r.std() * math.sqrt(252)) if len(r) > 20 else None
+    return annualised_vol(r) if len(r) > 20 else None
 
 
 def analyze(b: Book, market, start=None, end=None) -> dict:
@@ -575,3 +572,17 @@ def summary(market) -> list[dict]:
         row["notes"] = res["notes"] + res["missing"]
         out.append(row)
     return out
+
+
+def return_on_paid_in(rows: list[dict], market, end: pd.Timestamp) -> float | None:
+    """The return of trade rows on the money paid in, valued at `end`; None when their book doesn't reach `end` or
+    nothing went in."""
+    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
+    b = book(rows, market)
+    if b is None:
+        return None
+    v = b.value.loc[:end].dropna()
+    if not len(v) or v.index[-1] != end:
+        return None
+    ext = float((b.inflow - b.outflow).loc[:end].sum())
+    return float(v.iloc[-1] / ext - 1) if ext > 0 else None

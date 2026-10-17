@@ -7,6 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .. import money
 from . import momentum, rotation, technicals
 
 
@@ -27,12 +28,12 @@ def traded_value_dkk(raw: pd.DataFrame, volumes: pd.DataFrame, currencies: dict[
     out = {}
     for t in raw.columns:
         ccy = currencies.get(t)
-        rate = fx.get("GBP" if ccy == "GBp" else ccy) if ccy else None
+        rate = fx.get(money.main_unit(ccy)) if ccy else None
         if rate is None or t not in volumes.columns:
             out[t] = np.nan
             continue
         tv = (raw[t] * volumes[t]).dropna().iloc[-days:]
-        out[t] = float(tv.median()) * rate / (100 if ccy == "GBp" else 1) if len(tv) else np.nan
+        out[t] = float(tv.median()) * rate / (100 if money.is_pence(ccy) else 1) if len(tv) else np.nan
     return pd.Series(out, dtype=float)
 
 

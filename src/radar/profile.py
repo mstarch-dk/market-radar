@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, external, ingest, mine, universe
+from . import dashboard, external, ingest, mine, money, universe
 from .config import settings, universe_config
 from .jsonsafe import clean
 from .market import Market
@@ -306,7 +306,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
 
     # --- fundamentals
     fund = external.parse_fundamentals(info)          # all keys, None where Yahoo has nothing
-    if fund.get("market_cap") and currency != "GBp" and fx is not None:
+    if fund.get("market_cap") and not money.is_pence(currency) and fx is not None:
         fund["market_cap_dkk"] = fund["market_cap"] * float(fx.iloc[-1])
     has_fund = any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency"))
     fundamentals = _section(raw_status if has_fund else MISSING,

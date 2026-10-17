@@ -94,7 +94,7 @@ layers = [
     "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : tickers : universe : userstore",
     "discovery : external : factors : fundamentals : ingest : sentiment : updates : valuation",
     "signals",
-    "config : guard : jsonsafe : locks : net : ops : paths : values",
+    "config : guard : jsonsafe : locks : money : net : ops : paths : values",
 ]
 ignore_imports = [
     # data sources that log their freshness or failures into coverage (a feature)
@@ -160,7 +160,7 @@ sort = "cover"
 mypy_path = "src"
 explicit_package_bases = true
 files = ["src/radar/model", "src/radar/signals", "src/radar/paths.py", "src/radar/net.py", "src/radar/fees.py",
-         "src/radar/jsonsafe.py", "src/radar/market.py", "src/radar/values.py"]
+         "src/radar/jsonsafe.py", "src/radar/market.py", "src/radar/money.py", "src/radar/values.py"]
 follow_imports = "silent"
 ignore_missing_imports = true
 warn_unused_ignores = true

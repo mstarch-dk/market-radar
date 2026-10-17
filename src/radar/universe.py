@@ -10,9 +10,10 @@ from datetime import date
 
 import pandas as pd
 
-from . import net
+from . import money, net
 from .config import POSITIVE_LIST_FILE, settings, universe_config, write_csv
 from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
+from .userstore import CASH_TYPES
 from .values import whole
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
@@ -258,7 +259,7 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
 
 
 # CAD: for the P/E of US listings that report in it (valuation.price_in); Yahoo has no CNY/DKK quote
-FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", "GBp": "GBPDKK=X",
+FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", money.PENCE: "GBPDKK=X",
           "SEK": "SEKDKK=X", "NOK": "NOKDKK=X", "CHF": "CHFDKK=X", "PLN": "PLNDKK=X",
           "JPY": "JPYDKK=X", "HKD": "HKDDKK=X", "CAD": "CADDKK=X"}
 # Yahoo has no KRW/DKK or TWD/DKK quote either: those go through USD (DKK per unit = USDDKK=X / USDxxx=X)
@@ -269,7 +270,7 @@ FX_TICKERS = sorted({t for t in FX_DKK.values() if t} | set(FX_VIA_USD.values())
 def dkk_rates(last: dict[str, float]) -> dict[str, float]:
     """Latest DKK per unit of each currency from the latest close per FX ticker; a currency whose
     pair(s) are missing is left out. GBp is left out too (callers use GBP and divide by 100)."""
-    out = {"DKK": 1.0} | {c: last[t] for c, t in FX_DKK.items() if t and c != "GBp" and t in last}
+    out = {"DKK": 1.0} | {c: last[t] for c, t in FX_DKK.items() if t and not money.is_pence(c) and t in last}
     usd = last.get(FX_DKK["USD"])
     out |= {c: usd / last[t] for c, t in FX_VIA_USD.items() if usd and last.get(t)}
     return out
@@ -289,7 +290,7 @@ def fx_to_dkk(closes: pd.DataFrame, ccy: str | None) -> pd.Series | None:
         return pd.Series(1.0, index=closes.index)
     if fx not in closes:
         return None
-    return closes[fx].ffill() * (0.01 if ccy == "GBp" else 1.0)
+    return closes[fx].ffill() * (0.01 if money.is_pence(ccy) else 1.0)
 
 
 def currencies(tickers: list[str]) -> dict[str, str | None]:
@@ -351,7 +352,6 @@ def _is_market_symbol(sym: str) -> bool:
     return sym.startswith(("^", "$$")) or "=" in sym
 
 
-CASH_TYPES = ("DEPOSIT", "WITHDRAW", "DIVIDEND", "FEE", "INTEREST")
 TX_COLS = ["symbol", "date", "type", "quantity", "price", "fee", "fx_rate", "portfolio_id", "portfolio"]
 
 

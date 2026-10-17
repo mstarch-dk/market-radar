@@ -4,9 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .risk import weekly
-
-TRADING_DAYS = 252
+from .risk import TRADING_DAYS, deepest_drawdown, weekly  # noqa: F401 (TRADING_DAYS re-exported)
 
 
 def rsi(close: pd.Series, n: int = 14) -> pd.Series:
@@ -51,7 +49,7 @@ def realised_vol(close: pd.Series, n: int = 63) -> float:
 def max_drawdown(close: pd.Series, n: int = TRADING_DAYS) -> float:
     """Largest peak-to-trough fall within the last n sessions (negative fraction)."""
     c = close.dropna().iloc[-n:]
-    return float((c / c.cummax() - 1).min()) if len(c) > 1 else float("nan")
+    return deepest_drawdown(c) if len(c) > 1 else float("nan")
 
 
 def beta_corr(close: pd.Series, bench: pd.Series, weeks: int = 52) -> tuple[float, float]:

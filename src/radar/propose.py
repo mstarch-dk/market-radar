@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from . import fees, universe, userstore
+from . import fees, money, universe, userstore
 from .config import settings, universe_config, write_text
 from .jsonsafe import clean as _clean
 from .model import artifacts, inputs
@@ -45,6 +45,7 @@ from .model import paths as mpaths
 from .model import prior as mprior
 from .model.stats import mean as _mean
 from .paths import HOME
+from .signals.risk import deepest_drawdown
 from .values import num
 
 PROPOSALS = HOME / "exports" / "proposals"
@@ -96,11 +97,7 @@ class Prices:
         return universe.fx_to_dkk(self.market.closes, self.ccy(t))
 
     def rate(self, t: str, day=None) -> float | None:
-        fx = self.fx(t)
-        if fx is None or not len(fx.dropna()):
-            return None
-        v = fx.dropna().asof(pd.Timestamp(day)) if day is not None else fx.dropna().iloc[-1]
-        return num(v) if v is not None and pd.notna(v) and v > 0 else None
+        return money.rate_on(self.fx(t), day)
 
     def dkk(self, t: str) -> pd.Series | None:
         if t not in self._dkk:
@@ -187,7 +184,7 @@ def info(tickers, prices: Prices) -> pd.DataFrame:
             s = etf_sec.get(t, s or "(fund)")
         rows[t] = {"sector": s, "region": region_for(t), "currency": prices.ccy(t) or "?"}
     out = pd.DataFrame.from_dict(rows, orient="index")
-    out.loc[out["currency"] == "GBp", "currency"] = "GBP"
+    out.loc[out["currency"] == money.PENCE, "currency"] = money.main_unit(money.PENCE)
     return out
 
 
@@ -426,8 +423,8 @@ def half_spread(adv: float | None, c: dict | None = None) -> float:
     c = c or cfg()
     for b in sorted(c["spread_bps"], key=lambda x: -x["min_adv_dkk"]):
         if adv is not None and not pd.isna(adv) and adv >= b["min_adv_dkk"]:
-            return b["bps"] / 1e4
-    return max(b["bps"] for b in c["spread_bps"]) / 1e4
+            return money.bps(b["bps"])
+    return money.bps(max(b["bps"] for b in c["spread_bps"]))
 
 
 def terms_for(prices: Prices, sf: fees.SimFees, t: str) -> fees.Terms:
@@ -682,11 +679,11 @@ def stress(values: dict[str, float], prices: Prices, bench: str, c: dict | None 
         bw = b.loc[s:t1] if b is not None else None
         if bw is not None and len(bw) >= 2 and (bw.index[0] - s).days <= 5:
             bi = bw / bw.iloc[0]
-            rec["acwi_ret"], rec["acwi_max_dd"] = float(bi.iloc[-1] - 1), float((bi / bi.cummax() - 1).min())
+            rec["acwi_ret"], rec["acwi_max_dd"] = float(bi.iloc[-1] - 1), deepest_drawdown(bi)
         rec["coverage"] = cov / total if total > 0 else None
         if legs and total > 0 and cov / total >= 0.5:
             v = pd.concat(legs, axis=1).ffill().sum(axis=1) / cov
-            rec["ret"], rec["max_dd"] = float(v.iloc[-1] - 1), float((v / v.cummax() - 1).min())
+            rec["ret"], rec["max_dd"] = float(v.iloc[-1] - 1), deepest_drawdown(v)
         elif legs or rec["missing"]:
             rec["note"] = "less than half of the value has prices in this window: not replayed"
         out.append(rec)
@@ -867,7 +864,7 @@ def context(market, name: str, offline: bool = False) -> Ctx:
     acwi = universe.acwi_weights(offline=offline)
     if acwi is None:
         notes.append("ACWI's own weights are unknown (no iShares holdings file): active-weight caps are off")
-    sf = fees.SimFees.for_portfolio(p, float((settings().get("backtest") or {}).get("fee_bps", 0)))
+    sf = fees.SimFees.for_portfolio(p, money.fee_bps(settings().get("backtest")))
     if not sf.schedule:
         notes.append(f"{name} has no fee schedule: fees are the flat backtest.fee_bps")
     return Ctx(market, prices, p, held, whole, sf, acwi, inputs.current_regime()["label"], notes, _trend(market))
@@ -1421,7 +1418,7 @@ def shadow(market, doc: dict, name: str) -> dict:
         if userstore.portfolio_by_name(v):
             raise ValueError(f"there is already a portfolio called {v}: shadows are new, virtual portfolios")
     prices = Prices(market)
-    sf = fees.SimFees.for_portfolio(src, float((settings().get("backtest") or {}).get("fee_bps", 0)))
+    sf = fees.SimFees.for_portfolio(src, money.fee_bps(settings().get("backtest")))
     day = pd.Timestamp(market.closes.index[-1])
     tags = ["proposal", f"proposal-{m['date']}"]
     amount = float(m["amount"])
@@ -1480,7 +1477,7 @@ def _basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: i
     v = pd.concat(legs, axis=1).ffill().mean(axis=1)
     vx = pd.concat(legs_x, axis=1).ffill().mean(axis=1)
     bi = b.loc[start:] / b.loc[start:].iloc[0] if b is not None else None
-    return {"ret": float(v.iloc[-1] - 1), "max_dd": float((v / v.cummax() - 1).min()),
+    return {"ret": float(v.iloc[-1] - 1), "max_dd": deepest_drawdown(v),
             "exits_ret": float(vx.iloc[-1] - 1), "exits": events,
             "acwi": float(bi.iloc[-1] - 1) if bi is not None and len(bi) else None, "days": int(len(v) - 1)}
 

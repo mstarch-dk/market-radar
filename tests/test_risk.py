@@ -70,3 +70,14 @@ def test_a_week_in_progress_is_left_out():
     w = risk.weekly(px)
     assert w.index[-1] == pd.Timestamp("2026-10-09")                        # the last complete week
     assert risk.weekly(px[:"2026-10-09"]).index[-1] == pd.Timestamp("2026-10-09")
+
+
+def test_the_shared_series_math():
+    from radar.signals import risk as rk
+
+    level = pd.Series([1.0, 1.2, 0.9, 1.0, 1.3])
+    assert rk.underwater(level).tolist() == pytest.approx([0, 0, -0.25, -1 / 6, 0])
+    assert rk.deepest_drawdown(level) == pytest.approx(-0.25)
+    assert rk.worst_window(level, 2) == pytest.approx(1.0 / 1.2 - 1) and rk.worst_window(level, 9) is None
+    r = level.pct_change().dropna()
+    assert rk.annualised_vol(r) == pytest.approx(r.std() * 252 ** 0.5)

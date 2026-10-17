@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import guard, net
+from . import guard, money, net
 from .config import discovery_config, settings, write_parquet
 from .paths import CACHE, HISTORY
 from .values import num
@@ -45,7 +45,7 @@ def price_in(price: float | None, ccy: str | None, fin: str | None, fx: dict[str
     fin = fin or ccy
     if ccy == fin:
         return price
-    base, scale = ("GBP", 0.01) if ccy == "GBp" else (ccy, 1.0)
+    base, scale = (money.main_unit(ccy), 0.01) if money.is_pence(ccy) else (ccy, 1.0)
     if base == fin:
         return price * scale
     if base not in fx or fin not in fx or not fx[fin]:
@@ -75,8 +75,8 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
     ccy = q.get("currency")
     fin = q.get("financialCurrency") or ccy
     raw = num(q.get("regularMarketPrice"))
-    base = "GBP" if ccy == "GBp" else ccy
-    px_trade = raw / 100 if raw is not None and ccy == "GBp" else raw       # in the trading currency's main unit
+    base = money.main_unit(ccy)
+    px_trade = raw / 100 if raw is not None and money.is_pence(ccy) else raw       # in the trading currency's main unit
     px_fin = price_in(raw, ccy, fin, fx)                                      # in the reporting currency
     if raw is not None and px_fin is None:
         notes.append(f"no {ccy}→{fin} rate: this year's P/E left out")

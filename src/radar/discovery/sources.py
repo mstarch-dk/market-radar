@@ -14,7 +14,7 @@ from datetime import date
 
 import pandas as pd
 
-from .. import net
+from .. import money, net
 
 # Yahoo exchange code -> (symbol suffix, country, the currency a home listing reports in)
 EXCHANGES = {
@@ -22,7 +22,7 @@ EXCHANGES = {
     "OSL": (".OL", "Norway", {"NOK", "USD", "EUR"}), "HEL": (".HE", "Finland", {"EUR"}),
     "GER": (".DE", "Germany", {"EUR"}), "PAR": (".PA", "France", {"EUR"}), "AMS": (".AS", "Netherlands", {"EUR"}),
     "MIL": (".MI", "Italy", {"EUR"}), "MCE": (".MC", "Spain", {"EUR"}), "EBS": (".SW", "Switzerland", {"CHF", "EUR"}),
-    "LSE": (".L", "United Kingdom", {"GBP", "GBp"}), "BRU": (".BR", "Belgium", {"EUR"}),
+    "LSE": (".L", "United Kingdom", {"GBP", money.PENCE}), "BRU": (".BR", "Belgium", {"EUR"}),
     "VIE": (".VI", "Austria", {"EUR"}), "LIS": (".LS", "Portugal", {"EUR"}), "ISE": (".IR", "Ireland", {"EUR"}),
     "WSE": (".WA", "Poland", {"PLN"}), "ATH": (".AT", "Greece", {"EUR"}),
     "NMS": ("", "United States", {"USD"}), "NYQ": ("", "United States", {"USD"}),
@@ -108,7 +108,7 @@ def quote_row(q: dict, code: str, fx: dict[str, float]) -> dict:
     """One screener quote as a universe row (market cap converted to DKK; GBp quotes have caps in GBP)."""
     ccy = q.get("currency")
     cap = q.get("marketCap")
-    rate = fx.get("GBP" if ccy == "GBp" else ccy)
+    rate = fx.get(money.main_unit(ccy))
     return {"ticker": q["symbol"], "name": q.get("longName") or q.get("shortName") or q["symbol"],
             "exchange": code, "country": EXCHANGES[code][1], "currency": ccy,
             "financial_currency": q.get("financialCurrency"),

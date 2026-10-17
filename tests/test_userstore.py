@@ -199,3 +199,17 @@ def test_unbundle_without_a_bundle_says_so(tmp_data):
 
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": ""})
     assert res.exit_code == 0 and "No bundle" in res.output
+
+
+def test_one_list_of_row_types():
+    """userstore.TYPES is the list the code uses; the schema's CHECK (a migration, never edited) and the API's
+    TxType say the same."""
+    import re
+    from typing import get_args
+
+    from radar import api_models
+
+    assert set(get_args(api_models.TxType)) == set(userstore.TYPES)
+    schema = "\n".join(s if isinstance(s, str) else "\n".join(s) for s in userstore.MIGRATIONS)
+    checks = {frozenset(re.findall(r"'([A-Z]+)'", m)) for m in re.findall(r"type IN \(([^)]*)\)\)", schema)}
+    assert frozenset(userstore.TYPES) in checks

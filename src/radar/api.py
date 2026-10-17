@@ -19,6 +19,7 @@ from . import (
     dashboard,
     home,
     mine,
+    money,
     net,
     ops,
     paths,
@@ -900,9 +901,8 @@ def _fee_estimate(row: dict, pc: dict) -> dict | None:
             return amount / quote_dkk
         with _lock:
             fx = universe.fx_to_dkk(market().closes, ccy)
-        fx = fx.dropna() if fx is not None else None
-        rate = fx.asof(day) if fx is not None and not fx.empty else None
-        return amount * float(rate) / quote_dkk if rate is not None and pd.notna(rate) else None
+        rate = money.rate_on(fx, day)
+        return amount * rate / quote_dkk if rate is not None else None
 
     return fees.estimate(p["fee_schedule"], row["symbol"], row["quantity"], row["price"], quote, convert)
 
