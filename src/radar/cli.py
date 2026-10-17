@@ -876,11 +876,11 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
         try:
             spec = None
             if rule_spec:
-                from .backtest import study
+                from .backtest import exit_rules
 
-                spec = next((x for x in study.exit_rule_variants() if x.key == rule_spec), None)
+                spec = next((x for x in exit_rules.exit_rule_variants() if x.key == rule_spec), None)
                 if spec is None:
-                    raise ValueError(f"no rule variant {rule_spec} (known: {', '.join(x.key for x in study.exit_rule_variants())})")
+                    raise ValueError(f"no rule variant {rule_spec} (known: {', '.join(x.key for x in exit_rules.exit_rule_variants())})")
             rep = exits.refresh(ids, market, variants, start, end, fill, spec=spec)
         except ValueError as e:
             raise typer.Exit(f"Not simulated: {e}")
@@ -1275,14 +1275,14 @@ def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (fr
     with a verdict per variant. Slow (10-20 minutes). Writes reports/exit-study.json."""
 
     from . import profile
-    from .backtest import study
+    from .backtest import exit_rules
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
         with _job("study") as log:
-            rep = study.exit_variants(profile.Market.load(), n, hs, keys, since, not no_reentry, log)
-            study.write_exits(rep)
+            rep = exit_rules.exit_variants(profile.Market.load(), n, hs, keys, since, not no_reentry, log)
+            exit_rules.write_exits(rep)
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
     if as_json:
@@ -1333,15 +1333,15 @@ def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months
     from pathlib import Path
 
     from . import profile
-    from .backtest import study
+    from .backtest import redeploy
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if arms == "all" else [v.strip() for v in arms.split(",") if v.strip()]
         with _job("study") as log:
-            rep = study.redeploy_study(profile.Market.load(), n, hs, buffer, cooldown, max_per_sector, max_per_group,
+            rep = redeploy.redeploy_study(profile.Market.load(), n, hs, buffer, cooldown, max_per_sector, max_per_group,
                                        not no_trend, since, keys, log)
-            study.write_redeploy(rep)
+            redeploy.write_redeploy(rep)
     except ValueError as e:
         raise typer.Exit(f"Not studied: {e}")
     text = _dumps(rep, indent=1)

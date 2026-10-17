@@ -124,7 +124,7 @@ class Replay:
     rule: str = "both"
     fees: SimFees = field(default_factory=lambda: SimFees(0.0))
     spec: RuleSpec = field(default_factory=RuleSpec)
-    picker: object = None            # study.Picker: n, pick(day, held, barred) -> name | None, rank(day, name) -> int | None
+    picker: object = None            # redeploy.Picker: n, pick(day, held, barred) -> name | None, rank(day, name) -> int | None
     sold: dict = field(default_factory=dict)            # symbol -> the session of its last rule / rotation sale
     redeploys: list[dict] = field(default_factory=list)
     watch: dict = field(default_factory=dict)          # exited symbols waiting for a re-entry

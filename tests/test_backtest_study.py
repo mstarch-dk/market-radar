@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar.backtest import study
+from radar.backtest import exit_rules, redeploy, study
 from radar.config import settings
 from radar.signals import momentum
 
@@ -131,13 +131,13 @@ def test_exit_verdicts_follow_the_thresholds():
         return {"dates": 10, "diff_mean": diff, "dd_mean": dd, "ret_p10": p10,
                 "hold": {"dd_mean": hold_dd, "ret_p10": hold_p10}}
     good = part(-0.01, -0.12, -0.08)
-    assert study.exit_verdict({"in_sample": good, "holdout": good}, 6)["label"] == "passes"
-    costly = study.exit_verdict({"in_sample": part(-0.03, -0.12, -0.08), "holdout": good}, 6)
+    assert exit_rules.exit_verdict({"in_sample": good, "holdout": good}, 6)["label"] == "passes"
+    costly = exit_rules.exit_verdict({"in_sample": part(-0.03, -0.12, -0.08), "holdout": good}, 6)
     assert costly["label"] == "fails" and "costs" in costly["why"][0]
-    assert study.exit_verdict({"in_sample": part(-0.015, -0.12, -0.08), "holdout": good}, 3)["label"] == "fails"  # 1 pp per 3m
-    assert study.exit_verdict({"in_sample": good, "holdout": part(-0.01, -0.18, -0.08)}, 6)["label"] == "fails"
-    assert study.exit_verdict({"in_sample": good, "holdout": part(-0.01, -0.12, -0.20)}, 6)["label"] == "fails"
-    assert study.exit_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
+    assert exit_rules.exit_verdict({"in_sample": part(-0.015, -0.12, -0.08), "holdout": good}, 3)["label"] == "fails"  # 1 pp per 3m
+    assert exit_rules.exit_verdict({"in_sample": good, "holdout": part(-0.01, -0.18, -0.08)}, 6)["label"] == "fails"
+    assert exit_rules.exit_verdict({"in_sample": good, "holdout": part(-0.01, -0.12, -0.20)}, 6)["label"] == "fails"
+    assert exit_rules.exit_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
 
 
 def test_summarize_exits_pairs_each_date_with_holding():
@@ -145,7 +145,7 @@ def test_summarize_exits_pairs_each_date_with_holding():
     recs = [{"date": pd.Timestamp("2022-01-31"), "hold": h(0.10, -0.20), "x": h(0.08, -0.10), "x_exits": 3},
             {"date": pd.Timestamp("2022-02-28"), "hold": h(-0.10, -0.30), "x": h(-0.02, -0.12), "x_exits": 5},
             {"date": pd.Timestamp("2022-03-31"), "hold": h(0.05, -0.10), "x": None}]
-    s = study.summarize_exits(recs, "x", 0)
+    s = exit_rules.summarize_exits(recs, "x", 0)
     assert s["dates"] == 2 and s["diff_mean"] == pytest.approx(0.03) and s["helped"] == 0.5
     assert s["dd_mean"] == pytest.approx(-0.11) and s["hold"]["dd_mean"] == pytest.approx(-0.25)
     assert s["exits_mean"] == 4
@@ -187,16 +187,16 @@ def test_the_risk_free_rate_is_the_ecb_deposit_rate():
 def test_the_picker_takes_the_best_name_it_may():
     p = panels(drifting())
     day = IDX[400]
-    pk = study.Picker(p, 5, trend=False)
+    pk = redeploy.Picker(p, 5, trend=False)
     best = list(study._score(p, day).sort_values(ascending=False).index)
     assert pk.rank(day, best[0]) == 1 and pk.rank(day, "nope") is None
     assert pk.pick(day, set(), set()) == best[0]
     assert pk.pick(day, {best[0]}, {best[1]}) == best[2]
-    capped = study.Picker(p, 5, max_per_sector=1, trend=False)
+    capped = redeploy.Picker(p, 5, max_per_sector=1, trend=False)
     held = {best[0]}
     got = capped.pick(day, held, set())
     assert p.sector[got] != p.sector[best[0]]                      # the held name's sector is full
-    assert set(study.Picker(p, 5).capped(day, 40)) <= set(p.m["trend_ok"].loc[day][lambda s: s.eq(True)].index)
+    assert set(redeploy.Picker(p, 5).capped(day, 40)) <= set(p.m["trend_ok"].loc[day][lambda s: s.eq(True)].index)
 
 
 def test_redeploy_verdicts_follow_the_thresholds():
@@ -206,12 +206,12 @@ def test_redeploy_verdicts_follow_the_thresholds():
     def tw(x):
         return {"in_sample": {"sharpe": {"mean": x}}, "holdout": {"sharpe": {"mean": x}}}
     good = part(1.2)
-    assert study.redeploy_verdict({"in_sample": good, "holdout": good}, 6)["label"] == "better"
-    assert study.redeploy_verdict({"in_sample": good, "holdout": part(0.9)}, 6)["label"] == "not better"
-    assert study.redeploy_verdict({"in_sample": good, "holdout": good, "twin": "p", "vs_twin": tw(-0.1)}, 6)["label"] \
+    assert redeploy.redeploy_verdict({"in_sample": good, "holdout": good}, 6)["label"] == "better"
+    assert redeploy.redeploy_verdict({"in_sample": good, "holdout": part(0.9)}, 6)["label"] == "not better"
+    assert redeploy.redeploy_verdict({"in_sample": good, "holdout": good, "twin": "p", "vs_twin": tw(-0.1)}, 6)["label"] \
         == "not better"
-    assert study.redeploy_verdict({"in_sample": good, "holdout": part(1.2, diff=-0.05)}, 12)["label"] == "not better"
-    assert study.redeploy_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
+    assert redeploy.redeploy_verdict({"in_sample": good, "holdout": part(1.2, diff=-0.05)}, 12)["label"] == "not better"
+    assert redeploy.redeploy_verdict({"in_sample": good, "holdout": None}, 6)["label"] == "not enough data"
 
 
 def _market_and_stocks(seed: int = 3):
