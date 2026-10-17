@@ -10,7 +10,20 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 
-from . import external, factors, ingest, locks, ops, report, sentiment, sourcelog, trades, universe, valuation
+from . import (
+    external,
+    factors,
+    ingest,
+    locks,
+    ops,
+    report,
+    sentiment,
+    sourcelog,
+    tracked,
+    universe,
+    userstore,
+    valuation,
+)
 from .config import settings
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
@@ -48,7 +61,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
     log(f"Updating {len(tickers)} tickers…")
 
     def prices():
-        res = ingest.update_prices(tickers, progress, start=universe.history_start(), bench=universe.benchmark())
+        res = ingest.update_prices(tickers, progress, start=universe.history_start(), bench=tracked.benchmark())
         msg = f"{res['rows']:,} rows, {res['new']} new tickers"
         if res["behind"]:
             names = sorted(res["behind"])
@@ -72,7 +85,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
         return msg
 
     def fred():
-        series = list(universe.macro_fred()) + list(universe.macro_fred_views()) + list(universe.macro_fred_study())
+        series = list(tracked.macro_fred()) + list(tracked.macro_fred_views()) + list(tracked.macro_fred_study())
         failed = ingest.update_fred(series)
         if failed:
             raise RuntimeError(f"failed: {', '.join(failed)}; those series keep their cached values")
@@ -83,7 +96,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
     try:   # a cache, not a source: a failure is logged and the remaining steps still run
         with ops.context(source="reference"):
             universe.names(tickers)  # warm the name cache
-            universe.sectors(sorted({t for g in universe.stock_groups().values() for t in g}))  # warm the sector cache
+            universe.sectors(sorted({t for g in tracked.stock_groups().values() for t in g}))  # warm the sector cache
     except Exception as e:
         log(f"Names and sectors: FAILED ({type(e).__name__}: {e}); using the cached ones.")
         ops.event("error", "source", f"names and sectors: {type(e).__name__}: {e}", source="reference", exc=e)
@@ -93,8 +106,8 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
 
 def update_external(log: Log = print) -> None:
     """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
-    h = trades.holdings()
-    mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
+    mine = universe.held_or_watched()
+    stocks = universe.tracked_stocks()
     _steps({
         "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),
         "oecd": ("OECD leading indicators", external.update_oecd_cli),
@@ -107,11 +120,13 @@ def update_external(log: Log = print) -> None:
         "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
         "factors": ("Long factor histories (French, JKP; monthly)", factors.update_factors),
-        "valuation_etfs": ("ETF valuation (Yahoo fund data)", valuation.update_etfs),
-        "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)", valuation.update_stocks),
+        "valuation_etfs": ("ETF valuation (Yahoo fund data)", lambda: valuation.update_etfs(universe.etf_tickers())),
+        "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)",
+                             lambda: valuation.update_stocks(stocks)),
         # after the valuation snapshot: it names each stock's reporting currency and next earnings date
-        "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)", edgar.update_edgar),
-        "fundamentals_yahoo": ("Financial statements (Yahoo)", yahoo.update_yahoo),
+        "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)",
+                               lambda: edgar.update_edgar(stocks, userstore.sec_contact())),
+        "fundamentals_yahoo": ("Financial statements (Yahoo)", lambda: yahoo.update_yahoo(stocks)),
     }, log)
 
 
@@ -209,10 +224,11 @@ def _daily_backup(log: Log) -> None:
         ops.event("error", "job", f"backup: {type(e).__name__}: {e}", source="backup", exc=e)
 
 
-def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
+def discover(log: Log, progress: Callable[[int, int], None], refresh_universe: bool = False) -> None:
+    """The discovery scan, told which names the radar already tracks."""
     from .discovery import scan
 
-    scan.run(log, progress)
+    scan.run(set(universe.all_price_tickers(offline=True)), log, progress, refresh_universe)
 
 
 def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
@@ -227,5 +243,5 @@ def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
 
 
 JOB = UpdateJob()
-DISCOVER_JOB = UpdateJob(_discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
+DISCOVER_JOB = UpdateJob(discover, "Scanning", "discover")  # the separate discovery scan (Discover page)
 REPORT_JOB = UpdateJob(_rebuild, "Building the readings", "report")  # no downloads (the Rebuild button)

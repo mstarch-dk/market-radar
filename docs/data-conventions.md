@@ -23,7 +23,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   the ticker's own bars (`profile.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last
   price, day change, recent bars and the chart.
 - Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.
-- DKK rates (`universe.fx_to_dkk`): Yahoo's `xxxDKK=X` pairs (`FX_DKK`), forward-filled over gaps; GBp uses `GBPDKK=X`
+- DKK rates (`fxrates.fx_to_dkk`): Yahoo's `xxxDKK=X` pairs (`FX_DKK`), forward-filled over gaps; GBp uses `GBPDKK=X`
   × 0.01. Yahoo has no KRW/DKK or TWD/DKK quote, so won and Taiwan dollar go through USD (`FX_VIA_USD`: `USDDKK=X /
   USDKRW=X`, `USDDKK=X / USDTWD=X`; either leg missing means no rate). A currency without any pair (CNY) has no DKK
   value, never 1.0.
@@ -197,7 +197,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   database copy taken before it, and undo points there. Because it replaces, the quick Yahoo import
   (`importers.import_yahoo_csv`) refuses a file with a buy/sell it can't read (no purchase price or trade date) or
   dated in the future, before anything changes, and notes prices about 100× off or far from the day's close
-  (`portfolio.price_check`). A trade whose file currency differs from the listing's (`universe.currencies`; pence and
+  (`portfolio.price_check`). A trade whose file currency differs from the listing's (`fxrates.currencies`; pence and
   pounds count as one) is a preview warning, on the fee too when there is one: prices and fees are stored in the
   listing's currency. Numbers: a preset's decimal mark, else one per column inferred from the whole file
   (`importers.infer_decimal`; a column with no evidence follows the file's other numeric columns); a value still

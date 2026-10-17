@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .. import fees, money, positive_list, universe
+from .. import fees, fxrates, money, positive_list
 from ..values import num
 from . import exposure, pricing, rules
 
@@ -39,9 +39,11 @@ def pool(market, prices: pricing.Prices, p=None, day=None, fund_table: pd.DataFr
         df["last_bar"] = day
         df["price_dkk"] = p.dkk.loc[day].reindex(tick)
     if fund_table is None and live:
+        from .. import universe
         from ..fundamentals import context as fcontext
 
-        t = fcontext.context(market.closes, market.raw_closes(), market.mtime).table()
+        t = fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(),
+                                 market.mtime).table()
         fund_table = t.set_index("ticker") if not t.empty else pd.DataFrame()
     for k in ("qv", "quality", "value"):
         df[k] = fund_table[k].reindex(tick).astype(float) if fund_table is not None and k in fund_table else np.nan
@@ -219,7 +221,7 @@ def terms_for(prices: pricing.Prices, sf: fees.SimFees, t: str) -> fees.Terms:
     def convert(amount: float, k: str) -> float | None:
         if k == "DKK":
             return amount / rate
-        fx = universe.fx_to_dkk(prices.market.closes, k)
+        fx = fxrates.fx_to_dkk(prices.market.closes, k)
         v = fx.dropna().iloc[-1] if fx is not None and len(fx.dropna()) else None
         return amount * float(v) / rate if v is not None and v > 0 else None
     return sf.terms(t, ccy, convert, count=False)

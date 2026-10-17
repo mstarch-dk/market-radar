@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 
 import pandas as pd
 
-from .. import money, performance, simulate, universe, userstore
+from .. import fxrates, money, performance, simulate, tracked, userstore
 from ..config import settings, write_text
 from ..fees import SimFees, Terms
 from ..jsonsafe import dumps
@@ -153,12 +153,12 @@ class Replay:
         if not self.fees.schedule:
             return self.fees.terms(sym, None, None)
         if sym not in self._ccy:
-            self._ccy[sym] = universe.currencies([sym]).get(sym)
+            self._ccy[sym] = fxrates.currencies([sym]).get(sym)
 
         def convert(amount: float, ccy: str) -> float | None:
             if ccy == "DKK":
                 return amount / rate
-            fx = universe.fx_to_dkk(self.market.closes, ccy)
+            fx = fxrates.fx_to_dkk(self.market.closes, ccy)
             v = money.rate_on(fx, day)
             return amount * v / rate if v is not None else None
         return self.fees.terms(sym, self._ccy[sym], convert, count)
@@ -504,7 +504,7 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
     rows = sorted([r for r in real_rows if r["type"] in userstore.TYPES],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
     rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
-                bt.get("park") or universe.benchmark(), spec.half,
+                bt.get("park") or tracked.benchmark(), spec.half,
                 fees or SimFees(money.fee_bps(bt) if fee_bps is None else float(fee_bps)), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
@@ -639,7 +639,7 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
     rows = {p["id"]: userstore.transactions(portfolios=[p["id"]]) for p in portfolios}
     held = {r["symbol"] for rs in rows.values() for r in rs if r["symbol"]}
     bt = settings().get("backtest") or {}
-    ctx = Context.build(market, held | {bt.get("park") or universe.benchmark()})
+    ctx = Context.build(market, held | {bt.get("park") or tracked.benchmark()})
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "asof": ctx.sessions[-1].date().isoformat(), "portfolios": []}
     for p in portfolios:

@@ -52,7 +52,7 @@ def test_the_app_job_reports_it_and_the_terminal_exits_with_an_error(tmp_data, m
 def test_a_discovery_scan_is_one_at_a_time_too(tmp_data, held):
     held(scan.SCAN_LOCK)
     with pytest.raises(locks.Busy, match="already running"):
-        scan.run(lambda m: None)
+        scan.run(set(), lambda m: None)
 
 
 def test_a_failing_name_lookup_does_not_stop_the_other_sources(tmp_data, monkeypatch):

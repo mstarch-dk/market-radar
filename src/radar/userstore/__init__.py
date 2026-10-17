@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 import sqlite3
 from contextlib import closing
 from datetime import datetime
@@ -789,6 +790,24 @@ def meta_set(key: str, value) -> None:
         con.execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                     (key, json.dumps(value)))
 
+
+
+# ---------------- SEC's contact address (the User-Agent EDGAR asks for) ----------------
+
+EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def sec_contact() -> str | None:
+    return meta_get("sec_contact")
+
+
+def set_sec_contact(email: str | None) -> str | None:
+    """Store (or with None/"" remove) the contact e-mail sent to SEC; raises ValueError for a malformed one."""
+    email = (email or "").strip() or None
+    if email is not None and not EMAIL.match(email):
+        raise ValueError(f"{email!r} doesn't look like an e-mail address")
+    meta_set("sec_contact", email)
+    return email
 
 # ---------------- CSV round trip (backup download, holdings bundle) ----------------
 

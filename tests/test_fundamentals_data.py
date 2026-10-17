@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, serve, statements
-from radar import sourcelog, universe, userstore, valuation
+from radar import sourcelog, tracked, userstore
 from radar.fundamentals import edgar, schedule, store, yahoo
 
 FIX = Path(__file__).parent / "fixtures"
@@ -185,10 +185,11 @@ def test_due_order_and_reasons():
 
 @pytest.fixture
 def us(monkeypatch):
-    monkeypatch.setattr(universe, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
-    monkeypatch.setattr(valuation, "tracked_stocks", lambda: ["AAPL", "MSFT"])
+    monkeypatch.setattr(tracked, "stock_groups", lambda **kw: {"us": ["AAPL", "MSFT"]})
 
 
+STOCKS = ["AAPL", "MSFT"]
+CONTACT = "someone@example.com"
 TICKERS = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple"},
            "1": {"cik_str": 789019, "ticker": "MSFT", "title": "Microsoft"}}
 
@@ -196,21 +197,20 @@ TICKERS = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple"},
 def test_edgar_needs_a_contact_and_sends_nothing_without_one(us, monkeypatch):
     calls = serve(monkeypatch, {})
     with pytest.raises(edgar.NoContact):
-        edgar.update_edgar(today=TODAY)
+        edgar.update_edgar(STOCKS, None, today=TODAY)
     assert calls == []
     with pytest.raises(ValueError):
-        edgar.set_contact("not an address")
+        userstore.set_sec_contact("not an address")
 
 
 def test_edgar_update_stores_and_keeps_more_than_a_shorter_answer(us, monkeypatch, aapl_js):
-    edgar.set_contact("someone@example.com")
     seen = {}
 
     def facts_for(url):
         return Resp(json=aapl_js) if "0000320193" in url else Resp(404)
     calls = serve(monkeypatch, {"company_tickers": Resp(json=TICKERS), "companyfacts": facts_for})
     monkeypatch.setattr(edgar.net, "get", _capture_headers(edgar.net.get, seen))
-    msg = edgar.update_edgar(today=TODAY)
+    msg = edgar.update_edgar(STOCKS, CONTACT, today=TODAY)
     assert "1 of 2 due companies stored" in msg and "without us-gaap" in msg
     assert seen["User-Agent"].endswith("someone@example.com")
     n = len(store.load_edgar())
@@ -223,7 +223,7 @@ def test_edgar_update_stores_and_keeps_more_than_a_shorter_answer(us, monkeypatc
     serve(monkeypatch, {"company_tickers": Resp(json=TICKERS), "companyfacts": lambda u: Resp(json=short)
                         if "0000320193" in u else Resp(404)})
     with pytest.raises(sourcelog.PartialFailure):
-        edgar.update_edgar(today=TODAY, tickers=["AAPL"])
+        edgar.update_edgar(STOCKS, CONTACT, today=TODAY, tickers=["AAPL"])
     assert len(store.load_edgar()) == n
     log = schedule.load_log(edgar.LOG_FILE).set_index("ticker")
     assert not log.at["AAPL", "ok"] and "kept the stored values" in log.at["AAPL", "error"]
@@ -237,27 +237,26 @@ def _capture_headers(get, seen):
 
 
 def test_a_ticker_list_that_maps_too_few_us_stocks_fails(us, monkeypatch):
-    edgar.set_contact("someone@example.com")
     serve(monkeypatch, {"company_tickers": Resp(json={"0": TICKERS["0"]})})
     with pytest.raises(ValueError, match="maps only 1 of 2"):
-        edgar.update_edgar(today=TODAY)
+        edgar.update_edgar(STOCKS, CONTACT, today=TODAY)
 
 
 def test_yahoo_update_appends_and_fails_loudly_on_nothing(us, monkeypatch):
     fake_yf(monkeypatch, statements={"AAPL": statements("AAPL"), "MSFT": RuntimeError("Yahoo")})
-    msg = yahoo.update_yahoo(today=TODAY)
+    msg = yahoo.update_yahoo(STOCKS, today=TODAY)
     assert msg.startswith("1 of 2 due stocks answered")
     before = len(store.load_yahoo())
     assert before > 100
     fake_yf(monkeypatch, statements={"AAPL": {}, "MSFT": {}})
     with pytest.raises(ValueError, match="no statements from Yahoo"):
-        yahoo.update_yahoo(today=TODAY, force=True)
+        yahoo.update_yahoo(STOCKS, today=TODAY, force=True)
     assert len(store.load_yahoo()) == before
 
 
 def test_userstore_keeps_the_contact():
-    assert edgar.contact() is None
-    edgar.set_contact("  a@b.dk ")
-    assert edgar.contact() == "a@b.dk" and userstore.meta_get("sec_contact") == "a@b.dk"
-    edgar.set_contact("")
-    assert edgar.contact() is None
+    assert userstore.sec_contact() is None
+    userstore.set_sec_contact("  a@b.dk ")
+    assert userstore.sec_contact() == "a@b.dk" and userstore.meta_get("sec_contact") == "a@b.dk"
+    userstore.set_sec_contact("")
+    assert userstore.sec_contact() is None

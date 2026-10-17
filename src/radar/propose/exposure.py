@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from .. import money, trades, universe
+from .. import money, tracked, trades, universe
 from ..config import universe_config
 from . import pricing, rules
 
@@ -38,7 +38,7 @@ def look_through() -> set[str]:
     """Tickers counted with ACWI's own weights: ACWI, its UCITS share classes, the filler and broad world funds
     (settings propose.look_through)."""
     f = rules.cfg().get("etf_filler") or {}
-    return ({universe.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), f.get("ticker"),
+    return ({tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), f.get("ticker"),
              f.get("model")} | set(rules.cfg().get("look_through") or [])) - {None}
 
 
@@ -52,7 +52,7 @@ def info(tickers, prices: pricing.Prices) -> pd.DataFrame:
     prices.preload(tickers)
     sec = universe.sectors(tickers)
     etf_sec = _sector_etf_map()
-    funds = {e.ticker for e in universe.etfs()} | look_through()
+    funds = {e.ticker for e in tracked.etfs()} | look_through()
     rows = {}
     for t in tickers:
         s = sec["sector"].get(t) if t in sec.index else None

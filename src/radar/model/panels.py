@@ -8,11 +8,11 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import universe
+from .. import fxrates, tracked, universe
 from ..config import settings
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
-from .score import COMPONENTS, mean_pct
+from ..signals.score import COMPONENTS, mean_pct
 
 
 @dataclass
@@ -30,7 +30,7 @@ class Panels:
 
 
 def panels(market, tickers: list[str] | None = None) -> Panels:
-    groups = universe.stock_groups(offline=True)
+    groups = tracked.stock_groups(offline=True)
     group: dict[str, str] = {}
     for g, ts in groups.items():
         for t in ts:
@@ -39,20 +39,20 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
     c = market.closes[stocks]
     m = momentum.metrics_panel(market.closes, stocks, settings()["momentum"]["min_history_days"])
     vol = np.log(c).diff().rolling(63, min_periods=32).std() * math.sqrt(TRADING_DAYS)
-    ccy = universe.currencies(stocks)
+    ccy = fxrates.currencies(stocks)
     fx_cache: dict = {}
     dkk = {}
     for t in stocks:
         k = ccy.get(t)
         if k not in fx_cache:
-            fx_cache[k] = universe.fx_to_dkk(market.closes, k)
+            fx_cache[k] = fxrates.fx_to_dkk(market.closes, k)
         fx = fx_cache[k]
         dkk[t] = c[t] * fx.reindex(c.index) if fx is not None else pd.Series(np.nan, index=c.index)
     from .. import performance
 
     sec = universe.sectors(stocks)["sector"].astype(str)
     return Panels(c, pd.DataFrame(dkk, index=c.index), m, vol, pd.Series(group).reindex(stocks), sec,
-                  market.closes[universe.benchmark()].dropna().index, performance.bench_dkk(market),
+                  market.closes[tracked.benchmark()].dropna().index, performance.bench_dkk(market),
                   market.volumes.reindex(columns=stocks) if getattr(market, "volumes", None) is not None else None)
 
 

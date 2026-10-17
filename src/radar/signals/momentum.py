@@ -35,8 +35,8 @@ def metrics(closes: pd.DataFrame, volumes: pd.DataFrame, tickers: list[str], min
 
 
 def score(df: pd.DataFrame) -> pd.Series:
-    """0-100: mean percentile of 12-1, 6m and 3m returns (higher = stronger momentum), as model.score."""
-    from ..model import score as ms
+    """0-100: mean percentile of 12-1, 6m and 3m returns (higher = stronger momentum), as signals.score."""
+    from . import score as ms
 
     return ms.score(df)
 

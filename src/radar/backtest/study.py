@@ -12,12 +12,10 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, universe
+from .. import money, performance, simulate, tracked
 from ..config import settings
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
-from ..model.score import COMPONENTS
-from ..model.score import mean_pct as pct
 from ..model.stats import (  # noqa: F401 (re-exported)
     QUANTILES,
     cross_section,
@@ -31,6 +29,8 @@ from ..model.stats import (  # noqa: F401 (re-exported)
     variant_verdict,
 )
 from ..model.stats import mean as _mean
+from ..signals.score import COMPONENTS
+from ..signals.score import mean_pct as pct
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
 GROUP_MIN = 10                                   # names a stock group needs on a date for its own IC
@@ -440,7 +440,7 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
     h = HORIZONS[months]
     bt = settings().get("backtest") or {}
     fee = money.fee_bps(bt)
-    park = bt.get("park") or universe.benchmark()
+    park = bt.get("park") or tracked.benchmark()
     capital = 100_000.0
     baskets = []
     for d in dates:

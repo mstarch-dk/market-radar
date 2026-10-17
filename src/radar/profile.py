@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, external, ingest, mine, money, positive_list, trades, universe
+from . import dashboard, external, fxrates, ingest, mine, money, positive_list, tracked, trades, universe
 from .config import settings, universe_config
 from .jsonsafe import clean
 from .market import Market
 from .model import inputs
-from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
+from .signals.score import score_vs
 from .universe import REGION_SUFFIXES, region_for  # noqa: F401 (re-exported)
 
 OK, STALE, MISSING = "ok", "stale", "missing"
@@ -36,11 +36,11 @@ def ensure_prices(ticker: str, market: Market | None = None, refresh: bool = Fal
     store, so the next lookup is fast) but are not added to the daily update. A tracked ticker waits for the
     update, unless `refresh` (the profile's refresh button) asks for its missing sessions now."""
     market = market or Market.load()
-    bench = universe.benchmark()
-    tracked = ticker in set(universe.all_price_tickers(offline=True))
+    bench = tracked.benchmark()
+    is_tracked = ticker in set(universe.all_price_tickers(offline=True))
     have = ticker in market.closes.columns
     behind = have and market.closes[ticker].dropna().index[-1] < market.closes[bench].dropna().index[-1]
-    if not have or (behind and (refresh or not tracked)):
+    if not have or (behind and (refresh or not is_tracked)):
         ingest.update_prices([ticker])
         market = Market.load()
     if ticker not in market.closes.columns or market.closes[ticker].dropna().empty:
@@ -142,7 +142,8 @@ def quality_card(ticker: str, market: Market) -> dict | None:
     price store and statement update)."""
     from .fundamentals import context as fcontext
 
-    return fcontext.context(market.closes, market.raw_closes(), market.mtime).card(ticker)
+    return fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(),
+                            market.mtime).card(ticker)
 
 
 # ---------------- the profile ----------------
@@ -154,7 +155,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     cfg = settings()
     market = ensure_prices(ticker, market)
     closes = market.closes
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     close = closes[ticker].dropna()
     own = market.bars(ticker)
     last_date = own.index[-1]
@@ -177,16 +178,16 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     h = trades.holdings() if not anonymous else pd.DataFrame(columns=trades.HOLDING_COLS)
     mine = h[h["symbol"] == ticker]
     status = mine.iloc[0]["status"] if len(mine) else None
-    etf_cfg = next((e for e in universe.etfs() if ticker in (e.ticker, e.ucits)), None)
+    etf_cfg = next((e for e in tracked.etfs() if ticker in (e.ticker, e.ucits)), None)
     region = etf_cfg.region.lower() if etf_cfg else region_for(ticker)
     sec = universe.sectors([ticker]) if info.get("quoteType", "EQUITY") == "EQUITY" else None
     sector = info.get("sector") or (sec.loc[ticker, "sector"] if sec is not None else "") or None
     industry = info.get("industry") or (sec.loc[ticker, "industry"] if sec is not None else "") or None
     if look and look["sector_weights"] and look["sector_weights"][0]["weight"] >= 0.5:
         sector = look["sector_weights"][0]["sector"]       # a sector fund: compare it with that sector
-    currency = info.get("currency") or universe.currencies([ticker])[ticker]
-    tracked = ticker in set(universe.all_price_tickers(offline=True))
-    groups = universe.stock_groups(offline=True)
+    currency = info.get("currency") or fxrates.currencies([ticker])[ticker]
+    is_tracked = ticker in set(universe.all_price_tickers(offline=True))
+    groups = tracked.stock_groups(offline=True)
     isin = etf_cfg.isin if etf_cfg else None
     identity = _section(OK, "Yahoo Finance, config", detail_asof,
         symbol=ticker, name=info.get("longName") or info.get("shortName") or universe.names([ticker])[ticker],
@@ -194,17 +195,17 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
         exchange=info.get("fullExchangeName") or info.get("exchange"), country=info.get("country"),
         sector=sector, industry=industry, website=info.get("website"),
         summary=info.get("longBusinessSummary"), employees=info.get("fullTimeEmployees"),
-        region=region, tracked=tracked,
+        region=region, tracked=is_tracked,
         stock_group=next((g for g, ts in groups.items() if ticker in ts), None),
         etf_group=etf_cfg.group if etf_cfg else None, ucits=etf_cfg.ucits if etf_cfg else None,
         isin=isin, positive_list=positive_list.flag(isin, market.positive_list()) if etf_cfg else None,
         my_status=status,
         my_position=clean(mine.iloc[0][["quantity", "avg_price", "first_trade"]].to_dict()) if status == "holding" else None)
-    if not tracked:
+    if not is_tracked:
         notes.append("Not tracked by the radar: prices are fetched on lookup, not in the daily update")
 
     # --- price development
-    fx = universe.fx_to_dkk(closes, currency)
+    fx = fxrates.fx_to_dkk(closes, currency)
     local = _windows(close, last_date)
     dkk = _windows((close * fx.reindex(close.index).ffill()).dropna(), last_date) if fx is not None else None
     if fx is None:
@@ -245,7 +246,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     mom = _section(OK, "radar (prices)", last_date, **{k: v for k, v in m.items() if k != "ticker"},
                    score=score, rank=rank, group_size=int(len(pool)), score_basis=basis,
                    gauges=gz.gauges({"score": score, "from_high": m.get("from_high"), "vol_surge": m.get("vol_surge")}),
-                   region_label=universe.stock_group_labels().get(pool["region"].iloc[0]) if len(pool) else None)
+                   region_label=tracked.stock_group_labels().get(pool["region"].iloc[0]) if len(pool) else None)
 
     # --- technicals
     oc = own["close"].dropna()                         # same bars as the chart, so card and chart agree
@@ -341,7 +342,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     rot = None
     target = setf or (ticker if etf_cfg else None)
     if target and target in closes:
-        inst = next((e for e in universe.etfs() if e.ticker == target), None) or universe.Instrument(
+        inst = next((e for e in tracked.etfs() if e.ticker == target), None) or tracked.Instrument(
             target, target, "sector", region)
         t = rotation.relative_table(closes, bench, [inst], settings()["rotation"]["window"], settings()["rotation"]["tail"])
         if not t.empty:
@@ -389,8 +390,8 @@ def risk_section(ticker: str, market: Market, close: pd.Series, fx: pd.Series | 
     ETFs and the sector ETF) and the risk budget at the rule stop."""
     rc = settings()["risk"]
     closes = market.closes
-    bench = universe.benchmark()
-    usd = universe.fx_to_dkk(closes, universe.currencies([bench])[bench])
+    bench = tracked.benchmark()
+    usd = fxrates.fx_to_dkk(closes, fxrates.currencies([bench])[bench])
     if fx is None or usd is None:
         return _section(MISSING, "radar (prices, FRED 3m T-bill)", asof, currency="DKK", benchmark=bench,
                         windows={}, factors=None, budget=None, notes=["no DKK rate for this currency"])
@@ -435,7 +436,7 @@ def legacy_info(p: dict) -> dict:
 def series(ticker: str, market: Market, days: int = 756) -> dict:
     """Daily series for the charts, computed on the full history and then cut to the last `days`."""
     closes = market.closes
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     own = market.bars(ticker)                     # real sessions only: a missing Yahoo bar is a gap, not a flat day
     c = own["close"].dropna()
     if c.empty:
@@ -537,7 +538,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
     `personal` the profiles are built anonymously (see build); with it, "your holdings" are these portfolios
     (ids; default: your real ones). An unknown ticker becomes an error entry."""
     market = market or Market.load()
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     rc = settings()["risk"]
     tickers: dict[str, dict] = {}
     for sym in dict.fromkeys(s.strip().upper() for s in symbols):
@@ -550,7 +551,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
 
     # ACWI: the zero-effort alternative every candidate has to beat
     closes = market.closes
-    usd = universe.fx_to_dkk(closes, universe.currencies([bench])[bench])
+    usd = fxrates.fx_to_dkk(closes, fxrates.currencies([bench])[bench])
     b = closes[bench].dropna()
     mkt = risk.weekly((b * usd.reindex(b.index).ffill()).dropna()) if usd is not None else None
     rf = market.fred()["DGS3MO"] if "DGS3MO" in market.fred() else None
@@ -567,7 +568,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
                                if personal else []):
         if sym not in closes:
             continue
-        fx = universe.fx_to_dkk(closes, universe.currencies([sym])[sym])
+        fx = fxrates.fx_to_dkk(closes, fxrates.currencies([sym])[sym])
         if fx is not None:
             s = closes[sym].dropna()
             series[sym] = risk.weekly((s * fx.reindex(s.index).ffill()).dropna())

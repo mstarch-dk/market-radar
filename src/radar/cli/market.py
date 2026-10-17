@@ -44,13 +44,13 @@ def discover(refresh_universe: bool = typer.Option(False, "--refresh-universe",
                                                    help="Re-build the list of names now (otherwise monthly)")):
     """The discovery scan: Nordic and European stocks and positive-list ETFs beyond the radar's own lists
     (reports/discovery.json, the Discover page). Separate from `radar run`; run it about weekly."""
-    from ..discovery import scan
+    from .. import updater
 
     def progress(done: int, total: int) -> None:
         typer.echo(f"  … {done} of {total}")
 
     with job("cli_discover") as log:
-        scan.run(log, progress, refresh_universe)
+        updater.discover(log, progress, refresh_universe)
 
 
 @app.command()

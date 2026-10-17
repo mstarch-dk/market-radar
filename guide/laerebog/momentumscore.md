@@ -58,7 +58,7 @@ $$
 
 ### Scoren
 
-Inden for hver region får hvert af de tre afkast en percentil: **andelen af regionens aktier med en værdi, der har et strengt lavere afkast** (`model/score.py`). Lige store værdier får samme percentil, nemlig andelen under dem. Scoren er
+Inden for hver region får hvert af de tre afkast en percentil: **andelen af regionens aktier med en værdi, der har et strengt lavere afkast** (`signals/score.py`). Lige store værdier får samme percentil, nemlig andelen under dem. Scoren er
 
 $$
 \text{score} = 100 \cdot \frac{q(r_{12\text{-}1}) + q(r_{6m}) + q(r_{3m})}{3}

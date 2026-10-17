@@ -2,7 +2,7 @@
 and 10-Q reports, with the date it was filed, so a past day can be scored on what was public then.
 
 SEC asks automated clients to say who they are: the User-Agent carries a contact e-mail address, which the user
-enters (`radar fundamentals contact EMAIL`, or the Data page) and which is stored in their own database. Without
+enters (`radar fundamentals contact EMAIL`, or the Data page), stored in their own database and passed in. Without
 one the step fails and says so; Yahoo's statements still cover US names. SEC's fair-access limit is 10 requests a
 second; settings.yaml `network.hosts` keeps us well under it.
 
@@ -13,7 +13,6 @@ count against diluted shares and Yahoo's market value.
 """
 from __future__ import annotations
 
-import re
 from collections import Counter
 from datetime import date, timedelta
 
@@ -32,7 +31,6 @@ CIK_FILE = CACHE / "fundamentals" / "cik.csv"
 LOG_FILE = CACHE / "fundamentals" / "edgar_log.csv"
 SOURCE = "fundamentals_edgar"
 FORMS = {"10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT", "10-QT"}
-EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _cfg() -> dict:
@@ -49,29 +47,11 @@ class NotGaap(ValueError):
 
 # ---------------- the contact address ----------------
 
-def contact() -> str | None:
-    from .. import userstore
-
-    return userstore.meta_get("sec_contact")
-
-
-def set_contact(email: str | None) -> str | None:
-    """Store (or with None/"" remove) the contact e-mail sent to SEC; raises ValueError for a malformed one."""
-    from .. import userstore
-
-    email = (email or "").strip() or None
-    if email is not None and not EMAIL.match(email):
-        raise ValueError(f"{email!r} doesn't look like an e-mail address")
-    userstore.meta_set("sec_contact", email)
-    return email
-
-
-def headers() -> dict:
-    c = contact()
-    if not c:
+def headers(contact: str | None) -> dict:
+    if not contact:
         raise NoContact("SEC asks for a contact e-mail address in each request: set one on the Data page or with "
                         "`radar fundamentals contact EMAIL` (Yahoo's statements cover US names meanwhile)")
-    return {"User-Agent": f"Market Radar personal research {c}", "Accept-Encoding": "gzip, deflate"}
+    return {"User-Agent": f"Market Radar personal research {contact}", "Accept-Encoding": "gzip, deflate"}
 
 
 # ---------------- ticker -> CIK ----------------
@@ -87,7 +67,7 @@ def parse_tickers(js) -> pd.DataFrame:
     return df.dropna(subset=["cik"]).astype({"cik": int}).drop_duplicates("ticker")[["ticker", "cik", "title"]]
 
 
-def cik_map(today: date | None = None, refresh: bool = False, hdr: dict | None = None) -> dict[str, int]:
+def cik_map(hdr: dict, today: date | None = None, refresh: bool = False) -> dict[str, int]:
     """{ticker: CIK}, from the cached list; fetched again when older than `tickers_max_age_days`."""
     today = today or date.today()
     if CIK_FILE.exists() and not refresh:
@@ -95,7 +75,7 @@ def cik_map(today: date | None = None, refresh: bool = False, hdr: dict | None =
         age = (pd.Timestamp(today) - pd.Timestamp(CIK_FILE.stat().st_mtime, unit="s").normalize()).days
         if age < _cfg()["tickers_max_age_days"] and not df.empty:
             return dict(zip(df["ticker"], df["cik"].astype(int)))
-    r = net.get(TICKERS_URL, source=SOURCE, headers=hdr or headers(), timeout=60)
+    r = net.get(TICKERS_URL, source=SOURCE, headers=hdr, timeout=60)
     r.raise_for_status()
     df = parse_tickers(r.json())
     write_csv(df, CIK_FILE, index=False)
@@ -207,29 +187,30 @@ def _keep_or_replace(old: pd.DataFrame, new: pd.DataFrame, ticker: str) -> str |
     return None
 
 
-def us_tickers() -> list[str]:
-    from .. import universe, valuation
+def us_tickers(stocks: list[str]) -> list[str]:
+    """The US listings among the tracked `stocks`, plus the US stock group."""
+    from .. import tracked
 
-    us = set(universe.stock_groups(offline=True).get("us", []))
-    tracked = set(valuation.tracked_stocks())
-    return sorted(us | {t for t in tracked if "." not in t and not t.startswith("^")})
+    us = set(tracked.stock_groups(offline=True).get("us", []))
+    return sorted(us | {t for t in stocks if "." not in t and not t.startswith("^")})
 
 
-def update_edgar(today: date | None = None, force: bool = False, tickers: list[str] | None = None) -> str:
-    """Fetch company facts for the US tickers that are due (or `tickers`, or all with `force`); store per ticker.
+def update_edgar(stocks: list[str], contact: str | None, today: date | None = None, force: bool = False,
+                 tickers: list[str] | None = None) -> str:
+    """Fetch company facts for the US tickers among the tracked `stocks` that are due (or `tickers`, or all with `force`); store per ticker.
     A ticker whose fresh answer has less than what is stored keeps its stored values (and counts as failed)."""
-    from .. import universe
+    from .. import tracked
 
     cfg = _cfg()
     today = today or date.today()
-    hdr = headers()
-    cmap = cik_map(today, hdr=hdr)
-    us = universe.stock_groups(offline=True).get("us", [])
+    hdr = headers(contact)
+    cmap = cik_map(hdr, today)
+    us = tracked.stock_groups(offline=True).get("us", [])
     if us:
         mapped = sum(sec_symbol(t) in cmap for t in us)
         if mapped < 0.95 * len(us):
             raise ValueError(f"SEC's ticker list maps only {mapped} of {len(us)} US stocks: has its format changed?")
-    names = [t for t in (tickers or us_tickers()) if sec_symbol(t) in cmap]
+    names = [t for t in (tickers or us_tickers(stocks)) if sec_symbol(t) in cmap]
     log = schedule.load_log(LOG_FILE)
     if tickers or force:
         batch = names

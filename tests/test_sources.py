@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from conftest import FIXTURES
-from radar import constituents, external, ingest, net, paths, positive_list, universe
+from radar import constituents, external, ingest, net, paths, positive_list, tracked, universe
 
 # ---------------- FRED ----------------
 
@@ -294,7 +294,7 @@ def test_oecd_area_missing_from_the_answer_keeps_its_stored_values(monkeypatch):
 
 def test_a_failed_name_lookup_is_not_cached(tmp_data, monkeypatch):
     from fakes import fake_yf
-    monkeypatch.setattr(universe, "etfs", lambda: [])
+    monkeypatch.setattr(tracked, "etfs", lambda: [])
     yf = fake_yf(monkeypatch, info={"A": RuntimeError("429"), "B": {}, "C": {"longName": "Cee Corp"}})
     assert universe.names(["A", "B", "C"]) == {"A": "A", "B": "B", "C": "Cee Corp"}   # shown as the ticker...
     cached = pd.read_csv(paths.CACHE / "names.csv")

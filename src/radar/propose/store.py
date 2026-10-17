@@ -8,7 +8,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .. import fees, money, trades, universe, userstore
+from .. import fees, money, tracked, trades, userstore
 from ..config import settings, write_text
 from ..jsonsafe import clean as _clean
 from ..model import artifacts
@@ -103,7 +103,7 @@ def shadow(market, doc: dict, name: str) -> dict:
     tags = ["proposal", f"proposal-{m['date']}"]
     amount = float(m["amount"])
     rule = m.get("rule_basket") or []
-    arms = {"proposal": [x["ticker"] for x in doc["picks"]], "acwi": [universe.benchmark()], "rule": rule}
+    arms = {"proposal": [x["ticker"] for x in doc["picks"]], "acwi": [tracked.benchmark()], "rule": rule}
     ids = {}
     for arm, ticks in arms.items():
         if not ticks:
@@ -133,7 +133,7 @@ def shadow(market, doc: dict, name: str) -> dict:
 def _basket_path(prices: pricing.Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
     """Equal DKK weights bought at the close of `start`: kept, and with the trend exit (model.paths: a close below
     the average after the buy day, sold at the next close, parked in ACWI)."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     b = prices.dkk(bench)
     legs, legs_x, events = [], [], []
     for t in tickers:

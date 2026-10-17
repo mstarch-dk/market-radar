@@ -247,7 +247,6 @@ def test_putcall_asks_again_for_a_day_that_was_missing(tmp_data):
 
 def _etf_world(monkeypatch, answers: dict):
     from fakes import fake_yf
-    monkeypatch.setattr(valuation, "etf_tickers", lambda: sorted(answers))
     return fake_yf(monkeypatch, funds=answers)
 
 
@@ -257,19 +256,19 @@ ETFS = [f"ETF{i}" for i in range(10)]
 
 def test_a_thin_etf_answer_keeps_the_last_snapshot(tmp_data, monkeypatch):
     _etf_world(monkeypatch, {t: EH for t in ETFS})
-    valuation.update_etfs(today=pd.Timestamp("2026-10-05").date())
+    valuation.update_etfs(ETFS, today=pd.Timestamp("2026-10-05").date())
     before = valuation.ETFS_FILE.read_bytes()
     _etf_world(monkeypatch, {t: (EH if t in ETFS[:3] else RuntimeError("429")) for t in ETFS})
     with pytest.raises(ValueError, match="3 of 10"):
-        valuation.update_etfs(today=pd.Timestamp("2026-10-12").date())
+        valuation.update_etfs(ETFS, today=pd.Timestamp("2026-10-12").date())
     assert valuation.ETFS_FILE.read_bytes() == before
 
 
 def test_a_same_week_rerun_carries_the_etfs_it_missed(tmp_data, monkeypatch):
     _etf_world(monkeypatch, {t: EH for t in ETFS})
-    valuation.update_etfs(today=pd.Timestamp("2026-10-12").date())
+    valuation.update_etfs(ETFS, today=pd.Timestamp("2026-10-12").date())
     _etf_world(monkeypatch, {t: (EH if t != "ETF9" else None) for t in ETFS})
-    msg = valuation.update_etfs(force=True, today=pd.Timestamp("2026-10-14").date())
+    msg = valuation.update_etfs(ETFS, force=True, today=pd.Timestamp("2026-10-14").date())
     week = valuation.latest(pd.read_parquet(valuation.ETFS_FILE))
     assert set(week.index) == set(ETFS) and "carried" in week.loc["ETF9", "note"]
     assert "1 carried" in msg
@@ -395,6 +394,9 @@ def test_the_same_week_number_a_year_later_is_not_the_same_week(tmp_path):
 
 # ---------------- update_stocks ----------------
 
+TRACKED = ["AAA", "BAD", "FUND", "LOOK"]
+
+
 def quote(sym, eps_fwd=5.0, kind="EQUITY"):
     return {"symbol": sym, "quoteType": kind, "currency": "USD", "financialCurrency": "USD",
             "regularMarketPrice": 100.0, "epsForward": eps_fwd}
@@ -409,7 +411,6 @@ def stocks_world(monkeypatch):
                         lambda: {"XA": {"min_cap": 1, "min_count": 2}, "XB": {"min_cap": 1, "min_count": 2}})
     monkeypatch.setattr(sources, "screen_exchange", lambda code, min_cap=0, **kw: answers[code])
     monkeypatch.setattr(scan, "fx_rates", lambda: {"DKK": 1.0, "USD": 6.4})
-    monkeypatch.setattr(valuation, "tracked_stocks", lambda: ["AAA", "BAD", "FUND", "LOOK"])
     return answers
 
 
@@ -417,7 +418,7 @@ def test_a_normal_run_stores_todays_snapshot_and_counts_what_it_got(monkeypatch,
     yf = fake_yf(monkeypatch, info={"LOOK": {"quoteType": "EQUITY", "currency": "USD", "currentPrice": 50.0,
                                              "trailingEps": 2.5, "forwardEps": 2.5},
                                     "FUND": {"quoteType": "ETF"}, "BAD": RuntimeError("Yahoo said no")})
-    msg = valuation.update_stocks(today=date(2026, 10, 16))
+    msg = valuation.update_stocks(TRACKED, today=date(2026, 10, 16))
     # AAA, BBB, CCC, DDD from the screener (ETF1 left out) + LOOK; BBB has no forward EPS
     assert msg == "5 names, 4 with a forward P/E; 2 of 4 tracked stocks (1 looked up one by one, 1 lookups failed)"
     assert sorted(t for k, t in yf.asked) == ["BAD", "FUND", "LOOK"]
@@ -435,7 +436,7 @@ def test_an_exchange_with_too_few_names_raises_and_keeps_the_last_snapshot(monke
     before = valuation.STOCKS_FILE.read_bytes()
     yf = fake_yf(monkeypatch)
     with pytest.raises(ValueError, match=r"XB 1 < 2"):
-        valuation.update_stocks(today=date(2026, 10, 16))
+        valuation.update_stocks(TRACKED, today=date(2026, 10, 16))
     assert valuation.STOCKS_FILE.read_bytes() == before and yf.asked == []
 
 
@@ -447,7 +448,7 @@ def test_not_due_is_up_to_date_without_asking_anyone(monkeypatch, stocks_world):
     monkeypatch.setattr(sources, "screen_exchange", asked)
     monkeypatch.setattr(scan, "fx_rates", asked)
     yf = fake_yf(monkeypatch)
-    assert valuation.update_stocks(today=date(2026, 10, 16)) == "up to date (snapshot of 14 Oct)"
+    assert valuation.update_stocks(TRACKED, today=date(2026, 10, 16)) == "up to date (snapshot of 14 Oct)"
     assert yf.asked == []
 
 
@@ -455,7 +456,7 @@ def test_a_forced_run_in_the_same_week_says_how_many_it_carried(monkeypatch, sto
     valuation.write_parquet(snap("2026-10-14", ["AAA", "GONE"]), valuation.STOCKS_FILE, index=False)
     fake_yf(monkeypatch, info={"LOOK": {"quoteType": "EQUITY", "currency": "USD", "currentPrice": 50.0,
                                         "forwardEps": 2.5}})
-    msg = valuation.update_stocks(force=True, today=date(2026, 10, 16))
+    msg = valuation.update_stocks(TRACKED, force=True, today=date(2026, 10, 16))
     assert msg.endswith("; 1 carried from this week's earlier snapshot")
     df = valuation.load_stocks()
     assert set(df["date"]) == {pd.Timestamp("2026-10-16")} and "GONE" in set(df["ticker"])

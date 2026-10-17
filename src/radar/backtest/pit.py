@@ -9,14 +9,14 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from .. import external, universe, valuation
+from .. import external, tracked, universe, valuation
 from ..config import settings, universe_config
 from ..model import inputs as minputs
 from ..model import paths as mpaths
-from ..model.score import score_vs
 from ..signals import levels as lv
 from ..signals import momentum, regime, rotation
 from ..signals import valuation as sv
+from ..signals.score import score_vs
 
 REGIME_ROWS = 320          # sessions of prices the regime reads (252-day highs/lows + 10-day smoothing + 1 month)
 
@@ -44,14 +44,14 @@ class Context:
         cfg = settings()
         closes = market.closes
         mh = cfg["momentum"]["min_history_days"]
-        stocks = sorted({t for g in universe.stock_groups(offline=True).values() for t in g})
+        stocks = sorted({t for g in tracked.stock_groups(offline=True).values() for t in g})
         uni = momentum.metrics_panel(closes, stocks, mh)
         panel = momentum.metrics_panel(closes, sorted(held), mh)
         stops = cfg["stops"] | {"analyst_max_age_days": cfg["coverage"]["max_age"]["analyst"]}
         atr = {t: lv.atr(market.highs[t], market.lows[t], closes[t], stops["atr_days"])
                for t in held if t in closes and t in market.highs and t in market.lows}
-        bench = universe.benchmark()
-        insts = [i for i in universe.etfs() if i.ticker in closes.columns]
+        bench = tracked.benchmark()
+        insts = [i for i in tracked.etfs() if i.ticker in closes.columns]
         rc = cfg["rotation"]
         quads = pd.DataFrame()
         if insts:
@@ -80,7 +80,7 @@ class Context:
 
     def score(self, t: str, day: pd.Timestamp) -> float | None:
         """The momentum score on `day`: the percentile of 12-1, 6- and 3-month returns against every stock in the
-        universe that day, as on My holdings (model.score.score_vs). The universe is today's list (survivorship)."""
+        universe that day, as on My holdings (signals.score.score_vs). The universe is today's list (survivorship)."""
         r = self.row(t, day)
         if r is None or day not in self.dist["r3m"].index:
             return None
@@ -121,13 +121,13 @@ class Context:
             cli = external.load_oecd_cli()
             fs = external.load_factset()
             self._macro = {"fred": self.market.fred(), "cli": cli, "cli_labels": ucfg.get("external", {}).get("oecd_cli", {}),
-                           "factset": fs, "valuation": valuation.load_market(), "groups": universe.stock_groups(offline=True),
-                           "labels": universe.stock_group_labels(), "macro": universe.macro_yahoo(),
+                           "factset": fs, "valuation": valuation.load_market(), "groups": tracked.stock_groups(offline=True),
+                           "labels": tracked.stock_group_labels(), "macro": tracked.macro_yahoo(),
                            "votes": minputs.effective_votes()}
         return self._macro
 
     def _regime_at(self, f: pd.Timestamp) -> dict:
-        bench = universe.benchmark()
+        bench = tracked.benchmark()
         if (self.sessions <= f).sum() < 200:
             return {"label": None, "asof": f.date().isoformat(), "missing": "less than 200 sessions of benchmark prices"}
         x, bt = self._inputs(), self.cfg.get("backtest") or {}

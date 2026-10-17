@@ -3,7 +3,7 @@ from collections import Counter
 
 import pytest
 
-from radar import coverage, positive_list, universe
+from radar import coverage, fxrates, positive_list, tracked, universe
 from radar.config import settings, universe_config
 from test_levels import CFG as LEVELS_CFG
 from test_signals import CFG as REGIME_CFG
@@ -26,13 +26,13 @@ def test_isin_check_digit_helper():
 
 def test_etf_isins_are_valid():
     cfg = universe_config()
-    isins = [cfg["benchmark"].get("isin")] + [e.isin for e in universe.etfs()]
+    isins = [cfg["benchmark"].get("isin")] + [e.isin for e in tracked.etfs()]
     for isin in filter(None, isins):
         assert positive_list.ISIN_RE.match(isin) and _isin_ok(isin), isin
 
 
 def test_no_duplicate_tickers():
-    etf = [e.ticker for e in universe.etfs()]
+    etf = [e.ticker for e in tracked.etfs()]
     assert not [t for t, n in Counter(etf).items() if n > 1]
     for key, g in universe_config()["stock_groups"].items():
         tickers = g.get("tickers") or []
@@ -60,11 +60,11 @@ def test_macro_and_external_keys_the_regime_reads():
 
 
 def test_every_currency_used_has_a_dkk_rate():
-    for ccy, fx in universe.FX_DKK.items():
+    for ccy, fx in fxrates.FX_DKK.items():
         assert fx is None or fx.endswith("DKK=X"), ccy
-    for ccy, fx in universe.FX_VIA_USD.items():
-        assert fx == f"USD{ccy}=X" and ccy not in universe.FX_DKK, ccy
-    assert set(universe.FX_TICKERS) <= set(universe.all_price_tickers(offline=True))
+    for ccy, fx in fxrates.FX_VIA_USD.items():
+        assert fx == f"USD{ccy}=X" and ccy not in fxrates.FX_DKK, ccy
+    assert set(fxrates.FX_TICKERS) <= set(universe.all_price_tickers(offline=True))
 
 
 def test_coverage_limits_cover_every_dated_source():

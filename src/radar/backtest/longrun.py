@@ -19,10 +19,10 @@ from .. import factors, ingest
 from ..config import settings
 from ..model import artifacts
 from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # noqa: F401 (re-exported)
-from ..model.score import COMPONENTS, weighted_pct
-from ..model.score import mean_pct as pct
 from ..model.stats import mean as _mean
 from ..signals.risk import MONTHS_PER_YEAR, underwater
+from ..signals.score import COMPONENTS, weighted_pct
+from ..signals.score import mean_pct as pct
 from .study import QUANTILES, cross_section, holdout_diff_t, nw_t, summarize, variant_verdict
 
 REPORT_FILE = "longrun-study.json"

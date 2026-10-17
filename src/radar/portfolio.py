@@ -10,7 +10,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import money, trades, universe, userstore
+from . import fxrates, money, trades, universe, userstore
 from .values import whole
 
 ERROR, WARNING = "error", "warning"
@@ -41,10 +41,10 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
     """The traded close on that day (to prefill a price) and, given a price, whether it looks plausible: about
     100× off is the classic pence/pound (GBp/GBP) or cents mix-up; far from the day's close is worth a second
     look. Prices are per share in the instrument's quote currency."""
-    from . import universe as u
+    from . import fxrates
 
     day = pd.Timestamp(day)
-    ccy = u.currencies([symbol]).get(symbol) if symbol in market.closes.columns else None
+    ccy = fxrates.currencies([symbol]).get(symbol) if symbol in market.closes.columns else None
     found = session_close(market, symbol, day)
     out = {"symbol": symbol, "currency": ccy, "close": None, "close_date": None, "verdict": "no_data", "message": None,
            "fx": None}
@@ -52,7 +52,7 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
         out["message"] = "No price history for this date, so the price can't be checked."
         return out
     d, close = found
-    fx = u.fx_to_dkk(market.closes, ccy)
+    fx = fxrates.fx_to_dkk(market.closes, ccy)
     rate = money.rate_on(fx, d)
     out |= {"close": close, "close_date": d.date().isoformat(), "verdict": "ok",
             "fx": rate}
@@ -244,7 +244,7 @@ def positions_view(market, portfolios: list[int] | None = None) -> dict:
                         "unrealized": last / float(p["avg_price"]) - 1 if last is not None and p["avg_price"] else None})
         return out
     names = universe.names(sorted(total["symbol"])) if not total.empty else {}
-    ccy = universe.currencies(sorted(total["symbol"])) if not total.empty else {}
+    ccy = fxrates.currencies(sorted(total["symbol"])) if not total.empty else {}
     add = lambda r: r | {"name": names.get(r["symbol"]), "currency": ccy.get(r["symbol"])}  # noqa: E731
     return {"total": [add(r) for r in rows(total, False)], "by_portfolio": [add(r) for r in rows(per, True)],
             "warnings": warn, "transactions": len(tx), "cash": cash_view(market, portfolios)}

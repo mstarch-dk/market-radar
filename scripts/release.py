@@ -72,7 +72,7 @@ def fixture(name: str, legacy: bool = False) -> Path:
     sys.path.insert(0, str(ROOT / "src"))
     import pandas as pd
 
-    from radar import home, paths, userstore
+    from radar import home, manifest, paths, userstore
 
     target = FIXTURES / name
     if target.exists():
@@ -104,10 +104,10 @@ def fixture(name: str, legacy: bool = False) -> Path:
         snaps.mkdir(parents=True, exist_ok=True)
         pd.DataFrame({"ticker": ["A", "B"], "rank": [1, 2], "score": [0.9, 0.1], "region": "us"}).to_parquet(
             snaps / "2025-09-01_momentum.parquet", index=False)
-        expected = {"layout": "legacy" if legacy else "home", "made_by": home.app_version(),
+        expected = {"layout": "legacy" if legacy else "home", "made_by": manifest.app_version(),
                     "home_format": None if legacy else home.HOME_FORMAT, "tables": home.table_counts(loc.userdata / home.DB_NAME),
                     "files": sorted(p.relative_to(build).as_posix() for p in build.rglob("*") if p.is_file()
-                                    and p.suffix != ".db" and p.name != home.MANIFEST)}
+                                    and p.suffix != ".db" and p.name != manifest.MANIFEST)}
         (build / "expected.json").write_text(json.dumps(expected, indent=1, ensure_ascii=False), encoding="utf-8")
         paths.configure(None)
         shutil.copytree(build, target)

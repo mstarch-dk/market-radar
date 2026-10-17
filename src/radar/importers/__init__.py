@@ -378,10 +378,10 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
     """For each (ident, symbol, isin, name): a suggested Yahoo symbol and how it was found, best first:
     remembered → the radar's own ISIN list → the symbol itself when Yahoo has prices → Yahoo search (ISIN, then
     name). `market_has(symbol)` says whether prices exist (it may download them)."""
-    from .. import universe, userstore
+    from .. import tracked, userstore
 
     isin_cfg = {}
-    for e in universe.etfs():
+    for e in tracked.etfs():
         if e.isin:
             isin_cfg[e.isin.upper()] = e.ucits or e.ticker
     out = {}
@@ -483,8 +483,8 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
             market_has(tx["symbol"])
         r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
         if r["type"] in ("BUY", "SELL") and r.get("currency") and tx["symbol"]:
-            from .. import universe
-            quote = universe.currencies([tx["symbol"]]).get(tx["symbol"])
+            from .. import fxrates
+            quote = fxrates.currencies([tx["symbol"]]).get(tx["symbol"])
             r["issues"] += currency_issues(r["currency"], quote, tx["symbol"], r["fee"])
         for field, value in r.get("ambiguous") or []:
             dot, comma = parse_number(value, "."), parse_number(value, ",")

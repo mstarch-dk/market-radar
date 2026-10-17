@@ -5,11 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import external, trades, universe
+from . import external, fxrates, tracked, trades, universe
 from .model.inputs import level_etfs, level_universe  # noqa: F401 (re-exported)
-from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
+from .signals.score import score_vs
 
 METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "history",
                "above50", "above200", "trend_ok")
@@ -67,8 +67,8 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     df["rel_r3m"] = df["r3m"] - rel3
     df["score"] = [score_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
 
-    ccy = universe.currencies([*df["symbol"], bench])
-    bench_dkk = (b * universe.fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
+    ccy = fxrates.currencies([*df["symbol"], bench])
+    bench_dkk = (b * fxrates.fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
     tx = trades.transactions(portfolios)
     since, bench_since, since_sell, flags = [], [], [], []
     for _, r in df.iterrows():
@@ -80,7 +80,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
                 x_ret = None
         since_sell.append(x_ret)
         if r["status"] == "holding" and pd.notna(r["last"]):
-            fx = universe.fx_to_dkk(closes, ccy.get(r["symbol"]))
+            fx = fxrates.fx_to_dkk(closes, ccy.get(r["symbol"]))
             raw = raw_closes[r["symbol"]] if raw_closes is not None and r["symbol"] in raw_closes else None
             res = _vs_shadow(tx[tx["symbol"] == r["symbol"]], closes[r["symbol"]].dropna(), fx, bench_dkk, raw) \
                 if fx is not None else None
@@ -106,7 +106,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
             if r["from_high"] > -0.03:
                 f.append("near 52w high")
             c = closes[r["symbol"]]
-            fx_t = universe.fx_to_dkk(closes, ccy.get(r["symbol"]))
+            fx_t = fxrates.fx_to_dkk(closes, ccy.get(r["symbol"]))
             if r["symbol"] != bench and fx_t is not None and technicals.rs_new_high(
                     c * fx_t.reindex(c.index).ffill(), bench_dkk, RS_HIGH_DAYS):
                 f.append("RS line at 52w high")
@@ -174,7 +174,7 @@ def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotat
     default: your real ones). `leaders` is the momentum table of the whole stock universe (the score is a
     percentile against it); `cfg` is settings(). `sessions(symbol)` gives the symbol's own closes (no
     gap-filled holidays), so its RSI matches the ticker page."""
-    bench = universe.benchmark()
+    bench = tracked.benchmark()
     me = _me_table(closes, volumes, leaders, bench, cfg["momentum"]["min_history_days"], raw_closes, portfolios)
     if me.empty:
         return []

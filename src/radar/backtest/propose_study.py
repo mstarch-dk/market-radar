@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import constituents, money, propose, universe
+from .. import constituents, fxrates, money, propose
 from ..config import settings
 from ..model import artifacts
 from ..model import panels as mp
@@ -162,7 +162,7 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
             log("no SEC EDGAR statements stored: the value and mix tilts are skipped")
             tilts = [t for t in tilts if c["tilts"][t].get("qv", 0) == 0]
     acwi = constituents.acwi_weights(offline=True)
-    ccy = universe.currencies(list(p.closes.columns))
+    ccy = fxrates.currencies(list(p.closes.columns))
     meta = pd.DataFrame({"sector": p.sector.replace("", "?").fillna("?"), "region": p.group.fillna("?"),
                          "currency": pd.Series({t: (money.main_unit(ccy.get(t)) or "?")
                                                 for t in p.closes.columns})}).reindex(p.closes.columns)

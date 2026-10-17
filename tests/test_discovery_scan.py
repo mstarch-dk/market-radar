@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 import world
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import api, coverage, ingest, sourcelog, universe
+from radar import api, coverage, fxrates, ingest, sourcelog, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
 from radar.discovery import scan, sources
@@ -41,7 +41,7 @@ def test_report_validates_and_marks_what_the_radar_already_tracks(tmp_data, monk
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(scan, "discovery_config", lambda: CFG)
     _seed(tmp_data)
-    out = scan.build_report()
+    out = scan.build_report(set(universe.all_price_tickers(offline=True)))
     assert out["names"] == 5
     d = json.loads(scan.REPORT_FILE.read_text(encoding="utf-8"))
     DiscoveryView.model_validate({"age_days": 0, "stale": False, **d})
@@ -63,7 +63,7 @@ def test_api_says_when_no_scan_has_run(tmp_data, monkeypatch):
     r = client.get("/api/discover")
     assert r.status_code == 503 and "radar discover" in r.json()["detail"]
     _seed(tmp_data)
-    scan.build_report()
+    scan.build_report(set(universe.all_price_tickers(offline=True)))
     r = client.get("/api/discover")
     assert r.status_code == 200 and r.json()["markets"][0]["label"] == "Nordic"
 
@@ -72,7 +72,7 @@ def test_discovery_stays_out_of_the_daily_radar(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(scan, "discovery_config", lambda: CFG)
     _seed(tmp_data)
-    scan.build_report()
+    scan.build_report(set(universe.all_price_tickers(offline=True)))
     assert "NEW1" not in universe.all_price_tickers(offline=True)
     rows = {r["key"]: r for r in coverage._discovery_rows(pd.Timestamp.today().date(),
                                                            {"discovery_universe": 45, "discovery_prices": 10}, {})}
@@ -208,7 +208,7 @@ def _setup(monkeypatch, failing=()):
     monkeypatch.setattr(sources, "screen_exchange", screen)
     monkeypatch.setattr(sources, "screen_sectors", lambda codes: {})
     monkeypatch.setattr(sources, "fetch_index", lambda key: pytest.fail("no index in these markets"))
-    monkeypatch.setattr(universe, "currencies", lambda t: pytest.fail(f"currency lookup for {t}"))
+    monkeypatch.setattr(fxrates, "currencies", lambda t: pytest.fail(f"currency lookup for {t}"))
 
 
 def _cached(rows):

@@ -18,11 +18,14 @@ def fundamentals_update(tickers: list[str] = typer.Argument(None, help="Only the
                         all_: bool = typer.Option(False, "--all", help="Every tracked stock, due or not (slow)")):
     """Fetch statements now: the companies that are due (a new report expected, or not fetched for a while), the
     tickers named, or with --all every one. `radar update` fetches the due ones each day."""
-    from .. import ops
+    from functools import partial
+
+    from .. import ops, universe, userstore
     from ..fundamentals import edgar, yahoo
 
-    steps = {"fundamentals_edgar": ("SEC EDGAR", edgar.update_edgar),
-             "fundamentals_yahoo": ("Yahoo", yahoo.update_yahoo)}
+    stocks = universe.tracked_stocks()
+    steps = {"fundamentals_edgar": ("SEC EDGAR", partial(edgar.update_edgar, stocks, userstore.sec_contact())),
+             "fundamentals_yahoo": ("Yahoo", partial(yahoo.update_yahoo, stocks))}
     if source != "all":
         steps = {k: v for k, v in steps.items() if k.endswith(source)}
         if not steps:
@@ -115,17 +118,17 @@ def fundamentals_contact(email: str = typer.Argument(None, help="Your e-mail add
                          clear: bool = typer.Option(False, "--clear", help="Remove it (SEC EDGAR is then skipped)")):
     """The contact e-mail sent to SEC with each EDGAR request (SEC's fair-access rule asks automated clients to say
     who they are). Stored in your own database; without it, US statements come from Yahoo only."""
-    from ..fundamentals import edgar
+    from .. import userstore
 
     if clear:
-        edgar.set_contact(None)
+        userstore.set_sec_contact(None)
         typer.echo("Removed: SEC EDGAR is skipped until a contact is set.")
         return
     if not email:
-        c = edgar.contact()
+        c = userstore.sec_contact()
         typer.echo(f"SEC contact: {c}" if c else "No SEC contact set: radar fundamentals contact you@example.com")
         return
     try:
-        typer.echo(f"SEC contact set to {edgar.set_contact(email)}.")
+        typer.echo(f"SEC contact set to {userstore.set_sec_contact(email)}.")
     except ValueError as e:
         raise typer.Exit(str(e))

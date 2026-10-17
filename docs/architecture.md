@@ -7,18 +7,19 @@ and its docstrings do. The method behind each reading is explained for users in 
 ```
 interfaces       api, cli
 features         abtest, api_models, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
-                 updater
+                 tickers, updater
 kernel           model/
 domain           backup, export, fees, guide, home, importers/, market, market_views, notebook, performance,
-                 portfolio, simulate, snapshot, tickers, trades, universe, userstore/
-data sources     constituents, discovery/, external, factors, fundamentals/, ingest, positive_list, sentiment,
-                 updates, valuation
+                 portfolio, simulate, snapshot, trades, universe, userstore/
+data sources     constituents, discovery/, external, factors, fundamentals/, fxrates, ingest, positive_list,
+                 sentiment, tracked, updates, valuation
 pure readings    signals/
-infrastructure   config, config_schema, guard, jsonsafe, locks, money, net, ops, paths, sourcelog, values
+infrastructure   config, config_schema, guard, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
 ```
 A module imports its own layer and the ones below. The `layers` contract in `pyproject.toml` holds every module to
-it (`uv run lint-imports`, `tests/test_layers.py`, CI; indirect imports and imports inside functions count). Its
-`ignore_imports` lists the upward imports still left; the list only shrinks.
+it (`uv run lint-imports`, `tests/test_layers.py`, CI; indirect imports and imports inside functions count). It
+has no exceptions (`ignore_imports`): a module that needs something from above gets it passed in, or the shared
+piece moves down.
 
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
@@ -119,6 +120,7 @@ change to the model and to its schema version.
   market-wide reading as data, without side effects.
 - `mine.py`: the holdings, watchlist and sold table (DKK return vs a shadow ACWI position, flags, stop levels).
 - `profile.py`: one ticker's full profile and several side by side with ACWI (`radar info`, `/compare`).
+- `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown but
   don't vote.
 - `health.py`: `radar doctor`, each check with what it found and what to do.
@@ -136,13 +138,12 @@ change to the model and to its schema version.
 
 ### Kernel
 - `model/`: what the app and the studies must compute the same way, defined once, so what is tested is what is
-  shown: the score's percentile rule, point-in-time panels and the month-end calendar, selection under caps, the
-  trend exit, the shared statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run
-  prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
+  shown: point-in-time panels and the month-end calendar, selection under caps, the trend exit, the shared
+  statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
 
 ### Domain
-- `universe.py`: what is tracked and how it is quoted (config access, names, sectors, currencies, FX to DKK,
-  region, how far back prices go).
+- `universe.py`: everything the radar downloads prices for (incl. holdings), names, sectors, region, how far
+  back prices go.
 - `market.py`: the price store as wide frames, loaded once and shared by the API, CLI and studies.
 - `userstore/`: the user's own edits in `radar.db` (SQLite, versioned by `PRAGMA user_version` and an append-only
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
@@ -158,7 +159,6 @@ change to the model and to its schema version.
 - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
-- `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `snapshot.py`: rank history for "new" and "Δ rank".
 - `home.py`: the data folder's status, setup, moving in and layout migrations (see *Where data lives*).
 - `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
@@ -176,9 +176,13 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
 - `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
 - `sentiment.py`: CBOE put/call and the AAII survey.
 - `fundamentals/`: financial statements from SEC EDGAR (US, with filing dates) and Yahoo (every stock,
-  append-only) in one long fact format; the period arithmetic as known on any day; which tickers are due.
+  append-only) in one long fact format (its period arithmetic is pure, in `signals/periods.py`); which tickers
+  are due.
 - `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
 - `constituents.py`: the S&P 500 and MSCI ACWI holdings.
+- `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
+  sources.
+- `fxrates.py`: each ticker's quote currency and the FX tickers that turn it into DKK.
 - `positive_list.py`: SKAT's positive list.
 - `discovery/`: the separate wide scan for names the radar doesn't track. Nothing here feeds the regime, breadth
   or the momentum page.
@@ -186,7 +190,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
 
 ### Pure readings
 - `signals/`: pure functions from data to readings: risk and the series math everything shares, gauges, rotation,
-  momentum, regime, stop levels, technicals, valuation, quality and value scores, views, discovery scores. No I/O.
+  momentum and its score's percentile rule, regime, stop levels, technicals, valuation, quality and value scores,
+  the statement periods (TTM, latest instant, fiscal years as known on a day), views, discovery scores. No I/O.
 
 ### Infrastructure
 - `config.py`, `config_schema.py`: the config files, checked settings, the atomic writers.
@@ -198,6 +203,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   work; nothing here feeds a market reading.
 - `sourcelog.py`: the update log `sources.json`; a failure keeps the last success.
 - `guard.py`, `locks.py`, `jsonsafe.py`: see *Writing files*.
+- `manifest.py`: the data folder's `market-radar.json` (format, the versions that opened it, its log) and the
+  app's version.
 - `values.py`, `money.py`: the one rule for reading a number (finite or None) and for money (pence quotes, basis
   points, fees, an exchange rate on a day).
 

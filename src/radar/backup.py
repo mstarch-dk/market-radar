@@ -22,7 +22,7 @@ from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import home, paths
+from . import home, manifest, paths
 
 PREFIX = "market-radar-"
 KINDS = ("manual", "daily", "upgrade", "restore")
@@ -36,7 +36,7 @@ class BackupError(RuntimeError):
 def _home() -> paths.Locations:
     """Backups are of a data folder (`radar setup`), not of the old layout inside the install folder."""
     loc = paths.locations()
-    if not (loc.home / home.MANIFEST).exists():
+    if not (loc.home / manifest.MANIFEST).exists():
         raise BackupError("backups need a data folder: run `radar setup` first")
     return loc
 
@@ -54,20 +54,20 @@ def folder() -> Path:
 
 
 def mirror() -> Path | None:
-    m = home.read_manifest(paths.locations().home) or {}
+    m = manifest.read_manifest(paths.locations().home) or {}
     return Path(m["backup_mirror"]) if m.get("backup_mirror") else None
 
 
 def set_mirror(path: Path | None) -> Path | None:
     loc = _home()
-    m = home.read_manifest(loc.home)
+    m = manifest.read_manifest(loc.home)
     if path:
         path = Path(path).expanduser()
         path.mkdir(parents=True, exist_ok=True)
         if path.resolve() == folder().resolve() or loc.home.resolve() in path.resolve().parents:
             raise BackupError("the second backup folder must be outside the data folder")
     m["backup_mirror"] = str(path) if path else None
-    home.write_manifest(loc.home, home.add_log(m, "backup_mirror", path=m["backup_mirror"]))
+    manifest.write_manifest(loc.home, manifest.add_log(m, "backup_mirror", path=m["backup_mirror"]))
     return path
 
 
@@ -102,7 +102,7 @@ def create(reason: str = "manual", kind: str = "manual") -> Path:
         n += 1
         out = d / f"{stem}-{n}.zip"
     files, meta = [], {"created": datetime.now().isoformat(timespec="seconds"), "kind": kind, "reason": reason,
-                       "app_version": home.app_version(), "home_format": home.HOME_FORMAT}
+                       "app_version": manifest.app_version(), "home_format": home.HOME_FORMAT}
     tmp = out.with_name(out.name + ".tmp")
     with tempfile.TemporaryDirectory() as t, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
         db = loc.userdata / home.DB_NAME
@@ -202,10 +202,10 @@ def before_upgrade() -> Path | None:
     """A backup the first time a new app version opens the data, before anything is changed."""
     if not is_home():
         return None
-    m = home.read_manifest(paths.locations().home)
-    if m.get("last_app_version") == home.app_version():
+    m = manifest.read_manifest(paths.locations().home)
+    if m.get("last_app_version") == manifest.app_version():
         return None
-    return create(f"before-v{home.app_version()}", kind="upgrade")
+    return create(f"before-v{manifest.app_version()}", kind="upgrade")
 
 
 # ---------------- restore ----------------
@@ -223,7 +223,7 @@ def verify(zf: Path) -> dict:
         raise BackupError(f"{zf.name} is not a Market Radar backup ({type(e).__name__}: {e})") from e
     if meta.get("home_format", 0) > home.HOME_FORMAT or (meta.get("db_version") or 0) > home.schema_known():
         raise BackupError(f"{zf.name} was made by Market Radar {meta.get('app_version')}, newer than this "
-                          f"{home.app_version()}: restore it with that version or newer")
+                          f"{manifest.app_version()}: restore it with that version or newer")
     return meta
 
 
@@ -266,8 +266,8 @@ def restore(zf: Path) -> dict:
         raise
     shutil.rmtree(staging, ignore_errors=True)
     shutil.rmtree(old, ignore_errors=True)        # it is in `before`
-    m = home.read_manifest(loc.home)
+    m = manifest.read_manifest(loc.home)
     if m:
-        home.write_manifest(loc.home, home.add_log(m, "restored", backup=zf.name, saved_first=before.name))
+        manifest.write_manifest(loc.home, manifest.add_log(m, "restored", backup=zf.name, saved_first=before.name))
     return {"restored": zf.name, "created": meta["created"], "files": len(meta["files"]),
             "tables": meta.get("tables", {}), "saved_first": before.name}

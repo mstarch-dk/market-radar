@@ -8,7 +8,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from radar import dashboard, external, ingest, profile, universe
+from radar import dashboard, external, fxrates, ingest, profile, tracked, universe
 
 N = 300
 END = pd.Timestamp(date.today())
@@ -111,7 +111,7 @@ def install(tmp_data, monkeypatch) -> dict[str, pd.DataFrame]:
     """Patch config, caches and Yahoo lookups to the synthetic world. Returns the dict of extra price
     frames that a faked download adds to (key = ticker)."""
     extra: dict[str, pd.DataFrame] = {}
-    for mod in (dashboard, universe, profile):
+    for mod in (dashboard, tracked, profile):
         monkeypatch.setattr(mod, "universe_config", lambda: UNIVERSE)
     monkeypatch.setattr(dashboard, "load_prices", prices)
     monkeypatch.setattr(dashboard, "load_fred", fred)
@@ -119,7 +119,7 @@ def install(tmp_data, monkeypatch) -> dict[str, pd.DataFrame]:
     for fn in ("load_cot", "load_oecd_cli", "load_factset", "load_analyst"):
         monkeypatch.setattr(external, fn, pd.DataFrame)
     monkeypatch.setattr(universe, "names", lambda ts: {t: f"{t} name" for t in ts})
-    monkeypatch.setattr(universe, "currencies", lambda ts: {t: "USD" for t in ts})
+    monkeypatch.setattr(fxrates, "currencies", lambda ts: {t: "USD" for t in ts})
     monkeypatch.setattr(universe, "sectors", lambda ts: pd.DataFrame(
         {"sector": "Technology", "industry": "Software"}, index=pd.Index(ts, name="ticker")))
     monkeypatch.setattr(external, "detail", lambda *a, **k: (None, "missing"))

@@ -19,6 +19,7 @@ from . import (
     dashboard,
     home,
     importers,
+    manifest,
     mine,
     net,
     ops,
@@ -26,6 +27,7 @@ from . import (
     portfolio,
     profile,
     tickers,
+    tracked,
     trades,
     universe,
     updater,
@@ -149,7 +151,7 @@ async def _lifespan(_app):
     yield
 
 
-app = FastAPI(title="Market Radar", version=home.app_version(), lifespan=_lifespan)
+app = FastAPI(title="Market Radar", version=manifest.app_version(), lifespan=_lifespan)
 _lock = threading.Lock()  # one price download / market reload at a time
 _market: profile.Market | None = None
 
@@ -491,19 +493,15 @@ def put_regime_votes(body: VotesIn) -> list[dict]:
 
 @app.get("/api/settings/sec-contact", response_model=SecContact)
 def get_sec_contact() -> dict:
-    from .fundamentals import edgar
-
-    return {"email": edgar.contact()}
+    return {"email": userstore.sec_contact()}
 
 
 @app.put("/api/settings/sec-contact", response_model=SecContact)
 def put_sec_contact(body: SecContact) -> dict:
     """The contact e-mail SEC asks for in the User-Agent of each EDGAR request (stored in userdata; null or empty
     removes it, and EDGAR is then skipped)."""
-    from .fundamentals import edgar
-
     try:
-        return {"email": edgar.set_contact(body.email)}
+        return {"email": userstore.set_sec_contact(body.email)}
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
 
@@ -713,10 +711,10 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
         m = market()
         rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
                           settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
-        asof = m.closes[universe.benchmark()].dropna().index[-1].date().isoformat()
+        asof = m.closes[tracked.benchmark()].dropna().index[-1].date().isoformat()
         from .fundamentals import context as fcontext
 
-        fctx = fcontext.context(m.closes, m.raw_closes(), m.mtime)
+        fctx = fcontext.context(m.closes, m.raw_closes(), universe.tracked_stocks(), m.mtime)
     rows = dashboard.with_fundamentals(dashboard.with_valuation(rows, valuation.context()), fctx)
     return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
             "rows": rows}

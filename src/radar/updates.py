@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
-from . import home, paths
+from . import manifest, paths
 from .config import settings, write_text
 
 CHECK_FILE = paths.CACHE / "updates.json"
@@ -21,17 +21,17 @@ def repo() -> str | None:
 
 
 def enabled() -> bool:
-    m = home.read_manifest(paths.locations().home) or {}
+    m = manifest.read_manifest(paths.locations().home) or {}
     return bool(m.get("update_check"))
 
 
 def set_enabled(on: bool) -> None:
     loc = paths.locations()
-    m = home.read_manifest(loc.home)
+    m = manifest.read_manifest(loc.home)
     if m is None:
         raise RuntimeError("the update check needs a data folder: run `radar setup` first")
     m["update_check"] = bool(on)
-    home.write_manifest(loc.home, home.add_log(m, "update_check", on=bool(on)))
+    manifest.write_manifest(loc.home, manifest.add_log(m, "update_check", on=bool(on)))
 
 
 def _cached() -> dict | None:
@@ -43,7 +43,7 @@ def _cached() -> dict | None:
 
 def status(check: bool = True) -> dict:
     """{enabled, repo, current, latest, newer, url, published, checked, error}; checks GitHub when due."""
-    out = {"enabled": False, "repo": repo(), "current": home.app_version(), "latest": None, "newer": False,
+    out = {"enabled": False, "repo": repo(), "current": manifest.app_version(), "latest": None, "newer": False,
            "url": None, "published": None, "checked": None, "error": None}
     try:
         out["enabled"] = enabled()
@@ -59,7 +59,7 @@ def status(check: bool = True) -> dict:
         write_text(CHECK_FILE, json.dumps(c, indent=1))
     if c:
         out |= {k: c.get(k) for k in ("latest", "url", "published", "checked", "error")}
-        out["newer"] = bool(out["latest"]) and home.version_tuple(out["latest"].lstrip("v")) > home.version_tuple(out["current"])
+        out["newer"] = bool(out["latest"]) and manifest.version_tuple(out["latest"].lstrip("v")) > manifest.version_tuple(out["current"])
     return out
 
 

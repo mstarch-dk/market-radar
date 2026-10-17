@@ -81,7 +81,7 @@ def test_discover_runs_the_scan(built, monkeypatch):
     from radar.discovery import scan
 
     seen = {}
-    monkeypatch.setattr(scan, "run", lambda log, progress, refresh: seen.update(refresh=refresh) or progress(1, 1))
+    monkeypatch.setattr(scan, "run", lambda tracked, log, progress, refresh: seen.update(refresh=refresh) or progress(1, 1))
     assert "1 of 1" in run("discover", "--refresh-universe") and seen == {"refresh": True}
 
 
@@ -170,8 +170,8 @@ def test_portfolios_lifecycle(built):
 def test_fundamentals_update_show_check_and_contact(built, monkeypatch):
     from radar.fundamentals import edgar, yahoo
 
-    monkeypatch.setattr(edgar, "update_edgar", lambda force=False, tickers=None: "0 companies (stand-in)")
-    monkeypatch.setattr(yahoo, "update_yahoo", lambda force=False, tickers=None: "0 companies (stand-in)")
+    monkeypatch.setattr(edgar, "update_edgar", lambda *a, force=False, tickers=None: "0 companies (stand-in)")
+    monkeypatch.setattr(yahoo, "update_yahoo", lambda *a, force=False, tickers=None: "0 companies (stand-in)")
     assert "SEC EDGAR: 0 companies (stand-in)" in run("fundamentals", "update")
     assert "S1" in run("fundamentals", "show", "S1")
     assert run_json("fundamentals", "show", "S1", "--json")
