@@ -94,12 +94,13 @@ Sig, at scoren over 54 datoer har en gennemsnitlig IC på 0,06 med et Newey-West
 
 ## Faldgruber og begrænsninger
 
-- **Overlevelsesbias.** Universet er dagens S&P 500 og dagens udvalgte lister. Aktier, der er røget ud, mangler, og aktier, der kom med efter en stor stigning, er med. Det gør momentum bedre, end det var, og mere jo længere tilbage testen går.
+- **Overlevelsesbias.** Universet er dagens S&P 500 og dagens udvalgte lister. Aktier, der er røget ud, mangler, og aktier, der kom med efter en stor stigning, er med. Det gør momentum bedre, end det var, og mere jo længere tilbage testen går. Scorens regel testes derfor også på brancher og lande uden overlevelsesbias; se [Testen over årtier](brugervejledning/scoretest#testen-over-årtier).
 - **Få uafhængige perioder.** Fem års historik er cirka 20 uafhængige kvartaler. Et resultat, der hviler på 2022 eller 2023 alene, er skrøbeligt; se opdelingen pr. år.
 - **Regionen.** Den samlede rangering blander cirka 500 amerikanske og godt 100 andre aktier. Har USA ført, ligner det dygtighed. Se IC'en inden for hver region.
 - **Momentumkrak.** Momentum kan virke i årevis og så tabe kraftigt i en skarp vending opad efter et fald. En periode uden sådan en vending overvurderer signalet.
 - **Samme IC, anden top.** To varianter kan rangere hele universet lige godt og alligevel vælge vidt forskellige 15 bedste. *resid* og *fip* vælger roligere aktier, så deres top giver typisk mindre afkast end scorens, selv når IC'en er den samme. Se både IC og *top N*.
 - **Toppen er skæv.** Gennemsnittet for de 15 bedste kan bæres af én eller to aktier, der steg meget. Andelen, der slog gennemsnitsaktien (*hit*), siger mere om, hvor bredt det virker.
+- **Justerede kurser skrives om.** Efter hvert udbytte justeres hele den tidligere kursrække. Det flytter kursniveauerne, men næsten ikke afkastene, så tallene ændrer sig kun lidt fra kørsel til kørsel.
 - **Ingen skat.** Afkastene er før skat; kurtage er kun med i testen af stopreglen.
 - **Regnskaber bevæger sig langsomt.** Kvalitets- og værdiscoren skifter mest, når et nyt regnskab kommer, så nabomåneder deler det meste af deres information, og testen har endnu færre uafhængige perioder end momentum. Sektorerne og bank/forsikring-sættet er dagens.
 - **Én kurv er ikke et bevis.** En [hindsight-kurv](brugervejledning/scoretest#hindsight-kurve-med-claude) viser et eksempel. Testen over alle måneder er beviset, og selv den er kun så god som dataene.

@@ -1,29 +1,8 @@
 """Kvalitetsscore and værdiscore: a business's quality and its price, from its financial statements (pure functions).
 
-Metrics per stock (`metrics`), from one source's facts (fundamentals/store.py) and the market value:
-
-Quality, standard set (four pillars):
-- profitability: FCF margin (operating cash flow − capex, over revenue) and ROIC (EBIT after tax over the average
-  operating invested capital: assets − cash − non-debt current liabilities, so negative equity doesn't break it)
-- durability (a moat leaves traces): the spread of the yearly gross margin (lower is better; the operating margin
-  when there is no cost of revenue) and how steady revenue grew (sign of the trend × R² of log revenue on time)
-- balance sheet: net debt / EBITDA (net cash is best) and interest cover (EBIT / interest, capped)
-- record: years in a row with a dividend at least 95% of the year before (from prices; 0 for a non-payer)
-
-Value, standard set: FCF yield, EBIT/EV (an earnings yield, so a negative EBIT or EV ranks low instead of
-jumping), shareholder yield (dividends + buybacks − issuance, over market value) and today's EBIT/EV against the
-company's own fiscal year-ends.
-
-Banks and insurers (by industry): FCF, EV and EBIT mean little there. Quality: ROE, its spread over the years,
-equity / assets and the dividend record. Value: book / price, earnings / price, shareholder yield and E/P
-against its own history.
-
-Scores (`score`): each metric becomes a percentile among peers: the stocks of the same metric set and sector
-(pooled over regions) when at least `min_sector_peers` have the metric, else the whole set. Percentile = the share
-of peers strictly below, as for the momentum score. A pillar is the mean of its metrics' percentiles; the
-kvalitetsscore the weighted mean of the pillars there are (at least `min_pillars`, profitability among them); the
-værdiscore the weighted mean of the value metrics there are (at least `min_components`, one of the core yields
-among them). K+V is their mean, only when both exist. Missing is missing: never 0, and the count used is shown.
+`metrics` gives one stock's quality metrics (four pillars) and value metrics from one source's facts
+(fundamentals/store.py) and its market value, with their own sets for banks and insurers (`QUALITY`, `VALUE`);
+`score` turns them into percentiles among peers and the scores. The method: guide/laerebog/kvalitetsscore.md.
 """
 from __future__ import annotations
 

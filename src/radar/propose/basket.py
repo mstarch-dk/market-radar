@@ -117,8 +117,10 @@ def corr_to(R: pd.DataFrame, series: pd.Series | None, min_weeks: int) -> pd.Ser
 
 @dataclass
 class Base:
-    """What the caps are measured against: the portfolio's DKK values by ticker and their meta, ACWI's weights,
-    the whole real book's values (position limit), and weekly returns for the correlation cap."""
+    """What the caps are measured against: the portfolio's DKK values by ticker and their meta, ACWI's weights
+    (constituents.acwi_weights, from the iShares MSCI ACWI UCITS holdings file; None without it, and then the
+    active-weight caps are skipped and the active weights shown as unknown), the whole real book's values (every real
+    portfolio: the position limit), and weekly returns for the correlation cap."""
     values: dict[str, float]
     meta: pd.DataFrame
     acwi: dict | None

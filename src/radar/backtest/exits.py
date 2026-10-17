@@ -1,43 +1,9 @@
-"""Your real trades replayed with the stop-loss / take-profit rule (signals/levels.py) followed, day by day, with
-only what was known each day (pit.Context). Two variants, each written as a run of a simulated portfolio per
-real portfolio (simulate.write_run), so the Returns page compares them with the real ones and ACWI:
-
-- **overlay** (`exits-overlay`): your buys and sells as they happened; the rule only adds earlier exits. A later
-  sale of a position the rule already sold is skipped (or cut to what is left).
-- **rules** (`exits-rules`): your buys only; every exit comes from the rule, and positions it never sells are
-  still held at the end.
-
-The rule, per position (an "episode": from a buy while flat until it is sold out):
-- **Stop**: highest adjusted close since the episode began − k × ATR, k recomputed every day from that day's
-  inputs. **Take-profit**: fixed at the close of the buy (it is measured from the price, so recomputed daily it
-  would always sit above it), and set again at each add.
-- A close at or through a level triggers; the whole position is sold at the next session's traded close
-  (`backtest.fill: next`; `same` = that close). Levels are compared on adjusted closes, where a dividend shifts
-  price and level alike; the sale gets the traded price.
-- Only holdings the radar gives levels (stocks, sector/theme funds; model.inputs.level_universe) follow the rule; broad
-  funds are held as in the real portfolio.
-- The proceeds are parked in `backtest.park` (ACWI) and drawn on, before anything else, for your next buys.
-- **Costs**: every rule and parking trade pays what the real portfolio's broker schedule (fees.py) charges for
-  it, minimum included, else `backtest.fee_bps` of its value (commission and FX spread); your own trades keep the
-  fees they had. A buy whose money doesn't cover the minimum isn't made (the money stays as cash). The run's
-  params say which fee model was used (`fee_model`).
-- **Ablation** (`rule`): `both` (the rule as shown), `stop` (stop-loss only) or `take_profit` (take-profit only),
-  so the study (backtest/study.py) can tell which half of the rule helps.
-- **The rule as settings has it** (`RuleSpec()`): with `stops.mode: trend` (the default) the stop is the close
-  below the `trend_sma`-day average and there is no take-profit; with `mode: atr` the trailing ATR stop below.
-- **Variants** (`RuleSpec`): the rule with other settings (wider k, a slower ATR, no tightening when extended), no
-  take-profit, a fixed % trail from the high or a close below a moving average instead of the ATR stop, and
-  re-entry: after an exit, buy back with that exit's parked money once the stock is in an uptrend with a strong
-  score again (only with `rules`). `RuleSpec()` is the radar's rule exactly as settings has it.
-- **Redeploy and rotation** (`RuleSpec.redeploy`, `rotate`; only with `rules` and a `picker` from the study):
-  instead of parking, an exit's proceeds buy the best-scoring name the picker offers on the trigger day (not
-  held, not sold in the last `cooldown` sessions), at the same fill close; and at each month-end a holding ranked
-  outside `rotate` x the basket size is sold the same way. Without a candidate the money is parked, and said so.
-
-Funding mirrors the real portfolio: with a cash ledger its deposits and withdrawals are copied; without one
-(every buy is new money) each buy is funded from the sim's cash, then the parked units, then a deposit, and each
-sale's proceeds are withdrawn, as the real portfolio's are. With the rule switched off the sim's time-weighted
-return equals the real one's (tests/test_backtest_exits.py pins that).
+"""Your real trades replayed day by day with the stop / take-profit rule (signals/levels.py) followed, from only what
+was known each day (pit.Context): `overlay` (your trades as they were, the rule adds earlier exits) and `rules` (your
+buys only, every exit from the rule), each written as a simulated portfolio per real one (simulate.write_run).
+`RuleSpec` holds the variants the studies test, `ablation` the rule's halves. The method:
+guide/laerebog/stop-og-storrelse.md (*Backtest af reglen*) and guide/brugervejledning/stop-simulering.md; for
+developers docs/data-conventions.md, *Point-in-time backtests*.
 """
 from __future__ import annotations
 
@@ -118,6 +84,11 @@ class Episode:
 
 @dataclass
 class Replay:
+    """One real portfolio replayed with the rule. Funding mirrors the real portfolio (`ledger`): with a cash ledger
+    its deposits and withdrawals are copied; without one (every buy is new money) each buy is funded from the sim's
+    cash, then the parked units, then a deposit (`fund`), and each sale's proceeds are withdrawn, as the real
+    portfolio's are. With the rule switched off the sim's time-weighted return equals the real one's
+    (tests/test_backtest_exits.py pins that)."""
     market: object
     ctx: Context
     variant: str

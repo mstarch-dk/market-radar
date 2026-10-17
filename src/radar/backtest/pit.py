@@ -1,20 +1,7 @@
-"""What the radar would have known on a past day D: the inputs of the stop / take-profit rule
-(signals/levels.py), each cut at D.
-
-- **Own row** (last, 50/200-day averages, trend, 1-month return): `momentum.metrics_panel`, row D, which equals
-  `momentum.metrics(closes.loc[:D])`.
-- **Momentum score**: percentile of 12-1, 6- and 3-month returns against every stock in the universe on D, as on
-  My holdings (model.score.score_vs). The universe is today's list (survivorship: names that left it are missing).
-- **Quadrant** (sector/theme funds; a note only, it doesn't move k): the RRG at the last completed week (W-FRI)
-  on or before D.
-- **Regime**: computed at the last session of each week and held until the next one. Prices up to that day
-  (the last 320 sessions, enough for every window); FRED, OECD CLI and CAPE/ERP only from before their
-  publication lag; FactSet reports dated by then. Voting groups are today's choice. Without 200 sessions of
-  benchmark history it is missing.
-- **Analyst consensus**: the rows fetched on or before D (levels.analyst_view, with its max age).
-- **ATR**: Wilder's ATR on adjusted highs/lows/closes, row D.
-
-A missing input moves nothing and is named in the reasons and in `context`, never counted as zero.
+"""What the radar would have known on a past day D: the inputs of the stop / take-profit rule (signals/levels.py),
+each cut at D (`Context`). A missing input moves nothing and is named in the reasons and in `context`, never counted
+as zero. How each input is cut (prices, the score's universe, the weekly regime with publication lags, analyst
+rows): docs/data-conventions.md, *Point-in-time backtests*; for users guide/brugervejledning/stop-simulering.md.
 """
 from __future__ import annotations
 
@@ -83,6 +70,8 @@ class Context:
     # ---------------- inputs on day D ----------------
 
     def row(self, t: str, day: pd.Timestamp) -> dict | None:
+        """`t`'s own metrics (last, 50/200-day averages, trend, returns) at `day`: `momentum.metrics_panel` row D,
+        which equals `momentum.metrics(closes.loc[:D])`."""
         if t not in self.held["last"] or day not in self.held["last"].index:
             return None
         r = {k: self.held[k].at[day, t] for k in ("last", "r1m", "r3m", "r6m", "r12_1", "sma50", "sma200", "above50",
@@ -90,6 +79,8 @@ class Context:
         return None if pd.isna(r["last"]) else {k: (None if pd.isna(v) else v) for k, v in r.items()}
 
     def score(self, t: str, day: pd.Timestamp) -> float | None:
+        """The momentum score on `day`: the percentile of 12-1, 6- and 3-month returns against every stock in the
+        universe that day, as on My holdings (model.score.score_vs). The universe is today's list (survivorship)."""
         r = self.row(t, day)
         if r is None or day not in self.dist["r3m"].index:
             return None
@@ -97,6 +88,8 @@ class Context:
                             pd.Series({c: r[c] if r[c] is not None else float("nan") for c in self.dist}))
 
     def quadrant(self, t: str, day: pd.Timestamp) -> str | None:
+        """A sector/theme fund's RRG quadrant at the last completed W-FRI week on or before `day` (a note only; it
+        doesn't move k)."""
         t = self.twins.get(t, t)
         if self.quadrants.empty or t not in self.quadrants:
             return None
@@ -163,6 +156,7 @@ class Context:
                 "on": o["on"], "off": o["off"], "na": o["na"], "stale": o["stale"]}
 
     def analyst_view(self, t: str, day: pd.Timestamp) -> dict | None:
+        """The consensus from the rows fetched on or before `day` (levels.analyst_view, with its max age)."""
         h = self.analyst.get(t)
         if h is None:
             return None
@@ -172,6 +166,7 @@ class Context:
         return lv.analyst_view(h, t, self.market.closes[t].loc[:day], max_age_days=self.stops["analyst_max_age_days"])
 
     def atr_at(self, t: str, day: pd.Timestamp, days: int | None = None) -> float | None:
+        """Wilder's ATR on adjusted highs/lows/closes at `day` (`days`: another window than stops.atr_days)."""
         a = self.atr.get(t)
         if days is not None and days != self.stops["atr_days"]:
             if (t, days) not in self._atr_by:

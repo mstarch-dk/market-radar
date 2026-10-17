@@ -1,21 +1,9 @@
-"""Long monthly return histories for testing the radar's rules over decades (`radar study longrun`): portfolios and
-factors built by researchers from every listed stock at the time, so they hold no survivorship bias.
+"""Long monthly return histories for testing the radar's rules over decades (`radar study longrun`) and for the
+proposals' long-run prior: portfolios and factors built by researchers from every listed stock at the time (Kenneth
+R. French Data Library, JKP Global Factor Data), so they hold no survivorship bias.
 
-- **Kenneth R. French Data Library** (Dartmouth): US industry portfolios and factors since 1926, regional factors
-  (Developed, Europe) since 1990. ZIP files holding one CSV with several blocks (value- or equal-weighted, monthly
-  or annual); returns in percent, -99.99 / -999 for missing.
-- **JKP Global Factor Data** (Jensen, Kelly & Pedersen, jkpfactors.com, CC BY-NC 4.0): market returns per country
-  (USA since 1926, developed markets since 1986) and 13 factor themes per region. Long CSVs, returns as decimals,
-  in USD and **in excess of the US one-month T-bill** (French's RF, added back by `total`). Also its long-only
-  portfolios: the stocks of a region in terciles by one characteristic (12-1-month return, FCF yield, …), the
-  stock-level evidence the proposals' long-run prior is built from (key "jkp_pf:<region>:<characteristic>",
-  series "1" (low) to "3" (high)).
-
-Everything is stored long in one file (key = "<source>:<dataset>", series, date = month-end, ret as a decimal);
-`panel` gives one dataset wide. A dataset is downloaded again when its copy is older than `factors.max_age_days`
-(the sources update monthly or less). A download that parses to nothing, or to less than is stored (guard), fails
-and keeps the stored copy. Missing values stay missing, never 0.
-"""
+The data rules (formats, excess returns, refresh and guard): docs/data-conventions.md, *Long histories*; the sources
+and their terms: DATA_LICENSE.md."""
 from __future__ import annotations
 
 import io
@@ -137,7 +125,9 @@ def _long(key: str, wide: pd.DataFrame, fetched: date) -> pd.DataFrame:
 
 
 def datasets() -> dict[str, dict]:
-    """{key: spec} for every configured dataset: key "french:<name>" or "jkp:<name>"."""
+    """{key: spec} for every configured dataset: key "french:<name>", "jkp:<name>" or, for JKP's long-only portfolios
+    (a region's stocks in terciles by one characteristic), "jkp_pf:<region>:<characteristic>" with series "1" (low)
+    to "3" (high)."""
     cfg = _cfg()
     out = {}
     for name, spec in (cfg.get("french") or {}).items():
@@ -199,6 +189,7 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
 
 
 def load() -> pd.DataFrame:
+    """Every dataset, long: key, series, date (month-end), ret (a decimal), fetched. Missing months have no row."""
     return pd.read_parquet(FACTORS_FILE) if FACTORS_FILE.exists() else pd.DataFrame(columns=COLUMNS)
 
 

@@ -1,154 +1,237 @@
 # Architecture
 
-## Config
-- `config/universe.yaml`: everything tracked: ETF groups, stock lists, macro tickers, CFTC/OECD sources, the watchlist, and `sector_etfs` (the sector ETF a stock is compared with on its profile, by Yahoo sector, with industry overrides). Theme ETFs carry a UCITS `isin`, checked against `imports/positivliste.xlsx` (SKAT list; only the latest year's sheet counts).
-- `config/settings.yaml`: thresholds (regime, momentum, rotation, stops, coverage limits). `config.settings()` checks it on load against `config_schema.py` (pydantic models of `stops`, `backtest`, `risk` and `propose`: unknown keys, missing keys and wrong types fail with the key's path, `SettingsError`; `radar doctor` reports it as *Settings*) and returns the plain dict. A key the code reads with a default is optional in the model; a new key goes in the file and the model together.
-- `config/views.yaml`: market-view templates (ready-made beliefs with exposures and indicators, opposite pairs) and the indicator catalogue the evidence check can read (relative strength, ratios, FRED changes, OECD CLI). `universe.yaml` `macro.fred_views` holds FRED series only the views read (kept out of the regime's freshness check).
-- `config/settings.yaml` `network:` and `ops:`: per-host request limits (rate, burst, concurrency, retries, soft daily budget, cooldown after repeated 429s) and how long the operations log keeps its rows.
-- `config/fee_presets.yaml`: broker fee schedules (Saxo, Danske Bank) with the date and source of each price list, the starting points for an account's fee schedule (fees.py).
-- `config/discovery.yaml`: the discovery scan: markets (exchanges, size floors, minimum counts, an optional `index` whose members are always kept, `members_only` for an index-only market such as the S&P 500), size and liquidity thresholds, flag settings, ETF listing preference and the name → category table.
+This page says what each part is responsible for and which rules it keeps. It does not list functions: the code
+and its docstrings do. The method behind each reading is explained for users in the guide's *lærebog*.
 
-## Where data lives (`paths.py`, `home.py`)
-Nothing the user owns lives in the install folder (`config.ROOT`, now app files only: code, `config/` defaults,
-`guide/`, `web/dist`, the positive list). Four tiers, each with one root (`paths.Locations`):
+## Layers
+```
+interfaces       api, cli
+features         abtest, api_models, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
+                 updater
+kernel           model/
+domain           backup, export, fees, guide, home, importers/, market, market_views, notebook, performance,
+                 portfolio, simulate, snapshot, tickers, trades, universe, userstore/
+data sources     constituents, discovery/, external, factors, fundamentals/, ingest, positive_list, sentiment,
+                 updates, valuation
+pure readings    signals/
+infrastructure   config, config_schema, guard, jsonsafe, locks, money, net, ops, paths, sourcelog, values
+```
+A module imports its own layer and the ones below. The `layers` contract in `pyproject.toml` holds every module to
+it (`uv run lint-imports`, `tests/test_layers.py`, CI; indirect imports and imports inside functions count). Its
+`ignore_imports` lists the upward imports still left; the list only shrinks.
+
+Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
+and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
+report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
+`abtest`, `propose/`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
+
+A helper both sides need goes down a layer and keeps its old name as a re-export (e.g. `Market` in `market.py`,
+also `profile.Market`; the regime votes and level universe in `model/inputs.py`). A test that stubs one patches
+the module the callers read it from.
+
+## Config
+- `config/universe.yaml`: everything tracked (ETF groups, stock lists, macro series, CFTC/OECD sources, the
+  watchlist, the sector ETF each stock is compared with). Theme ETFs carry a UCITS `isin`, checked against SKAT's
+  positive list (only the latest year's sheet counts).
+- `config/settings.yaml`: thresholds and rules (regime, momentum, rotation, stops, coverage, backtest, propose,
+  `network:` host limits, `ops:` retention). Checked on load against `config_schema.py`: an unknown key, a missing
+  key or a wrong type fails with the key's path; `radar doctor` reports it. A new key goes in the file and the
+  model together; a key read with a default is optional in the model.
+- `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
+- `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
+- `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
+
+## Where data lives
+Nothing the user owns lives in the install folder (`config.ROOT` holds app files only: code, `config/` defaults,
+`guide/`, `web/dist`, the positive list). Four tiers, each with one root (`paths.py`):
 
 | Tier | What | Default |
 |---|---|---|
 | home / userdata / imports | `radar.db` and `backups/`, `notes/`, `briefs/`, `research/`, `journal/`, `exports/`, broker files in `imports/` | `~/Market Radar` |
-| history | what builds up run by run and can't be downloaded again: rank and discovery snapshots, `valuation/stocks.parquet` and `etfs.parquet`, `analyst.parquet`, `factset.parquet`, `putcall.parquet` | `~/Market Radar/history` |
-| cache | everything `radar run` downloads or rebuilds (prices, macro, profiles, `sources.json`, `ops.db`, `updates.json`) | `platformdirs.user_cache_dir("MarketRadar")` |
+| history | what builds up run by run and can't be downloaded again: rank and discovery snapshots, valuation snapshots, analyst, FactSet and put/call history, Yahoo statements | `~/Market Radar/history` |
+| cache | everything `radar run` downloads or rebuilds (prices, macro, profiles, `sources.json`, `ops.db`) | `platformdirs.user_cache_dir("MarketRadar")` |
 | reports | built from the cache | `<cache>/reports` |
 
-- **Study reports** (`model/artifacts.py`): the reports in the reports tier that production code reads have a
-  pydantic model for the parts that are consumed (`ARTIFACTS`: `propose-study` → `ProposeStudy`, the drift;
-  `longrun-study` → `LongrunStudy`, the survivorship gauge for the haircut; `score-study` → `ScoreStudy`, read by
-  the long-run gauge; `exit-study` / `redeploy-study`, whose run time `propose check` compares with a proposal's).
-  Every one starts with a header: `schema_version`, `kind`, `created`, `data_asof` (the last day of data the study
-  saw) and `rule_hash` (the proposal rule's settings hash; required for `propose-study`). Writers go through
-  `artifacts.write`, which stamps the header and checks the report against its model before writing; readers go
-  through `artifacts.load(name, rule_hash=…)`, which returns a `Loaded`: `ok`, `stale` (another rule: the numbers
-  are shown, never acted on), `missing` or `invalid`, with the reason the reader passes on. A report from before
-  the header is read as schema 0 (`generated`, `asof`, `settings_hash` stand in; `legacy`), one from a newer
-  version is invalid. A change to a consumed field is a change to the model and to `SCHEMA_VERSION`.
-- Paths are `paths.Lazy` objects (`paths.CACHE / "cot.parquet"`): they resolve on every use, so a module-level
-  constant follows `paths.configure()` (tests, `--home`) without patching. `paths.REGISTRY` lists every file and
-  folder the code writes by tier; `tests/test_paths.py` fails for a module path that isn't in it and for a data
-  path built from `ROOT`. A new file is placed in a tier on purpose: it decides whether it is backed up and moved.
-- Where the home is: `--home` → `MARKET_RADAR_HOME` (+ `MARKET_RADAR_CACHE`) → `portable.json` in the install
-  folder (portable mode: paths relative to it; the marketing demo) → the pointer file
-  `platformdirs.user_config_dir("MarketRadar")/location.json` (`MARKET_RADAR_CONFIG` moves it) → not set up
-  (`paths.NotSetUp`). The pointer lives outside install folder and home, so every unzipped version finds the
-  data; it is never written under an env var or portable mode (`paths.remembers()`).
-- `home.py`: `status()` / `gate()` (unset, missing, newer, ok); `find_legacy()` (this install folder and its
-  siblings, never wider: macOS privacy prompts); `migrate()` copies an old install folder's data into a new home
-  (SQLite backup API, row counts, integrity check, SHA-256 per file, staged in `<home>.incoming` and renamed into
-  place; the old folder only gets `MOVED.txt`); `create()`, `use()`. `market-radar.json` in the home holds
-  `home_format`, the app versions that used it, a log, the backup mirror and the update-check choice.
-- **Downgrade guard**: a home whose `home_format`, or a `radar.db` whose `user_version`, is newer than this code
-  knows is read-only (`home.read_only()`): the API answers 409 to every write, the CLI refuses.
-- **Migrations**: `userstore.MIGRATIONS` (schema) and `home.HOME_MIGRATIONS` (layout) are append-only and
-  forward-only; a step never deletes user data (it copies or renames); a released step is never edited. Both run
-  after `backup.before_upgrade()`. Cache formats may change freely: the cache is rebuilt, never migrated.
-- Without a home the API serves only `/api/setup*`, `/api/guide*` and `/api/ops/doctor` (409 elsewhere) and the web
-  app shows the setup screen (`components/Setup.tsx`); the CLI allows `setup`, `paths`, `serve`, `doctor`,
-  `openapi`, `ticker`.
+- Paths resolve on every use, so a module-level constant follows `paths.configure()` (tests, `--home`) without
+  patching. `paths.REGISTRY` places every file the code writes in a tier, which decides whether it is backed up
+  and moved; `tests/test_paths.py` fails for a path not in it and for a data path built from `ROOT`.
+- Where the home is: `--home`, then `MARKET_RADAR_HOME` (+ `MARKET_RADAR_CACHE`), then `portable.json` in the
+  install folder (portable mode, used by the marketing demo), then the pointer file in
+  `platformdirs.user_config_dir("MarketRadar")`. The pointer lives outside install folder and home, so every
+  unzipped version finds the data; it is never written under an env var or in portable mode.
+- Moving in: `home.py` finds an older install's data only in this install folder and its siblings (never wider:
+  macOS privacy prompts), copies it with checks (SQLite backup API, row counts, integrity check, SHA-256 per file),
+  stages it beside the new home and renames it into place. The old folder only gets `MOVED.txt`.
+- **Downgrade guard**: a home or a `radar.db` newer than this code knows is read-only: the API answers 409 to every
+  write, the CLI refuses.
+- **Migrations**: the schema's (`userstore/`) and the layout's (`home.py`) are append-only and forward-only; a
+  step never deletes user data (it copies or renames) and a released step is never edited. Both run after a
+  backup. Cache formats may change freely: the cache is rebuilt, never migrated.
+- Without a home the API serves only setup, the guide and the doctor, the web app shows the setup screen, and the
+  CLI allows `setup`, `paths`, `serve`, `doctor`, `openapi` and `ticker`.
 
-## Layers
-The app and the studies share one kernel and meet only through it, so an experiment can't change what the app shows
-and the app never runs a study. Import-linter contracts in `pyproject.toml` enforce it (`uv run lint-imports`,
-also `tests/test_layers.py` and CI); they count indirect imports and imports inside functions too.
+## Writing files
+- Every cache, history and report file is written through `config.py`'s atomic writers: a temp file of the
+  writer's own process and thread, swapped in, retried while a Windows reader holds the file. A running server
+  never reads a half-written file. `tests/test_guard.py` fails on a direct write outside the few files that write
+  a user-named file.
+- `guard.py` decides whether a fresh download may replace a stored dataset (not empty, no series missing, no
+  shorter span, not markedly fewer rows); otherwise the step fails and keeps its cache.
+- `locks.py` gives one writer at a time across threads and processes: a second update, scan or report build is
+  refused with `locks.Busy`, not queued.
+- JSON is written by `jsonsafe.py` only, which can't write NaN.
 
-- **Kernel** (`model/`): what both must compute the same way. It never imports `backtest`, `dashboard`, `api`,
-  `cli`, `report`, `updater`, `propose` or `abtest`.
-- **Studies** (`backtest/`): `model`, `signals`, the data readers (`ingest`, `market`, `external`, `valuation`,
-  `factors`, `fundamentals.store`), `universe`, `simulate`, `performance`, `fees`, `userstore` and `propose`'s
-  rule; never `dashboard`, `mine`, `profile`, `api` or `cli` (the report builder and the app).
-- **App** (`updater`, `report`, `api`, `abtest`, `propose`): never imports `backtest`; it reads the studies' reports
-  through `model/artifacts.py`.
-- **The whole package**, top to bottom (each imports its own layer and below; every module has one):
-  interfaces (`api`, `cli`) → features (`backtest`, `dashboard`, `profile`, `propose`, `report`, `updater`, …)
-  → the kernel (`model`) → the domain (`universe`, `userstore`, `portfolio`, `performance`, `market`, `home`, …)
-  → data sources (`ingest`, `external`, `valuation`, `fundamentals`, `discovery`, …) → pure readings (`signals`)
-  → infrastructure (`config`, `paths`, `net`, `ops`, `locks`, `guard`, `jsonsafe`, `money`, `sourcelog`, `values`). The upward imports that were
-  there when this came in are listed in its `ignore_imports`; the list only shrinks.
+## The report's build
+`radar report` (also the last step of `radar run`) builds `dashboard.json` and `summary.json` in one pass over
+the whole price store (about 30 s), saves the rank snapshots and the weekly score history, and refreshes the A/B
+test. It is a separate pass on purpose, not computed per request; what depends on the user's own edits is applied
+live by the API instead (the holdings table, the regime re-vote, coverage).
 
-A helper both sides need goes down a layer, with the old name re-exported: `Market` lives in `market.py` (also
-`profile.Market`), `region_for` in `universe.py` (also `profile.region_for`), the JSON cleaner in `jsonsafe.py`,
-and which tickers get levels, which regime groups vote and the regime voted with them in `model/inputs.py` (also
-`mine.level_universe` / `level_etfs`, `dashboard.effective_votes` / `regime_now`). A test that stubs one patches `model.inputs`, where the callers read it.
+- Before anything is written, each section is checked against the `api_models.py` view the API serves it with
+  (extra fields are an error), so a shape the app can't show fails the build, not a page. Ticker profiles are
+  checked the same way.
+- `dashboard.json` carries `build: {format, inputs}`: a format number (bump it when a section is added or changed)
+  and the mtime of each file the build read. The server rebuilds an older format at start; a changed input only
+  shows a *Rebuild* banner, since a build saves snapshots.
+- `summary.json` is a contract with the skills: its keys don't change without them.
+
+## Study reports
+The study reports production code reads have a pydantic model for the parts it consumes (`model/artifacts.py`):
+the proposals read the rule study's drift, the long-run study's survivorship gauge and the exit studies' run time;
+the long-run study reads the score study.
+Each starts with a header (`schema_version`, `kind`, `created`, `data_asof`, `rule_hash`); writers stamp and check
+it, readers get `ok`, `stale` (another rule: shown, never acted on), `missing` or `invalid` with a reason. A report
+from before the header is read as schema 0; one from a newer version is invalid. A change to a consumed field is a
+change to the model and to its schema version.
 
 ## `src/radar/`
-- `updater.py`: the update steps behind `radar update`/`run` (each source logged, failures keep the cache; each step's requests carry its source key) and the background job the app's *Update data* button runs (recorded as a job in `ops`). `health.py`: `radar doctor`.
-- `net.py`: the one network layer. `net.get` (plain HTTP: every `requests` call site uses it) paces each host with a token bucket and a concurrency cap (settings.yaml `network.hosts`, glob patterns, hosts under one pattern share them), records the request in `ops`, and retries 429/5xx/timeouts with exponential backoff and `Retry-After`; other answers are returned for the caller to judge (`expected` statuses, such as a probe's 404, aren't counted as errors). `install_yfinance()` / `net.yf()` make yfinance's single shared session (`YfData`) a recording, rate-limited curl_cffi session and keep it there (yfinance would otherwise swap in a fresh one per `download`/`Ticker`/`Search`/`screen`); yfinance keeps its own retries. Repeated 429s pause a host (`Throttled`, stored in ops.db so the CLI and the server share it). `net.pool(n)` is a thread pool capped at the host's concurrency whose tasks keep the caller's ops context. One honest User-Agent; no proxies or identity rotation.
-- `ops.py`: the operations log in `ops.db` in the cache (SQLite, WAL, its own `user_version` migrations, no backups: it can be deleted). Tables: `requests` (host, redacted path, status, ms, bytes, attempt, source, job), `events` (info/warn/error × source/parse/api/job/throttle/doctor, with a capped traceback), `jobs` (update, discover and CLI runs with their log), `host_state` (cooldowns). `ops.context(source=, job=)` attributes what happens inside; threads that libraries start fall back to the one source/job active in the process, if there is exactly one. Writes never break the work (a failed write is a warning on the `radar.ops` logger). Pruned after each job and at server start (`ops:` in settings.yaml). Feeds the Operations page and `radar ops`; nothing here feeds a market reading.
-- `ingest.py`: yfinance prices and FRED series → `*.parquet` in the cache. `config.write_parquet` (like `write_csv` / `write_text`) writes to a temp file of its own process and thread and swaps it in, retrying while a Windows reader holds the file, so a running server never reads a half-written file and two writers never share a temp file. `guard.check` / `guard.replace` decide whether a fresh download may replace a stored dataset (not empty, no series missing, starting no later, ending no earlier, not markedly fewer rows; else `guard.Shrunk`, and the step keeps its cache). `locks.file_lock(path)` holds an OS lock on `<path>.lock` (or on `path` itself when it ends in `.lock`) for one writer at a time across threads and processes: `ingest.update_prices` writes `prices.parquet` under it, `updater.update` holds `update.lock` and `discovery.scan.run` holds `discovery/scan.lock` without waiting, so a second update or scan (the app's button, or a terminal) is refused with `locks.Busy` (the CLI exits 1 with its message). Every cache, history and report file is written through `config.write_parquet` / `write_csv` / `write_text`; `tests/test_guard.py` fails on a direct `to_csv` / `to_parquet` / `write_text` outside the few files that write a user-named file or the setup pointer. The price history starts at `universe.history_start()` (`history_years` back, or `backtest.warmup_days` before your first trade, capped at `backtest.max_years`); a stored history that starts later is downloaded again in full once, and `data/prices_from.json` remembers each ticker's download start.
-- `external.py`: CFTC positioning, OECD leading indicators, the FactSet Earnings Insight PDF, Yahoo analyst consensus for holdings and watchlist, and Yahoo ticker detail (`fetch_detail` / `detail`, cached in `data/profiles/`).
-- `universe.py`: what is tracked and how it is quoted: config access (ETFs, stock groups, macro series), names, sectors, currencies, `fx_to_dkk`, `region_for` (stock group, else the exchange suffix), `history_start` and `all_price_tickers`.
-- `constituents.py`: the S&P 500 from SSGA's SPY holdings (the US stock group) and MSCI ACWI from iShares' holdings (`acwi_holdings` / `acwi_weights`: sector, region and currency weights), each checked and cached.
-- `trades.py`: your positions from the store: `transactions()` / `ledger()` / `holdings()` for a portfolio selection (default: your real portfolios; the watchlist overlay on top), average-cost `replay`, `positions` per symbol or portfolio, and the one-time move of the old `imports/*.csv` into the store (`ensure_migrated`).
-- `positive_list.py`: SKAT's positive list (`load`, `isins`, `flag`).
-- `signals/`: `risk.py` (weekly DKK beta ± se, alpha, downside beta, Sharpe/Sortino, drawdowns, factor tilts, correlations, risk budget; and the series math everything shares: `TRADING_DAYS` / `WEEKS_PER_YEAR` / `MONTHS_PER_YEAR`, `underwater`, `deepest_drawdown`, `annualised_vol`, `worst_window`), `gauges.py` (graded readings), `rotation.py` (RRG), `momentum.py`, `regime.py`, `levels.py` (rule-based trailing ATR stop / take-profit with reasons, for held stocks, theme ETFs and ticker profiles), `technicals.py` (RSI, MACD, Bollinger, volatility, drawdown, beta).
-- `dashboard.py`: every market-wide reading as data (regime with chart series, rotation with RRG tails, momentum leaders, positioning, coverage). `compute()` has no side effects; `load()` reads `reports/dashboard.json` for the API.
-- `report.py`: `radar report` writes `dashboard.json` and the compact `summary.json` (a contract with the skills: its keys don't change without them), then the rank snapshots. It is a separate pass on purpose, not computed per request: about 30 s over the whole price store, it saves the rank snapshots and the weekly score history and runs the A/B test once per data refresh, and the skills read `summary.json` without a server. What depends on the user's own edits is applied live by the API instead (`/api/me`, the regime re-vote, `coverage.live`). Before anything is written, `dashboard.check` validates each section against the `api_models` view the API serves it with (extra fields an error), so a shape the app can't show fails the build, not a page; `profile.build` does the same against `api_models.Profile` for the ticker page, `radar info` and `compare`. `dashboard.json` carries `build: {format, inputs}`: `dashboard.FORMAT` (bump it when a section is added or changed) and the mtime of each file `compute()` reads (`dashboard.inputs()`); `dashboard.outdated()` says whether a build is behind (`format` or `inputs`). `updater.build_report` holds `report.lock` in the cache (after an update it waits for a running build; on its own, `radar report` and the app's `REPORT_JOB`, it is refused with `locks.Busy`). The server rebuilds a dashboard of an older format at start (`api._rebuild_if_older`); an input change only shows a *Rebuild* banner, since a build saves snapshots.
-- `mine.py`: the holdings/watchlist/sold table (DKK return vs a shadow ACWI position, flags, stop levels), pooled over a portfolio selection (default: your real ones). `radar run` uses it for summary.json; the API recomputes it live.
-- `performance.py`: portfolio returns over time: a daily DKK value per portfolio (`book`), the time-weighted index (`twr`), XIRR (`xirr`), ACWI over the same period and with the same flows, `analyze` (series + stats), `compare` (portfolios and pooled tag groups from a common start) and `summary` (summary.json's `portfolios`). Also the cash helpers (`cash_moves`, `cash_balance`, `trade_cash_dkk`) and `return_on_paid_in` (trade rows' return on the money paid in, which the studies use).
-- `model/`: the shared kernel the app and the studies both call, so what is tested is what is shown. `score.py` (`COMPONENTS`, `pct_below` / `mean_pct` / `weighted_pct`: the share of names strictly below; `score` for a frame, `score_vs` for one name against a distribution), `panels.py` (`Panels` / `panels`: point-in-time panels of the stock universe; `formation_dates`, `fill_session`, `score_at`, `within`, `ranked`: the universe ranked on a day, what hindsight baskets and proposals rank on), `select.py` (`capped`: best names under sector / group caps), `paths.py` (the trend exit: `trend_level`, `below_trend`, `exit_session` (the session after the first close below, never the buy day), `park` in the benchmark), `stats.py` (`nw_t`: the Newey-West t; `mean`; `cross_section` / `summarize` / `turnover` / `QUANTILES`: a score's IC and quintiles on one date and across dates; `holdout_diff_t` / `variant_verdict`; `path_stats` (a value path's return, max drawdown, worst 20 sessions) and `risk_adjusted` / `daily_rf` (Sharpe, Sortino over ECBDFR, Calmar, IR); `backtest/study` re-exports them), `prior.py` (the proposals' long-run prior: `window`, `tercile_excess`, `tilt_prior`, `prior_weights` on JKP's tercile portfolios), `inputs.py` (`level_universe` / `level_etfs`: which tickers get stop levels; `effective_votes`: which regime groups vote, the defaults then your choice) and `artifacts.py` (the study reports production reads, as typed contracts: see *Study reports* below). It imports `signals`, the data readers, `universe`, `userstore`, `factors`, `paths` and `config`, never a study or the app (see *Layers*); `backtest/` re-exports its names where the studies used them, and `propose/` reads the studies only through `model/`, never `backtest/`.
-- `simulate.py`: virtual portfolios for A/B tests: `fork` (a copy of a portfolio at a day's close) and the interface simulations write through (`Strategy`, `new_sim_portfolio`, `write_run`: a checked, idempotent run per simulated portfolio; `find_sim` by parent and strategy), and `basket_rows` (a deposit and a basket bought at a day's close, the trades the studies and hindsight baskets simulate).
-- `abtest.py`: the forward A/B test on top of simulate.py: `create` (three sim portfolios tagged `ab-qvm`, strategies `ab-qv` / `ab-momentum` / `ab-blend`), `record_due` (once per calendar month of the latest prices: picks from `fundamentals.context` K+V or værdiscore and the pooled momentum score, appended to the portfolio's `params.rebalances` and never changed), `ScoreRebalance` (a Strategy replaying the records at the next session's traded closes: sells first, buys scaled to the cash, `backtest.fee_bps`), `refresh` (run by `updater.build_report` after every report when the test exists; a failure is logged, never stops the report) and `view` (performance.compare of the three, weekly-return correlations via signals/risk.py, turnover, next due).
-- `backtest/`: point-in-time backtests on your own trades. `pit.Context` gives the stop/take-profit rule's inputs as known on a past day (metrics via `momentum.metrics_panel`, the universe percentile, the weekly regime with publication lags, analyst rows fetched by then, ATR). `exits.replay` walks the sessions (rule fills, your rows, the rule at the close) for the `overlay` and `rules` variants; `exits.refresh` writes one sim portfolio per real portfolio and variant (tags `exits-overlay` / `exits-rules`) and `reports/sim-exits.json`. `radar sim exits`. The replay takes a `RuleSpec` (one half of the rule only: `exits.ablation("stop" | "take_profit")`, its `half` reported as `rule`) (stops overrides, TP off, atr / pct / trend / no stop, re-entry), and charges rule and parking trades through `fees.SimFees`: the real portfolio's fee schedule (minimum, maximum, the FX surcharge on non-DKK trades), else `backtest.fee_bps`; the run's params record it as `fee_model`. `backtest/exit_rules.exit_variants` runs the variants on each month-end's top N with path risk (`exit_rules.path`) and `exit_verdict`; `radar study exits` → `reports/exit-study.json`. `RuleSpec.redeploy: score` / `rotate` with a `picker` (`backtest/redeploy.Picker`) buy the best-scoring name not held with an exit's proceeds (ranked on the trigger day) instead of parking, and rotate out of names outside a rank buffer at month-ends; `redeploy.redeploy_study` runs park / redeploy / rotation arms with `model/stats.risk_adjusted` (Sharpe / Sortino over FRED ECBDFR, Calmar, IR vs ACWI) and `redeploy_verdict`; `radar study redeploy` → `reports/redeploy-study.json`. `study.py`: the score tested at every month-end on `momentum.metrics_panel` (variants in `VARIANTS`, IC / quintiles / Newey-West, holdout verdicts, the exit rule across dates); `radar study score` → `reports/score-study.json`. `picks.py`: hindsight baskets (candidates as of D, blind ids, mechanical selection with caps, `basket_rows`, three sim portfolios via `simulate.write_run`, random-basket percentile); `radar sim picks*` → `reports/sim-picks/`.
-- `factors.py`: long monthly return histories for testing rules over decades: the Kenneth R. French Data Library (ZIPs of multi-block CSVs, `parse_french`) and JKP Global Factor Data (long CSVs in ZIPs, `parse_jkp`; USD returns over the T-bill, `total` adds French's RF back), datasets configured in `settings.factors`, stored long in the cache (`factors/returns.parquet`: key, series, date, ret, fetched) and fetched again after `factors.max_age_days` (`update_factors`, a step of `updater.update_external`; guard-checked per dataset). `panel(key)` gives one dataset wide. `backtest/longrun.py`: the momentum score's rule on those panels (`settings.longrun.panels`): monthly windows (`window`, `components`, `forward`), the variants in `VARIANTS`, `study.cross_section` / `summarize` / `variant_verdict` unchanged, splits by decade / trend / recession (FRED `USREC`), DKK via FRED `DEXDNUS`, `base_rates` of the long-short factors, `survivorship_gauge` against `reports/score-study.json` (via `artifacts.load`); `radar study longrun` → `reports/longrun-study.json` (each dataset's last month in `datasets_asof`). The tilts' prior it reports is `model/prior.py`'s.
-- `propose/`: portfolio proposals (`radar propose`, `/propose-portfolio`), a package in the order its modules build on each other: `rules` (constants, `cfg`, `rule_hash`), `pricing` (`Prices` in DKK), `exposure`, `basket` (pool, gates, score, select, size, filler), `riskmodel`, `drift`, `draft` (context, candidates, the account), `evaluation` and `store` (frozen picks and their follow-up); `propose/__init__.py` re-exports every public name, so callers use `propose.<name>`. `context` (the portfolio, its fee schedule via `fees.SimFees`, holdings valued in DKK, the whole real book, ACWI's own weights from `constituents.acwi_holdings`, the regime), `pool` / `gates` / `score` (the proposal score: tilt-weighted percentiles of the momentum score and K+V less penalties; weights pre-registered in `settings.propose`), `select` (greedy under caps on the portfolio after the addition: active weight vs ACWI by sector, region and currency, new names per sector, correlation, a position limit against the whole book), `size` (minimum ticket, whole shares, fee + FX surcharge + estimated half-spread), `filler`, `shrunk_cov` / `risk` / `bootstrap` / `stress` (the risk model), `study_view` (the drift: the rule study's mean, cut by `haircut` (configured, or the long-run gauge when larger) and shrunk toward `long_prior` (model/prior.tilt_prior on JKP's tercile portfolios, `propose.prior`) by `shrink`, a precision-weighted normal-normal update), `evaluate` (alternatives A0–A6, `decide`), and the follow-up on frozen picks files in `exports/proposals/` (`save_picks`, `shadow`, `review`, `check`; their shape is `propose/picks_file.py`, checked on freeze and when `review` / `check` read them back). `backtest/propose_study.py`: the same rule at every past month-end, kept and with the proposal's exits (trend level and signal exit, parked in ACWI) → `reports/propose-study.json`, keyed by `propose.rule_hash` (its header's `rule_hash`); `propose.load_study` reads it through `artifacts.load`, stale when the hash isn't today's.
-- `userstore/`: the user's own edits in `radar.db` in the data folder (SQLite, versioned with `PRAGMA user_version` + `MIGRATIONS`). Tables: watchlist adds/removes (an overlay `trades.holdings()` applies), portfolios (real or virtual, tax kind, dividend policy, origin manual/fork/sim) with portfolio_tags, transactions (trades and cash rows, each in a portfolio: the source of truth), sim_runs, imports (undoable as a whole, into a portfolio), symbol_map (remembered broker identifier → Yahoo symbol), meta; the schema, `MIGRATIONS` and all of these are in `userstore/__init__.py`. Market views are `userstore/viewstore.py`. A copy of the database goes to `backups/` before imports, undos, moves and schema upgrades (`userstore.backup`; the copy and how many are kept: `userstore/backups.py`); a migration step may be a tuple of statements that runs as one unit (for rebuilding a table). `portfolio_ids()` is the one place that decides which portfolios count: real ones that aren't archived, unless ids or tags are chosen. New stateful data (notes, targets, alarms) gets a new table here. `TRADE_TYPES`, `CASH_TYPES` and `TYPES` are the one list of row types (the schema's CHECK and `api_models.TxType` are held to it by a test).
-- `fees.py`: broker fee schedules (a portfolio's `fee_schedule` JSON: pct, min, max per market from the Yahoo suffix, an FX surcharge reported apart) and `estimate` (None, never 0, without a schedule, a rule or an exchange rate); `SimFees` / `Terms` charge simulated trades (a portfolio's own or its fork source's schedule, else `backtest.fee_bps`, fallbacks counted) and size buys and sales around a minimum fee; presets in `config/fee_presets.yaml`, dated and sourced, copied by hand from public price lists.
-- `portfolio.py`: checks a row before it is saved (trades: unknown symbol, future date, oversold in its portfolio, price vs that day's close; cash rows: amount in DKK; negative cash is an error in a virtual portfolio and a warning in a real one with a cash ledger), its effect on the position, moves between portfolios (`check_move`); the Portfolio page's positions and cash view.
-- `importers/`: broker exports → trades: reading CSV/XLSX in any encoding, presets in `presets.yaml`, generic column names, symbol matching, `preview` (never writes) and `commit`; and `import_yahoo_csv`, the Yahoo Finance portfolio export (a full snapshot that replaces the previous Yahoo import).
+
+### Interfaces
+- `api.py` + `api_models.py`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md).
+- `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
+  the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
+  the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
+
+### Features
+- `updater.py`: the update steps behind `radar update` / `run` and the app's *Update data* job. Each source is
+  logged; a failure keeps its cache.
+- `report.py`, `dashboard.py`: the report build (see *The report's build*); `dashboard.py` computes every
+  market-wide reading as data, without side effects.
+- `mine.py`: the holdings, watchlist and sold table (DKK return vs a shadow ACWI position, flags, stop levels).
+- `profile.py`: one ticker's full profile and several side by side with ACWI (`radar info`, `/compare`).
+- `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown but
+  don't vote.
+- `health.py`: `radar doctor`, each check with what it found and what to do.
+- `abtest.py`: the forward A/B test of three score strategies as virtual portfolios. Its monthly picks are
+  appended and never changed; a failed refresh is logged and never stops the report.
+- `propose/`: portfolio proposals (`radar propose`, `/propose-portfolio`). The modules build on each other in the
+  order rules → pricing → exposure → basket → riskmodel → drift → draft → evaluation → store; the package
+  re-exports every public name. The frozen picks file's shape is `propose/picks_file.py`, checked on freeze and
+  read-back. It reads the rule study only through `model/artifacts.py`, stale when the rule's hash has changed.
+- `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
+  `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
+  exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
+  returns; `fund.py` the quality and value scores on EDGAR facts as known then; `picks.py` hindsight baskets;
+  `propose_study.py` the proposal rule at every month-end. Simulated trades pay the portfolio's own fee schedule.
+
+### Kernel
+- `model/`: what the app and the studies must compute the same way, defined once, so what is tested is what is
+  shown: the score's percentile rule, point-in-time panels and the month-end calendar, selection under caps, the
+  trend exit, the shared statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run
+  prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
+
+### Domain
+- `universe.py`: what is tracked and how it is quoted (config access, names, sectors, currencies, FX to DKK,
+  region, how far back prices go).
+- `market.py`: the price store as wide frames, loaded once and shared by the API, CLI and studies.
+- `userstore/`: the user's own edits in `radar.db` (SQLite, versioned by `PRAGMA user_version` and an append-only
+  migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
+  symbol map, meta; market views in `viewstore.py`, backup copies in `backups.py`. It is the one place that decides which
+  portfolios count, and holds the one list of row types. New stateful data gets a table here.
+- `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
+- `portfolio.py`: checks a row before it is saved (unknown symbol, future date, oversold, price vs the close,
+  negative cash) and moves between portfolios.
+- `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
+  flows, comparisons and cash.
+- `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
+  runs).
+- `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
+- `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
+- `market_views.py`: the user's market views with their evidence and alignment.
+- `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `snapshot.py`: rank history for "new" and "Δ rank".
-- `valuation.py`: the weekly valuation snapshots in `data/valuation/` (stocks from Yahoo's screener, `stocks.parquet`; ETFs from Yahoo fund data, `etfs.parquet`) and the market's valuation (`market.parquet`: CAPE from multpl.com, Damodaran's ERP). `Context` / `context()` join them to table rows (P/E vs sector, EPS revisions, fund P/E vs ACWI) without network calls. `signals/valuation.py`: the readings (pure functions). `sentiment.py`: CBOE put/call (`data/putcall.parquet`) and the AAII survey (`data/aaii.parquet`). `external.update_ecb`: euro-area yields (`data/ecb.parquet`).
-- `fundamentals/`: financial statements in one long fact format (`store.py`: one row per reported value with `filed`, `known` and the source's tag). `edgar.py`: SEC EDGAR company facts for US companies (us-gaap only; IFRS filers are left to Yahoo), cached in `fundamentals/edgar.parquet` (the cache tier: it can be fetched again), every restatement kept with its filing date, a per-ticker guard so a shorter answer never replaces more; the User-Agent carries the user's contact (`userstore` meta `sec_contact`, `GET/PUT /api/settings/sec-contact`, never defaulted). `yahoo.py`: Yahoo statements for every tracked stock into `HISTORY/fundamentals/yahoo.parquet`, append-only (Yahoo's ~4-year window scrolls), dated when first seen. `items.py`: the canonical items and their EDGAR tag recipes / Yahoo lines. `store.ttm / instant / annual(…, known_by=)`: the period arithmetic (TTM from the year to date, 4 quarters or Yahoo's trailing column) as known on any day, shared by live scores and point-in-time tests. `schedule.py`: which tickers are due (quarterly reports, staggered `max_per_run`). Update steps `fundamentals_edgar` / `fundamentals_yahoo` run after `valuation_stocks` (reporting currency, earnings dates).
-- Kvalitetsscore and værdiscore: `signals/fundamentals.py` (pure: `metrics` per stock from a `store.View`, `score` = percentiles among peers of the same metric set and sector, pooled over regions, falling back to the whole set below `min_sector_peers`; pillars; k-of-n rules; a separate set for banks and insurers by Yahoo industry). `fundamentals/context.py`: `Context(closes, raw_closes, asof)` scores every tracked stock without network calls (price in the reporting currency via `universe.fx_to_dkk`, market value from shares checked against diluted shares and Yahoo's `market_cap` from the valuation snapshot, dividends per share from adjusted vs traded closes); `stock()` for table rows (`StockFundamentals`), `row()` for the Quality & value section, `card()` for the profile's `quality` section; `context()` caches it for the API by the fact stores', snapshot's and prices' mtimes. `dashboard.quality_section` builds `dashboard.json`'s `quality` (`GET /api/quality`); `with_fundamentals` joins the scores to momentum and holdings rows (and live `/api/me`). `report.build` saves the `qv` rank snapshot and the weekly `HISTORY/fundamentals/scores.parquet`; `summary.json` gains `quality_top10`, `quality_new_entrants`, `quality_coverage` and `quality`/`value`/`qv` on momentum and holdings rows.
-- Regime votes: `model.inputs.effective_votes()` (settings.yaml `regime.votes` overridden by `userstore` meta `regime_votes`), `regime_now(d)` (a dashboard.json's indicators voted again) and `current_regime()` (its overall label, asof and net: the one reader the start page, profiles, `radar info A B`, the stop levels and proposals use; summary.json keeps the vote of its build); `dashboard.vote_options()`; `GET/PUT /api/settings/regime-votes`.
-- `market_views.py` + `signals/views.py`: your market views (subjective beliefs, stored in `userstore/viewstore.py`). `evidence` marks each view's indicators supports / contradicts / flat / no data from the last three months; `align` says how a name lines up (exposure by ticker, sector, industry, region, or a ≥0.5 correlation of weekly returns vs ACWI with an ETF), conviction-weighted. Personal: in profiles only when not anonymous (`radar info A B` only with `--personal`), and in the holdings bundle as `views.json`.
-- `discovery/`: the separate wide scan. `sources.py` (Yahoo screener per exchange and per sector, cross-listing removal, index members from iShares holdings (STOXX 600 via EXSA, S&P 500 via CSPX), positive-list ISIN → Yahoo ETF mapping, share-class choice, ETF categories; every source checks its counts and raises), `scan.py` (universe cache `data/discovery/universe.csv`, its own price store `data/discovery/prices.parquet` re-downloaded each scan with retries for Yahoo's rate limit, `reports/discovery.json`, snapshots in `data/discovery/snapshots/`). `signals/discovery.py` scores each market with the momentum formula and adds Δscore, size, liquidity and flags. Nothing here feeds the regime, breadth or the momentum page; `coverage.py` shows its age on the Data page without counting it in "oldest input" or stale sources.
-- `sourcelog.py` (infrastructure): the update log `sources.json` in the cache: `record` (written atomically under a lock; each attempt is also an `ops` event, a ValueError a parse failure; a failure keeps the last success), `load_log` and `PartialFailure`. Every data source writes it; low enough that none of them imports `coverage`.
-- `coverage.py`: per-source freshness and coverage from that log, and blind spots. `live()` overlays the current log on a built coverage section (`/api/coverage`). These feed the "Data & coverage" page and `coverage` in summary.json. Stale sources and missing inputs are shown but don't vote; limits are in `settings.yaml` `coverage:`.
-- `market.py`: `Market`, the price store as wide frames (closes, highs, lows, volumes; FRED, traded closes, leaders on demand), loaded once and shared by the API, the CLI, the studies and the Yahoo import. `jsonsafe.py`: `clean`, plain JSON values (NaN as None, dates as YYYY-MM-DD), and `dumps`, the one way JSON is written (reports, studies, CLI `--json`; it can't write NaN). `values.py`: `num`, a finite float or None (`whole`, an int or None), for every reading of a value the radar didn't make (`model/stats.mean` the same for a mean). `money.py`: pence quotes (`PENCE`, `is_pence`, `main_unit`), `bps`, `fee_bps` (settings backtest.fee_bps, 0 when unset) and `rate_on` (an exchange rate on a day: positive and finite, or None).
-- `profile.py`: one ticker's full profile (used by `radar info` and the API), including the risk section; `compare()` puts several side by side with ACWI (`radar info A B`, the `/compare` skill).
-- `guide.py`: the Danish books in `guide/` (see below): the manifest `guide/guide.yaml` (books → parts → chapters, `page_links`, `glossary_links`), one chapter per file reached only through the manifest, `{{settings:key}}` placeholders filled from settings.yaml (`|pct`, `|raw`), heading ids (one slug rule, used by the page and by links), prev/next and a section search.
-- `notebook.py`: the Notebook page's read-only view of what the skills write: `briefs/`, `research/` (+ `compare/`) and `journal/` (+ `reviews/`), with journal front matter (status, account, review date) parsed and *review due* worked out; documents are reached only through the listing.
-- `backup.py`: zips of radar.db (SQLite backup API), the personal folders and history with `backup.json`
-  (versions, row counts, SHA-256 per file); daily (7 daily, 5 weekly, 12 monthly kept), before a new version's
-  first use (90 days), manual (20); a copy to an optional mirror folder; `restore()` verifies, backs up first,
-  unpacks into `.restore-staging` and swaps part by part. Only for a real home (not the legacy layout).
-- `export.py`: the open-format export (CSV with BOM, JSON, Markdown, `EXPORT.md`), `load()` back, and the
-  holdings bundle's packing/unpacking (`holdings_zip`, `restore_holdings`).
-- `updates.py`: the opt-in daily check of the public repo's latest GitHub release (settings.yaml `updates.repo`).
-- `api.py` + `api_models.py`: FastAPI with strict Pydantic response models. See [web-app.md](web-app.md).
-- `cli/`: the `radar` command, one module per command group (`data`, `market`, `server`, `portfolios`, `sim`, `study`, `propose`, `fundamentals`, `abtest`), the Typer app in `root.py`, what they share in `common.py` (`job`: a command recorded as an ops job, its progress on stderr so `--json` stays valid JSON on stdout). A command parses its options, calls one function of the module that owns the work and prints the result; rules and lookups live in those modules (e.g. `userstore.save_portfolio` checks kind, mode and that a simulation stays virtual, for the CLI and the API alike).
+- `home.py`: the data folder's status, setup, moving in and layout migrations (see *Where data lives*).
+- `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
+  a restore verifies, backs up first and swaps part by part.
+- `export.py`: the open-format export and the holdings bundle.
+- `guide.py`: the Danish books in `guide/`, reached only through `guide/guide.yaml`, with settings placeholders.
+- `notebook.py`: a read-only view of what the skills write (briefs, research, journal), with review dates.
+
+### Data sources
+Each downloads, checks what it got, caches it and logs it in the source log; a source that parses to nothing
+fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
+- `ingest.py`: Yahoo prices and FRED series.
+- `external.py`: CFTC positioning, OECD leading indicators, FactSet Earnings Insight, analyst consensus, ECB yields
+  and Yahoo ticker detail.
+- `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
+- `sentiment.py`: CBOE put/call and the AAII survey.
+- `fundamentals/`: financial statements from SEC EDGAR (US, with filing dates) and Yahoo (every stock,
+  append-only) in one long fact format; the period arithmetic as known on any day; which tickers are due.
+- `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
+- `constituents.py`: the S&P 500 and MSCI ACWI holdings.
+- `positive_list.py`: SKAT's positive list.
+- `discovery/`: the separate wide scan for names the radar doesn't track. Nothing here feeds the regime, breadth
+  or the momentum page.
+- `updates.py`: the opt-in daily check of the public repo's latest release.
+
+### Pure readings
+- `signals/`: pure functions from data to readings: risk and the series math everything shares, gauges, rotation,
+  momentum, regime, stop levels, technicals, valuation, quality and value scores, views, discovery scores. No I/O.
+
+### Infrastructure
+- `config.py`, `config_schema.py`: the config files, checked settings, the atomic writers.
+- `paths.py`: the tiers and the registry of every file written (see *Where data lives*).
+- `net.py`: the one network layer: per-host pacing and concurrency, retries with backoff, every request recorded,
+  a host paused after repeated 429s (shared by the CLI and the server). One honest User-Agent; no proxies or
+  identity rotation.
+- `ops.py`: the operations log in `ops.db` (requests, events, jobs, host state). A failed write never breaks the
+  work; nothing here feeds a market reading.
+- `sourcelog.py`: the update log `sources.json`; a failure keeps the last success.
+- `guard.py`, `locks.py`, `jsonsafe.py`: see *Writing files*.
+- `values.py`, `money.py`: the one rule for reading a number (finite or None) and for money (pence quotes, basis
+  points, fees, an exchange rate on a day).
 
 ## `guide/`
-The user-facing documentation, in Danish: `brugervejledning/` (the user guide, page by page) and `laerebog/` (the textbook: the theory behind every reading, with "Sådan gør radaren" sections that describe the code as it is). Served by `guide.py` and rendered on the app's Guide page. `guide/STIL.md` holds the writing conventions (terms, chapter template, placeholders, links). Shipped publicly like the rest of the app. A user-facing change updates its chapter in the same change; `tests/test_guide.py` checks titles, placeholders, links and anchors.
+The user-facing documentation in Danish: `brugervejledning/` (the user guide, page by page) and `laerebog/` (the
+textbook: the theory behind every reading, with *Sådan gør radaren* sections on the code as it is). Served on the
+app's Guide page; conventions in `guide/STIL.md`. A user-facing change updates its chapter in the same change;
+`tests/test_guide.py` checks titles, placeholders, links and anchors.
 
 ## `web/`
-Vite + React + TypeScript app served by `radar serve`: the only UI (the old static `radar.html` is gone). The skills (`/market-brief`, `/research`) don't depend on it; they read `summary.json`.
+Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don't depend on it; they read
+`summary.json`.
 
 ## Sharing and releases
-- This repo is private (its history holds personal briefs). `scripts/publish_public.py` exports HEAD without the paths in `publish/exclude.txt`, adds `publish/overlay/` (the public repo's release and smoke workflows), runs a leak check against `notes/leak-patterns.txt` and the git author, and commits into a clone of the public repo as "Market Radar". Pushing and tagging are manual.
-- `marketing/` holds the Danish brochure: the PDF and its sources are committed, the screenshots (`site/img/`) are rebuilt locally. `scripts/marketing.py` builds `.demo/`: a copy of the working tree minus `publish/exclude.txt` in portable mode (`.demo/portable.json`: data folder `.demo/home`, cache `.demo/cache`), with a copy of the market data and history and a database seeded from `marketing/demo/seed.yaml` through the API, so screenshots never see the user's data folder. Shots are cropped by element (`marketing/shots.yaml`), and `check` reuses the public export's leak check.
-- Releases: `CHANGELOG.md` and the guide chapter *Nyheder* each get a `## X.Y.Z` section;
-  `scripts/release.py prepare X.Y.Z` refuses without them, then sets the version (pyproject.toml, web/package.json);
-  `scripts/release.py fixture vX.Y.Z` writes a small data folder made by that version into `tests/fixtures/homes/`
-  (never changed afterwards), which `tests/test_upgrade.py` opens with the current code. The release workflow
-  attaches `SHA256SUMS` and uses the CHANGELOG section as the notes; the smoke workflow also sets up a data folder
-  (path with a space and "ø"), backs up, restores, exports and moves the legacy fixture, on all three OSes.
-- A `v*` tag in the public repo builds the release zip (`scripts/build_release_zip.py`: tracked files + prebuilt `web/dist`) that non-technical users download and start with `Start Market Radar.cmd` / `.command` (they install uv if needed, `uv sync`, `radar serve --open`); Linux users run `start-market-radar.sh`. A new version
-  is unzipped anywhere and finds the data folder through the pointer file.
+- This repo is private (its history holds personal briefs). `scripts/publish_public.py` exports HEAD without the
+  paths in `publish/exclude.txt`, adds `publish/overlay/` (the public repo's workflows), runs a leak check and
+  commits into a clone of the public repo. Pushing and tagging are manual.
+- `marketing/` holds the Danish brochure; the PDF and its sources are committed, the screenshots are rebuilt.
+  `scripts/marketing.py` builds a portable demo copy seeded with a fictional investor, so screenshots never see
+  the user's data folder.
+- Releases: `CHANGELOG.md` and the guide's *Nyheder* each get a `## X.Y.Z` section; `scripts/release.py prepare`
+  refuses without them, then sets the version. `scripts/release.py fixture` writes a small data folder made by
+  that version into `tests/fixtures/homes/` (never changed afterwards), which `tests/test_upgrade.py` opens with
+  the current code.
+- A `v*` tag in the public repo builds the release zip (`scripts/build_release_zip.py`) with start scripts for
+  each OS. The public smoke workflow sets up a data folder (a path with a space and "ø"), backs up, restores,
+  exports and moves the legacy fixture on all three OSes.
 
 ## Local vs committed
-- Personal data and the cache live outside the repo (see *Where data lives*). A checkout that predates the data
-  folder keeps `data/`, `reports/`, `imports/*`, `notes/`, `userdata/`, `briefs/`, `research/`, `journal/` and
-  `exports/` at its root until `radar setup` copies them out; `.gitignore` still leaves those root folders out
-  (anchored with `/`, so the fixture data folders in `tests/fixtures/homes/` are committed).
-- The rank snapshots (for "new", "dropped" and "Δ rank") build up in the history folder with each `radar run`.
-- The monthly brief runs on this machine: a Claude desktop scheduled task runs `/market-brief` on the 1st (it runs `radar run` itself and reads `notes/`, the views and the latest discovery scan), writing `briefs/YYYY-MM-DD.md`. CI (`.github/workflows/ci.yml`, left out of the public export) runs the tests and the web checks on every pull request and push to main; the public repo has its own release and smoke workflows (`publish/overlay`).
-- Line endings: `.gitattributes` stores and checks out every text file with LF (`* text=auto eol=lf`), except the `.cmd` start script (CRLF); binaries are marked `binary`. So editors and scripts can't churn whole files. The one-off renormalisation commit is listed in `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone to hide it from `git blame`.
-- `radar bundle-holdings` / `unbundle-holdings` carry your portfolios, watchlist edits, market views and vote choices to another machine as one base64 file; `radar export` / `import-export` do the same plus the documents as a readable zip.
+- Personal data and the cache live outside the repo. A checkout from before the data folder keeps the old root
+  folders until `radar setup` copies them out; `.gitignore` leaves them out, anchored with `/` so the fixture
+  data folders are committed.
+- The monthly brief runs on this machine: a Claude desktop scheduled task runs `/market-brief` on the 1st.
+- CI (`.github/workflows/ci.yml`, left out of the public export) runs the tests and web checks on every pull
+  request and push to main.
+- Line endings are LF (`.gitattributes`), except the `.cmd` start script. The one-off renormalisation commit is in
+  `.git-blame-ignore-revs`; run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.

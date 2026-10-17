@@ -1,26 +1,8 @@
 """The proposal rule tested at every past month-end: the evidence behind `radar propose`'s modelled return and
-drawdown (`radar study propose` → reports/propose-study.json).
-
-On each formation date D (the last session of a completed month), for each tilt (momentum, value, mix) and each
-basket size in `propose.study_ns`, the rule picks a basket exactly as a proposal's rule-only basket would, from
-data up to D only: the gates, the proposal score with its penalties, and the caps against an empty portfolio
-(today's ACWI weights for the active-weight caps, since no history of them is stored). Equal weights, bought at
-the fill session (`backtest.fill`), each trade paying `propose.study_cost_bps`.
-
-- **Kept**: held for 3 and 6 months, in DKK, against ACWI in DKK: the return gross and net of costs, the excess
-  over ACWI, the path's max drawdown and worst 20 sessions.
-- **With exits**: the same buys with the exits a proposal sets: a close below the `stops.trend_sma`-day average
-  (sold at the next session's close) and the tilt's signal exit at each month-end (momentum score below
-  `propose.exit.min_score`; K+V below `min_qv` for the value tilt), the money parked in ACWI.
-- **Across dates**: means, medians, 10th/90th percentiles, Newey-West t (lag H−1 months: the windows overlap),
-  hit rate, an effective N (dates ÷ horizon months: roughly the number of independent periods), splits in-sample
-  vs holdout (`backtest.study_holdout_from`) and by the regime on D; the composite's IC with the next 6 months;
-  the basket's monthly turnover.
-
-The value and mix tilts need K+V as known on D, which only SEC EDGAR gives (filing dates), so they are tested on US
-stocks only. Survivorship: the universe is today's, which flatters the past, most of all for momentum; the
-proposal model cuts a positive excess by `propose.survivorship_haircut`. A change to the rule's settings (the
-hash in the report) makes the report stale: the proposal then shows no drift until it is run again."""
+drawdown (`radar study propose` → reports/propose-study.json). Each formation date D picks a proposal's rule-only
+basket from data up to D only (against an empty portfolio), kept and with the proposal's exits, against ACWI in
+DKK. The method: guide/laerebog/portefoeljeforslag.md (*Sådan gør radaren*); the caveats: `CAVEATS`. A change to the
+rule's settings (the hash in the report) makes the report stale: the proposal shows no drift until it is rerun."""
 from __future__ import annotations
 
 import numpy as np
@@ -57,7 +39,9 @@ def _m(v):
 
 
 def summarize(recs: list[dict], h: int, prefix: str = "") -> dict | None:
-    """Across dates for one arm (`prefix` '' kept, 'x_' with exits)."""
+    """Across dates for one arm (`prefix` '' kept, 'x_' with exits): mean, median, 10th/90th percentiles, the
+    Newey-West t (lag H−1 months: the windows overlap), hit rate, and the effective N (dates ÷ horizon months:
+    roughly the number of independent periods)."""
     recs = [r for r in recs if r.get(prefix + "excess") is not None]
     if not recs:
         return None
@@ -111,6 +95,10 @@ class Paths:
         return self._sig[key]
 
     def run(self, tickers: list[str], fi: int, H: int, tilt: str, cost: float) -> dict | None:
+        """One basket bought at session `fi` and held `H` sessions, equal weights in DKK, `cost` paid each way. Kept:
+        gross and net return, max drawdown and worst 20 sessions. With exits: a leg leaves on a close below the trend
+        average (sold at the next session's close) or on the tilt's signal exit at a month-end, the money parked
+        in ACWI."""
         idx = self.p.sessions[fi:fi + H + 1]
         sub = self.dkk.loc[idx, tickers]
         ok = sub.iloc[0].notna() & sub.iloc[-1].notna()
@@ -145,6 +133,12 @@ class Paths:
 
 def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_regime: bool = True,
         log=lambda *_: None, p: mp.Panels | None = None) -> dict:
+    """The study: on each formation date D (the last session of a completed month), for each tilt and each basket
+    size in `propose.study_ns`, the rule's gates, score and caps (against an empty portfolio, with today's ACWI
+    weights: no history of them is stored), bought at the fill session (`backtest.fill`) and paying
+    `propose.study_cost_bps`. Across dates: in-sample vs holdout (`backtest.study_holdout_from`) and by the regime
+    on D; the composite's IC with the next 6 months; the basket's monthly turnover. The value and mix tilts need K+V
+    as known on D (SEC EDGAR's filing dates), so they are US stocks only and skipped when none are stored."""
     c = propose.cfg()
     bt = settings().get("backtest") or {}
     ns = list(ns or c["study_ns"])
