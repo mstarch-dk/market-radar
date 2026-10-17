@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import external, universe
+from . import external, trades, universe
 from .model.inputs import level_etfs, level_universe  # noqa: F401 (re-exported)
 from .model.score import score_vs
 from .signals import gauges as gz
@@ -57,7 +57,7 @@ def _vs_shadow(tx: pd.DataFrame, px: pd.Series, fx: pd.Series, bench_dkk: pd.Ser
 
 def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history: int,
               raw_closes: pd.DataFrame | None = None, portfolios: list[int] | None = None) -> pd.DataFrame:
-    h = universe.holdings(portfolios)
+    h = trades.holdings(portfolios)
     if h.empty:
         return pd.DataFrame()
     m = momentum.metrics(closes, volumes, list(h["symbol"]), min_history)
@@ -69,7 +69,7 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
 
     ccy = universe.currencies([*df["symbol"], bench])
     bench_dkk = (b * universe.fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
-    tx = universe.transactions(portfolios)
+    tx = trades.transactions(portfolios)
     since, bench_since, since_sell, flags = [], [], [], []
     for _, r in df.iterrows():
         s_ret = b_ret = x_ret = None

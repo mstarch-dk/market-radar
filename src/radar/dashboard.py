@@ -10,7 +10,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import coverage, external, mine, sentiment, snapshot, universe, valuation
+from . import coverage, external, mine, positive_list, sentiment, snapshot, trades, universe, valuation
 from .config import CONFIG, settings, universe_config
 from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
@@ -246,9 +246,9 @@ def compute() -> Computed:
     prev_d, prev = snapshot.previous("rotation", cfg["snapshot_min_gap_days"])
     prev_rank = dict(zip(prev["ticker"], prev["rank"])) if prev is not None else {}
     rot["rank_change"] = [prev_rank[t] - r if t in prev_rank else None for t, r in zip(rot["ticker"], rot["rank"])]
-    pl = universe.positive_list()
+    pl = positive_list.load()
     isins, pl_year = (set(pl["isin"]), pl.attrs["year"]) if pl is not None else (None, None)
-    rot["positive_list"] = [universe.positive_list_flag(i, isins) for i in rot["isin"]]
+    rot["positive_list"] = [positive_list.flag(i, isins) for i in rot["isin"]]
     rot["quadrant_local"] = None
 
     names = {i.ticker: i.name for i in insts}
@@ -323,7 +323,7 @@ def compute() -> Computed:
         fs_ctx["history"] = _records(fs_hist[["report_date", "quarter", "growth_now", "fwd_pe"]].tail(12))
 
     # --- data sources & coverage (what the readings above are, and aren't, based on)
-    h = universe.holdings()
+    h = trades.holdings()
     cot_markets = [m for grp in ext.get("cot", {}).values() for m in grp]
     cov = coverage.build(
         asof, prices, universe.all_price_tickers(offline=True), fred, universe.macro_fred(), cot, cot_markets,

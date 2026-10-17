@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, external, ingest, mine, money, universe
+from . import dashboard, external, ingest, mine, money, positive_list, trades, universe
 from .config import settings, universe_config
 from .jsonsafe import clean
 from .market import Market
@@ -174,7 +174,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     look = external.parse_fund((raw or {}).get("fund") or {}, info) if is_fund else None
 
     # --- identity
-    h = universe.holdings() if not anonymous else pd.DataFrame(columns=universe.HOLDING_COLS)
+    h = trades.holdings() if not anonymous else pd.DataFrame(columns=trades.HOLDING_COLS)
     mine = h[h["symbol"] == ticker]
     status = mine.iloc[0]["status"] if len(mine) else None
     etf_cfg = next((e for e in universe.etfs() if ticker in (e.ticker, e.ucits)), None)
@@ -197,7 +197,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
         region=region, tracked=tracked,
         stock_group=next((g for g, ts in groups.items() if ticker in ts), None),
         etf_group=etf_cfg.group if etf_cfg else None, ucits=etf_cfg.ucits if etf_cfg else None,
-        isin=isin, positive_list=universe.positive_list_flag(isin, market.positive_list()) if etf_cfg else None,
+        isin=isin, positive_list=positive_list.flag(isin, market.positive_list()) if etf_cfg else None,
         my_status=status,
         my_position=clean(mine.iloc[0][["quantity", "avg_price", "first_trade"]].to_dict()) if status == "holding" else None)
     if not tracked:
@@ -547,7 +547,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
 
     # correlations of weekly DKK returns: the candidates, ACWI, and (personal) the current holdings
     series = {}
-    for sym in [*ok, bench] + (sorted(set(universe.holdings(portfolios).query("status == 'holding'")["symbol"]) - set(ok))
+    for sym in [*ok, bench] + (sorted(set(trades.holdings(portfolios).query("status == 'holding'")["symbol"]) - set(ok))
                                if personal else []):
         if sym not in closes:
             continue

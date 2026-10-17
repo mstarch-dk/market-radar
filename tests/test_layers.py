@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 
 # the largest import cycle today, in modules; it may only get smaller
-MAX_CYCLE = 10
+MAX_CYCLE = 8
 
 
 @cache

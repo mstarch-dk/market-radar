@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import dashboard, universe
+from . import dashboard, trades, universe
 from .paths import CACHE
 
 _cache: tuple[tuple, list[dict]] | None = None
@@ -42,7 +42,7 @@ def _market_rows(market) -> list[dict]:
         for t in (e.ticker, e.ucits):
             if t:
                 group_of.setdefault(t, ("etf", etf_label.get(e.group, e.group)))
-    h = universe.holdings()
+    h = trades.holdings()
     symbols = sorted((set(group_of) | set(h["symbol"].dropna()) | {universe.benchmark()}) & set(closes.columns))
 
     d = dashboard.load() or {}
@@ -83,7 +83,7 @@ def summary(market) -> list[dict]:
     key = (market.mtime, id(market), p.stat().st_mtime if p.exists() else None)
     if _cache is None or _cache[0] != key:
         _cache = (key, _market_rows(market))
-    h = universe.holdings()
+    h = trades.holdings()
     status = dict(zip(h["symbol"], h["status"])) if not h.empty else {}
     rows = [r | {"my_status": status.get(r["symbol"])} for r in _cache[1]]
     known = {r["symbol"] for r in rows}

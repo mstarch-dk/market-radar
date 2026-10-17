@@ -2,7 +2,7 @@
 derived with fees and per portfolio, import semantics (snapshot vs additive, duplicates, undo) and backups."""
 import pytest
 
-from radar import universe, userstore
+from radar import trades, userstore
 
 HEADER = "symbol,status,quantity,avg_price,first_trade,last_sell_date,last_sell_price\n"
 
@@ -21,18 +21,18 @@ def test_old_csv_files_move_into_the_store_unchanged(tmp_data):
     _legacy(tmp_data, "A,holding,15,450.0,2026-01-05,2026-06-01,600\nB,sold,,,,2026-03-01,20\nW,watch,,,,,\n",
             "A,2026-01-05,BUY,10,400\nA,2026-03-01,BUY,10,500\nA,2026-06-01,SELL,5,600\n"
             "B,2026-01-02,BUY,3,10\nB,2026-03-01,SELL,3,20\n")
-    h = universe.holdings().set_index("symbol")
+    h = trades.holdings().set_index("symbol")
     assert h.loc["A", "quantity"] == 15 and h.loc["A", "avg_price"] == pytest.approx(450.0)
     assert h.loc["B", "status"] == "sold" and h.loc["W", "status"] == "watch"
     assert not (tmp_data / "holdings.csv").exists() and (tmp_data / "holdings.migrated.csv").exists()
     assert (tmp_data / "transactions.migrated.csv").exists()                 # renamed, never deleted
     assert userstore.meta_get("legacy_csv")["status"] == "migrated"
-    assert len(universe.transactions()) == 5
+    assert len(trades.transactions()) == 5
 
 
 def test_a_migration_that_would_change_a_position_is_undone(tmp_data):
     _legacy(tmp_data, "A,holding,3,400.0,2026-01-05,,\n", "A,2026-01-05,BUY,2,400\n")    # files disagree
-    h = universe.holdings().set_index("symbol")
+    h = trades.holdings().set_index("symbol")
     assert h.loc["A", "quantity"] == 3                                       # still the old file's numbers
     assert (tmp_data / "holdings.csv").exists() and userstore.transactions() == []
     m = userstore.meta_get("legacy_csv")
@@ -42,9 +42,9 @@ def test_a_migration_that_would_change_a_position_is_undone(tmp_data):
 def test_fees_are_part_of_the_cost_and_portfolios_are_kept_apart(tmp_data):
     userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 100, fee=29, portfolio="ASK"))
     userstore.add_tx(_tx("A", "2026-02-05", "BUY", 10, 200, fee=0, portfolio="frie midler"))
-    total = universe.holdings().set_index("symbol").loc["A"]
+    total = trades.holdings().set_index("symbol").loc["A"]
     assert total["quantity"] == 20 and total["avg_price"] == pytest.approx((1000 + 29 + 2000) / 20)
-    per, _ = universe.positions(universe.transactions(), by_portfolio=True)
+    per, _ = trades.positions(trades.transactions(), by_portfolio=True)
     per = per.set_index("portfolio")
     assert per.loc["ASK", "avg_price"] == pytest.approx(102.9) and per.loc["frie midler", "quantity"] == 10
     assert total["portfolios"] == "ASK, frie midler"
@@ -53,7 +53,7 @@ def test_fees_are_part_of_the_cost_and_portfolios_are_kept_apart(tmp_data):
 def test_an_oversold_position_is_reported_not_hidden(tmp_data):
     userstore.add_tx(_tx("A", "2026-01-05", "BUY", 2, 100))
     userstore.add_tx(_tx("A", "2026-02-05", "SELL", 5, 120))
-    pos, warn = universe.positions(universe.transactions())
+    pos, warn = trades.positions(trades.transactions())
     assert pos.iloc[0]["status"] == "sold" and "sold 5" in warn["A"][0]
 
 
@@ -94,7 +94,7 @@ def test_accounts_are_seeded_as_portfolios_and_renames_carry_the_transactions(tm
 
 
 def test_without_any_data_nothing_is_created(tmp_data):
-    assert universe.transactions().empty and universe.holdings().empty
+    assert trades.transactions().empty and trades.holdings().empty
     assert not (tmp_data / "userdata").exists()
 
 

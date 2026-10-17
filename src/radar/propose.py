@@ -3,7 +3,7 @@
 
 - **Context**: the portfolio, its fee schedule (fees.SimFees), its holdings valued in DKK today, and your whole real
   book (every real portfolio) for overlap and the position limit. ACWI's own sector, region and currency weights
-  come from the iShares MSCI ACWI UCITS holdings file (universe.acwi_holdings); without it the active weights are
+  come from the iShares MSCI ACWI UCITS holdings file (constituents.acwi_holdings); without it the active weights are
   unknown and said so.
 - **Gates**: a name is left out, and listed with why, when it has no score the tilt needs, no DKK rate, a stale
   price, a short history, thin trading, a share price above the ticket, or (tilts led by momentum) no uptrend.
@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from . import fees, money, universe, userstore
+from . import constituents, fees, money, positive_list, trades, universe, userstore
 from .config import settings, universe_config, write_text
 from .jsonsafe import clean as _clean
 from .model import artifacts, inputs
@@ -135,8 +135,8 @@ class Prices:
 def book(market, prices: Prices, portfolio_ids: list[int]) -> pd.DataFrame:
     """Holdings of these portfolios valued at the last close in DKK: symbol, quantity, price, rate, value_dkk
     (None when the price or rate is unknown)."""
-    tx = universe.transactions(portfolio_ids)
-    pos, _ = universe.positions(tx)
+    tx = trades.transactions(portfolio_ids)
+    pos, _ = trades.positions(tx)
     pos = pos[pos["status"] == "holding"] if not pos.empty else pos
     rows = []
     for _, r in pos.iterrows():
@@ -512,7 +512,7 @@ def filler(leftover: float, kind: str, prices: Prices, sf: fees.SimFees, allowed
     f = c.get("etf_filler") or {}
     if not allowed or not f or leftover < f.get("min_dkk", 0):
         return None
-    flag = universe.positive_list_flag(f.get("isin"), prices.market.positive_list())
+    flag = positive_list.flag(f.get("isin"), prices.market.positive_list())
     out = {"ticker": f["ticker"], "name": f.get("name"), "isin": f.get("isin"), "model": f.get("model"),
            "positive_list": flag, "budget_dkk": leftover, "quantity": None, "value_dkk": None, "fee_dkk": None,
            "note": None}
@@ -861,7 +861,7 @@ def context(market, name: str, offline: bool = False) -> Ctx:
         miss = df[df["value_dkk"].isna()]["symbol"].tolist()
         if miss:
             notes.append(f"{what}: no price or DKK rate for {', '.join(miss)}: left out of the weights")
-    acwi = universe.acwi_weights(offline=offline)
+    acwi = constituents.acwi_weights(offline=offline)
     if acwi is None:
         notes.append("ACWI's own weights are unknown (no iShares holdings file): active-weight caps are off")
     sf = fees.SimFees.for_portfolio(p, money.fee_bps(settings().get("backtest")))
@@ -1001,7 +1001,7 @@ def ask_flag(t: str) -> str | None:
 def ask_account(ctx: Ctx, amount: float) -> dict:
     c = cfg()
     cap, year = c.get("ask_deposit_cap"), c.get("ask_cap_year")
-    rows = universe.ledger([ctx.portfolio["id"]])
+    rows = trades.ledger([ctx.portfolio["id"]])
     dep = None
     if not rows.empty and "amount" in rows:
         d = rows[rows["type"].isin(["DEPOSIT", "WITHDRAW"])]
@@ -1539,7 +1539,7 @@ def check(market, portfolio: str | None = None) -> dict:
         held = None
         pf = userstore.portfolio_by_name(m["portfolio"])
         if pf:
-            pos, _ = universe.positions(universe.transactions([pf["id"]]))
+            pos, _ = trades.positions(trades.transactions([pf["id"]]))
             held = set(pos[pos["status"] == "holding"]["symbol"]) if not pos.empty else set()
         older = []
         if m.get("settings_hash") and m["settings_hash"] != rule_hash():

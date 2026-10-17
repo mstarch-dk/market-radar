@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from . import ingest, universe
+from . import ingest, positive_list, universe
 from .config import settings
 from .paths import PRICES_FILE
 from .signals import momentum
@@ -66,7 +66,7 @@ class Market:
     def positive_list(self) -> set[str] | None:
         if self._isins is None:
             try:
-                self._isins = (universe.positive_list_isins(),)
+                self._isins = (positive_list.isins(),)
             except Exception:
                 self._isins = (None,)
         return self._isins[0]

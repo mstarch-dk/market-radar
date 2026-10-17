@@ -3,7 +3,7 @@ from collections import Counter
 
 import pytest
 
-from radar import coverage, universe
+from radar import coverage, positive_list, universe
 from radar.config import settings, universe_config
 from test_levels import CFG as LEVELS_CFG
 from test_signals import CFG as REGIME_CFG
@@ -28,7 +28,7 @@ def test_etf_isins_are_valid():
     cfg = universe_config()
     isins = [cfg["benchmark"].get("isin")] + [e.isin for e in universe.etfs()]
     for isin in filter(None, isins):
-        assert universe.ISIN_RE.match(isin) and _isin_ok(isin), isin
+        assert positive_list.ISIN_RE.match(isin) and _isin_ok(isin), isin
 
 
 def test_no_duplicate_tickers():
