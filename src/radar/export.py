@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import home, paths, trades, userstore
+from .userstore import viewstore
 
 EXPORT_FORMAT = 1
 TX = "transactions.csv"
@@ -80,7 +81,7 @@ def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str
     z.writestr(tx_name, ("﻿" + tx) if tx_name == TX else tx)
     z.writestr(WATCHLIST, userstore.export_watchlist_csv())
     z.writestr(YAHOO_WATCH, json.dumps(userstore.meta_get("yahoo_watch", [])))
-    z.writestr(VIEWS, userstore.export_views_json())
+    z.writestr(VIEWS, viewstore.export_views_json())
     z.writestr(VOTES, json.dumps(userstore.meta_get("regime_votes", {})))
 
 
@@ -112,7 +113,7 @@ def restore_holdings(z: zipfile.ZipFile, reason: str = "before-unbundle") -> dic
     out["watchlist"] = userstore.import_watchlist_csv(z.read(WATCHLIST).decode("utf-8")) if WATCHLIST in names else 0
     if VOTES in names:
         userstore.meta_set("regime_votes", json.loads(z.read(VOTES)))
-    out["views"] = userstore.import_views_json(z.read(VIEWS).decode("utf-8")) if VIEWS in names else 0
+    out["views"] = viewstore.import_views_json(z.read(VIEWS).decode("utf-8")) if VIEWS in names else 0
     return out
 
 

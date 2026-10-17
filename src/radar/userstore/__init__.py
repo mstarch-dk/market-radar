@@ -27,7 +27,8 @@ from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
-from .paths import USERDATA
+from ..paths import USERDATA
+from . import backups
 
 DB_NAME = "radar.db"
 
@@ -177,7 +178,7 @@ MIGRATIONS = [
 ]
 
 
-def _connect() -> sqlite3.Connection:
+def connect() -> sqlite3.Connection:
     USERDATA.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(USERDATA / DB_NAME, timeout=10)
     con.row_factory = sqlite3.Row
@@ -200,7 +201,7 @@ def _migrate(con: sqlite3.Connection) -> None:
     if version >= len(MIGRATIONS):
         return
     if version > 0:
-        _copy(con, f"before-schema-v{len(MIGRATIONS)}")
+        backups.copy(con, f"before-schema-v{len(MIGRATIONS)}")
     con.isolation_level = None                    # explicit BEGIN/COMMIT: DDL included in the transaction
     con.execute("PRAGMA foreign_keys = OFF")      # only takes effect outside a transaction
     try:
@@ -223,21 +224,21 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.isolation_level = ""
 
 
-def _exists() -> bool:
+def exists() -> bool:
     return (USERDATA / DB_NAME).exists()
 
 
-def _now() -> str:
+def timestamp() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
 # ---------------- watchlist overlay ----------------
 
 def _set(symbol: str, action: str) -> None:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         con.execute("INSERT INTO watchlist (symbol, action, updated_at) VALUES (?, ?, ?) "
                     "ON CONFLICT(symbol) DO UPDATE SET action = excluded.action, updated_at = excluded.updated_at",
-                    (symbol, action, _now()))
+                    (symbol, action, timestamp()))
 
 
 def watch(symbol: str) -> None:
@@ -250,9 +251,9 @@ def unwatch(symbol: str) -> None:
 
 def watchlist_overlay() -> dict[str, str]:
     """symbol -> 'add' | 'remove'. Empty when no database exists yet (nothing is created just by reading)."""
-    if not _exists():
+    if not exists():
         return {}
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return {r["symbol"]: r["action"] for r in con.execute("SELECT symbol, action FROM watchlist ORDER BY symbol")}
 
 
@@ -268,36 +269,20 @@ def export_watchlist_csv() -> str:
 def import_watchlist_csv(text: str) -> int:
     """Load an exported overlay (replaces the current one). Returns the number of rows."""
     rows = [(r["symbol"], r["action"]) for r in csv.DictReader(io.StringIO(text))]
-    now = _now()
-    with closing(_connect()) as con, con:
+    now = timestamp()
+    with closing(connect()) as con, con:
         con.execute("DELETE FROM watchlist")
         con.executemany("INSERT INTO watchlist (symbol, action, updated_at) VALUES (?, ?, ?)",
                         [(s, a, now) for s, a in rows])
     return len(rows)
 
 
-# ---------------- backups ----------------
-
-BACKUPS_KEPT = 20
-
-
 def backup(reason: str) -> str | None:
     """Copy the database to backups/ (before imports and undos); keeps the newest BACKUPS_KEPT."""
-    if not _exists():
+    if not exists():
         return None
-    with closing(_connect()) as con:
-        return _copy(con, reason)
-
-
-def _copy(con: sqlite3.Connection, reason: str) -> str:
-    d = USERDATA / "backups"
-    d.mkdir(parents=True, exist_ok=True)
-    path = d / f"radar-{datetime.now():%Y%m%d-%H%M%S-%f}-{reason}.db"
-    with closing(sqlite3.connect(path)) as dst:
-        con.backup(dst)                          # a consistent copy even while the app is writing
-    for old in sorted(d.glob("radar-*.db"))[:-BACKUPS_KEPT]:
-        old.unlink()
-    return str(path)
+    with closing(connect()) as con:
+        return backups.copy(con, reason)
 
 
 # ---------------- portfolios ----------------
@@ -333,24 +318,24 @@ def _portfolio_rows(con, where: str = "", args: tuple = ()) -> list[dict]:
 
 def portfolios(include_archived: bool = True) -> list[dict]:
     """Every portfolio with its tags, number of rows and date range ([] without a database)."""
-    if not _exists():
+    if not exists():
         return []
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return _portfolio_rows(con, "" if include_archived else "WHERE p.archived = 0")
 
 
 def get_portfolio(pid: int) -> dict | None:
-    if not _exists():
+    if not exists():
         return None
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         rows = _portfolio_rows(con, "WHERE p.id = ?", (pid,))
         return rows[0] if rows else None
 
 
 def portfolio_by_name(name: str | None) -> dict | None:
-    if not _exists() or not name or not name.strip():
+    if not exists() or not name or not name.strip():
         return None
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         rows = _portfolio_rows(con, "WHERE p.name = ?", (name.strip(),))
         return rows[0] if rows else None
 
@@ -366,7 +351,7 @@ def _write_tags(con, pid: int, tags) -> None:
 
 def save_portfolio(p: dict, pid: int | None = None) -> int:
     """Add a portfolio, or update one (only the fields given; tags are replaced when `tags` is given)."""
-    now = _now()
+    now = timestamp()
     vals = {k: p[k] for k in PORTFOLIO_FIELDS if k in p and (p[k] is not None or k == "note")}
     if "name" in vals:
         vals["name"] = (vals["name"] or "").strip()
@@ -381,7 +366,7 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
         vals["params"] = json.dumps(p["params"]) if p["params"] is not None else None
     if "fee_schedule" in p:                        # None clears it
         vals["fee_schedule"] = json.dumps(p["fee_schedule"]) if p["fee_schedule"] else None
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         if "name" in vals and con.execute("SELECT 1 FROM portfolios WHERE name = ? AND id IS NOT ?",
                                           (vals["name"], pid)).fetchone():
             raise ValueError(f"there is already a portfolio called {vals['name']}")
@@ -403,16 +388,16 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
 
 
 def set_tags(pid: int, tags) -> list[str]:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         _write_tags(con, pid, tags)
         return [r["tag"] for r in con.execute("SELECT tag FROM portfolio_tags WHERE portfolio_id = ? ORDER BY tag", (pid,))]
 
 
 def all_tags() -> list[dict]:
     """Every tag in use, with how many portfolios carry it."""
-    if not _exists():
+    if not exists():
         return []
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return [dict(r) for r in con.execute("SELECT tag, COUNT(*) AS n FROM portfolio_tags GROUP BY tag ORDER BY tag")]
 
 
@@ -425,14 +410,14 @@ def _default_id(con) -> int | None:
 
 
 def default_portfolio() -> int | None:
-    if not _exists():
+    if not exists():
         return None
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return _default_id(con)
 
 
 def set_default_portfolio(pid: int) -> None:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         if not con.execute("SELECT 1 FROM portfolios WHERE id = ? AND mode = 'real' AND archived = 0", (pid,)).fetchone():
             raise ValueError("only a real, active portfolio can be the default")
         con.execute("INSERT INTO meta (key, value) VALUES ('default_portfolio', ?) "
@@ -451,7 +436,7 @@ def _target(con, row: dict, fallback: int | None = None, create: bool = False) -
             return r["id"]
         if not create:
             raise ValueError(f"unknown portfolio {name!r}")
-        now = _now()
+        now = timestamp()
         return con.execute("INSERT INTO portfolios (name, created_at, updated_at) VALUES (?, ?, ?)",
                            (name, now, now)).lastrowid
     if fallback is not None:
@@ -459,7 +444,7 @@ def _target(con, row: dict, fallback: int | None = None, create: bool = False) -
     pid = _default_id(con)
     if pid is None:
         r = con.execute("SELECT id FROM portfolios WHERE name = 'Main'").fetchone()
-        now = _now()
+        now = timestamp()
         pid = r["id"] if r else con.execute(
             "INSERT INTO portfolios (name, note, created_at, updated_at) VALUES ('Main', ?, ?, ?)",
             ("Trades entered without choosing a portfolio", now, now)).lastrowid
@@ -471,9 +456,9 @@ def portfolio_ids(scope: str = "real", ids=None, tags=None, include_archived: bo
     """The single resolver for "which portfolios": the ones named by id or carrying one of `tags` (an explicit
     choice: virtual and archived ones included), else every portfolio in `scope` (default: the real ones that
     aren't archived, i.e. yours)."""
-    if not _exists():
+    if not exists():
         return []
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         if ids or tags:
             out = {int(i) for i in ids or []}
             tags = [norm_tag(t) for t in tags or []]
@@ -499,7 +484,7 @@ def delete_portfolio(pid: int) -> dict | None:
         raise ValueError(f"{p['name']} has {p['n_tx']} transactions: move them first, or archive it")
     if p["n_tx"]:
         backup(f"before-delete-portfolio-{pid}")
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         con.execute("DELETE FROM transactions WHERE portfolio_id = ?", (pid,))
         con.execute("DELETE FROM sim_runs WHERE portfolio_id = ?", (pid,))
         con.execute("DELETE FROM portfolios WHERE id = ?", (pid,))
@@ -518,9 +503,9 @@ def move_transactions(from_id: int, to_id: int, ids=None, symbols=None) -> int:
         where.append(f"symbol IN ({', '.join('?' * len(symbols))})")
         args += list(symbols)
     backup(f"before-move-{from_id}-to-{to_id}")
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         return con.execute(f"UPDATE transactions SET portfolio_id = ?, updated_at = ? WHERE {' AND '.join(where)}",
-                           [to_id, _now(), *args]).rowcount
+                           [to_id, timestamp(), *args]).rowcount
 
 
 BUNDLE_PORTFOLIO_KEYS = (*PORTFOLIO_FIELDS, "origin", "forked_at", "strategy", "params", "fee_schedule", "tags",
@@ -537,7 +522,7 @@ def export_portfolios_json(scope: str = "real") -> str:
 def import_portfolios_json(text: str) -> int:
     """Add or update portfolios by name from an export (their transactions come separately)."""
     rows = json.loads(text)
-    _connect().close()                            # the schema (and its seeded portfolios) first: matched by name
+    connect().close()                            # the schema (and its seeded portfolios) first: matched by name
     for p in rows:
         found = portfolio_by_name(p["name"])
         pid = save_portfolio({k: v for k, v in p.items() if k != "is_default"}, found["id"] if found else None)
@@ -559,7 +544,7 @@ TYPES = TRADE_TYPES + CASH_TYPES
 def transactions(symbol: str | None = None, portfolios: list[int] | None = None, types=None) -> list[dict]:
     """Stored rows, oldest first, each with its portfolio's name: every portfolio unless `portfolios` (ids) is
     given. Nothing is created just by reading."""
-    if not _exists():
+    if not exists():
         return []
     where, args = [], []
     if symbol:
@@ -573,14 +558,14 @@ def transactions(symbol: str | None = None, portfolios: list[int] | None = None,
         args += list(types)
     sql = ("SELECT t.*, p.name AS portfolio FROM transactions t JOIN portfolios p ON p.id = t.portfolio_id"
            + (f" WHERE {' AND '.join(where)}" if where else "") + " ORDER BY t.date, t.id")
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return [dict(r) for r in con.execute(sql, args)]
 
 
 def get_tx(tx_id: int) -> dict | None:
-    if not _exists():
+    if not exists():
         return None
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         r = con.execute("SELECT t.*, p.name AS portfolio FROM transactions t JOIN portfolios p ON p.id = t.portfolio_id "
                         "WHERE t.id = ?", (tx_id,)).fetchone()
         return dict(r) if r else None
@@ -588,9 +573,9 @@ def get_tx(tx_id: int) -> dict | None:
 
 def transactions_version() -> str:
     """Changes whenever a row or a portfolio is added, edited, moved or deleted (for caching results)."""
-    if not _exists():
+    if not exists():
         return "0"
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         t = con.execute("SELECT COUNT(*), MAX(updated_at), TOTAL(id), TOTAL(portfolio_id * id) FROM transactions").fetchone()
         p = con.execute("SELECT COUNT(*), MAX(updated_at) FROM portfolios").fetchone()
         return ":".join(str(x) for x in (*t, *p))
@@ -599,7 +584,7 @@ def transactions_version() -> str:
 def _insert(con: sqlite3.Connection, row: dict, source: str, import_id: int | None,
             tx_id: int | None = None, created: str | None = None, portfolio_id: int | None = None,
             run_id: int | None = None) -> int:
-    now = _now()
+    now = timestamp()
     v = {k: row.get(k) for k in TX_FIELDS}
     pid = portfolio_id if portfolio_id is not None else _target(con, row)
     cur = con.execute(
@@ -613,7 +598,7 @@ def _insert(con: sqlite3.Connection, row: dict, source: str, import_id: int | No
 
 
 def add_tx(row: dict, source: str = "manual") -> int:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         return _insert(con, row, source, None)
 
 
@@ -623,27 +608,27 @@ def update_tx(tx_id: int, row: dict) -> bool:
         fields["fee"] = fields["fee"] or 0
     if "date" in fields:
         fields["date"] = str(fields["date"])[:10]
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         if any(row.get(k) is not None for k in ("portfolio_id", "portfolio", "account")):
             fields["portfolio_id"] = _target(con, row)
         if not fields:
             return False
         sets = ", ".join(f"{k} = ?" for k in fields) + ", updated_at = ?"
-        return con.execute(f"UPDATE transactions SET {sets} WHERE id = ?", [*fields.values(), _now(), tx_id]).rowcount == 1
+        return con.execute(f"UPDATE transactions SET {sets} WHERE id = ?", [*fields.values(), timestamp(), tx_id]).rowcount == 1
 
 
 def delete_tx(tx_id: int) -> dict | None:
     """Delete one transaction; returns the deleted row so it can be restored (undo)."""
     row = get_tx(tx_id)
     if row:
-        with closing(_connect()) as con, con:
+        with closing(connect()) as con, con:
             con.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
     return row
 
 
 def restore_tx(row: dict) -> int:
     """Put a deleted transaction back with its original id and provenance."""
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         imp = row.get("import_id")
         if imp is not None and not con.execute("SELECT 1 FROM imports WHERE id = ?", (imp,)).fetchone():
             imp = None                            # its import was undone since: keep the row, drop the link
@@ -672,7 +657,7 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
     `replace_source` first removes the target's earlier rows from this source (for a snapshot export such as
     Yahoo's, which always contains the full history). A backup is taken first."""
     copy = backup(f"before-{source}-import")
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         target = _target(con, {}, portfolio_id)
         replaced = con.execute("DELETE FROM transactions WHERE source = ? AND portfolio_id = ?",
                                (source, target)).rowcount if replace_source else 0
@@ -684,7 +669,7 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
         refs = {r["ext_ref"] for r in existing if r["ext_ref"]}
         imp = con.execute("INSERT INTO imports (source, file_name, at, portfolio_id, rows_replaced, backup) "
                           "VALUES (?, ?, ?, ?, ?, ?)",
-                          (source, file_name, _now(), target, replaced, Path(copy).name if copy else None)).lastrowid
+                          (source, file_name, timestamp(), target, replaced, Path(copy).name if copy else None)).lastrowid
         added = skipped = 0
         for r in rows:
             if (r.get("ext_ref") and r["ext_ref"] in refs) or trade_key(r) in keys:
@@ -699,9 +684,9 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
 
 def imports() -> list[dict]:
     """Past imports, newest first, with how many of their rows are still in the store."""
-    if not _exists():
+    if not exists():
         return []
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         out = []
         for r in con.execute("SELECT i.*, p.name AS portfolio FROM imports i "
                              "LEFT JOIN portfolios p ON p.id = i.portfolio_id ORDER BY i.id DESC").fetchall():
@@ -714,7 +699,7 @@ def undo_import(import_id: int) -> int:
     """Remove every transaction an import added (a backup is taken first). Returns the number removed. An import
     that replaced earlier rows (a snapshot such as Yahoo's) is refused: removing its rows wouldn't bring back the
     ones it replaced, so the way back is the copy of the database taken before it."""
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         imp = con.execute("SELECT rows_replaced, backup, at FROM imports WHERE id = ?", (import_id,)).fetchone()
     if imp and imp["rows_replaced"]:
         raise ValueError(f"This import replaced {imp['rows_replaced']} earlier rows, which undoing it can't bring "
@@ -722,7 +707,7 @@ def undo_import(import_id: int) -> int:
                          "(in backups/ in the data folder; the newest copies are kept), or import the earlier file "
                          "again.")
     backup(f"before-undo-import-{import_id}")
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         n = con.execute("DELETE FROM transactions WHERE import_id = ?", (import_id,)).rowcount
         con.execute("DELETE FROM imports WHERE id = ?", (import_id,))
     return n
@@ -730,12 +715,12 @@ def undo_import(import_id: int) -> int:
 
 def create_with_rows(p: dict, rows: list[dict], source: str) -> int:
     """A new portfolio and its first rows, as one unit (a fork). Returns its id."""
-    now = _now()
+    now = timestamp()
     vals = {k: p.get(k) for k in (*PORTFOLIO_FIELDS, "origin", "parent_id", "forked_at", "strategy") if p.get(k) is not None}
     vals["params"] = json.dumps(p["params"]) if p.get("params") is not None else None
     if p.get("fee_schedule"):
         vals["fee_schedule"] = json.dumps(p["fee_schedule"])
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         cols = list(vals) + ["created_at", "updated_at"]
         pid = con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
                           (*vals.values(), now, now)).lastrowid
@@ -748,7 +733,7 @@ def create_with_rows(p: dict, rows: list[dict], source: str) -> int:
 def replace_sim_run(pid: int, run: dict, rows: list[dict]) -> int:
     """Replace a simulated portfolio's rows with one run's, as one unit: the earlier runs and every row in the
     portfolio go, the run is recorded and its rows stored with it. Returns the run id."""
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         p = con.execute("SELECT mode, origin FROM portfolios WHERE id = ?", (pid,)).fetchone()
         if not p or p["mode"] != "virtual" or p["origin"] != "sim":
             raise ValueError("simulated runs go only into a virtual portfolio made for simulations")
@@ -759,7 +744,7 @@ def replace_sim_run(pid: int, run: dict, rows: list[dict]) -> int:
             "VALUES (?, ?, ?, ?, ?, ?, 'ok', ?, ?, ?)",
             (pid, run["strategy"], json.dumps(run.get("params") or {}), str(run["start"])[:10],
              str(run["end"])[:10] if run.get("end") else None, run.get("data_asof"), len(rows), run.get("message"),
-             _now())).lastrowid
+             timestamp())).lastrowid
         for i, r in enumerate(rows):
             _insert(con, r | {"ext_ref": r.get("ext_ref") or f"sim:{run['strategy']}:{i}"}, "sim", None,
                     portfolio_id=pid, run_id=run_id)
@@ -767,9 +752,9 @@ def replace_sim_run(pid: int, run: dict, rows: list[dict]) -> int:
 
 
 def sim_runs(pid: int) -> list[dict]:
-    if not _exists():
+    if not exists():
         return []
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         return [dict(r) | {"params": json.loads(r["params"])} for r in
                 con.execute("SELECT * FROM sim_runs WHERE portfolio_id = ? ORDER BY id", (pid,))]
 
@@ -777,29 +762,29 @@ def sim_runs(pid: int) -> list[dict]:
 # ---------------- symbol map, meta ----------------
 
 def mapped_symbol(ext: str) -> str | None:
-    if not _exists():
+    if not exists():
         return None
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         r = con.execute("SELECT symbol FROM symbol_map WHERE ext = ?", (ext.strip().upper(),)).fetchone()
         return r["symbol"] if r else None
 
 
 def map_symbol(ext: str, symbol: str) -> None:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         con.execute("INSERT INTO symbol_map (ext, symbol, updated_at) VALUES (?, ?, ?) ON CONFLICT(ext) DO UPDATE "
-                    "SET symbol = excluded.symbol, updated_at = excluded.updated_at", (ext.strip().upper(), symbol, _now()))
+                    "SET symbol = excluded.symbol, updated_at = excluded.updated_at", (ext.strip().upper(), symbol, timestamp()))
 
 
 def meta_get(key: str, default=None):
-    if not _exists():
+    if not exists():
         return default
-    with closing(_connect()) as con:
+    with closing(connect()) as con:
         r = con.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return json.loads(r["value"]) if r else default
 
 
 def meta_set(key: str, value) -> None:
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         con.execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                     (key, json.dumps(value)))
 
@@ -833,7 +818,7 @@ def import_transactions_csv(text: str) -> int:
              "portfolio": r.get("portfolio") or r.get("account") or None, "note": r.get("note") or None,
              "ext_ref": r.get("ext_ref") or None}
             for r in csv.DictReader(io.StringIO(text))]
-    with closing(_connect()) as con, con:
+    with closing(connect()) as con, con:
         pids = [_target(con, r, create=True) for r in rows]
         for pid in set(pids):
             con.execute("DELETE FROM transactions WHERE portfolio_id = ?", (pid,))
@@ -842,110 +827,3 @@ def import_transactions_csv(text: str) -> int:
     return len(rows)
 
 
-# ---------------- market views (your subjective beliefs; config/views.yaml has templates) ----------------
-
-VIEW_FIELDS = ("statement", "conviction", "horizon", "rationale", "falsifier", "template", "status")
-
-
-def _view_rows(con, where: str = "", args: tuple = ()) -> list[dict]:
-    out = []
-    for r in con.execute(f"SELECT * FROM views {where} ORDER BY status, conviction DESC, id", args):
-        v = dict(r)
-        v["exposures"] = [dict(e) for e in con.execute(
-            "SELECT kind, key, effect FROM view_exposures WHERE view_id = ? ORDER BY effect DESC, kind, key", (v["id"],))]
-        v["indicators"] = [dict(i) for i in con.execute(
-            "SELECT indicator, expect FROM view_indicators WHERE view_id = ? ORDER BY indicator", (v["id"],))]
-        out.append(v)
-    return out
-
-
-def views(status: str | None = None) -> list[dict]:
-    """Your market views with their exposures and indicators ([] without a database)."""
-    if not _exists():
-        return []
-    with closing(_connect()) as con:
-        return _view_rows(con, "WHERE status = ?", (status,)) if status else _view_rows(con)
-
-
-def get_view(view_id: int) -> dict | None:
-    if not _exists():
-        return None
-    with closing(_connect()) as con:
-        rows = _view_rows(con, "WHERE id = ?", (view_id,))
-        return rows[0] if rows else None
-
-
-def _write_children(con, view_id: int, v: dict) -> None:
-    con.execute("DELETE FROM view_exposures WHERE view_id = ?", (view_id,))
-    con.execute("DELETE FROM view_indicators WHERE view_id = ?", (view_id,))
-    con.executemany("INSERT INTO view_exposures (view_id, kind, key, effect) VALUES (?, ?, ?, ?)",
-                    [(view_id, e["kind"], e["key"].strip(), int(e["effect"])) for e in v.get("exposures") or []])
-    con.executemany("INSERT INTO view_indicators (view_id, indicator, expect) VALUES (?, ?, ?)",
-                    [(view_id, i["indicator"], i["expect"]) for i in v.get("indicators") or []])
-
-
-def save_view(v: dict, view_id: int | None = None) -> int:
-    """Add a view, or replace one (statement, fields, exposures and indicators). Returns its id."""
-    with closing(_connect()) as con, con:
-        return _save_view(con, v, view_id)
-
-
-def _save_view(con, v: dict, view_id: int | None = None) -> int:
-    now = _now()
-    vals = {k: v.get(k) for k in VIEW_FIELDS}
-    vals["status"] = vals["status"] or "active"
-    vals["conviction"] = int(vals["conviction"] or 3)
-    vals["horizon"] = vals["horizon"] or "12m"
-    if view_id is None:
-        cur = con.execute(f"INSERT INTO views ({', '.join(VIEW_FIELDS)}, created_at, updated_at) "
-                          f"VALUES ({', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
-                          (*vals.values(), v.get("created_at") or now, now))
-        view_id = cur.lastrowid
-    else:
-        con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
-                    (*vals.values(), now, view_id))
-    _write_children(con, view_id, v)
-    return view_id
-
-
-def delete_view(view_id: int) -> dict | None:
-    """Delete a view; returns it (with its id), so restore_view can undo the delete."""
-    v = get_view(view_id)
-    if v:
-        with closing(_connect()) as con, con:
-            con.execute("DELETE FROM views WHERE id = ?", (view_id,))
-    return v
-
-
-def restore_view(v: dict) -> int:
-    with closing(_connect()) as con, con:
-        con.execute(f"INSERT INTO views (id, {', '.join(VIEW_FIELDS)}, created_at, updated_at) "
-                    f"VALUES (?, {', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
-                    (v["id"], *(v.get(k) for k in VIEW_FIELDS), v["created_at"], _now()))
-        _write_children(con, v["id"], v)
-    return v["id"]
-
-
-def views_version() -> str:
-    """Changes whenever a view is added, edited or deleted (for caching alignment results)."""
-    if not _exists():
-        return "0"
-    with closing(_connect()) as con:
-        r = con.execute("SELECT COUNT(*) AS n, MAX(updated_at) AS t FROM views").fetchone()
-        return f"{r['n']}:{r['t']}"
-
-
-def export_views_json() -> str:
-    return json.dumps([{k: v for k, v in x.items() if k != "id"} for x in views()], indent=1, ensure_ascii=False)
-
-
-def import_views_json(text: str) -> int:
-    """Replace all views with an exported set (restoring a holdings bundle). Returns the number of views.
-    All or nothing: one transaction, with a copy of the database taken first."""
-    rows = json.loads(text)
-    backup("before-views-import")
-    with closing(_connect()) as con, con:
-        con.execute("DELETE FROM views")
-        for v in rows:
-            _save_view(con, v)
-    return len(rows)

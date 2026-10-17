@@ -52,7 +52,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - Factor tilts regress on ACWI plus factor/sector ETFs *minus ACWI*, so a loading means exposure beyond the market. Descriptive: short samples, correlated factors.
 - One-year betas are noisy (XLE's 1y beta was −0.9 while its 3y beta is +0.45): compare windows and read the standard error before relying on either.
 
-## Your portfolios (`userstore.py`, `universe.py`, `portfolio.py`, `importers/`)
+## Your portfolios (`userstore/`, `universe.py`, `portfolio.py`, `importers/`)
 - Trades are the source of truth, in `radar.db` in the data folder (SQLite, versioned migrations, a copy in `backups/` before every import, undo, move and schema upgrade). Each row records its portfolio, its source (manual, yahoo, nordnet, fork, sim, …) and its import.
 - **Portfolios**: a real portfolio is one of your accounts (tax kind ask / frie_midler / pension / other); a virtual one is a simulation or an A/B test. Only real, non-archived portfolios count as yours: holdings, `summary.json`, `radar info --personal`, the holdings bundle and the skills see virtual ones only when they are chosen (by id or tag). Tags are free-form labels for grouping (A/B groups); they never change what counts as yours. Trades from before portfolios, without an account, are in a real portfolio "Main" (the default) until moved.
 - Positions are derived with the average-cost method (gennemsnitsmetoden): fees are part of the acquisition cost, a sale removes cost in proportion. Per portfolio and pooled; the pool is right for the return vs ACWI but not for tax, where an aktiesparekonto is separate.

@@ -107,6 +107,7 @@ from .api_models import (
 )
 from .config import ROOT, settings
 from .model import inputs
+from .userstore import viewstore
 
 WEB_DIST = ROOT / "web" / "dist"
 
@@ -629,22 +630,22 @@ def get_views() -> dict:
 
 @app.post("/api/views", response_model=ViewsPage)
 def add_view(body: ViewIn) -> dict:
-    userstore.save_view(_view_body(body))
+    viewstore.save_view(_view_body(body))
     return _views_page()
 
 
 @app.put("/api/views/{view_id}", response_model=ViewsPage)
 def edit_view(view_id: int, body: ViewIn) -> dict:
-    if not userstore.get_view(view_id):
+    if not viewstore.get_view(view_id):
         raise HTTPException(404, f"No view {view_id}.")
-    userstore.save_view(_view_body(body), view_id)
+    viewstore.save_view(_view_body(body), view_id)
     return _views_page()
 
 
 @app.delete("/api/views/{view_id}", response_model=ViewRow)
 def delete_view(view_id: int) -> dict:
     """Delete a view; the response is the deleted view, which /restore puts back (undo)."""
-    v = userstore.delete_view(view_id)
+    v = viewstore.delete_view(view_id)
     if not v:
         raise HTTPException(404, f"No view {view_id}.")
     return v
@@ -652,9 +653,9 @@ def delete_view(view_id: int) -> dict:
 
 @app.post("/api/views/restore", response_model=ViewsPage)
 def restore_view(row: ViewRow) -> dict:
-    if userstore.get_view(row.id):
+    if viewstore.get_view(row.id):
         raise HTTPException(409, "That view is already there.")
-    userstore.restore_view(row.model_dump())
+    viewstore.restore_view(row.model_dump())
     return _views_page()
 
 

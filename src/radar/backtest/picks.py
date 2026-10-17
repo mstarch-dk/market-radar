@@ -31,6 +31,7 @@ from ..model.select import capped
 from ..model.stats import cross_section
 from ..paths import REPORTS
 from ..simulate import basket_rows  # noqa: F401 (re-exported)
+from ..userstore import viewstore
 from . import exits as ex
 from . import study
 
@@ -148,7 +149,7 @@ def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
     from ..signals import views as sv
     from ..universe import region_for
 
-    vs = [v for v in userstore.views() if str(v["created_at"])[:10] <= day.date().isoformat()]
+    vs = [v for v in viewstore.views() if str(v["created_at"])[:10] <= day.date().isoformat()]
     meta = [{"id": v["id"], "statement": v["statement"], "conviction": v["conviction"], "horizon": v["horizon"],
              "created": str(v["created_at"])[:10], "status_now": v["status"],
              "edited_after": str(v["updated_at"])[:10] > day.date().isoformat()} for v in vs]

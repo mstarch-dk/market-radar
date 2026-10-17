@@ -8,9 +8,10 @@ from functools import cache
 
 import pandas as pd
 
-from . import external, ingest, universe, userstore
+from . import external, ingest, universe
 from .config import load_yaml
 from .signals import views as sv
+from .userstore import viewstore
 
 DISCLAIMER = ("These are your own subjective beliefs about where markets are heading, not facts or forecasts. "
               "The evidence shows what the radar's data did over the last three months; it doesn't prove or "
@@ -62,7 +63,7 @@ def reads(closes: pd.DataFrame | None = None) -> dict[str, dict]:
 
 def with_evidence(status: str | None = "active", closes: pd.DataFrame | None = None) -> list[dict]:
     """Your views, each with the radar's evidence."""
-    vs = userstore.views(status)
+    vs = viewstore.views(status)
     if not vs:
         return []
     r = reads(closes)
@@ -73,7 +74,7 @@ def with_evidence(status: str | None = "active", closes: pd.DataFrame | None = N
 
 def align_profile(identity: dict, closes: pd.DataFrame, views: list[dict] | None = None) -> dict | None:
     """One name against your active views (for its profile). None when you have no views."""
-    views = userstore.views("active") if views is None else views
+    views = viewstore.views("active") if views is None else views
     if not views:
         return None
     t = identity["symbol"]
@@ -97,10 +98,10 @@ def reset() -> None:
 def align_many(tickers: list[str], store: str = "main") -> dict[str, dict]:
     """Many names against your active views (the Momentum and Discover columns), compactly. `store` says
     whose prices: the radar's own ("main") or the discovery scan's ("discovery")."""
-    views = userstore.views("active")
+    views = viewstore.views("active")
     if not views or not tickers:
         return {}
-    key = (store, userstore.views_version(), tuple(sorted(tickers)))
+    key = (store, viewstore.views_version(), tuple(sorted(tickers)))
     if key in _cache:
         return _cache[key]
     bench = universe.benchmark()
