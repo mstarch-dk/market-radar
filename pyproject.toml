@@ -135,11 +135,12 @@ max-line-length = 140   # 120 is the aim (isort wraps there); a line may run ove
 known-first-party = ["radar"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/radar/cli.py" = ["B904"]   # `raise typer.Exit(message)` inside except: the message is the whole report
+"src/radar/cli/*.py" = ["B904"]   # `raise typer.Exit(message)` inside except: the message is the whole report
 "src/radar/export.py" = ["E501"]   # EXPORT.md's Markdown table rows can't be wrapped
 
-# Coverage (CI: `uv run pytest -q --cov`): measured and reported, no floor yet; one is set once the untested CLI
-# commands have smoke tests.
+# Coverage (CI: `uv run pytest -q --cov`, which fails below fail_under). 89 % when the floor came in (every CLI
+# command tested); the floor sits a little lower because thread timing moves a run by a point or two. Raise it as
+# coverage rises; never lower it to let a change in.
 [tool.coverage.run]
 source = ["radar"]
 branch = true
@@ -148,6 +149,7 @@ branch = true
 skip_covered = true
 show_missing = false
 sort = "cover"
+fail_under = 87
 
 # Type checking (CI runs `uv run mypy`): the pure modules first, widened tranche by tranche. Imported modules
 # outside `files` are followed silently (their errors aren't reported); pandas has no stubs here, so it is Any.

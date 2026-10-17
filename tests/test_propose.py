@@ -435,7 +435,7 @@ def test_older_rule_is_flagged(market, ask):
 
 
 def test_parse_amount():
-    from radar.cli import parse_amount
+    from radar.money import parse_amount
 
     assert parse_amount("50000") == parse_amount("50.000") == parse_amount("50,000") == parse_amount("50k") == 50_000
     assert parse_amount("1.5m") == 1_500_000 and parse_amount("12,5k") == 12_500

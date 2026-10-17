@@ -88,6 +88,31 @@ def estimate(schedule: dict | None, symbol: str, quantity: float | None, price: 
             "preset": schedule.get("preset"), "as_of": schedule.get("as_of")}
 
 
+def for_trade(row: dict, quote_ccy: str | None, quote_dkk: float | None, closes: Callable[[], object]) -> dict | None:
+    """The commission a trade's portfolio schedule gives (its own portfolio, else the default one): None without a
+    schedule or an exchange rate. `quote_dkk` is DKK per unit of price (the trade's own rate, else the day's);
+    `closes()` gives the price store's closes, only asked for when a minimum or maximum needs converting."""
+    import pandas as pd
+
+    from . import universe, userstore
+
+    pid = row["portfolio_id"] or userstore.default_portfolio()
+    p = userstore.get_portfolio(pid) if pid else None
+    if not p or not p.get("fee_schedule"):
+        return None
+    day = pd.Timestamp(row["date"])
+
+    def convert(amount: float, ccy: str) -> float | None:
+        if not quote_dkk:
+            return None
+        if ccy == "DKK":
+            return amount / quote_dkk
+        rate = money.rate_on(universe.fx_to_dkk(closes(), ccy), day)
+        return amount * rate / quote_dkk if rate is not None else None
+
+    return estimate(p["fee_schedule"], row["symbol"], row["quantity"], row["price"], quote_ccy, convert)
+
+
 @dataclass(frozen=True)
 class Terms:
     """A rule in the trade's quote currency: `rate` of the value (a fraction), at least `lo`, at most `hi`, plus

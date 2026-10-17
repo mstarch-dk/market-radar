@@ -180,6 +180,13 @@ def macro_fred_study() -> dict[str, str]:
     return universe_config()["macro"].get("fred_study") or {}
 
 
+def history_gap(closes) -> tuple[date, date] | None:
+    """(where the stored prices start, where your trades need them from) when the prices start later; else None."""
+    need = history_start()
+    have = closes[benchmark()].dropna().index[0].date()
+    return (have, need) if have > need else None
+
+
 def history_start(today: date | None = None) -> date:
     """Where the stored price history starts: `history_years` back, or earlier when your first trade needs it
     (that day minus backtest.warmup_days, for the 200-day average and 12-month momentum on the day you bought),

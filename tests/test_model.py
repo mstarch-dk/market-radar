@@ -92,3 +92,21 @@ def test_review_and_the_proposal_study_exit_on_the_same_day(monkeypatch):
     k = mpaths.exit_session(idx[20:], below)
     assert [e["ticker"] for e in rev["exits"]] == ["FALL"] and rev["exits"][0]["date"] == idx[20 + k].date().isoformat()
     assert idx[20 + k] == idx[46]                             # first close below at 45, sold at the next close
+
+
+# ---------------- model/select.capped ----------------
+
+def _row(ticker, sector, group="us"):
+    from types import SimpleNamespace
+    return SimpleNamespace(ticker=ticker, sector=sector, group=group)
+
+
+def test_capped_keeps_the_best_under_the_caps():
+    from radar.model.select import capped
+
+    rows = [_row("A", "Tech"), _row("B", "Tech"), _row("C", "Tech", "eu"), _row("D", "Energy"), _row("E", "", "eu"),
+            _row("F", "", "eu")]
+    assert [r.ticker for r in capped(rows, 4, 2, None)] == ["A", "B", "D", "E"]      # a third Tech name waits
+    assert [r.ticker for r in capped(rows, 6, None, 2)] == ["A", "B", "C", "E"]      # two per group
+    assert [r.ticker for r in capped(rows, 3, 1, None)] == ["A", "D", "E"]           # an unknown sector is its own
+    assert [r.ticker for r in capped(rows, 2, 0, 0)] == ["A", "B"]                   # 0 / None: no cap, n still counts

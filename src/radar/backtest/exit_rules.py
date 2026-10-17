@@ -21,6 +21,14 @@ from ..signals.risk import annualised_vol
 from . import study
 
 
+def variant(key: str):
+    """The exit-rule variant (RuleSpec) with this key; ValueError naming the known ones."""
+    found = next((x for x in exit_rule_variants() if x.key == key), None)
+    if found is None:
+        raise ValueError(f"no rule variant {key} (known: {', '.join(x.key for x in exit_rule_variants())})")
+    return found
+
+
 def exit_rule_variants():
     """The exit rule's variants (RuleSpec) that `radar study exits` compares, the current rule first."""
     from .exits import RuleSpec as R

@@ -39,7 +39,7 @@ installed on the machine through Playwright, so no browser download is needed.
 
 1. **What changed since the last edition.**
    - Read `marketing/edition.json`, then `git log --oneline <commit>..HEAD` and
-     `git diff --stat <commit> -- web/src/pages web/src/App.tsx docs .claude/skills src/radar/cli.py config`.
+     `git diff --stat <commit> -- web/src/pages web/src/App.tsx docs .claude/skills src/radar/cli config`.
      Also look at uncommitted work (`git status`): the demo copies the working tree, so it shows that too.
    - Compare with `features.yaml`: list **new** features (a new page or route, a new card or table, a new
      command or skill), **changed** ones (new columns, filters, flags, a different method or threshold) and

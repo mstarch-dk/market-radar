@@ -126,6 +126,10 @@ Your data now lives apart from the program, so a new version never touches it.
 - `config/settings.yaml` is checked when it is loaded (the `stops`, `backtest`, `risk` and `propose` sections):
   a misspelt, missing or wrongly typed key fails at once naming the key, and `radar doctor` reports it under
   *Settings*, instead of a KeyError deep in a study or a proposal.
+- The command line's progress lines go to stderr, so a command's `--json` output is valid JSON even when it logs
+  (it wasn't for `radar sim exits --json` with a price-history note, or a study logging its progress).
+- `radar portfolios add/edit` and the app check a portfolio the same way (kind, mode, dividend policy, a
+  simulation stays virtual); `cli.py` is a package of command groups, each command tested.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the
 old data). Afterwards you can delete the old program folder.

@@ -349,9 +349,18 @@ def _write_tags(con, pid: int, tags) -> None:
     con.executemany("INSERT INTO portfolio_tags (portfolio_id, tag) VALUES (?, ?)", [(pid, t) for t in clean])
 
 
+class NameTaken(ValueError):
+    """Another portfolio already has that name."""
+
+
 def save_portfolio(p: dict, pid: int | None = None) -> int:
-    """Add a portfolio, or update one (only the fields given; tags are replaced when `tags` is given)."""
+    """Add a portfolio, or update one (only the fields given; tags are replaced when `tags` is given). Refuses an
+    unknown kind, mode or dividend policy, a name another portfolio has (NameTaken) and making a simulated
+    portfolio real: its trades never happened."""
     now = timestamp()
+    for key, allowed in (("kind", PORTFOLIO_KINDS), ("mode", PORTFOLIO_MODES), ("dividends", DIVIDEND_POLICIES)):
+        if p.get(key) is not None and p[key] not in allowed:
+            raise ValueError(f"{key} must be one of {', '.join(allowed)}")
     vals = {k: p[k] for k in PORTFOLIO_FIELDS if k in p and (p[k] is not None or k == "note")}
     if "name" in vals:
         vals["name"] = (vals["name"] or "").strip()
@@ -369,7 +378,10 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
     with closing(connect()) as con, con:
         if "name" in vals and con.execute("SELECT 1 FROM portfolios WHERE name = ? AND id IS NOT ?",
                                           (vals["name"], pid)).fetchone():
-            raise ValueError(f"there is already a portfolio called {vals['name']}")
+            raise NameTaken(f"there is already a portfolio called {vals['name']}")
+        if pid is not None and vals.get("mode") == "real" and (con.execute(
+                "SELECT origin FROM portfolios WHERE id = ?", (pid,)).fetchone() or {"origin": None})["origin"] == "sim":
+            raise ValueError("a simulated portfolio stays virtual: its trades never happened")
         if pid is None:
             if "name" not in vals:
                 raise ValueError("a portfolio needs a name")
@@ -383,7 +395,7 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
             _write_tags(con, pid, p["tags"])
         # the default must stay a real, active portfolio
         if (vals.get("archived") or vals.get("mode") == "virtual") and _default_id(con) == pid:
-                con.execute("DELETE FROM meta WHERE key = 'default_portfolio'")
+            con.execute("DELETE FROM meta WHERE key = 'default_portfolio'")
     return int(pid)
 
 
