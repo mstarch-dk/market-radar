@@ -7,12 +7,12 @@ source never blocks the rest.
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from . import coverage, external, factors, ingest, locks, ops, report, sentiment, universe, valuation
-from .fundamentals import edgar, yahoo
 from .config import settings
+from .fundamentals import edgar, yahoo
 from .paths import CACHE
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
@@ -218,7 +218,8 @@ def _discover(log: Log, progress: Callable[[int, int], None]) -> None:
 def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
     """The readings rebuilt from the data already downloaded: after an upgrade, an edited settings.yaml or a
     terminal update without a report. The config files are read again, as a new `radar report` would."""
-    from .config import settings as _settings, universe_config
+    from .config import settings as _settings
+    from .config import universe_config
 
     _settings.cache_clear()
     universe_config.cache_clear()

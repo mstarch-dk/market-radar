@@ -8,7 +8,6 @@ a source has no answer.
 from __future__ import annotations
 
 import math
-import os
 from datetime import date
 
 import numpy as np
@@ -338,7 +337,8 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     fund = external.parse_fundamentals(info)          # all keys, None where Yahoo has nothing
     if fund.get("market_cap") and currency != "GBp" and fx is not None:
         fund["market_cap_dkk"] = fund["market_cap"] * float(fx.iloc[-1])
-    fundamentals = _section((raw_status if any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency")) else MISSING),
+    has_fund = any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency"))
+    fundamentals = _section(raw_status if has_fund else MISSING,
                             "Yahoo Finance", detail_asof, **fund, beta_radar=beta, snapshot=_valuation_snapshot(ticker))
 
     # --- kvalitetsscore and værdiscore (stored statements)

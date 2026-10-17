@@ -7,31 +7,102 @@ import datetime as dt
 import tempfile
 import threading
 from contextlib import asynccontextmanager
-from pathlib import Path
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
-
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import dashboard, home, mine, net, ops, paths, portfolio, profile, tickers, universe, updater, userstore, valuation
-from .api_models import (
-    AppContext, CoverageView, DiscoveryView, MeView, MomentumView, PositioningView, Profile, QualityView, RegimeView,
-    RotationView, SearchHit,
-    Series, TickerSummary, WatchState, UpdateStatus, ImportResult,
-    PositionsView, PriceCheck, TxCheck, TxIn, TxResult, TxRow,
-    FeePreset, MoveIn, MoveResult, Portfolio, PortfolioIn, SimRun, TagCount, TagsIn, Comparison, Performance, ForkIn,
-    ImportCommitResult, ImportPreview, ImportRecord, Preset,
-    AlignCompact, AlignRequest, ViewIn, ViewRow, ViewsPage, VoteOption, VotesIn, SecContact, AbStartIn, AbTest,
-    DoctorCheck, OpsEvent, OpsJob, OpsJobDetail, OpsRequest, OpsSummary,
-    GuideChapter, GuideHit, GuideTree, NotebookDocument, NotebookListing,
-    HomeStatus, LegacyFound, SetupIn, SetupResult,
-    BackupRow, DataHome, MirrorIn, OpenIn, RestoreIn, RestoreResult, UpdateCheck, UpdateCheckIn,
+from . import (
+    dashboard,
+    home,
+    mine,
+    net,
+    ops,
+    paths,
+    portfolio,
+    profile,
+    tickers,
+    universe,
+    updater,
+    userstore,
+    valuation,
 )
-from .config import settings
-from .config import ROOT
+from .api_models import (
+    AbStartIn,
+    AbTest,
+    AlignCompact,
+    AlignRequest,
+    AppContext,
+    BackupRow,
+    Comparison,
+    CoverageView,
+    DataHome,
+    DiscoveryView,
+    DoctorCheck,
+    FeePreset,
+    ForkIn,
+    GuideChapter,
+    GuideHit,
+    GuideTree,
+    HomeStatus,
+    ImportCommitResult,
+    ImportPreview,
+    ImportRecord,
+    ImportResult,
+    LegacyFound,
+    MeView,
+    MirrorIn,
+    MomentumView,
+    MoveIn,
+    MoveResult,
+    NotebookDocument,
+    NotebookListing,
+    OpenIn,
+    OpsEvent,
+    OpsJob,
+    OpsJobDetail,
+    OpsRequest,
+    OpsSummary,
+    Performance,
+    Portfolio,
+    PortfolioIn,
+    PositioningView,
+    PositionsView,
+    Preset,
+    PriceCheck,
+    Profile,
+    QualityView,
+    RegimeView,
+    RestoreIn,
+    RestoreResult,
+    RotationView,
+    SearchHit,
+    SecContact,
+    Series,
+    SetupIn,
+    SetupResult,
+    SimRun,
+    TagCount,
+    TagsIn,
+    TickerSummary,
+    TxCheck,
+    TxIn,
+    TxResult,
+    TxRow,
+    UpdateCheck,
+    UpdateCheckIn,
+    UpdateStatus,
+    ViewIn,
+    ViewRow,
+    ViewsPage,
+    VoteOption,
+    VotesIn,
+    WatchState,
+)
+from .config import ROOT, settings
 
 WEB_DIST = ROOT / "web" / "dist"
 
@@ -422,7 +493,7 @@ def put_sec_contact(body: SecContact) -> dict:
     try:
         return {"email": edgar.set_contact(body.email)}
     except ValueError as e:
-        raise HTTPException(422, str(e))
+        raise HTTPException(422, str(e)) from e
 
 
 @app.get("/api/rotation", response_model=RotationView)
@@ -1014,7 +1085,7 @@ def start_abtest(body: AbStartIn | None = None) -> dict:
         try:
             abtest.create(m, b.capital, b.n, b.max_per_sector, b.value_score)
         except ValueError as e:
-            raise HTTPException(422, str(e))
+            raise HTTPException(422, str(e)) from e
         return abtest.view(m)
 
 

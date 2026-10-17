@@ -261,9 +261,7 @@ def build_report():
 @app.command()
 def run(refresh_constituents: bool = False):
     """update + report."""
-    from . import updater
-
-    from . import backup
+    from . import backup, updater
 
     with _job("cli_run") as log:
         if (b := backup.daily()):
@@ -921,7 +919,8 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
             if s["events"]:
                 typer.echo("    · " + ", ".join(f"{k}: {n}" for k, n in s["events"].items()))
             if s["no_rule"]:
-                typer.echo(f"    · no rule (funds outside the sector/theme groups, held as in the real portfolio): {', '.join(s['no_rule'])}")
+                typer.echo("    · no rule (funds outside the sector/theme groups, held as in the real portfolio): "
+                           + ", ".join(s["no_rule"]))
             c = s["counts"] or {}
             if c.get("rule_days"):
                 miss = ", ".join(f"{k} {n / c['rule_days']:.0%}" for k, n in c["missing"].items())
@@ -1217,7 +1216,7 @@ def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a c
         typer.echo(text)
         return
     typer.echo("\nData to: " + ", ".join(f"{k} {m}" for k, m in rep["datasets_asof"].items()))
-    for key, pr in rep["panels"].items():
+    for pr in rep["panels"].values():
         typer.echo(f"\n{pr['label']}: {pr['members']} members, top {pr['n_top']}, {pr['months']} formation months "
                    f"{pr['first']:%Y-%m} to {pr['last']:%Y-%m}; holdout from {rep['settings']['holdout_from']}; "
                    f"{pr['variants_tried']} variants tried")
@@ -1586,8 +1585,9 @@ def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks 
     typer.echo(f"Max drawdown: expected {_pct(dd['expected'])}, bad case {_pct(dd['bad_case'])}")
     for k, a in rep["alternatives"].items():
         if "risk" in a:
+            dd = ((a["bootstrap"] or {}).get("max_dd") or {}).get("median")
             typer.echo(f"  {k:<12} {a['label'][:44]:<45} net {_pct(a['drift_net']):>7}  vol {_pct(a['risk']['vol_ann'], False):>5} "
-                       f"TE {_pct(a['risk']['te_ann'], False):>5}  DD {_pct(((a['bootstrap'] or {}).get('max_dd') or {}).get('median')):>7}")
+                       f"TE {_pct(a['risk']['te_ann'], False):>5}  DD {_pct(dd):>7}")
 
 
 @propose_app.command("shadow")

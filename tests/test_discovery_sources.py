@@ -1,9 +1,8 @@
 import pandas as pd
 import pytest
 
-from radar.discovery import sources
-
 from conftest import FIXTURES
+from radar.discovery import sources
 
 FX = {"DKK": 1.0, "EUR": 7.46, "USD": 6.5, "GBP": 8.6, "CHF": 8.0, "SEK": 0.65}
 
@@ -154,8 +153,10 @@ def test_isin_lookups_stop_when_yahoo_keeps_refusing(monkeypatch):
 
 
 def test_an_unresolved_isin_is_searched_again_after_a_while():
-    import pandas as pd
     from datetime import date
+
+    import pandas as pd
+
     from radar.discovery import sources
     cached = pd.DataFrame([{"isin": "IE0000000001", "symbol": "", "exchange": "", "yahoo_name": "", "quote_type": "",
                             "searched": "2026-06-01"},

@@ -106,9 +106,8 @@ def test_a_lock_makes_the_other_writer_wait_and_times_out(tmp_path):
     h = threading.Thread(target=holder)
     h.start()
     inside.wait(5)
-    with pytest.raises(locks.Busy, match="busy"):
-        with locks.file_lock(path, timeout=0):
-            pass
+    with pytest.raises(locks.Busy, match="busy"), locks.file_lock(path, timeout=0):
+        pass
     done.set()
     h.join(5)
 
@@ -165,7 +164,7 @@ def test_replace_waits_for_a_windows_reader(tmp_path, monkeypatch):
 def test_replace_succeeds_once_a_real_reader_lets_go(tmp_path):
     path = tmp_path / "x.txt"
     config.write_text(path, "old")
-    f = open(path, "rb")                                    # a reader (the app loading prices) holds it open
+    f = open(path, "rb")  # noqa: SIM115                    # a reader (the app loading prices) holds it open
     t = threading.Timer(0.3, f.close)
     t.start()
     config.write_text(path, "new")                          # retries until the reader is done
@@ -188,9 +187,8 @@ def test_a_lock_held_by_another_process_is_respected(tmp_path):
         while not flag.exists() and time.monotonic() < deadline:
             time.sleep(0.05)
         assert flag.exists()
-        with pytest.raises(locks.Busy):
-            with locks.file_lock(path, timeout=0):
-                pass
+        with pytest.raises(locks.Busy), locks.file_lock(path, timeout=0):
+            pass
         with locks.file_lock(path, timeout=10):     # free once the other process is done
             pass
     finally:

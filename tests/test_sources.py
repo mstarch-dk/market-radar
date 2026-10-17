@@ -10,9 +10,8 @@ import openpyxl
 import pandas as pd
 import pytest
 
-from radar import external, ingest, net, paths, universe
 from conftest import FIXTURES
-
+from radar import external, ingest, net, paths, universe
 
 # ---------------- FRED ----------------
 

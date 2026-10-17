@@ -9,8 +9,8 @@ from __future__ import annotations
 import csv
 import io
 import re
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 import pandas as pd
 
@@ -53,7 +53,7 @@ def screen_exchange(code: str, min_cap: float = 5e7, page: int = 250, limit: int
     query = Q("and", parts)
     out, offset = [], 0
     while offset < limit:
-        res = retry(lambda: yf.screen(query, size=page, offset=offset, sortField="intradaymarketcap", sortAsc=False))
+        res = retry(lambda offset=offset: yf.screen(query, size=page, offset=offset, sortField="intradaymarketcap", sortAsc=False))
         quotes = res.get("quotes", [])
         out += quotes
         offset += page

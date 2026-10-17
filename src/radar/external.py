@@ -12,6 +12,7 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
+
 from . import guard, net
 from .config import universe_config, write_parquet, write_text
 from .paths import CACHE, HISTORY
@@ -559,7 +560,7 @@ def parse_eps_trend(trend: dict, revisions: dict, growth: dict) -> list[dict]:
             continue
         now = t.get("current")
 
-        def chg(col):
+        def chg(col, t=t, now=now):
             old = t.get(col)
             # only meaningful between two positive estimates (a sign flip has no percent change)
             return now / old - 1 if now is not None and old is not None and old > 0 and now > 0 else None

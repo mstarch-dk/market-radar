@@ -49,7 +49,7 @@ def reading(spec: dict, closes: pd.DataFrame, fred: pd.DataFrame, cli: pd.DataFr
     if kind == "ratio":
         if spec["a"] not in closes or spec["b"] not in closes:
             return np.nan, None
-        return _ret((closes[spec["a"]] / closes[spec["b"]]))
+        return _ret(closes[spec["a"]] / closes[spec["b"]])
     if kind in ("fred", "fred_pct"):
         return _change(fred[spec["series"]], kind == "fred_pct") if spec["series"] in fred else (np.nan, None)
     if kind == "cli":
@@ -188,7 +188,7 @@ def contexts(tickers: list[str], meta: pd.DataFrame, closes: pd.DataFrame, bench
     out = {}
     for t in tickers:
         m = meta.loc[t] if t in meta.index else pd.Series(dtype=object)
-        text = lambda k: m.get(k) if isinstance(m.get(k), str) and m.get(k) else None   # NaN / "" = unknown
+        text = lambda k, m=m: m.get(k) if isinstance(m.get(k), str) and m.get(k) else None   # NaN / "" = unknown
         out[t] = {"ticker": t, "sector": text("sector"), "industry": text("industry"),
                   "region": text("region"), "country": text("country"), "ucits_of": ucits.get(t),
                   "corr": corr.loc[t].to_dict() if t in corr.index else {}}

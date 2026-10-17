@@ -843,7 +843,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     log(f"{len(baskets)} formation dates, {len(specs)} variants{' + re-entry' if reentry else ''}")
 
     def run_spec(spec, recs):
-        for i, (day, fi, names) in enumerate(baskets):
+        for i, (_day, fi, _names) in enumerate(baskets):
             rec = recs[i]
             if rec is None:
                 continue

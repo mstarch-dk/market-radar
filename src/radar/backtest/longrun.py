@@ -224,7 +224,7 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
         for k in keys:
             rows = per[h][k]
 
-            def part(sel):
+            def part(sel, rows=rows, lag=lag, h=h):
                 s = summarize([x for x in rows if sel(x)], lag)
                 if s is not None:   # here the benchmark is the panel's market, not ACWI
                     s["market_dkk"], s["top_beats_market"] = s.pop("acwi_dkk"), s.pop("top_beats_acwi")
@@ -377,7 +377,7 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
     data = factors.load()
     if data.empty:
         raise ValueError("no long histories stored: run `radar update` (or `radar study longrun --fetch`) first")
-    keys = panels or list((_cfg().get("panels") or {}))
+    keys = panels or list(_cfg().get("panels") or {})
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "datasets_asof": factors.asof(data),
            "settings": {"holdout_from": _cfg().get("holdout_from"),

@@ -152,9 +152,8 @@ def test_over_budget_is_a_warning_not_a_block(fake_time, monkeypatch):
 
 def test_pool_threads_keep_the_callers_source(monkeypatch):
     seen = []
-    with ops.context(source="analyst"):
-        with net.pool(8) as ex:
-            list(ex.map(lambda _: seen.append((ops.current_source(), threading.current_thread().name)), range(6)))
+    with ops.context(source="analyst"), net.pool(8) as ex:
+        list(ex.map(lambda _: seen.append((ops.current_source(), threading.current_thread().name)), range(6)))
     assert {s for s, _ in seen} == {"analyst"}
     assert len({t for _, t in seen}) <= net.workers(8)
 

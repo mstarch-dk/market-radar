@@ -7,7 +7,6 @@ from radar import coverage, universe
 from radar.signals import levels
 
 
-
 def test_status_boundaries():
     ref = date(2026, 10, 13)
     assert coverage.status(pd.Timestamp("2026-09-29"), ref, 14) == ("ok", 14)

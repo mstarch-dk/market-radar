@@ -157,7 +157,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
             rel = _ret(closes["MTUM"].dropna(), 63) - _ret(b, 63)
             mt = f"; MTUM vs ACWI {rel:+.1%}" if pd.notna(rel) else ""
         out.append(_ind("Momentum payoff (top − bottom quintile)", f"{pay3:+.1%} over 3m", NEUTRAL,
-                        f"The score's top fifth minus its bottom fifth, scored 3 months ago"
+                        "The score's top fifth minus its bottom fifth, scored 3 months ago"
                         + (f"; {pay1:+.1%} over 1m" if pd.notna(pay1) else "") + mt + ". Context, not a vote",
                         asof=_last(b), gauge=gz.make(gz.band(-band, band, ("losing", "flat", "paying")), pay3), group=CONTEXT))
     else:
@@ -337,7 +337,7 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
     return out, breadth
 
 
-def apply_freshness(inds: list[dict], ref, max_age: dict[str, int]) -> list[dict]:
+def apply_freshness(inds: list[dict], ref, max_age: dict) -> list[dict]:
     """Rows whose data is more than their source's max age (days) before `ref` turn "stale": the reading
     stays visible but no longer counts in the vote."""
     ref = pd.Timestamp(ref)

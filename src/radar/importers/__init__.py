@@ -177,9 +177,7 @@ def infer_decimal(values) -> str | None:
             votes.add("," if t.rfind(",") > t.rfind(".") else ".")
         elif c > 1:
             votes.add(".")
-        elif d > 1:
-            votes.add(",")
-        elif c == 1 and not re.search(r",\d{3}$", t):
+        elif d > 1 or c == 1 and not re.search(r",\d{3}$", t):
             votes.add(",")
         elif d == 1 and not re.search(r"\.\d{3}$", t):
             votes.add(".")
@@ -283,8 +281,8 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
         if sym.startswith(("^", "$$")) or "=" in sym:            # Yahoo index, FX and cash rows
             continue
         if word in cash_words:
-            rows.append(_cash_row(r, i, get, cash_words[word], ident, sym, isin, name, lambda f: num(r, i, f, unclear),
-                                  p) | {"ambiguous": unclear})
+            amount = lambda f, r=r, i=i, unclear=unclear: num(r, i, f, unclear)
+            rows.append(_cash_row(r, i, get, cash_words[word], ident, sym, isin, name, amount, p) | {"ambiguous": unclear})
             continue
         if not ident:
             continue
@@ -426,7 +424,8 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
     in the file is fine after its buy. `market_has(symbol)` makes sure prices exist (downloading them if needed);
     `get_market()` returns the current price store. Rows go into `portfolio` (an id; default: the default
     portfolio) unless the file names one."""
-    from .. import portfolio as checks, userstore
+    from .. import portfolio as checks
+    from .. import userstore
 
     df = read_table(data, filename)
     detected, guessed = detect(list(df.columns))

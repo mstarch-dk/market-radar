@@ -38,7 +38,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from . import fees, performance, universe, userstore
+from . import fees, universe, userstore
 from .config import settings, universe_config, write_text
 from .model import artifacts
 from .model import paths as mpaths

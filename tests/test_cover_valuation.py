@@ -6,10 +6,9 @@ from datetime import date
 import pandas as pd
 import pytest
 
+from fakes import fake_yf
 from radar import coverage, valuation
 from radar.discovery import scan, sources
-
-from fakes import fake_yf
 
 
 def snap(day: str, tickers: list[str], pe=None, note=None) -> pd.DataFrame:

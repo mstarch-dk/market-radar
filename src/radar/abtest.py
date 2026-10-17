@@ -24,8 +24,8 @@ from datetime import date
 import pandas as pd
 
 from . import performance, simulate, universe, userstore
-from .model.select import capped
 from .config import settings
+from .model.select import capped
 
 TAG = "ab-qvm"
 KINDS = {   # strategy key -> portfolio name
@@ -116,7 +116,7 @@ def create(market, capital: float | None = None, n: int | None = None, max_per_s
         raise ValueError("too few stocks with a score to fill the baskets ("
                          + ", ".join(f"{LABELS[k]}: {v} of {params['n']}" for k, v in short.items())
                          + "); fetch statements first: radar fundamentals update --all")
-    for key, name in KINDS.items():
+    for name in KINDS.values():
         if userstore.portfolio_by_name(name):
             raise ValueError(f"there is already a portfolio called {name}")
     for key, name in KINDS.items():

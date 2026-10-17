@@ -34,7 +34,7 @@ def _spans(df: pd.DataFrame, key: str | None, date: str | None) -> dict:
         return out
     d = pd.to_datetime(df[date]) if date else pd.Series(pd.NaT, index=df.index)
     g = pd.DataFrame({"k": df[key].astype(str), "d": d}).groupby("k")["d"]
-    return {k: (int(n), f, l) for k, n, f, l in zip(g.size().index, g.size(), g.min(), g.max())}
+    return {k: (int(n), lo, hi) for k, n, lo, hi in zip(g.size().index, g.size(), g.min(), g.max())}
 
 
 def check(old: pd.DataFrame | None, new: pd.DataFrame, *, what: str, key: str | None = None,

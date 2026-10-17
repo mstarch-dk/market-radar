@@ -20,13 +20,19 @@
 - **Slow tests** (marker `slow`, left out of the normal run): a study run on real-size data, such as the long-run study over decades of synthetic months (`tests/test_longrun.py`). Mark a test `@pytest.mark.slow` when it takes more than a few seconds because of the data's size; keep a small-data test of the same code in the normal run. `uv run pytest -m slow -q` runs them; CI runs both.
 
 ## Layers
-- `tests/test_layers.py` runs the import-linter contracts in `pyproject.toml` (the same as `uv run lint-imports`): the kernel (`radar.model`) imports neither the studies nor the app, the studies (`radar.backtest`) don't import the report builder (`dashboard`, `mine`, `profile`) or the app, and the app (`updater`, `report`, `api`, `abtest`, `propose`) never imports a study. A broken contract names the chain of imports; move the shared piece down a layer (docs/architecture.md, *Layers*) rather than adding an exception.
+- `tests/test_layers.py` runs the import-linter contracts in `pyproject.toml` (the same as `uv run lint-imports`): the kernel (`radar.model`) imports neither the studies nor the app, the studies (`radar.backtest`) don't import the report builder (`dashboard`, `mine`, `profile`) or the app, the app (`updater`, `report`, `api`, `abtest`, `propose`) never imports a study, and the whole package sits in layers that only import downwards (a new module needs a layer). A broken contract names the chain of imports; move the shared piece down a layer (docs/architecture.md, *Layers*) rather than adding an exception.
+- The same file checks what import-linter doesn't: no module uses another one's `_private` names (`PRIVATE_ALLOWED`), and the largest import cycle doesn't grow (`MAX_CYCLE`). The allowlists, like the layers contract's `ignore_imports`, only shrink: a stale entry fails too. `uv run python tests/test_layers.py` prints the current findings.
 
 ## The guide (`guide/`)
 - `tests/test_guide.py`: every chapter in `guide/guide.yaml` exists (and no file is left out), each H1 equals its manifest title, every `{{settings:…}}` resolves, every link reaches a real chapter, heading or app page, and `page_links`/`glossary_links` point at real pages, glossary keys and headings.
 - Formulas: `uv run python -c "import json; from radar import guide; print(json.dumps({f'{b}/{s}': guide.chapter(b, s)['markdown'] for b, s, _, _ in guide.manifest()['_order']}))" | node web/scripts/check-math.mjs` compiles every `$…$` / `$$…$$` with KaTeX and lists the ones that fail.
 
+## Static checks
+- `uv run ruff check`: the linter (rules and the few deliberate ignores in pyproject.toml `[tool.ruff]`; lint only,
+  no formatter). `uv run mypy`: type checks the modules listed in `[tool.mypy] files` (the pure ones first; add a
+  module once it passes). `uv run pytest -q --cov`: coverage, reported but without a floor yet.
+
 ## Practice
 - For a bug fix, write the test first and watch it fail on the old code.
 - Pin method-sensitive numbers (e.g. RRG values) so a change to a method is deliberate.
-- Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs `uv run pytest -q`, `uv run pytest -q -m slow` and `uv run lint-imports` on Ubuntu (Windows is switched off for now: add `windows-latest` back to the matrix to test file replacing and locking there), and the web tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.
+- Verify locally before pushing. CI (`.github/workflows/ci.yml`) runs ruff, mypy, `uv run lint-imports`, `uv run pytest -q --cov` and `uv run pytest -q -m slow` on Ubuntu (Windows is switched off for now: add `windows-latest` back to the matrix to test file replacing and locking there), and the web tests, build and an API-types check (`pnpm -C web gen:api` must leave `web/src/api/schema.ts` unchanged) on every pull request and push to main.

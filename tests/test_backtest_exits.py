@@ -518,7 +518,7 @@ def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
     assert a["dates"] >= 1 and a["hold"]["ret_mean"] is not None
     assert res["sma200-redeploy"]["twin"] == "sma200-park" and res["rotate-tp-only"]["twin"] == "rotate"
     for d in rep["dates"]:
-        for k, run in d["runs"].items():
+        for run in d["runs"].values():
             assert run["trades"] >= 3 and run["fees_pct"] > 0
     study.write_redeploy(rep)
     assert (exits.REPORTS / study.REDEPLOY_REPORT_FILE).exists()

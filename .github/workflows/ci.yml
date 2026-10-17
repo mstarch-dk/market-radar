@@ -1,8 +1,9 @@
 name: CI
 
-# Every pull request and every push to main: the tests (offline: tests/conftest.py refuses network access), the
-# guide's checks, and the web app. Ubuntu only for now: Windows (where file replacing and locking behave
-# differently) took several times as long; add windows-latest back to the matrix to test there again.
+# Every pull request and every push to main: ruff, mypy on the typed modules, the tests with coverage (offline:
+# tests/conftest.py refuses network access), the guide's checks, and the web app. Ubuntu only for now: Windows
+# (where file replacing and locking behave differently) took several times as long; add windows-latest back to
+# the matrix to test there again.
 on:
   push:
     branches: [main]
@@ -30,10 +31,21 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - run: uv sync --locked
-      - run: uv run pytest -q
+      - name: Lint
+        run: uv run ruff check
+      - name: Types (the modules listed in pyproject.toml [tool.mypy] files)
+        run: uv run mypy
+      - run: uv run lint-imports
+      - name: Tests, with coverage (reported, no floor yet)
+        run: uv run pytest -q --cov --cov-report=term --cov-report=xml
       - name: The slow tests (studies on real-size data)
         run: uv run pytest -q -m slow
-      - run: uv run lint-imports
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage.xml
+          if-no-files-found: ignore
 
   web:
     runs-on: ubuntu-latest

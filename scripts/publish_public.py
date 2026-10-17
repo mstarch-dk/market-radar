@@ -66,8 +66,8 @@ def apply_excludes(tree: Path) -> list[str]:
 def leak_patterns() -> list[str]:
     pats = []
     if PATTERNS.exists():
-        pats += [l.strip() for l in PATTERNS.read_text(encoding="utf-8").splitlines()
-                 if l.strip() and not l.lstrip().startswith("#")]
+        pats += [x.strip() for x in PATTERNS.read_text(encoding="utf-8").splitlines()
+                 if x.strip() and not x.lstrip().startswith("#")]
     for key in ("user.name", "user.email"):
         try:
             v = git("config", key)
