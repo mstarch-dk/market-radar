@@ -4,8 +4,6 @@ reports from before the header read as schema version 0."""
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 
 import pytest
 
@@ -93,12 +91,6 @@ def test_a_rewritten_report_is_read_again(tmp_data):
               rule_hash="new")
     got = art.load("propose-study", rule_hash="new")
     assert got.ok and got.report.data_asof.isoformat() == "2026-10-17"
-
-
-def test_propose_never_imports_the_studies():
-    code = "import sys, radar.propose; print(sorted(m for m in sys.modules if m.startswith('radar.backtest')))"
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
-    assert out.stdout.strip() == "[]"
 
 
 def test_unknown_names_are_refused():

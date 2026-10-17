@@ -194,7 +194,7 @@ def look_through() -> set[str]:
 
 def info(tickers, prices: Prices) -> pd.DataFrame:
     """sector, region and currency per ticker (funds: a sector fund's sector, else '(fund)')."""
-    from .profile import region_for
+    from .universe import region_for
 
     tickers = list(dict.fromkeys(tickers))
     if not tickers:

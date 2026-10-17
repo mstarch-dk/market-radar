@@ -51,6 +51,7 @@ def test_a_missing_month_leaves_the_window_missing():
     assert longrun.window(r, 6).iloc[5:11, 0].isna().all()
 
 
+@pytest.mark.slow
 def test_finds_a_planted_momentum_effect(monkeypatch):
     _cfg(monkeypatch)
     rep = longrun.run(_panel(_momentum_world()), variants=["score", "r12_1"])
@@ -62,6 +63,7 @@ def test_finds_a_planted_momentum_effect(monkeypatch):
     assert rep["variants_tried"] == 1
 
 
+@pytest.mark.slow
 def test_finds_nothing_in_noise(monkeypatch):
     _cfg(monkeypatch)
     rep = longrun.run(_panel(_momentum_world(persistent=False, seed=3)), variants=["score", "r6m", "w_long"])

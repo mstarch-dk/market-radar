@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from . import external, universe
+from .model.inputs import level_etfs, level_universe  # noqa: F401 (re-exported)
 from .model.score import score_vs
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
@@ -146,22 +147,6 @@ def _add_levels(me: pd.DataFrame, closes, highs, lows, etfs: set[str], quadrant:
             lv = levels.for_ticker(r["symbol"], closes, highs, lows, row, r.get("first_trade"), regime_label, ah, cfg)
         out.append(lv)
     me["levels"] = out
-
-
-def level_universe(etfs: set[str], analyst_hist: pd.DataFrame | None = None) -> set[str]:
-    """Tickers that get stop / take-profit levels: stocks (a sector from Yahoo, or in a stock group) and the
-    sector/theme funds in `etfs` (level_etfs)."""
-    ah = external.load_analyst() if analyst_hist is None else analyst_hist
-    equity = set()
-    if not ah.empty and "sector" in ah:
-        latest = ah.sort_values("fetched").groupby("ticker").last()
-        equity = set(latest.index[latest["sector"].fillna("").astype(str).str.strip() != ""])
-    return equity | {t for g in universe.stock_groups(offline=True).values() for t in g} | set(etfs)
-
-
-def level_etfs(cfg: dict) -> set[str]:
-    """Sector/theme ETFs (and UCITS twins) that get stop levels; broad region funds don't."""
-    return {t for i in universe.etfs() if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
 
 
 def quadrants(rotation_rows) -> dict[str, str]:

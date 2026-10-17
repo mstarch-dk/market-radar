@@ -35,3 +35,6 @@ dist-release/
 
 # marketing screenshots: rebuilt by scripts/marketing.py shots on every edition; only the PDF is committed
 marketing/site/img/
+
+# import-linter's cache (`uv run lint-imports`)
+.import_linter_cache/

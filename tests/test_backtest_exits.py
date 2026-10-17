@@ -8,8 +8,9 @@ import pandas as pd
 import pytest
 
 import world
-from radar import fees, mine, performance, profile, simulate, userstore
+from radar import fees, performance, profile, simulate, userstore
 from radar.backtest import exits, pit
+from radar.model import inputs as minputs
 from radar.model.score import score_vs
 from radar.signals import momentum, regime
 from world import IDX, N
@@ -206,7 +207,7 @@ def test_with_the_rule_off_the_overlay_returns_what_you_did(market):
 # ---------------- runs into simulated portfolios ----------------
 
 def test_refresh_writes_both_variants_once_and_finds_them_again(market, tmp_data, monkeypatch):
-    monkeypatch.setattr(mine, "level_universe", lambda etfs, ah=None: {"CRASH"})
+    monkeypatch.setattr(minputs, "level_universe", lambda etfs, ah=None: {"CRASH"})
     main = userstore.save_portfolio({"name": "Real", "kind": "frie_midler"})
     for r in [buy("CRASH", 190, 10), sell("CRASH", 260, 10, float(crash()[260]))]:
         userstore.add_tx(r | {"portfolio_id": main})
@@ -252,7 +253,7 @@ DANSKE = {"markets": [{"market": "US", "pct": 0.20, "min": 29, "currency": "DKK"
 
 
 def test_an_accounts_replay_pays_its_broker_minimum_and_says_so(market, monkeypatch):
-    monkeypatch.setattr(mine, "level_universe", lambda etfs, ah=None: {"CRASH"})
+    monkeypatch.setattr(minputs, "level_universe", lambda etfs, ah=None: {"CRASH"})
     acct = userstore.save_portfolio({"name": "Danske", "kind": "frie_midler", "fee_schedule": DANSKE})
     plain = userstore.save_portfolio({"name": "Plain", "kind": "frie_midler"})
     for pid in (acct, plain):

@@ -97,6 +97,13 @@ Your data now lives apart from the program, so a new version never touches it.
   (`haircut.gauge_note`). Reports written before keep working. The long-run prior moved to `model/prior.py`, so
   `radar.propose` never imports `radar.backtest`. `longrun-study.json`'s last month per dataset is now
   `datasets_asof` (`data_asof` is the header's date).
+- **Layers checked on every test run** (`uv run lint-imports`, `tests/test_layers.py`, CI): import-linter
+  contracts in `pyproject.toml` keep the kernel free of the studies and the app, the studies (`radar.backtest`)
+  free of the report builder (`dashboard`, `mine`, `profile`) and the app, and the app free of the studies. The
+  point-in-time replay reads which tickers get levels and which regime groups vote from `model/inputs.py`;
+  `Market` moved to `market.py` and `region_for` to `universe.py` (the old names still work). A `slow` pytest
+  marker (deselected like `network`; `uv run pytest -m slow`) holds the long-run study tests. Nothing in the app
+  changes: `radar sim exits` on real data gives the same report.
 - **Ten years of prices** (`history_years: 10`, was 6): `radar study score` gets about twice the month-ends and
   the 2020 Covid crash. The first update after upgrading downloads every price history again.
 - **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a

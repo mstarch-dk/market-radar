@@ -14,7 +14,7 @@ The rule, per position (an "episode": from a buy while flat until it is sold out
 - A close at or through a level triggers; the whole position is sold at the next session's traded close
   (`backtest.fill: next`; `same` = that close). Levels are compared on adjusted closes, where a dividend shifts
   price and level alike; the sale gets the traded price.
-- Only holdings the radar gives levels (stocks, sector/theme funds; mine.level_universe) follow the rule; broad
+- Only holdings the radar gives levels (stocks, sector/theme funds; model.inputs.level_universe) follow the rule; broad
   funds are held as in the real portfolio.
 - The proceeds are parked in `backtest.park` (ACWI) and drawn on, before anything else, for your next buys.
 - **Costs**: every rule and parking trade pays what the real portfolio's broker schedule (fees.py) charges for
