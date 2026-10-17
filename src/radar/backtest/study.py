@@ -39,7 +39,6 @@ sector-neutral variant says so). Adjusted prices are rewritten after each divide
 barely moves returns."""
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -48,11 +47,12 @@ import numpy as np
 import pandas as pd
 
 from .. import universe
-from ..config import settings, write_text
-from ..paths import REPORTS
+from ..config import settings
+from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
 from ..model.score import COMPONENTS
 from ..model.score import mean_pct as pct
+from ..model.stats import nw_t  # noqa: F401 (re-exported)
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
 QUANTILES = 5
@@ -276,21 +276,6 @@ SIGNALS = {
 
 
 # ---------------- statistics ----------------
-
-def nw_t(values, lag: int) -> float | None:
-    """The mean's t-statistic with Newey-West (Bartlett) standard errors; None with fewer than 3 values."""
-    v = np.asarray([x for x in values if x is not None and np.isfinite(x)], dtype=float)
-    n = len(v)
-    if n < 3:
-        return None
-    e = v - v.mean()
-    s = float(e @ e) / n
-    for k in range(1, min(lag, n - 1) + 1):
-        s += 2 * (1 - k / (lag + 1)) * float(e[k:] @ e[:-k]) / n
-    if s <= 0:
-        return None
-    return float(v.mean() / math.sqrt(s / n))
-
 
 def cross_section(x: pd.Series, y: pd.Series, n_top: int, min_names: int, y_dkk: pd.Series | None = None) -> dict | None:
     """One date: IC, quintile excess returns, spread and the top N, over the names with both a value and a
@@ -652,9 +637,8 @@ def _value_return(rows: list[dict], market, end: pd.Timestamp, capital: float) -
 
 
 def write(rep: dict) -> None:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / SIGNALS[rep.get("signal", "momentum")].report
-    write_text(f, json.dumps(rep, indent=1, default=_json))
+    artifacts.write("score-study", rep, data_asof=rep["asof"], default=_json,
+                    file=SIGNALS[rep.get("signal", "momentum")].report)
 
 
 def _json(v):
@@ -958,9 +942,7 @@ EXIT_REPORT_FILE = "exit-study.json"
 
 
 def write_exits(rep: dict) -> None:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / EXIT_REPORT_FILE
-    write_text(f, json.dumps(rep, indent=1, default=_json))
+    artifacts.write("exit-study", rep, data_asof=rep["asof"], default=_json, file=EXIT_REPORT_FILE)
 
 
 # ---------------- redeploy: the exit money into the next momentum name ----------------
@@ -1226,6 +1208,4 @@ REDEPLOY_REPORT_FILE = "redeploy-study.json"
 
 
 def write_redeploy(rep: dict) -> None:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / REDEPLOY_REPORT_FILE
-    write_text(f, json.dumps(rep, indent=1, default=_json))
+    artifacts.write("redeploy-study", rep, data_asof=rep["asof"], default=_json, file=REDEPLOY_REPORT_FILE)

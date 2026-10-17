@@ -28,7 +28,6 @@ rule (which lookbacks, which weights), the base rates and the rotation idea, not
 """
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -37,8 +36,9 @@ import numpy as np
 import pandas as pd
 
 from .. import factors, ingest
-from ..config import settings, write_text
-from ..paths import REPORTS
+from ..config import settings
+from ..model import artifacts
+from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # noqa: F401 (re-exported)
 from ..model.score import COMPONENTS, weighted_pct
 from ..model.score import mean_pct as pct
 from .study import QUANTILES, _diff_t, _json, _mean, _verdict, cross_section, nw_t, summarize
@@ -52,13 +52,6 @@ def _cfg() -> dict:
 
 
 # ---------------- returns over windows ----------------
-
-def window(r: pd.DataFrame, months: int, skip: int = 0) -> pd.DataFrame:
-    """Compounded return over `months` months ending `skip` months before each date; missing when any month in the
-    window is missing."""
-    lg = np.log1p(r)
-    return np.expm1(lg.rolling(months, min_periods=months).sum().shift(skip))
-
 
 def forward(r: pd.DataFrame, months: int) -> pd.DataFrame:
     """Compounded return over the `months` months after each date."""
@@ -313,78 +306,7 @@ def factor_base_rates(data: pd.DataFrame | None = None) -> dict:
 
 
 
-# ---------------- the long-run prior for a tilt (propose.py) ----------------
-
-def tercile_excess(p: pd.DataFrame, months: int) -> pd.Series:
-    """Compounded return of the top tercile ("3") over `months` months ending at each date, less that of the mean
-    of the three terciles (the region's stocks with the same weighting): the long-only edge of the characteristic."""
-    if p.empty or not {"1", "2", "3"} <= set(p.columns):
-        return pd.Series(dtype=float)
-    p = p[["1", "2", "3"]]
-    top = window(p[["3"]], months)["3"]
-    avg = window(p.mean(axis=1, skipna=False).to_frame("a"), months)["a"]
-    return top - avg
-
-
-def _stats(s: pd.Series, months: int) -> dict | None:
-    s = s.dropna()
-    if len(s) < max(24, 2 * months):
-        return None
-    t = nw_t(s.tolist(), max(months - 1, 0))
-    mean = float(s.mean())
-    return {"mean": mean, "t": t, "se": abs(mean / t) if t else None, "months": int(len(s)),
-            "eff_n": round(len(s) / months, 1), "first": s.index[0], "last": s.index[-1]}
-
-
-def tilt_prior(weights: dict[str, float], months: int, region: str, data: pd.DataFrame | None = None,
-               since=None, trend_months: int = 10) -> dict | None:
-    """The long-run evidence for a tilt as one number: the weighted mean of the characteristics' top-tercile
-    excess (`tercile_excess`) over `months` months in JKP's `region`, from `since` on, with its Newey-West standard
-    error, and the same split by the region's trend at the start of each window (the terciles' mean above or below
-    its `trend_months`-month average). None when a characteristic is missing."""
-    data = factors.load() if data is None else data
-    parts, comps = [], {}
-    for ch, w in weights.items():
-        if not w:
-            continue
-        x = tercile_excess(factors.panel(f"jkp_pf:{region}:{ch}", data), months)
-        if x.empty:
-            return None
-        if since is not None:
-            x = x[x.index >= pd.Timestamp(since)]
-        comps[ch] = float(x.mean()) if x.notna().any() else None
-        parts.append(x * w)
-    if not parts:
-        return None
-    total_w = sum(w for w in weights.values() if w)
-    s = pd.concat(parts, axis=1).sum(axis=1, min_count=len(parts)) / total_w
-    out = _stats(s, months)
-    if out is None:
-        return None
-    first = next(ch for ch, w in weights.items() if w)
-    mkt = factors.panel(f"jkp_pf:{region}:{first}", data)[["1", "2", "3"]].mean(axis=1, skipna=False)
-    level = (1 + mkt).cumprod()
-    up = (level >= level.rolling(trend_months, min_periods=trend_months).mean()).where(
-        level.rolling(trend_months).count() >= trend_months)
-    start = up.shift(months).reindex(s.index)        # the trend when the window began
-    out["by_trend"] = {lbl: _stats(s[start == v], months) for lbl, v in (("up", True), ("down", False))}
-    out |= {"region": region, "horizon": months, "since": since, "weights": weights, "components": comps}
-    return out
-
-
-def prior_weights(tilt_weights: dict[str, float], components: dict[str, list[str]], qv: dict[str, float]) -> dict:
-    """The tilt's weights on the momentum score and K+V spread over JKP characteristics: momentum's over
-    `components["momentum"]`, K+V's over value and quality (`qv`) and then their characteristics, equally."""
-    out: dict[str, float] = {}
-
-    def spread(chars, w):
-        for ch in chars or []:
-            out[ch] = out.get(ch, 0) + w / len(chars)
-    spread(components.get("momentum"), float(tilt_weights.get("momentum", 0)))
-    for part, share in (qv or {}).items():
-        spread(components.get(part), float(tilt_weights.get("qv", 0)) * float(share))
-    return {k: v for k, v in out.items() if v}
-
+# ---------------- the long-run prior for a tilt (model/prior.py, read by propose.py) ----------------
 
 def priors(data: pd.DataFrame | None = None) -> dict:
     """Every tilt's prior at the proposal horizons in each configured region (for the report and the skills)."""
@@ -404,29 +326,30 @@ def priors(data: pd.DataFrame | None = None) -> dict:
 
 # ---------------- survivorship gauge ----------------
 
-def survivorship_gauge(data: pd.DataFrame | None = None, score_study: dict | None = None) -> dict | None:
+def survivorship_gauge(data: pd.DataFrame | None = None,
+                       score_study: artifacts.ScoreStudy | None = None) -> dict | None:
     """`radar study score`'s 1-month top-quintile excess over its equal-weighted universe, against the same
     figure for all US stocks without survivorship bias (French's equal-weighted 12-2 momentum deciles: the top two
-    minus the mean of all ten) in the months the study covers."""
+    minus the mean of all ten) in the months the study covers. None without a readable score study."""
     if score_study is None:
-        f = REPORTS / "score-study.json"
-        if not f.exists():
+        score_study = artifacts.load("score-study").report
+        if score_study is None:
             return None
-        score_study = json.loads(f.read_text(encoding="utf-8"))
-    res = (((score_study.get("results") or {}).get("1") or {}).get("score") or {}).get("all")
-    if not res or not res.get("q"):
+    v = (score_study.results.get("1") or {}).get("score")
+    res = v.all if v is not None else None
+    if res is None or not res.q:
         return None
-    ours = res["q"][QUANTILES - 1]
+    ours = res.q[QUANTILES - 1]
     p = factors.panel("french:mom10_us", data)
     if p.shape[1] != 10:
         return None
     top = p.iloc[:, -2:].mean(axis=1) - p.mean(axis=1)
-    first, last = pd.Timestamp(score_study["universe"]["first"]), pd.Timestamp(score_study["universe"]["last"])
+    first, last = pd.Timestamp(score_study.universe.first), pd.Timestamp(score_study.universe.last)
     # a formation at month-end t earns month t+1
     months = top[(top.index > first) & (top.index <= last + pd.offsets.MonthEnd(1))]
     same = float(months.mean()) if len(months) else None
     return {"window": {"first": first, "last": last, "french_months": int(len(months)),
-                       "study_dates": res.get("dates")},
+                       "study_dates": res.dates},
             "study_top_quintile_excess_1m": ours, "survivorship_free_same_months": same,
             "survivorship_free_since_1927": float(top.mean()),
             "implied_haircut": (1 - same / ours) if same is not None and ours and ours > 0 else None,
@@ -456,7 +379,7 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
         raise ValueError("no long histories stored: run `radar update` (or `radar study longrun --fetch`) first")
     keys = panels or list((_cfg().get("panels") or {}))
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
-           "data_asof": factors.asof(data),
+           "datasets_asof": factors.asof(data),
            "settings": {"holdout_from": _cfg().get("holdout_from"),
                         "horizons": [int(h) for h in (horizons or _cfg().get("horizons", [1, 3, 6, 12]))],
                         "regime_months": _cfg().get("regime_months", 10), "since": since},
@@ -475,5 +398,6 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
 
 
 def write(rep: dict) -> None:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    write_text(REPORTS / REPORT_FILE, json.dumps(rep, indent=1, default=_json))
+    months = (rep.get("datasets_asof") or {}).values()
+    artifacts.write("longrun-study", rep, data_asof=artifacts.month_end(max(months)) if months else None,
+                    default=_json, file=REPORT_FILE)

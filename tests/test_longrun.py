@@ -6,6 +6,7 @@ import pytest
 
 from radar import factors
 from radar.backtest import longrun
+from radar.model import artifacts, prior
 
 
 def _months(n: int) -> pd.DatetimeIndex:
@@ -105,8 +106,10 @@ def test_survivorship_gauge_compares_the_same_months():
     idx = _months(24)
     deciles = pd.DataFrame({f"d{i}": [i / 1000] * 24 for i in range(10)}, index=idx)
     data = factors._long("french:mom10_us", deciles, date(2026, 1, 1))
-    study = {"results": {"1": {"score": {"all": {"q": [0, 0, 0, 0, 0.01], "dates": 6}}}},
-             "universe": {"first": str(idx[5].date()), "last": str(idx[10].date())}}
+    study = artifacts.ScoreStudy.model_validate(
+        {"schema_version": 1, "kind": "score-study", "created": "2026-01-01T00:00:00", "data_asof": None,
+         "results": {"1": {"score": {"all": {"q": [0, 0, 0, 0, 0.01], "dates": 6}}}},
+         "universe": {"first": str(idx[5].date()), "last": str(idx[10].date())}})
     g = longrun.survivorship_gauge(data, study)
     # top two deciles (0.008, 0.009) minus the mean of all ten (0.0045)
     assert g["survivorship_free_same_months"] == pytest.approx(0.004)
@@ -121,27 +124,27 @@ def _terciles(n=120, edge=0.01, seed=5) -> pd.DataFrame:
 
 
 def test_tercile_excess_is_top_minus_the_mean_of_three():
-    x = longrun.tercile_excess(_terciles(edge=0.01), 1)
+    x = prior.tercile_excess(_terciles(edge=0.01), 1)
     assert x.dropna().iloc[0] == pytest.approx(0.01)
-    assert longrun.tercile_excess(pd.DataFrame({"1": [0.1]}, index=_months(1)), 1).empty
+    assert prior.tercile_excess(pd.DataFrame({"1": [0.1]}, index=_months(1)), 1).empty
 
 
 def test_prior_weights_spread_the_tilt_over_characteristics():
     comps = {"momentum": ["ret_12_1", "ret_6_1"], "value": ["fcf_me", "eqnpo_me"], "quality": ["qmj"]}
-    w = longrun.prior_weights({"momentum": 0.5, "qv": 0.5}, comps, {"value": 0.5, "quality": 0.5})
+    w = prior.prior_weights({"momentum": 0.5, "qv": 0.5}, comps, {"value": 0.5, "quality": 0.5})
     assert w == pytest.approx({"ret_12_1": 0.25, "ret_6_1": 0.25, "fcf_me": 0.125, "eqnpo_me": 0.125, "qmj": 0.25})
-    assert longrun.prior_weights({"momentum": 1.0, "qv": 0.0}, comps, {"value": 0.5, "quality": 0.5}) == \
+    assert prior.prior_weights({"momentum": 1.0, "qv": 0.0}, comps, {"value": 0.5, "quality": 0.5}) == \
         {"ret_12_1": 0.5, "ret_6_1": 0.5}
 
 
 def test_tilt_prior_weights_characteristics_and_splits_by_trend():
     data = pd.concat([factors._long("jkp_pf:developed:a", _terciles(edge=0.01), date(2026, 1, 1)),
                       factors._long("jkp_pf:developed:b", _terciles(edge=0.03, seed=6), date(2026, 1, 1))])
-    p = longrun.tilt_prior({"a": 0.5, "b": 0.5}, 3, "developed", data)
+    p = prior.tilt_prior({"a": 0.5, "b": 0.5}, 3, "developed", data)
     assert p["mean"] == pytest.approx(0.02 * 3, rel=0.05)           # ≈ 2 % a month for three months
     assert p["eff_n"] == pytest.approx(p["months"] / 3, abs=0.05) and p["t"] > 2
     assert set(p["by_trend"]) == {"up", "down"}
     assert p["components"]["a"] < p["components"]["b"]
-    assert longrun.tilt_prior({"a": 1.0, "missing": 1.0}, 3, "developed", data) is None   # never a partial prior
-    later = longrun.tilt_prior({"a": 1.0}, 3, "developed", data, since="1965-01-01")
+    assert prior.tilt_prior({"a": 1.0, "missing": 1.0}, 3, "developed", data) is None   # never a partial prior
+    later = prior.tilt_prior({"a": 1.0}, 3, "developed", data, since="1965-01-01")
     assert later["first"] >= pd.Timestamp("1965-01-01")

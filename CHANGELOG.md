@@ -89,6 +89,14 @@ Your data now lives apart from the program, so a new version never touches it.
     now gets 100 x (N-1)/N and its weakest 0 (on a 40-name list about 2.5 points lower than before). A stock
     alone in its Discover market has no score.
   - The trend exit in `radar propose review` never triggers on the buy day, as in `radar study propose`.
+- **Study reports as contracts** (`model/artifacts.py`): the study reports the proposals read
+  (`propose-study.json`, `longrun-study.json`, `score-study.json`, `exit-study.json`, `redeploy-study.json`) start
+  with a header (`schema_version`, `kind`, `created`, `data_asof`, `rule_hash`) and are checked against a model
+  when written and read. One loader says `ok`, `stale`, `missing` or `invalid` with the reason: a proposal now
+  says why an unreadable rule study gives no drift, and why the haircut fell back to the configured one
+  (`haircut.gauge_note`). Reports written before keep working. The long-run prior moved to `model/prior.py`, so
+  `radar.propose` never imports `radar.backtest`. `longrun-study.json`'s last month per dataset is now
+  `datasets_asof` (`data_asof` is the header's date).
 - **Ten years of prices** (`history_years: 10`, was 6): `radar study score` gets about twice the month-ends and
   the 2020 Covid crash. The first update after upgrading downloads every price history again.
 - **Portfolio proposals** (`/propose-portfolio <portfolio> <amount>`, `radar propose …`, `propose.py`): a

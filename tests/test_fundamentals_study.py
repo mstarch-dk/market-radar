@@ -155,11 +155,10 @@ def test_a_quality_signal_ranks_on_its_own_baseline(cfg):
     assert rep["caveats"][0].startswith("US only")
 
 
-def test_the_report_file_follows_the_signal(cfg, tmp_path, monkeypatch):
-    monkeypatch.setattr(study, "REPORTS", tmp_path)
+def test_the_report_file_follows_the_signal(cfg, tmp_data):
     study.write(study.run(None, (1,), None, 5, with_regime=False, p=_panels(), signal="qv"))
     study.write(study.run(None, (1,), ["score", "r3m"], 5, with_regime=False, p=_panels()))
-    assert sorted(f.name for f in tmp_path.iterdir()) == ["score-study-qv.json", "score-study.json"]
+    assert sorted(f.name for f in (tmp_data / "reports").iterdir()) == ["score-study-qv.json", "score-study.json"]
 
 
 def test_momentum_is_unchanged_and_bad_signals_are_refused(cfg):

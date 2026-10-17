@@ -40,11 +40,11 @@ import pandas as pd
 
 from . import fees, performance, universe, userstore
 from .config import settings, universe_config, write_text
+from .model import artifacts
 from .model import paths as mpaths
+from .model import prior as mprior
 from .paths import HOME, REPORTS
 
-STUDY_FILE = "propose-study.json"
-LONGRUN_FILE = "longrun-study.json"
 PROPOSALS = HOME / "exports" / "proposals"
 MEMOS = HOME / "research" / "proposals"
 TILTS = ("momentum", "value", "mix")
@@ -727,46 +727,36 @@ def realised_dd(rp: pd.Series | None, weeks: int) -> float | None:
 
 # ---------------- the rule study's numbers ----------------
 
-def load_study() -> dict | None:
-    f = REPORTS / STUDY_FILE
-    if not f.exists():
-        return None
-    try:
-        rep = json.loads(f.read_text(encoding="utf-8"))
-    except ValueError:
-        return None
-    rep["stale"] = rep.get("settings_hash") != rule_hash()
-    return rep
+def load_study() -> artifacts.Loaded:
+    """The rule study (model/artifacts.py), stale when it tested other settings than today's rule."""
+    return artifacts.load("propose-study", rule_hash=rule_hash())
 
 
-def load_longrun() -> dict | None:
-    f = REPORTS / LONGRUN_FILE
-    try:
-        return json.loads(f.read_text(encoding="utf-8"))
-    except (FileNotFoundError, ValueError):
-        return None
-
-
-def haircut(c: dict | None = None, longrun: dict | None = None) -> dict:
+def haircut(c: dict | None = None, longrun: artifacts.Loaded | None = None) -> dict:
     """The survivorship haircut used: `survivorship_haircut`, or the long-run study's gauge when it implies more
-    (`haircut_from_gauge`; never less than configured)."""
+    (`haircut_from_gauge`; never less than configured). Without a readable long-run study the configured one, with
+    the reason."""
     c = c or cfg()
     conf = float(c["survivorship_haircut"])
-    g = ((longrun or {}).get("survivorship") or {}).get("implied_haircut") if c.get("haircut_from_gauge") else None
+    lr = longrun.report if longrun is not None else None
+    g = ((lr.survivorship.implied_haircut if lr is not None and lr.survivorship else None)
+         if c.get("haircut_from_gauge") else None)
     if g is not None and 0 < g < 1 and g > conf:
         return {"used": float(g), "configured": conf, "gauge": float(g),
                 "basis": "the long-run study's survivorship gauge (larger than configured)"}
-    return {"used": conf, "configured": conf, "gauge": g, "basis": "configured"}
+    out = {"used": conf, "configured": conf, "gauge": g, "basis": "configured"}
+    if c.get("haircut_from_gauge") and longrun is not None and longrun.report is None:
+        out["gauge_note"] = longrun.reason
+    return out
 
 
 _PRIORS: dict = {}
 
 
 def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None) -> dict | None:
-    """The tilt's long-run prior at this horizon (backtest/longrun.tilt_prior in `prior.region`): in today's trend
+    """The tilt's long-run prior at this horizon (model/prior.tilt_prior in `prior.region`): in today's trend
     when that split has `prior.min_trend_eff_n` independent periods, else over all dates. Cached per factors file."""
     from . import factors
-    from .backtest import longrun
 
     c = c or cfg()
     pc = c.get("prior") or {}
@@ -778,9 +768,9 @@ def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None
     key = (tilt, horizon, trend, stamp, json.dumps(pc, sort_keys=True, default=str), json.dumps(tw, sort_keys=True))
     if key not in _PRIORS:
         data = factors.load()
-        w = longrun.prior_weights(tw, pc.get("components") or {}, pc.get("qv") or {})
+        w = mprior.prior_weights(tw, pc.get("components") or {}, pc.get("qv") or {})
         regions = [pc.get("region", "developed"), *(pc.get("report_regions") or [])]
-        res = {r: longrun.tilt_prior(w, horizon, r, data, pc.get("since"), int(pc.get("trend_months", 10)))
+        res = {r: mprior.tilt_prior(w, horizon, r, data, pc.get("since"), int(pc.get("trend_months", 10)))
                for r in regions}
         main = res[regions[0]]
         if main is None:
@@ -817,8 +807,8 @@ def shrink(short: float | None, se_short: float | None, prior: dict | None, hori
     return {"drift": w * short + (1 - w) * prior["mean"], "w_short": w, "tau": tau}
 
 
-def study_view(study: dict | None, tilt: str, n: int, horizon: int, regime: str | None, c: dict | None = None,
-               trend: str | None = None) -> dict:
+def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, regime: str | None,
+               c: dict | None = None, trend: str | None = None) -> dict:
     """The rule study's figures for this tilt, the nearest basket size and the horizon, with the drift the model
     uses. The study's mean (the regime's own when it has enough dates, else all dates) is cut by the survivorship
     haircut when positive (`haircut`), then shrunk toward the tilt's long-run prior (`long_prior`, `shrink`): the
@@ -827,35 +817,38 @@ def study_view(study: dict | None, tilt: str, n: int, horizon: int, regime: str 
     c = c or cfg()
     out = {"available": False, "stale": None, "drift_gross": None, "drift_gross_raw": None, "drift_short": None,
            "basis": None, "n_used": None, "us_only": None, "prior": None, "w_short": None, "haircut": None}
-    if not study:
-        out["note"] = "no rule study yet: run `radar study propose`"
+    rep = study.report if study is not None else None
+    if rep is None:
+        out["note"] = (study.reason if study is not None else None) or "no rule study yet: run `radar study propose`"
         return out
-    out["stale"] = study.get("stale")
-    res = ((study.get("results") or {}).get(tilt) or {})
+    out["stale"] = study.status == "stale"
+    res = rep.results.get(tilt) or {}
     if not res:
         out["note"] = f"the rule study has no {tilt} results"
         return out
     ns = sorted(int(k) for k in res)
     nu = min(ns, key=lambda k: (abs(k - n), k))
-    h = (res[str(nu)] or {}).get(str(horizon)) or {}
-    kept = h.get("kept") or {}
-    out |= {"available": bool(kept.get("all")), "n_used": nu, "horizon": horizon, "kept": kept,
-            "exits": h.get("exits"), "us_only": (study.get("us_only") or {}).get(tilt),
-            "asof": study.get("asof"), "first": (study.get("universe") or {}).get("first")}
+    cell = res[str(nu)].get(str(horizon))
+    kept = cell.kept if cell is not None and cell.kept is not None else artifacts.Split()
+    exits = cell.exits if cell is not None else None
+    out |= {"available": kept.all is not None, "n_used": nu, "horizon": horizon,
+            "kept": kept.model_dump(exclude_unset=True),
+            "exits": exits.model_dump(exclude_unset=True) if exits is not None else None,
+            "us_only": rep.us_only.get(tilt), "asof": rep.asof, "first": rep.universe.first}
     if out["stale"]:
         out["note"] = "the rule study was run with other settings: its numbers don't describe today's rule"
         return out
-    allr = kept.get("all") or {}
-    reg = (kept.get("by_regime") or {}).get(str(regime)) if regime else None
-    use = reg if reg and (reg.get("dates") or 0) >= c["min_regime_dates"] else allr
-    out["basis"] = f"regime {regime} ({use.get('dates')} dates)" if use is reg and reg else f"all dates ({allr.get('dates')})"
-    g = use.get("gross_mean")
-    hc = haircut(c, load_longrun())
+    allr = kept.all or artifacts.Summary()
+    reg = kept.by_regime.get(str(regime)) if regime else None
+    use = reg if reg is not None and (reg.dates or 0) >= c["min_regime_dates"] else allr
+    out["basis"] = f"regime {regime} ({use.dates} dates)" if use is reg and reg else f"all dates ({allr.dates})"
+    g = use.gross_mean
+    hc = haircut(c, artifacts.load("longrun-study"))
     out["drift_gross_raw"] = g
     out["haircut"] = hc
     short = None if g is None else (g * (1 - hc["used"]) if g > 0 else g)
     out["drift_short"] = short
-    t, mean = use.get("t"), use.get("mean")
+    t, mean = use.t, use.mean
     se_short = abs(mean / t) if t and mean is not None else None
     prior = long_prior(tilt, horizon, trend, c)
     sh = shrink(short, se_short, prior, horizon, c)
@@ -1574,8 +1567,8 @@ def check(market, portfolio: str | None = None) -> dict:
     st = settings()["stops"]
     p = mp.panels(market)
     pl = pool(market, prices, p)
-    exit_mtime = max((f.stat().st_mtime for f in (REPORTS / "exit-study.json", REPORTS / "redeploy-study.json")
-                      if f.exists()), default=None)
+    exit_run = max((r.report.created for r in (artifacts.load("exit-study"), artifacts.load("redeploy-study"))
+                    if r.report is not None), default=None)
     today = pd.Timestamp(market.closes.index[-1])
     out = []
     for fname, d in proposals():
@@ -1592,7 +1585,7 @@ def check(market, portfolio: str | None = None) -> dict:
             older.append("the proposal rule's settings have changed since")
         if m.get("stops") and m["stops"] != st:
             older.append("settings.stops have changed since")
-        if exit_mtime and pd.Timestamp.fromtimestamp(exit_mtime) > pd.Timestamp(m.get("frozen_at") or m["date"]):
+        if exit_run and pd.Timestamp(exit_run) > pd.Timestamp(m.get("frozen_at") or m["date"]):
             older.append("the exit study was re-run since")
         names = []
         for x in d["picks"]:
