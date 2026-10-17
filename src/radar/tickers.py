@@ -6,7 +6,6 @@ from __future__ import annotations
 import pandas as pd
 
 from . import dashboard, tracked, trades, universe
-from .config import universe_config
 from .paths import CACHE
 
 _cache: tuple[tuple, list[dict]] | None = None
@@ -34,7 +33,7 @@ def _market_rows(market) -> list[dict]:
     groups = tracked.stock_groups(offline=True)
     labels = tracked.stock_group_labels()
     etfs = tracked.etfs()
-    etf_label = {k: g["label"] for k, g in universe_config()["etf_groups"].items()}
+    etf_label = tracked.etf_group_labels()
     group_of: dict[str, tuple[str, str]] = {}
     for key, ts in groups.items():
         for t in ts:

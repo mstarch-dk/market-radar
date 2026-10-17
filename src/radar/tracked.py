@@ -51,6 +51,10 @@ def stock_group_labels() -> dict[str, str]:
     return {k: g["label"] for k, g in universe_config()["stock_groups"].items()}
 
 
+def etf_group_labels() -> dict[str, str]:
+    return {k: g["label"] for k, g in universe_config()["etf_groups"].items()}
+
+
 def macro_yahoo() -> dict[str, str]:
     return universe_config()["macro"]["yahoo"]
 
