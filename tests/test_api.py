@@ -1,4 +1,6 @@
 """The web API on the synthetic world: responses match their models, errors are HTTP errors."""
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -76,7 +78,8 @@ def test_dashboard_views(built):
         assert r.status_code == 200, (view, r.text)
         assert r.json()["asof"]
     regime = built.get("/api/regime").json()
-    assert regime["overall"]["label"] == "Risk-on" and regime["age_days"] == 0 and regime["stale"] is False
+    age = (date.today() - world.IDX[-1].date()).days                   # the world ends on the last weekday
+    assert regime["overall"]["label"] == "Risk-on" and regime["age_days"] == age and regime["stale"] is False
     us = next(g for g in built.get("/api/momentum").json()["regions"] if g["key"] == "us")
     assert us["rows"][0]["ticker"] == "S1"
     assert built.get("/api/ticker/S1").json()["context"]["regime"]["label"] == "Risk-on"
