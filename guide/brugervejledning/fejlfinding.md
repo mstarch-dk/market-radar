@@ -29,6 +29,7 @@ Ved *warn* og *fail* står der en linje med `→` og hvad du kan gøre. Tjekket 
 - **SKAT positive list**: om positivlisten findes og har årets ark.
 - **Your portfolio**: antal handler, og om flytningen af gamle CSV-filer gik godt.
 - **Investor profile for Claude**: om `notes/investor.md` i datamappen findes (valgfri).
+- **Settings**: om `config/settings.yaml` har den form, koden læser (afsnittene `stops`, `backtest`, `risk` og `propose`). En stavefejl i en nøgle, en nøgle, der mangler, eller en forkert type giver fejl med nøglens navn, fx *backtest.fee_bps: missing*. Ret nøglen, eller tag filen fra udgivelsen igen.
 - **Internet: …**: én linje pr. datakilde (kun uden `--offline`). Ethvert svar under HTTP 500 regnes for "oppe". Et websted på pause vises som advarsel.
 
 ## "Welcome to Market Radar" i stedet for data

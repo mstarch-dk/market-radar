@@ -94,3 +94,13 @@ def test_doctor_explains_what_is_missing(tmp_data, monkeypatch):
     assert "[WARN] Market data: not downloaded yet" in res.output
     assert "Download market data" in res.output                              # the fix, in plain words
     assert "Internet" not in res.output                                      # --offline skips the network
+
+
+def test_doctor_names_a_bad_setting(monkeypatch):
+    from radar import config_schema, health
+
+    def broken():
+        raise config_schema.SettingsError("config/settings.yaml is invalid: backtest.fee_bps: missing")
+    monkeypatch.setattr(health, "settings", broken)
+    got = {c["name"]: c for c in health.checks(offline=True)}["Settings"]
+    assert got["status"] == "fail" and "backtest.fee_bps: missing" in got["detail"]

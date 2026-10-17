@@ -66,7 +66,14 @@ def checks(offline: bool = False) -> list[dict]:
         out += _positive_list()
     if not offline:
         out += _internet()
-    _ = settings()  # config files parse (raises with the file name if not)
+    from .config_schema import SettingsError
+
+    try:
+        settings()
+        out.append(_check("Settings", "ok", "config/settings.yaml has the shape the code reads"))
+    except SettingsError as e:
+        out.append(_check("Settings", "fail", str(e),
+                          "Correct the keys named (a typo, or one left out), or take config/settings.yaml from the release."))
     return out
 
 

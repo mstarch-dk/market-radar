@@ -123,6 +123,9 @@ Your data now lives apart from the program, so a new version never touches it.
 - Study reports (`reports/*-study.json`, `sim-exits*.json`, `sim-picks/`) and every `--json` output write a
   missing number as `null`, never `NaN` (which isn't JSON, and slipped past the readers' checks into a proposal's
   drift); a missing date is `null`, not `"NaT"`.
+- `config/settings.yaml` is checked when it is loaded (the `stops`, `backtest`, `risk` and `propose` sections):
+  a misspelt, missing or wrongly typed key fails at once naming the key, and `radar doctor` reports it under
+  *Settings*, instead of a KeyError deep in a study or a proposal.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the
 old data). Afterwards you can delete the old program folder.

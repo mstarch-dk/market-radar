@@ -94,7 +94,7 @@ layers = [
     "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : tickers : trades : universe : userstore",
     "constituents : discovery : external : factors : fundamentals : ingest : positive_list : sentiment : updates : valuation",
     "signals",
-    "config : guard : jsonsafe : locks : money : net : ops : paths : sourcelog : values",
+    "config : config_schema : guard : jsonsafe : locks : money : net : ops : paths : sourcelog : values",
 ]
 ignore_imports = [
     # data sources that read the universe or the store (tickers, currencies, the SEC contact)
@@ -154,7 +154,7 @@ sort = "cover"
 [tool.mypy]
 mypy_path = "src"
 explicit_package_bases = true
-files = ["src/radar/model", "src/radar/signals", "src/radar/paths.py", "src/radar/net.py", "src/radar/fees.py",
+files = ["src/radar/model", "src/radar/signals", "src/radar/paths.py", "src/radar/config_schema.py", "src/radar/net.py", "src/radar/fees.py",
          "src/radar/jsonsafe.py", "src/radar/market.py", "src/radar/money.py", "src/radar/sourcelog.py",
          "src/radar/values.py"]
 follow_imports = "silent"
