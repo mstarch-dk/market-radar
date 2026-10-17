@@ -158,3 +158,11 @@ def test_risk_section_is_honest_about_flat_synthetic_prices(env):
     r = profile.build("S1")["risk"]
     assert r["status"] == "missing" and r["windows"] == {} and r["factors"] is None
     assert r["currency"] == "DKK" and r["benchmark"] == "ACWI"
+
+
+def test_a_profile_the_app_cant_show_fails_naming_the_field():
+    from radar import profile
+
+    with pytest.raises(ValueError, match="the profile of X doesn't match api_models.Profile: generated"):
+        profile._checked({"symbol": "X"})
+

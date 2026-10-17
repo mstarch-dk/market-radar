@@ -130,6 +130,9 @@ Your data now lives apart from the program, so a new version never touches it.
   (it wasn't for `radar sim exits --json` with a price-history note, or a study logging its progress).
 - `radar portfolios add/edit` and the app check a portfolio the same way (kind, mode, dividend policy, a
   simulation stays virtual); `cli.py` is a package of command groups, each command tested.
+- `radar report` checks every dashboard section, and each ticker profile, against the models the app reads before
+  writing it: a shape the app can't show fails the build naming the field, instead of an error page later. A
+  frozen proposal file is checked on freeze and when `review` / `check` read it.
 
 What you need to do: start 0.2.0 and choose where your data goes (the app suggests the folder and finds the
 old data). Afterwards you can delete the old program folder.

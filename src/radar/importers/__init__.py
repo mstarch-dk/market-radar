@@ -16,6 +16,7 @@ import re
 from datetime import date, datetime
 from functools import cache
 from pathlib import Path
+from typing import NamedTuple
 
 import pandas as pd
 import yaml
@@ -144,7 +145,12 @@ def _complete(mapping: dict) -> bool:
     return all(f in mapping for f in REQUIRED) and any(f in mapping for f in ("symbol", "isin", "name"))
 
 
-def detect(columns: list[str]) -> tuple[str | None, dict[str, str]]:
+class Detected(NamedTuple):
+    preset: str | None               # the broker preset whose columns these are, None for the generic names
+    mapping: dict[str, str]          # our field -> the file's column
+
+
+def detect(columns: list[str]) -> Detected:
     """The preset whose columns fit best (all required fields found), and its mapping; else a generic guess."""
     best = (None, {}, 0)
     for key, p in presets().items():
@@ -152,8 +158,8 @@ def detect(columns: list[str]) -> tuple[str | None, dict[str, str]]:
         if _complete(own) and len(own) > best[2]:
             best = (key, own, len(own))
     if best[0]:
-        return best[0], preset_mapping(columns, best[0])
-    return None, map_columns(columns, GENERIC)
+        return Detected(best[0], preset_mapping(columns, best[0]))
+    return Detected(None, map_columns(columns, GENERIC))
 
 
 # ---------------- normalizing values ----------------
@@ -524,7 +530,14 @@ def commit(pv: dict, filename: str, confirm_warnings: bool) -> dict:
 
 # ---------- the Yahoo Finance portfolio export (a full snapshot) ----------
 
-def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]], list[str]]:
+class YahooExport(NamedTuple):
+    rows: list[dict]                 # the buys and sells as transaction rows
+    watch: list[str]                 # symbols without a transaction: the export's watchlist
+    skipped: dict[str, list[str]]    # per symbol, rows left out (types other than BUY/SELL)
+    unreadable: list[str]            # buys / sells without a price or a date: "SYMBOL (row n)"
+
+
+def _yahoo_rows(path: str) -> YahooExport:
     """A Yahoo Finance portfolio export as transaction rows, the symbols without transactions (its watchlist),
     a note per symbol for rows that were skipped (types other than BUY/SELL), and the buys/sells that can't be read
     (no purchase price or trade date: "SYMBOL (row n)"). Indices, futures, FX and cash rows are left out."""
@@ -553,7 +566,7 @@ def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]],
     rows = [{"symbol": r["Symbol"], "date": r["Trade Date"].date().isoformat(), "type": r["Transaction Type"],
              "quantity": float(r["Quantity"]), "price": float(r["Purchase Price"]),
              "fee": 0.0 if pd.isna(r["Commission"]) else float(r["Commission"])} for _, r in tx.iterrows()]
-    return rows, watch, skipped, unreadable
+    return YahooExport(rows, watch, skipped, unreadable)
 
 
 def _import_market():

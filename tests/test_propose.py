@@ -487,3 +487,38 @@ def test_kv_picks_outside_the_us_are_flagged_untested(market, ask):
     ev = propose.evaluate(market, d, offline=True, light=True)
     assert ev["untested_kv"] == sorted(t for t in tickers if region[t] != "us")
     assert ev["untested_kv"] and any("never tested K+V" in n for n in ev["notes"])   # the fixture's pick is European
+
+
+# ---------------- the frozen picks file's contract ----------------
+
+def _picks(**meta) -> dict:
+    return {"type": "propose-picks", "picks": [{"ticker": "S1", "exit": {"thesis": ["AI capex"]}, "note": "mine"}],
+            "meta": {"portfolio": "ASK", "date": "2026-10-16", "amount": 30000, "settings_hash": "abc",
+                     "stops": {"mode": "trend"}} | meta}
+
+
+def test_the_picks_file_contract():
+    from radar.propose import picks_file
+
+    assert picks_file.check(_picks())["picks"][0]["note"] == "mine"            # the skill's own fields stay
+    bad = _picks()
+    del bad["meta"]["date"]
+    with pytest.raises(ValueError, match="isn't a picks file: meta.date"):
+        picks_file.check(bad)
+    twice = _picks()
+    twice["picks"].append({"ticker": "S1"})
+    with pytest.raises(ValueError, match="S1 is picked twice"):
+        picks_file.check(twice)
+    with pytest.raises(ValueError, match="isn't a picks file: type"):
+        picks_file.check(_picks() | {"type": "something-else"})
+
+
+def test_a_frozen_file_that_doesnt_fit_is_named(tmp_data):
+    from radar.propose import rules, store
+
+    rules.PROPOSALS.mkdir(parents=True, exist_ok=True)
+    doc = _picks(frozen_at="2026-10-16T12:00:00")
+    del doc["meta"]["amount"]
+    (rules.PROPOSALS / "2026-10-16_ask.json").write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(ValueError, match="2026-10-16_ask.json isn't a picks file: meta.amount"):
+        store.proposals()

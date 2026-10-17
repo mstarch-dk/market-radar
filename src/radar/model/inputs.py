@@ -5,6 +5,7 @@ here."""
 from __future__ import annotations
 
 import json
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -39,11 +40,16 @@ def effective_votes() -> dict[str, bool]:
     return votes | {k: bool(v) for k, v in chosen.items() if k in votes}
 
 
-def regime_now(d: dict) -> tuple[dict, list[dict]]:
+class Regime(NamedTuple):
+    overall: dict                # label, net, the votes counted
+    indicators: list[dict]       # each indicator with its vote
+
+
+def regime_now(d: dict) -> Regime:
     """The stored indicators of a dashboard.json, voted again with the current choice of groups (a switch on the
     Regime page takes effect at once, without a new `radar run`)."""
     inds = [dict(i) for i in d["regime"]["indicators"]]
-    return regime.overall(inds, effective_votes()), inds
+    return Regime(regime.overall(inds, effective_votes()), inds)
 
 
 def current_regime(d: dict | None = None) -> dict:
@@ -57,5 +63,5 @@ def current_regime(d: dict | None = None) -> dict:
             d = None
     if d is None:
         return {"label": None, "asof": None}
-    overall = regime_now(d)[0]
+    overall = regime_now(d).overall
     return {"label": overall["label"], "asof": d["asof"], "net": overall.get("net")}

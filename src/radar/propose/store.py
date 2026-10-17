@@ -16,7 +16,7 @@ from ..model import paths as mpaths
 from ..model.stats import mean as _mean
 from ..signals.risk import deepest_drawdown
 from ..values import num
-from . import basket, draft, evaluation, pricing, rules
+from . import basket, draft, evaluation, picks_file, pricing, rules
 
 
 def save_picks(doc: dict) -> str:
@@ -79,7 +79,7 @@ def proposals() -> list[tuple[str, dict]]:
         except ValueError:
             continue
         if d.get("type") == "propose-picks" and (d.get("meta") or {}).get("frozen_at"):
-            out.append((f.name, d))
+            out.append((f.name, picks_file.check(d, f.name)))   # a frozen file that doesn't fit says so, by name
     return out
 
 

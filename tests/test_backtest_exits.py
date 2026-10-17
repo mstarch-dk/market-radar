@@ -310,12 +310,13 @@ def test_terms_invert_the_fee_for_a_budget_and_a_net(market):
 def test_the_ablation_keeps_only_one_half_of_the_rule(market):
     ctx = context(market, "CRASH")
     both = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", fee_bps=0)
-    stop = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="stop", fee_bps=0)
-    tp = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="take_profit", fee_bps=0)
+    stop = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", spec=exits.ablation("stop"), fee_bps=0)
+    tp = exits.replay([buy("CRASH", 190, 10)], ctx, "rules", spec=exits.ablation("take_profit"), fee_bps=0)
     assert [e["trigger"] for e in both["exits"]] == [e["trigger"] for e in stop["exits"]] == ["stop"]
     assert all(e["trigger"] == "take_profit" for e in tp["exits"]) and both["rule"] == "both"
-    with pytest.raises(ValueError):
-        exits.replay([buy("CRASH", 190, 10)], ctx, "rules", rule="trailing")
+    assert stop["rule"] == "stop" and tp["rule"] == "take_profit"                 # the report still names the half
+    with pytest.raises(ValueError, match="half must be one of"):
+        exits.ablation("trailing")
 
 
 # ---------------- variants of the rule (RuleSpec) ----------------

@@ -104,16 +104,17 @@ def test_coverage(summary):
 
 
 def test_dashboard_matches_the_api_models(summary):
-    from radar import api_models as m
+    """report.build checks every section against the model the API serves it with; a field the app doesn't know
+    fails the build, naming it."""
+    import copy
 
-    d = summary["_dash"]
-    head = {"asof": d["asof"], "generated": d["generated"], "age_days": 0, "stale": False}   # added by the API
-    m.RegimeView.model_validate(head | d["regime"])
-    m.RotationView.model_validate(head | d["rotation"])
-    m.MomentumView.model_validate(head | d["momentum"])
-    m.PositioningView.model_validate(head | d["positioning"])
-    m.CoverageView.model_validate(head | d["coverage"])
-    m.QualityView.model_validate(head | d["quality"])
+    from radar import dashboard
+
+    dashboard.check(summary["_dash"])
+    bad = copy.deepcopy(summary["_dash"])
+    bad["rotation"]["groups"][0]["surprise"] = 1
+    with pytest.raises(ValueError, match="rotation doesn't match api_models.RotationView: groups.0.surprise"):
+        dashboard.check(bad)
 
 
 def test_quality_and_value_scores(summary):
