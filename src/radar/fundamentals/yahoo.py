@@ -19,7 +19,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from .. import coverage, locks, net
+from .. import locks, net, sourcelog
 from ..config import settings
 from ..paths import CACHE
 from . import schedule, store
@@ -182,5 +182,5 @@ def update_yahoo(today: date | None = None, force: bool = False, tickers: list[s
         raise ValueError(f"no statements from Yahoo for any of {tried} stocks (has Yahoo changed?): "
                          + "; ".join(f"{t}: {e}" for t, e in list(errors.items())[:3]))
     if throttled or (tried and len(frames) < cfg["min_ok_share"] * tried):
-        raise coverage.PartialFailure(f"{msg}; {len(errors)} failed" + (f"; stopped: {throttled}" if throttled else ""))
+        raise sourcelog.PartialFailure(f"{msg}; {len(errors)} failed" + (f"; stopped: {throttled}" if throttled else ""))
     return msg + (f"; {len(errors)} without statements" if errors else "")

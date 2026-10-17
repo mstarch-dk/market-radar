@@ -7,18 +7,13 @@ checked against today, since an update that keeps failing makes the whole report
 """
 from __future__ import annotations
 
-import json
-import threading
 from datetime import date, datetime
 
 import pandas as pd
 
-from . import trades
-from .config import POSITIVE_LIST_FILE, write_text
+from . import sourcelog, trades
+from .config import POSITIVE_LIST_FILE
 from .paths import CACHE
-
-LOG_FILE = CACHE / "sources.json"
-_log_lock = threading.Lock()  # the update and the discovery scan can record at the same time
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
 NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
@@ -65,46 +60,10 @@ SOURCES = {
 }
 
 
-# ---------------- update log ----------------
-
-def load_log() -> dict:
-    try:
-        return json.loads(LOG_FILE.read_text(encoding="utf-8"))
-    except (FileNotFoundError, ValueError):
-        return {}
-
-
-class PartialFailure(RuntimeError):
-    """The step stored part of what it fetched, then failed: the message says what was kept and what failed."""
-
-
-def record(source: str, ok: bool, detail: str | None = None, error: str | None = None,
-           exc: BaseException | None = None) -> None:
-    """Log one update attempt. A failure keeps the last success, so the page can say how old the data is. Each
-    attempt is also an event in the operations log (a failure with its traceback when `exc` is given; a
-    ValueError is a parse failure: the source answered, but not in the shape we expect)."""
-    from . import locks, ops
-
-    with _log_lock, locks.file_lock(LOG_FILE, timeout=30):   # the app and a terminal update both write it
-        log = load_log()
-        now = datetime.now().isoformat(timespec="seconds")
-        entry = log.get(source, {}) | {"last_attempt": now, "detail": detail, "error": None if ok else error}
-        if ok:
-            entry["last_success"] = now
-        log[source] = entry
-        CACHE.mkdir(parents=True, exist_ok=True)
-        write_text(LOG_FILE, json.dumps(log, indent=1))
-    if ok:
-        ops.event("info", "source", detail or "updated", source=source)
-    else:
-        ops.event("error", "parse" if isinstance(exc, ValueError) else "source", error or "failed", source=source,
-                  exc=exc)
-
-
 def live(view: dict, log: dict | None = None) -> dict:
     """A built coverage section with each source's last attempt, success and error from the update log as it is
     now, and `failing` worked out again from them."""
-    log = load_log() if log is None else log
+    log = sourcelog.load_log() if log is None else log
     rows = []
     for r in view["sources"]:
         entry = log.get(r["key"])
@@ -152,7 +111,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
           today: date | None = None, log: dict | None = None) -> dict:
     """Everything the "Data & coverage" tab and summary.json show. `cfg` is settings()."""
     max_age = cfg["coverage"]["max_age"]
-    log = load_log() if log is None else log
+    log = sourcelog.load_log() if log is None else log
     today = today or date.today()
     rows = []
 

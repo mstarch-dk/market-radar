@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, serve, statements
-from radar import coverage, universe, userstore, valuation
+from radar import sourcelog, universe, userstore, valuation
 from radar.fundamentals import edgar, schedule, store, yahoo
 
 FIX = Path(__file__).parent / "fixtures"
@@ -222,7 +222,7 @@ def test_edgar_update_stores_and_keeps_more_than_a_shorter_answer(us, monkeypatc
             node["units"][u] = [r for r in node["units"][u] if r["end"] < "2026-06-01"]
     serve(monkeypatch, {"company_tickers": Resp(json=TICKERS), "companyfacts": lambda u: Resp(json=short)
                         if "0000320193" in u else Resp(404)})
-    with pytest.raises(coverage.PartialFailure):
+    with pytest.raises(sourcelog.PartialFailure):
         edgar.update_edgar(today=TODAY, tickers=["AAPL"])
     assert len(store.load_edgar()) == n
     log = schedule.load_log(edgar.LOG_FILE).set_index("ticker")

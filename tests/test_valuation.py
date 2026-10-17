@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from conftest import FIXTURES
-from radar import external, sentiment, valuation
+from radar import external, sentiment, sourcelog, valuation
 from radar.external import parse_ecb
 from radar.signals import regime
 from radar.signals import valuation as sv
@@ -211,12 +211,11 @@ def test_valuation_rows_vote_only_when_switched_on():
 
 
 def test_putcall_keeps_the_days_it_got_when_a_later_day_fails(tmp_data):
-    from radar import coverage
     day = json.loads((FIXTURES / "cboe_daily_options.json").read_text())
     sentiment.update_putcall(pd.Timestamp("2026-10-07").date(), get=lambda url: _Resp(200, day), sleep=lambda s: None)
     before = len(sentiment.load_putcall())
     got = lambda url: _Resp(503) if "2026-10-13" in url else _Resp(200, day)  # noqa: E731
-    with pytest.raises(coverage.PartialFailure, match="3 new days"):
+    with pytest.raises(sourcelog.PartialFailure, match="3 new days"):
         sentiment.update_putcall(pd.Timestamp("2026-10-14").date(), get=got, sleep=lambda s: None)
     stored = set(sentiment.load_putcall()["date"])
     assert {pd.Timestamp("2026-10-08"), pd.Timestamp("2026-10-09")} <= stored     # fetched before the failure

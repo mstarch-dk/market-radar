@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from .. import coverage, ingest, net, ops, positive_list, universe
+from .. import ingest, net, ops, positive_list, sourcelog, universe
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
@@ -195,7 +195,7 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     return df
 
 
-PartialFailure = coverage.PartialFailure   # the universe was built, but some market failed and kept its cached names
+PartialFailure = sourcelog.PartialFailure   # the universe was built, but some market failed and kept its cached names
 
 
 def universe_age_days() -> float | None:
@@ -323,11 +323,11 @@ def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
         try:
             with ops.context(source="discovery_universe"):
                 df = build_universe(log, progress)
-            coverage.record("discovery_universe", True, f"{len(df)} names")
+            sourcelog.record("discovery_universe", True, f"{len(df)} names")
         except PartialFailure as e:
-            coverage.record("discovery_universe", False, error=str(e), exc=e)
+            sourcelog.record("discovery_universe", False, error=str(e), exc=e)
         except Exception as e:
-            coverage.record("discovery_universe", False, error=f"{type(e).__name__}: {e}", exc=e)
+            sourcelog.record("discovery_universe", False, error=f"{type(e).__name__}: {e}", exc=e)
             if load_universe().empty:
                 raise
             log(f"Universe: FAILED ({type(e).__name__}: {e}); using the cached list.")
@@ -339,10 +339,10 @@ def _run(log: Log, progress: Progress | None, refresh_universe: bool) -> dict:
             res = update_prices(tickers, progress, log)
         msg = f"{res['got']} of {res['requested']} names" + (
             f"; kept the stored prices of {len(res['kept'])} Yahoo didn't return" if res.get("kept") else "")
-        coverage.record("discovery_prices", True, msg + (f"; no data for {len(res['missing'])}" if res["missing"] else ""))
+        sourcelog.record("discovery_prices", True, msg + (f"; no data for {len(res['missing'])}" if res["missing"] else ""))
         log(f"Prices: {msg}.")
     except Exception as e:
-        coverage.record("discovery_prices", False, error=f"{type(e).__name__}: {e}", exc=e)
+        sourcelog.record("discovery_prices", False, error=f"{type(e).__name__}: {e}", exc=e)
         log(f"Prices: FAILED ({type(e).__name__}: {e}); using the previous download.")
     out = build_report()
     log(f"Discovery: {out['scored']} of {out['names']} names scored (data as of {out['asof']}) in "

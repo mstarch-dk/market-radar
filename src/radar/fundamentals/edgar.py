@@ -19,7 +19,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from .. import coverage, guard, locks, net
+from .. import guard, locks, net, sourcelog
 from ..config import settings, write_csv
 from ..paths import CACHE
 from . import schedule, store
@@ -289,7 +289,7 @@ def update_edgar(today: date | None = None, force: bool = False, tickers: list[s
     attempted = len(batch) - len(skipped)
     if throttled or (attempted and len(errors) > cfg["max_fail_share"] * attempted):
         kinds = Counter(e.split(":")[0] for e in errors.values()).most_common(3)
-        raise coverage.PartialFailure(f"{msg}; {len(errors)} failed ("
+        raise sourcelog.PartialFailure(f"{msg}; {len(errors)} failed ("
                                       + ", ".join(f"{k} × {n}" for k, n in kinds) + ")"
                                       + (f"; {throttled}" if throttled else ""))
     return msg + (f"; {len(errors)} failed and kept their stored values" if errors else "")

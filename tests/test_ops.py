@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from radar import api, coverage, net, ops, updater
+from radar import api, coverage, net, ops, sourcelog, updater
 from radar.api_models import OpsJobDetail, OpsSummary
 
 
@@ -78,14 +78,14 @@ def test_interrupted_jobs_are_marked():
 
 def test_source_records_are_atomic_and_become_events(tmp_data):
     def rec(i):
-        coverage.record(f"s{i}", True, f"{i} rows")
+        sourcelog.record(f"s{i}", True, f"{i} rows")
     threads = [threading.Thread(target=rec, args=(i,)) for i in range(20)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
-    assert set(coverage.load_log()) == {f"s{i}" for i in range(20)}   # no write lost
-    coverage.record("cftc", False, error="ValueError: bad layout", exc=ValueError("bad layout"))
+    assert set(sourcelog.load_log()) == {f"s{i}" for i in range(20)}   # no write lost
+    sourcelog.record("cftc", False, error="ValueError: bad layout", exc=ValueError("bad layout"))
     ev = ops.events(level="error")[0]
     assert ev["kind"] == "parse" and ev["source"] == "cftc" and "ValueError" in ev["detail"]
 
@@ -93,7 +93,7 @@ def test_source_records_are_atomic_and_become_events(tmp_data):
 def test_live_coverage_overlays_the_current_log(tmp_data):
     view = {"sources": [{"key": "cftc", "name": "Futures positioning", "error": None, "last_attempt": "old",
                          "last_success": "old"}], "failing": []}
-    coverage.record("cftc", False, error="HTTPError: 503")
+    sourcelog.record("cftc", False, error="HTTPError: 503")
     out = coverage.live(view)
     assert out["sources"][0]["error"] == "HTTPError: 503" and out["failing"] == ["Futures positioning"]
     assert out["sources"][0]["last_success"] is None

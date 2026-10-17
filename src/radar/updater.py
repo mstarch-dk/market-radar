@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 
-from . import coverage, external, factors, ingest, locks, ops, report, sentiment, trades, universe, valuation
+from . import external, factors, ingest, locks, ops, report, sentiment, sourcelog, trades, universe, valuation
 from .config import settings
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
@@ -30,10 +30,10 @@ def _steps(steps: dict, log: Log) -> None:
             with ops.context(source=key):   # the step's requests are attributed to it
                 msg = step()
             log(f"{label}: {msg}.")
-            coverage.record(key, True, msg)
+            sourcelog.record(key, True, msg)
         except Exception as e:  # network/format problems shouldn't block the rest of the radar
             log(f"{label}: FAILED ({type(e).__name__}: {e}); using cached data.")
-            coverage.record(key, False, error=f"{type(e).__name__}: {e}", exc=e)
+            sourcelog.record(key, False, error=f"{type(e).__name__}: {e}", exc=e)
 
 
 def update(log: Log = print, refresh_constituents: bool = False, progress: Callable[[int, int], None] | None = None) -> None:

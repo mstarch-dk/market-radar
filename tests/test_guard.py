@@ -224,8 +224,8 @@ def test_two_processes_logging_sources_keep_each_others_entries(tmp_path):
     import sys
     env = os.environ | {"MARKET_RADAR_HOME": str(tmp_path / "home"), "MARKET_RADAR_CACHE": str(tmp_path / "cache"),
                         "MARKET_RADAR_CONFIG": str(tmp_path / "config")}
-    code = ("import sys; from radar import coverage, paths\n"
-            "for i in range(40): coverage.record(f'{sys.argv[1]}{i}', True, 'ok')\n")
+    code = ("import sys; from radar import paths, sourcelog\n"
+            "for i in range(40): sourcelog.record(f'{sys.argv[1]}{i}', True, 'ok')\n")
     procs = [subprocess.Popen([sys.executable, "-c", code, p], env=env) for p in ("a", "b")]
     assert [p.wait(120) for p in procs] == [0, 0]
     log = json.loads((tmp_path / "cache" / "sources.json").read_text(encoding="utf-8"))

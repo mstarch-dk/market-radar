@@ -8,7 +8,7 @@ import time
 
 import pandas as pd
 
-from . import net
+from . import net, sourcelog
 from .config import settings, write_csv
 from .paths import CACHE
 
@@ -47,7 +47,6 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
 
     A failed download falls back to the cached list (logged in sources.json); `offline` never fetches.
     """
-    from . import coverage
 
     cache_file = CACHE / "constituents_us.csv"
     cached = pd.read_csv(cache_file)["ticker"].tolist() if cache_file.exists() else []
@@ -62,11 +61,11 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
     except Exception as e:
         if not cached:
             raise
-        coverage.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list", exc=e)
+        sourcelog.record("constituents", False, error=f"{type(e).__name__}: {e}; using the cached list", exc=e)
         return cached
     CACHE.mkdir(parents=True, exist_ok=True)
     write_csv(df, cache_file, index=False)
-    coverage.record("constituents", True, f"{len(df)} stocks")
+    sourcelog.record("constituents", True, f"{len(df)} stocks")
     return df["ticker"].tolist()
 
 
@@ -150,7 +149,6 @@ def acwi_holdings(refresh: bool = False, offline: bool = False) -> pd.DataFrame 
     """ACWI's stocks with sector, country, region, currency and weight, cached for `constituents_max_age_days`.
     A failed download keeps the cached file (logged in sources.json); None when there is none: callers then say
     that the ACWI weights are unknown, never assume them."""
-    from . import coverage
 
     cached = pd.read_csv(ACWI_FILE, keep_default_na=False) if ACWI_FILE.exists() else None
     max_age = settings()["constituents_max_age_days"] * 86400
@@ -164,12 +162,12 @@ def acwi_holdings(refresh: bool = False, offline: bool = False) -> pd.DataFrame 
             resp.raise_for_status()
             df = parse_acwi_holdings(resp.content.decode("utf-8-sig", errors="replace"))
     except Exception as e:  # noqa: BLE001 - any failure keeps the cache, logged
-        coverage.record("acwi_holdings", False, error=f"{type(e).__name__}: {e}"
+        sourcelog.record("acwi_holdings", False, error=f"{type(e).__name__}: {e}"
                         + ("; using the cached file" if cached is not None else ""), exc=e)
         return cached
     CACHE.mkdir(parents=True, exist_ok=True)
     write_csv(df, ACWI_FILE, index=False)
-    coverage.record("acwi_holdings", True, f"{len(df)} stocks")
+    sourcelog.record("acwi_holdings", True, f"{len(df)} stocks")
     return df
 
 
