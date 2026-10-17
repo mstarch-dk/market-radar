@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 
 from . import dashboard, external, fxrates, ingest, mine, money, positive_list, tracked, trades, universe
-from .config import settings, universe_config
+from .config import settings, typed, universe_config
 from .jsonsafe import clean
 from .market import Market
 from .model import inputs
@@ -344,7 +344,7 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     if target and target in closes:
         inst = next((e for e in tracked.etfs() if e.ticker == target), None) or tracked.Instrument(
             target, target, "sector", region)
-        t = rotation.relative_table(closes, bench, [inst], settings()["rotation"]["window"], settings()["rotation"]["tail"])
+        t = rotation.relative_table(closes, bench, [inst], typed().rotation.window, typed().rotation.tail)
         if not t.empty:
             r = t.iloc[0]
             rot = {"ticker": target, "name": inst.name, "quadrant": r["quadrant"], "rs_ratio": r["rs_ratio"],
@@ -388,7 +388,7 @@ def risk_section(ticker: str, market: Market, close: pd.Series, fx: pd.Series | 
                  stop_pct, asof) -> dict:
     """Risk statistics in DKK over the configured windows (see signals/risk.py), factor tilts vs ACWI (the factor
     ETFs and the sector ETF) and the risk budget at the rule stop."""
-    rc = settings()["risk"]
+    rc = typed().risk
     closes = market.closes
     bench = tracked.benchmark()
     usd = fxrates.fx_to_dkk(closes, fxrates.currencies([bench])[bench])
@@ -402,19 +402,19 @@ def risk_section(ticker: str, market: Market, close: pd.Series, fx: pd.Series | 
     y = dkk(close, fx)
     mkt = dkk(closes[bench].dropna(), usd)
     rf = market.fred()["DGS3MO"] if "DGS3MO" in market.fred() else None
-    windows = {k: risk.window_stats(y, mkt, rf, n, rc["min_weeks"]) for k, n in rc["windows"].items()}
+    windows = {k: risk.window_stats(y, mkt, rf, n, rc.min_weeks) for k, n in rc.windows.items()}
     windows = {k: v for k, v in windows.items() if v}
-    tilts = {f: dkk(closes[f].dropna(), usd) for f in rc["factors"] if f in closes and f != ticker}
+    tilts = {f: dkk(closes[f].dropna(), usd) for f in rc.factors if f in closes and f != ticker}
     if sector_etf_ and sector_etf_ in closes and sector_etf_ != ticker:
         tilts[f"sector {sector_etf_}"] = dkk(closes[sector_etf_].dropna(), usd)
-    longest = max(rc["windows"].values())
-    factors = risk.factor_loadings(y, mkt, tilts, rf, longest, rc["min_weeks"]) if tilts else None
+    longest = max(rc.windows.values())
+    factors = risk.factor_loadings(y, mkt, tilts, rf, longest, rc.min_weeks) if tilts else None
     notes = []
     if rf is None:
         notes.append("no risk-free rate yet (FRED DGS3MO): Sharpe and Sortino are not computed, alpha uses raw returns")
     return _section(OK if windows else MISSING, "radar (prices, FRED 3m T-bill)", asof, currency="DKK", benchmark=bench,
-                    windows=windows, factors=factors, budget=risk.risk_budget(stop_pct, rc["budget"]),
-                    budget_risk=rc["budget"], notes=notes)
+                    windows=windows, factors=factors, budget=risk.risk_budget(stop_pct, rc.budget),
+                    budget_risk=rc.budget, notes=notes)
 
 
 def legacy_info(p: dict) -> dict:
@@ -523,8 +523,8 @@ def _derived(p: dict) -> dict:
     price, ccy = p["price"]["last"], p["price"]["currency"]
     for key, period in (("pe_0y", "0y"), ("pe_1y", "+1y")):
         e = next((x for x in p["analyst"]["eps"] if x["period"] == period), None)
-        ok = e and e.get("eps") and e["eps"] > 0 and (e.get("currency") or ccy) == ccy
-        out[key] = price / e["eps"] if ok else None
+        ok = e is not None and e.get("eps") and e["eps"] > 0 and (e.get("currency") or ccy) == ccy
+        out[key] = price / e["eps"] if e is not None and ok else None
     metrics = {m["key"]: m.get("value") for m in ((p.get("quality") or {}).get("metrics") or [])}
     for key in ("fcf_yield", "roic", "shareholder_yield"):
         out[key] = metrics.get(key)
@@ -539,7 +539,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
     (ids; default: your real ones). An unknown ticker becomes an error entry."""
     market = market or Market.load()
     bench = tracked.benchmark()
-    rc = settings()["risk"]
+    rc = typed().risk
     tickers: dict[str, dict] = {}
     for sym in dict.fromkeys(s.strip().upper() for s in symbols):
         try:
@@ -559,8 +559,8 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
     self_fit = {"beta_se": None, "r2": None, "alpha_t": None, "idio_vol_ann": None, "downside_beta": 1.0}
     bench_block = {"symbol": bench, "name": universe.names([bench]).get(bench), "returns": _windows(b, b.index[-1]),
                    "risk": {k: (w | self_fit | {"alpha_ann": 0.0, "beta": 1.0, "corr": 1.0}) if w else None
-                            for k, n in rc["windows"].items()
-                            for w in [risk.window_stats(mkt, mkt, rf, n, rc["min_weeks"]) if mkt is not None else None]}}
+                            for k, n in rc.windows.items()
+                            for w in [risk.window_stats(mkt, mkt, rf, n, rc.min_weeks) if mkt is not None else None]}}
 
     # correlations of weekly DKK returns: the candidates, ACWI, and (personal) the current holdings
     series = {}
@@ -572,7 +572,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
         if fx is not None:
             s = closes[sym].dropna()
             series[sym] = risk.weekly((s * fx.reindex(s.index).ffill()).dropna())
-    corr = risk.correlation(series, rc["windows"]["1y"], rc["min_weeks"])
+    corr = risk.correlation(series, rc.windows["1y"], rc.min_weeks)
 
     bench_profile = {"price": {"returns": bench_block["returns"]}, "risk": {"windows": bench_block["risk"]}}
     derived = {s: _derived(p) for s, p in ok.items()}
@@ -583,7 +583,7 @@ def compare(symbols: list[str], personal: bool = False, market: Market | None = 
         if acwi is not None:
             values[bench] = acwi
         nums = {s: v for s, v in values.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
-        best = (max(nums, key=nums.get) if direction == "higher" else min(nums, key=nums.get)) \
+        best = (max(nums, key=lambda s: nums[s]) if direction == "higher" else min(nums, key=lambda s: nums[s])) \
             if direction and len(nums) > 1 else None
         table.append({"metric": label, "path": path, "direction": direction, "values": values, "best": best})
 

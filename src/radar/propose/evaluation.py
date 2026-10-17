@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from .. import fees, tracked
-from ..config import settings, universe_config
+from ..config import typed, universe_config
 from ..jsonsafe import clean as _clean
 from ..values import num
 from . import basket, draft, drift, exposure, pricing, riskmodel, rules
@@ -108,7 +109,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     every = list(dict.fromkeys([*after, *tickers, bench, *(scored.index[:60])]))
     meta = exposure.info(every, ctx.prices)
     weeks = c["history_weeks"]
-    R = ctx.prices.weekly(every + [f for f in settings()["risk"]["factors"] if f in market.closes], weeks)
+    R = ctx.prices.weekly(every + [f for f in typed().risk.factors if f in market.closes], weeks)
     cov = riskmodel.shrunk_cov(R.reindex(columns=[t for t in every if t in R]), c["shrink"], c["min_weeks"])
 
     # constraints
@@ -139,7 +140,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     prop = metrics(new, ctx, cov, R, horizon, hv["drift_gross"], cost_pct, c, vals, draws)
     st = riskmodel.stress(new, ctx.prices, bench, c)
     kept = (hv.get("kept") or {}).get("all") or {}
-    lenses = {"study": {"median": kept.get("dd_median"), "p10": kept.get("dd_p10"), "dates": kept.get("dates")},
+    lenses: dict[str, Any] = {"study": {"median": kept.get("dd_median"), "p10": kept.get("dd_p10"), "dates": kept.get("dates")},
               "bootstrap": (prop["bootstrap"] or {}).get("max_dd"),
               "stress_worst": min((s["max_dd"] for s in st if s["max_dd"] is not None), default=None)}
     meds = [x for x in (lenses["study"]["median"], (lenses["bootstrap"] or {}).get("median")) if x is not None]
@@ -200,7 +201,7 @@ def factors(values: dict[str, float], R: pd.DataFrame, market) -> dict | None:
     rp = riskmodel.series(values, R, bench)
     if rp is None or bench not in R:
         return None
-    tilts = {f: R[f] for f in settings()["risk"]["factors"] if f in R}
+    tilts = {f: R[f] for f in typed().risk.factors if f in R}
     try:
         rf = market.fred().get("DGS3MO")
     except Exception:  # noqa: BLE001 - no FRED cache: raw returns
@@ -315,7 +316,7 @@ def randoms(scored: pd.DataFrame, tickers: list[str], amount: float, n: int, ctx
         return {"label": "Random baskets", "note": "too few names with a return history in the pool"}
     rng = np.random.default_rng(int(c["bootstrap"]["seed"]))
     base = draft.holdings_base(ctx, pool_)
-    stats = {"vol_ann": [], "te_ann": [], "div_ratio": []}
+    stats: dict[str, list[float]] = {"vol_ann": [], "te_ann": [], "div_ratio": []}
     for _ in range(draws):
         order = scored.loc[pool_].iloc[rng.permutation(len(pool_))].assign(composite=np.arange(len(pool_), 0, -1))
         ch, _ = basket.select(order, n, amount, base, c)

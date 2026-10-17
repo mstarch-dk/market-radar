@@ -39,9 +39,8 @@ def _market_rows(market) -> list[dict]:
         for t in ts:
             group_of.setdefault(t, ("stock", labels.get(key, key)))
     for e in etfs:
-        for t in (e.ticker, e.ucits):
-            if t:
-                group_of.setdefault(t, ("etf", etf_label.get(e.group, e.group)))
+        for t in filter(None, (e.ticker, e.ucits)):
+            group_of.setdefault(t, ("etf", etf_label.get(e.group, e.group)))
     h = trades.holdings()
     symbols = sorted((set(group_of) | set(h["symbol"].dropna()) | {tracked.benchmark()}) & set(closes.columns))
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..config import settings
+from ..config import typed
 from . import gauges as gz
 from . import momentum
 
@@ -37,7 +37,7 @@ def momentum_payoff(closes: pd.DataFrame, tickers: list[str], n: int, min_names:
     c = closes[[t for t in tickers if t in closes.columns]]
     if len(c) <= n + 252:
         return float("nan")
-    m = momentum.metrics(c.iloc[:len(c) - n], pd.DataFrame(), list(c.columns), settings()["momentum"]["min_history_days"])
+    m = momentum.metrics(c.iloc[:len(c) - n], pd.DataFrame(), list(c.columns), typed().momentum.min_history_days)
     s = momentum.score(m).set_axis(m["ticker"])
     fwd = c.iloc[-1] / c.iloc[-1 - n] - 1
     d = pd.concat({"s": s, "y": fwd}, axis=1).dropna()

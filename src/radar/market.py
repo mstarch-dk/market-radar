@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from . import ingest, positive_list, tracked, universe
-from .config import settings
+from .config import typed
 from .paths import PRICES_FILE
 from .signals import momentum
 
@@ -46,7 +46,7 @@ class Market:
         """Momentum metrics and scores for every tracked stock (as on the dashboard), with sectors."""
         if self._leaders is None:
             lead = momentum.leaders(self.closes, self.volumes, tracked.stock_groups(offline=True),
-                                    settings()["momentum"]["min_history_days"])
+                                    typed().momentum.min_history_days)
             sec = universe.sectors(list(lead["ticker"]))
             self._leaders = lead.assign(sector=lead["ticker"].map(sec["sector"]),
                                         industry=lead["ticker"].map(sec["industry"]))

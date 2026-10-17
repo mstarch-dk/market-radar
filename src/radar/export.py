@@ -20,6 +20,7 @@ import json
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from . import home, manifest, paths, trades, userstore
 from .userstore import viewstore
@@ -97,7 +98,7 @@ def restore_holdings(z: zipfile.ZipFile, reason: str = "before-unbundle") -> dic
     userstore.backup(reason)
     n_pf = userstore.import_portfolios_json(z.read(PORTFOLIOS).decode("utf-8")) if PORTFOLIOS in names else 0
     tx = next((n for n in (TX, BUNDLE_TX) if n in names), None)
-    out = {"portfolios": n_pf, "transactions": 0, "legacy_files": []}
+    out: dict[str, Any] = {"portfolios": n_pf, "transactions": 0, "legacy_files": []}
     if tx:
         out["transactions"] = userstore.import_transactions_csv(z.read(tx).decode("utf-8-sig"))
         if YAHOO_WATCH in names:

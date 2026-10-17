@@ -39,7 +39,7 @@ def is_financial(industry: str | None, financial_industries) -> bool:
 
 # ---------------- metrics per stock ----------------
 
-def _fresh(v, asof: pd.Timestamp, days: int):
+def _fresh(v: periods.Value | None, asof: pd.Timestamp, days: int) -> periods.Value | None:
     return v if v is not None and (asof - v.end).days <= days else None
 
 
@@ -106,10 +106,10 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     rng = cfg.get("ranges") or {}
     ttm_age, fy_age = cfg["ttm_max_age_days"], cfg["annual_max_age_days"]
 
-    def ttm(item):
+    def ttm(item: str) -> periods.Value | None:
         return _fresh(periods.ttm(facts, item, known_by), asof, ttm_age)
 
-    def bal(item, on=None):
+    def bal(item: str, on=None) -> periods.Value | None:
         v = periods.instant(facts, item, known_by, on)
         return v if on is not None else _fresh(v, asof, ttm_age)
 
@@ -139,39 +139,43 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
             return None
         return v
 
-    # --- quality
-    r_ = _v(rev)
-    fcf = _v(cfo) - _v(capex) if cfo is not None and capex is not None else None
+    # --- quality (each value read once: a fact whose value doesn't parse counts as missing)
+    r_, ebit_v, ni_v, cfo_v, capex_v = _v(rev), _v(ebit), _v(ni), _v(cfo), _v(capex)
+    assets_v, equity_v, cl_v = _v(assets), _v(equity), _v(cl)
+    fcf = cfo_v - capex_v if cfo_v is not None and capex_v is not None else None
     vals["fcf"] = fcf
     if financial:
-        eq = _v(equity)
+        eq = equity_v
         eq_ago = bal("equity", on=asof - timedelta(days=300))
-        eq_avg = (eq + _v(eq_ago)) / 2 if eq is not None and eq_ago is not None and eq_ago.end < equity.end - \
-            timedelta(days=250) else eq
-        vals["roe"] = check("roe", _v(ni) / eq_avg if ni is not None and eq_avg and eq_avg > 0 else None)
+        eq_ago_v = _v(eq_ago)
+        eq_avg = eq
+        if eq is not None and equity is not None and eq_ago is not None and eq_ago_v is not None \
+                and eq_ago.end < equity.end - timedelta(days=250):
+            eq_avg = (eq + eq_ago_v) / 2
+        vals["roe"] = check("roe", ni_v / eq_avg if ni_v is not None and eq_avg and eq_avg > 0 else None)
         ni_y, eq_y = annual("net_income"), annual("equity")
         roe_y = (ni_y / eq_y.reindex(ni_y.index)).dropna()
         roe_y = roe_y[eq_y.reindex(roe_y.index) > 0]
         if len(roe_y) >= cfg["min_fy_points"]:
             vals["roe_stability"] = float(roe_y.std(ddof=1) * 100)
-        if equity is not None and assets is not None and _v(assets) > 0:
-            vals["equity_assets"] = _v(equity) / _v(assets)
+        if equity_v is not None and assets_v is not None and assets_v > 0:
+            vals["equity_assets"] = equity_v / assets_v
     else:
         if fcf is not None and r_ and r_ > 0:
             vals["fcf_margin"] = check("fcf_margin", fcf / r_)
-        if ebit is not None and assets is not None and cash_v is not None and cl is not None:
-            ic = _v(assets) - cash_v - (_v(cl) - debt_c)
+        if ebit_v is not None and assets is not None and assets_v is not None and cash_v is not None and cl_v is not None:
+            ic = assets_v - cash_v - (cl_v - debt_c)
             ago = assets.end - timedelta(days=300)
             a0 = bal("total_assets", on=ago)
-            ic0 = None
+            ic0: float | None = None
             if a0 is not None and (assets.end - a0.end).days <= 430:
-                c0, l0, d0 = bal("cash", on=ago), bal("current_liabilities", on=ago), bal("debt_current", on=ago)
-                if c0 is not None and l0 is not None:
-                    ic0 = _v(a0) - _v(c0) - (_v(l0) - (_v(d0) or 0.0))
+                a0_v, c0, l0 = _v(a0), _v(bal("cash", on=ago)), _v(bal("current_liabilities", on=ago))
+                if a0_v is not None and c0 is not None and l0 is not None:
+                    ic0 = a0_v - c0 - (l0 - (_v(bal("debt_current", on=ago)) or 0.0))
             ic_avg = (ic + ic0) / 2 if ic0 is not None and ic0 > 0 else ic
             p, t = _v(pretax), _v(tax)
             rate = min(max(t / p, 0.0), 0.40) if p and p > 0 and t is not None else 0.25
-            vals["roic"] = check("roic", _v(ebit) * (1 - rate) / ic_avg if ic_avg and ic_avg > 0 else None)
+            vals["roic"] = check("roic", ebit_v * (1 - rate) / ic_avg if ic_avg and ic_avg > 0 else None)
         rev_y, gp_y, cogs_y = annual("revenue"), annual("gross_profit"), annual("cost_of_revenue")
         margin = (gp_y / rev_y.reindex(gp_y.index)) if not gp_y.empty else \
             ((rev_y - cogs_y.reindex(rev_y.index)) / rev_y) if not cogs_y.empty else pd.Series(dtype="float64")
@@ -188,7 +192,7 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
         rev_y = rev_y.dropna()
         if len(rev_y) >= cfg["min_fy_points"]:
             vals["rev_stability"], vals["rev_cagr"] = _trend(rev_y)
-        ebitda = _v(ebit) + (_v(dna) or 0.0) if ebit is not None else None
+        ebitda = ebit_v + (_v(dna) or 0.0) if ebit_v is not None else None
         vals["ebitda"] = ebitda
         if debt is not None and cash_v is not None and ebitda is not None:
             nd = debt - cash_v
@@ -200,14 +204,15 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
                 notes.append("net debt with negative EBITDA")
             else:
                 vals["_nd_rank"] = vals["nd_ebitda"]
-        if ebit is not None:
+        if ebit_v is not None:
             cap = cfg["interest_cover_cap"]
-            i = abs(_v(interest)) if interest is not None else None   # Yahoo's sign varies by company
-            if _v(ebit) <= 0:
+            interest_v = _v(interest)
+            i = abs(interest_v) if interest_v is not None else None   # Yahoo's sign varies by company
+            if ebit_v <= 0:
                 vals["interest_cover"] = 0.0
             elif i:
-                vals["interest_cover"] = min(_v(ebit) / i, cap)
-            elif debt is not None and assets is not None and debt <= 0.05 * _v(assets):
+                vals["interest_cover"] = min(ebit_v / i, cap)
+            elif debt is not None and assets_v is not None and debt <= 0.05 * assets_v:
                 vals["interest_cover"] = float(cap)         # next to no debt, no interest line
     vals["div_years"] = dividend_years(dps, asof.year - 1)
 
@@ -218,22 +223,23 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     else:
         vals["shareholder_yield"] = check("shareholder_yield", _shy(ttm, mcap))
         if financial:
-            if equity is not None and _v(equity) > 0:
-                vals["bp"] = _v(equity) / mcap
-                vals["pb"] = mcap / _v(equity)
-            if ni is not None:
-                vals["ep"] = _v(ni) / mcap
-                vals["pe"] = mcap / _v(ni) if _v(ni) > 0 else None
+            if equity_v is not None and equity_v > 0:
+                vals["bp"] = equity_v / mcap
+                vals["pb"] = mcap / equity_v
+            if ni_v is not None:
+                vals["ep"] = ni_v / mcap
+                vals["pe"] = mcap / ni_v if ni_v > 0 else None
                 vals["ep_vs_history"] = _own_history(facts, "net_income", None, vals["ep"], price_on, asof, cfg,
                                                      known_by)
         else:
             if fcf is not None:
                 vals["fcf_yield"] = check("fcf_yield", fcf / mcap)
-            if ebit is not None and debt is not None and cash_v is not None:
+            if ebit_v is not None and debt is not None and cash_v is not None:
                 ev = mcap + debt - cash_v + other
                 if ev > 0:
-                    vals["ebit_ev"] = check("ebit_ev", _v(ebit) / ev)
-                    vals["ev_ebit"] = ev / _v(ebit) if _v(ebit) > 0 else None
+                    vals["ebit_ev"] = check("ebit_ev", ebit_v / ev)
+                    vals["ev_ebit"] = ev / ebit_v if ebit_v > 0 else None
+
                     if vals["ebit_ev"] is not None:
                         vals["ey_vs_history"] = _own_history(facts, "operating_income", True, vals["ebit_ev"],
                                                              price_on, asof, cfg, known_by)

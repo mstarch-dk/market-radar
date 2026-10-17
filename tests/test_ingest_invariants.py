@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from conftest import with_settings
 from fakes import Resp, fake_yf, never_shrank, serve, statements, stored
 from radar import external, ingest, sentiment, tracked, valuation
 from radar.discovery import scan
@@ -236,7 +237,7 @@ class Prices(Source):
             frames = [w[w["date"] >= pd.Timestamp(start)] for t, w in world.items() if t in tickers]
             return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=ingest.COLUMNS)
         mp.setattr(ingest, "download_bars", download)
-        mp.setattr(ingest, "settings", lambda: {"history_years": 1})
+        with_settings(mp, history_years=1)
 
     def good(self, mp):
         self._serve(mp, {"A": _bars("A", "2025-10-16", "2026-10-14"), "B": _bars("B", "2025-10-16", "2026-10-14")})

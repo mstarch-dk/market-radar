@@ -1,15 +1,14 @@
 """The score study (backtest/study.py) on constructed markets whose answers are known: persistent drifts rank
 perfectly (IC 1), pure noise doesn't (IC about 0), nothing after a date's horizon is read, missing forward
 returns are counted rather than treated as 0, and the holdout split and Newey-West errors are as specified."""
-import copy
 import math
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from conftest import with_settings
 from radar.backtest import exit_rules, redeploy, study
-from radar.config import settings
 from radar.signals import momentum
 
 DAYS = 520
@@ -38,10 +37,7 @@ def noise(n: int = 200, seed: int = 1) -> pd.DataFrame:
 
 @pytest.fixture
 def cfg(monkeypatch):
-    c = copy.deepcopy(settings())
-    c["backtest"] |= {"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"}
-    monkeypatch.setattr(study, "settings", lambda: c)
-    return c
+    return with_settings(monkeypatch, backtest={"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"})
 
 
 def run(closes, **kw):

@@ -33,7 +33,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
     trades.ensure_migrated()
     variants = exits.VARIANTS if variant == "both" else (variant,)
     if any(v not in exits.VARIANTS for v in variants):
-        raise typer.Exit("--variant must be overlay, rules or both")
+        raise SystemExit("--variant must be overlay, rules or both")
     ids = portfolio_ids(names, None) if names else [p["id"] for p in userstore.portfolios(include_archived=False)
                                                      if p["mode"] == "real" and p["n_tx"]]
     with job("sim") as log:
@@ -51,7 +51,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
                 spec = exit_rules.variant(rule_spec)
             rep = exits.refresh(ids, market, variants, start, end, fill, spec=spec)
         except ValueError as e:
-            raise typer.Exit(f"Not simulated: {e}")
+            raise SystemExit(f"Not simulated: {e}")
     if out:
         Path(out).write_text(to_json(rep, indent=1), encoding="utf-8")
     if as_json:
@@ -73,11 +73,11 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
                        f"(parked in {res['park']}): {dkk(s['at_end']['saved_dkk'])} DKK to the end, "
                        f"{dkk(s['at_your_sale']['saved_dkk'])} DKK to your next sale ({s['at_end']['helped']} of "
                        f"{s['at_end']['exits']} exits helped to the end)")
-            for e in res["exits"]:
-                a = e["after"]
-                k = f"k {e['k']:.2f}" if e.get("k") is not None else "      "
-                typer.echo(f"    {e['trigger_date']} {e['symbol']:<10} {e.get('stop_kind', e['trigger']).replace('_', '-'):<11} {k}  "
-                           f"sold {e['fill_date']} at {e['fill_price']:.2f}  {e['proceeds_dkk']:>10,.0f} DKK  "
+            for x in res["exits"]:
+                a = x["after"]
+                k = f"k {x['k']:.2f}" if x.get("k") is not None else "      "
+                typer.echo(f"    {x['trigger_date']} {x['symbol']:<10} {x.get('stop_kind', x['trigger']).replace('_', '-'):<11} {k}  "
+                           f"sold {x['fill_date']} at {x['fill_price']:.2f}  {x['proceeds_dkk']:>10,.0f} DKK  "
                            f"saved {dkk(a['end']['saved_dkk'])} (end)"
                            + (f", {dkk(a['your_sale']['saved_dkk'])} (your sale {a['your_sale']['date']})" if "your_sale" in a else ""))
             if s["events"]:
@@ -125,7 +125,7 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
     try:
         rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff, fund=fund)
     except ValueError as e:
-        raise typer.Exit(str(e))
+        raise SystemExit(str(e))
     text = to_json(rep, indent=1, ensure_ascii=False)
     if out:
         Path(out).parent.mkdir(parents=True, exist_ok=True)
@@ -199,7 +199,7 @@ def sim_picks(asof: str = typer.Option(None, "--asof", help="1M, 3M, 6M, 1Y, tod
                     raise ValueError("give --picks FILE or --rule top-n")
                 reps = [picks.run(market, asof, chosen, name, capital, meta, end, model_cutoff, tag or (), p=p)]
         except (ValueError, KeyError) as e:
-            raise typer.Exit(f"Not simulated: {e}")
+            raise SystemExit(f"Not simulated: {e}")
         for r in reps:
             log(f"{r['name']}: picked {r['asof']}, bought {r['fill']}, to {r['end']}")
     if as_json:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 from . import (
     external,
@@ -24,7 +25,7 @@ from . import (
     userstore,
     valuation,
 )
-from .config import settings
+from .config import typed
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
 
@@ -113,7 +114,7 @@ def update_external(log: Log = print) -> None:
         "oecd": ("OECD leading indicators", external.update_oecd_cli),
         "factset": ("FactSet earnings insight",
                     lambda: f"report {d}" if (d := external.update_factset()) else "no new report"),
-        "analyst": ("Analyst targets", lambda: external.update_analyst(mine, settings()["analyst"]["max_age_days"])),
+        "analyst": ("Analyst targets", lambda: external.update_analyst(mine, typed().analyst.max_age_days)),
         "ecb": ("ECB euro-area rates", external.update_ecb),
         "cape": ("Shiller CAPE (multpl.com)", valuation.update_cape),
         "erp": ("Equity risk premium (Damodaran)", valuation.update_erp),
@@ -167,6 +168,13 @@ def _abtest(log: Log) -> None:
 
 # ---------------- background job for the web app ----------------
 
+def _refresh(log: Log, progress: Callable[[int, int], None]) -> None:
+    """The web app's refresh: the daily backup, the update, the report."""
+    _daily_backup(log)
+    update(log, progress=progress)
+    build_report(log)
+
+
 class UpdateJob:
     """One data refresh at a time, run in a thread; its log and progress can be polled."""
 
@@ -175,8 +183,8 @@ class UpdateJob:
         self._lock = threading.Lock()
         self._label = label
         self._kind = kind     # the job's kind in the operations log
-        self._work = work or (lambda log, progress: (_daily_backup(log), update(log, progress=progress), build_report(log)))
-        self.state = {"status": "idle", "started": None, "finished": None, "log": [], "progress": None, "error": None}
+        self._work = work or _refresh
+        self.state: dict[str, Any] = {"status": "idle", "started": None, "finished": None, "log": [], "progress": None, "error": None}
 
     def _log(self, line: str) -> None:
         self.state["log"] = [*self.state["log"], f"{datetime.now():%H:%M:%S} {line}"][-200:]
@@ -234,10 +242,10 @@ def discover(log: Log, progress: Callable[[int, int], None], refresh_universe: b
 def _rebuild(log: Log, progress: Callable[[int, int], None]) -> None:
     """The readings rebuilt from the data already downloaded: after an upgrade, an edited settings.yaml or a
     terminal update without a report. The config files are read again, as a new `radar report` would."""
-    from .config import settings as _settings
-    from .config import universe_config
+    from .config import reload, universe_config
 
-    _settings.cache_clear()
+    reload()
+
     universe_config.cache_clear()
     build_report(log, wait=0)
 

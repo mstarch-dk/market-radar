@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 
 from . import fxrates, net, trades
-from .config import settings, write_csv
+from .config import typed, write_csv
 from .paths import CACHE
 from .tracked import benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
 
@@ -82,12 +82,12 @@ def history_start(today: date | None = None) -> date:
     from . import userstore
 
     today = today or date.today()
-    cfg, bt = settings(), settings().get("backtest") or {}
-    start = today - timedelta(days=int(365.25 * cfg["history_years"]))
+    bt = typed().backtest
+    start = today - timedelta(days=int(365.25 * typed().history_years))
     dates = [str(t["date"])[:10] for t in userstore.transactions()]
     if dates:
-        start = min(start, date.fromisoformat(min(dates)) - timedelta(days=int(bt.get("warmup_days", 0))))
-    return max(start, today - timedelta(days=int(365.25 * bt.get("max_years", 10))))
+        start = min(start, date.fromisoformat(min(dates)) - timedelta(days=bt.warmup_days))
+    return max(start, today - timedelta(days=int(365.25 * bt.max_years)))
 
 
 def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]:

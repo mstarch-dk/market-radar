@@ -1,17 +1,16 @@
 """The point-in-time fundamentals panel (backtest/fund.py) and the study's other signals (backtest/study.py SIGNALS):
 scores on a past day come from the facts filed by then only, match the live scoring code on the same inputs, and
 the momentum study is unchanged by the registry."""
-import copy
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import world
+from conftest import with_settings
 from radar import profile, universe
 from radar.backtest import study
 from radar.backtest.fund import FundPIT
-from radar.config import settings
 from radar.fundamentals import context as fcontext
 from radar.fundamentals import store
 
@@ -139,10 +138,7 @@ def _panels(n: int = 40):
 
 @pytest.fixture
 def cfg(monkeypatch):
-    c = copy.deepcopy(settings())
-    c["backtest"] |= {"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"}
-    monkeypatch.setattr(study, "settings", lambda: c)
-    return c
+    return with_settings(monkeypatch, backtest={"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"})
 
 
 def test_a_quality_signal_ranks_on_its_own_baseline(cfg):

@@ -7,6 +7,7 @@ must be confirmed.
 from __future__ import annotations
 
 from datetime import date
+from typing import Any, TypeGuard
 
 import pandas as pd
 
@@ -46,7 +47,7 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
     day = pd.Timestamp(day)
     ccy = fxrates.currencies([symbol]).get(symbol) if symbol in market.closes.columns else None
     found = session_close(market, symbol, day)
-    out = {"symbol": symbol, "currency": ccy, "close": None, "close_date": None, "verdict": "no_data", "message": None,
+    out: dict[str, Any] = {"symbol": symbol, "currency": ccy, "close": None, "close_date": None, "verdict": "no_data", "message": None,
            "fx": None}
     if not found:
         out["message"] = "No price history for this date, so the price can't be checked."
@@ -83,7 +84,7 @@ TYPE_WORDS = {"BUY": "buy", "SELL": "sale", "DEPOSIT": "deposit", "WITHDRAW": "w
 CASH_SLACK = 0.5                       # DKK: rounding, not a missing deposit
 
 
-def _is_number(v) -> bool:
+def _is_number(v) -> TypeGuard[int | float]:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
 
 
@@ -94,7 +95,7 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
     from . import performance
 
     issues = []
-    kind = row.get("type")
+    kind: str = row.get("type") or ""
     trade, cash_row = kind in userstore.TRADE_TYPES, kind in userstore.CASH_TYPES
     sym = (row.get("symbol") or "").strip().upper()
     if not (trade or cash_row):

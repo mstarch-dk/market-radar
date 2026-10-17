@@ -6,12 +6,13 @@ How to use and read it: guide/brugervejledning/scoretest.md (*En kurv valgt på 
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, tracked, universe, userstore
-from ..config import settings, write_text
+from .. import performance, simulate, tracked, universe, userstore
+from ..config import typed, write_text
 from ..jsonsafe import clean as _clean
 from ..jsonsafe import dumps
 from ..model import panels as mp
@@ -57,7 +58,7 @@ def resolve_asof(spec: str, sessions: pd.DatetimeIndex, fill: str = "next") -> t
 
 
 def _fill(sessions: pd.DatetimeIndex, day: pd.Timestamp) -> pd.Timestamp:
-    fi = mp.fill_session(sessions, day, (settings().get("backtest") or {}).get("fill", "next"))
+    fi = mp.fill_session(sessions, day, typed().backtest.fill)
     if fi is None:
         raise ValueError(f"no session after {day:%Y-%m-%d} to buy at yet: pick an earlier day (or 'today')")
     return sessions[fi]
@@ -74,7 +75,7 @@ def candidates(market, asof, blind: bool = False, views: bool = False, top: int 
     after D. `blind` replaces tickers and names with C001… by rank on D (so the same data gives the same ids), for
     picking on a date before the picker's knowledge cutoff. `views` adds your market views created by D."""
     p = p or mp.panels(market)
-    day, note = resolve_asof(asof, p.sessions, (settings().get("backtest") or {}).get("fill", "next"))
+    day, note = resolve_asof(asof, p.sessions, typed().backtest.fill)
     df = ranked(p, day)
     sec = universe.sectors(list(df["ticker"]))
     df["industry"] = df["ticker"].map(sec["industry"])
@@ -86,7 +87,8 @@ def candidates(market, asof, blind: bool = False, views: bool = False, top: int 
         from .fund import FundPIT
 
         ft = FundPIT(market).table(day)
-    rows = []
+    rows: list[dict] = []
+
     for _, r in df.iterrows():
         if top and len(rows) >= top:
             break
@@ -209,8 +211,10 @@ def _resolve(picks: list[dict], df: pd.DataFrame) -> list[dict]:
     """Picks by ticker or blind id -> tickers with normalised weights; refuses unknown names and duplicates."""
     by_id = dict(zip(df["id"], df["ticker"]))
     known = set(df["ticker"])
-    out, seen = [], set()
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for x in picks:
+
         t = str(x.get("ticker") or x.get("id") or "").strip()
         if BLIND.match(t) and t not in known:
             if t not in by_id:
@@ -270,10 +274,10 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     (the score's own top N with the same caps, equal weights). The picks and settings go into the portfolios' params,
     so `rerun` repeats the same basket."""
     meta = dict(meta or {})
-    bt = settings().get("backtest") or {}
-    fee = money.fee_bps(bt)
+    bt = typed().backtest
+    fee = bt.fee_bps
     p = p or mp.panels(market)
-    fill_mode = bt.get("fill", "next")
+    fill_mode = bt.fill
     day, note = resolve_asof(asof, p.sessions, fill_mode)
     fday = _fill(p.sessions, day)
     df = ranked(p, day)
@@ -282,7 +286,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     control = select(df, n, caps["max_per_sector"], caps["max_per_group"], bool(meta.get("trend")),
                      meta.get("weighting", "equal") if picks is None else "equal")
     mechanical = picks is None
-    chosen = control if mechanical else _resolve(picks, df)
+    chosen = control if picks is None else _resolve(picks, df)
     if mechanical:
         meta.setdefault("basis", "score")
     if not chosen:
@@ -300,7 +304,7 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
 
     from .pit import Context
 
-    park = bt.get("park") or tracked.benchmark()
+    park = bt.park or tracked.benchmark()
     ctx = Context.build(market, set(weights) | set(cw) | {park})
     rep = ex.replay(rows, ctx, "rules", end=end_ts, fee_bps=fee)
 
@@ -327,9 +331,9 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
     b = performance.bench_dkk(market)
     acwi = float(b.asof(end_ts) / b.asof(fday) - 1) if len(b) else None
     rnd = random_percentile(df[df["score"].notna()], ret_d, len(weights), gross, caps["max_per_sector"],
-                            caps["max_per_group"], int(bt.get("random_baskets", 1000)), seed=_seed(day, len(weights)))
+                            caps["max_per_group"], bt.random_baskets, seed=_seed(day, len(weights)))
     check = cross_section(df.set_index("ticker")["score"], ret_l.reindex(uni), len(weights),
-                                min(int(bt.get("study_min_names", 30)), max(len(df) // 2, 5)))
+                                min(bt.study_min_names, max(len(df) // 2, 5)))
     per_pick = []
     for c in chosen:
         t = c["ticker"]
@@ -348,8 +352,8 @@ def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_
         "model_cutoff": model_cutoff, "after_cutoff": _after_cutoff(day, model_cutoff),
         # return_dkk: end value over the capital, every fee included; the Returns page's TWR starts from the value
         # at the close of the buy, after the buying fees
-        "portfolios": {k: {"id": v, "name": userstore.get_portfolio(v)["name"], "return_dkk": value_ret[k],
-                           "excess_dkk": value_ret[k] - acwi if value_ret[k] is not None and acwi is not None else None,
+        "portfolios": {k: {"id": v, "name": (userstore.get_portfolio(v) or {}).get("name"), "return_dkk": value_ret[k],
+                           "excess_dkk": r - acwi if (r := value_ret[k]) is not None and acwi is not None else None,
                            "stats": rows_by.get(v, {}).get("stats")} for k, v in ids.items()},
         "same_as_control": same_as_control,
         "control": control,

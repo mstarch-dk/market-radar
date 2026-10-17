@@ -61,21 +61,22 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
     from .. import portfolio, profile, userstore
 
     trades.ensure_migrated()
-    row = {"symbol": symbol.strip().upper(), "date": date or _date.today().isoformat(), "type": type_.upper(),
+    symbol = symbol.strip().upper()
+    row = {"symbol": symbol, "date": date or _date.today().isoformat(), "type": type_.upper(),
            "quantity": quantity, "price": price, "fee": fee, "portfolio": portfolio_name or account, "note": note}
     try:
-        market = profile.ensure_prices(row["symbol"])
+        market = profile.ensure_prices(symbol)
     except profile.TickerNotFound as e:
-        raise typer.Exit(str(e))
+        raise SystemExit(str(e))
     issues = portfolio.validate(row, market)
     for i in issues:
         typer.echo(f"  {i['level'].upper()}: {i['message']}")
     if any(i["level"] == "error" for i in issues) or (issues and not yes):
-        raise typer.Exit("Not saved." + ("" if any(i["level"] == "error" for i in issues) else " Add --yes to save anyway."))
+        raise SystemExit("Not saved." + ("" if any(i["level"] == "error" for i in issues) else " Add --yes to save anyway."))
     tx_id = userstore.add_tx(row)
     eff = portfolio.effect(row, exclude_id=tx_id)
-    saved = userstore.get_tx(tx_id)
-    typer.echo(f"Saved #{tx_id} in {saved['portfolio']}. {row['symbol']}: {eff['before']['quantity']:g} → "
+    saved = userstore.get_tx(tx_id) or {}
+    typer.echo(f"Saved #{tx_id} in {saved.get('portfolio')}. {symbol}: {eff['before']['quantity']:g} → "
                f"{eff['after']['quantity']:g} shares.")
 
 
@@ -170,7 +171,7 @@ def portfolios_add(name: str, virtual: bool = typer.Option(False, "--virtual", h
         userstore.save_portfolio({"name": name, "mode": "virtual" if virtual else "real", "kind": kind,
                                   "note": note, "tags": tag or []})
     except ValueError as e:
-        raise typer.Exit(f"Not added: {e}.")
+        raise SystemExit(f"Not added: {e}.")
     typer.echo(f"Added {name} ({'virtual' if virtual else 'real'}, {kind}).")
 
 
@@ -187,7 +188,7 @@ def portfolios_edit(name: str, rename: str = typer.Option(None, help="New name")
     try:
         userstore.save_portfolio(change, p["id"])
     except ValueError as e:
-        raise typer.Exit(f"Not changed: {e}.")
+        raise SystemExit(f"Not changed: {e}.")
     typer.echo(f"Updated {rename or name}.")
 
 
@@ -219,7 +220,7 @@ def portfolios_default(name: str):
     try:
         userstore.set_default_portfolio(one_portfolio(name)["id"])
     except ValueError as e:
-        raise typer.Exit(str(e))
+        raise SystemExit(str(e))
     typer.echo(f"{name} is now the default portfolio.")
 
 
@@ -233,7 +234,7 @@ def portfolios_move(name: str, to: str = typer.Option(..., "--to", help="The por
     symbols = [s.strip().upper() for s in symbol] if symbol else None
     problems = portfolio.check_move(src["id"], dst["id"], None, symbols)
     if problems:
-        raise typer.Exit("Not moved: " + "; ".join(problems[:5]))
+        raise SystemExit("Not moved: " + "; ".join(problems[:5]))
     typer.echo(f"Moved {userstore.move_transactions(src['id'], dst['id'], None, symbols)} rows to {to}.")
 
 
@@ -247,7 +248,7 @@ def portfolios_fork(name: str, new_name: str, date: str = typer.Option(..., "--d
     try:
         simulate.fork(one_portfolio(name)["id"], new_name, date, profile.Market.load(), cash, tag or [])
     except ValueError as e:
-        raise typer.Exit(f"Not forked: {e}")
+        raise SystemExit(f"Not forked: {e}")
     typer.echo(f"Forked {name} into {new_name} (virtual). Compare: radar performance {name!r} {new_name!r} --start {date}")
 
 
@@ -271,5 +272,5 @@ def portfolios_delete(name: str, yes: bool = typer.Option(False, "--yes", help="
     try:
         userstore.delete_portfolio(p["id"])
     except ValueError as e:
-        raise typer.Exit(str(e))
+        raise SystemExit(str(e))
     typer.echo(f"Deleted {name}.")

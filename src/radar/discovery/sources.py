@@ -10,6 +10,7 @@ import csv
 import io
 import re
 from collections.abc import Callable
+from collections.abc import Set as AbstractSet
 from datetime import date
 
 import pandas as pd
@@ -117,7 +118,7 @@ def quote_row(q: dict, code: str, fx: dict[str, float]) -> dict:
 
 
 def home_listings(quotes: dict[str, list[dict]], fx: dict[str, float], min_cap_dkk: float,
-                  keep: set[str] = frozenset()) -> pd.DataFrame:
+                  keep: AbstractSet[str] = frozenset()) -> pd.DataFrame:
     """Screener quotes per exchange -> one row per company, on its home exchange.
 
     Cross-listings are dropped: a quote must be in its exchange's currency and report in a European currency,
@@ -150,7 +151,7 @@ def home_listings(quotes: dict[str, list[dict]], fx: dict[str, float], min_cap_d
     return df.drop(columns=[c for c in df.columns if c.startswith("_")] + ["financial_currency", "quote_type"])
 
 
-def drop_known_names(df: pd.DataFrame, names: list[str], keep: set[str] = frozenset()) -> pd.DataFrame:
+def drop_known_names(df: pd.DataFrame, names: list[str], keep: AbstractSet[str] = frozenset()) -> pd.DataFrame:
     """Rows whose company (by normalised name) is already elsewhere in the universe are dropped: a Nordic
     company's German listing doesn't belong in the Europe market. Tickers in `keep` stay."""
     known = {k for k in map(_norm_name, names) if k}
@@ -293,7 +294,7 @@ def map_isins(isins: list[str], cached: pd.DataFrame, exchanges: list[str],
             failures[0] += 1
             return None
         etfs = [q for q in quotes if q.get("quoteType") == "ETF" and q.get("symbol")]
-        etfs.sort(key=lambda q: rank.get(q.get("exchange"), len(rank)))
+        etfs.sort(key=lambda q: rank.get(q.get("exchange") or "", len(rank)))
         q = etfs[0] if etfs else {}
         return {"isin": isin, "symbol": q.get("symbol", ""), "exchange": q.get("exchange", ""),
                 "yahoo_name": q.get("longname") or q.get("shortname") or "",

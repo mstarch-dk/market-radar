@@ -192,6 +192,7 @@ def _migrate(con: sqlite3.Connection) -> None:
         return
     if version > 0:
         backups.copy(con, f"before-schema-v{len(MIGRATIONS)}")
+    level = con.isolation_level
     con.isolation_level = None                    # explicit BEGIN/COMMIT: DDL included in the transaction
     con.execute("PRAGMA foreign_keys = OFF")      # only takes effect outside a transaction
     try:
@@ -211,11 +212,18 @@ def _migrate(con: sqlite3.Connection) -> None:
                 con.execute("ROLLBACK")
                 raise
     finally:
-        con.isolation_level = ""
+        con.isolation_level = level
 
 
 def exists() -> bool:
     return (USERDATA / DB_NAME).exists()
+
+
+def new_id(cur: sqlite3.Cursor) -> int:
+    """The id of the row an INSERT just added."""
+    if cur.lastrowid is None:
+        raise sqlite3.DatabaseError("the insert added no row")
+    return cur.lastrowid
 
 
 def timestamp() -> str:
@@ -376,8 +384,8 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
             if "name" not in vals:
                 raise ValueError("a portfolio needs a name")
             cols = list(vals) + ["created_at", "updated_at"]
-            pid = con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
-                              (*vals.values(), now, now)).lastrowid
+            pid = new_id(con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                              (*vals.values(), now, now)))
         elif vals:
             con.execute(f"UPDATE portfolios SET {', '.join(f'{k} = ?' for k in vals)}, updated_at = ? WHERE id = ?",
                         (*vals.values(), now, pid))
@@ -439,17 +447,17 @@ def _target(con, row: dict, fallback: int | None = None, create: bool = False) -
         if not create:
             raise ValueError(f"unknown portfolio {name!r}")
         now = timestamp()
-        return con.execute("INSERT INTO portfolios (name, created_at, updated_at) VALUES (?, ?, ?)",
-                           (name, now, now)).lastrowid
+        return new_id(con.execute("INSERT INTO portfolios (name, created_at, updated_at) VALUES (?, ?, ?)",
+                           (name, now, now)))
     if fallback is not None:
         return fallback
     pid = _default_id(con)
     if pid is None:
         r = con.execute("SELECT id FROM portfolios WHERE name = 'Main'").fetchone()
         now = timestamp()
-        pid = r["id"] if r else con.execute(
+        pid = r["id"] if r else new_id(con.execute(
             "INSERT INTO portfolios (name, note, created_at, updated_at) VALUES ('Main', ?, ?, ?)",
-            ("Trades entered without choosing a portfolio", now, now)).lastrowid
+            ("Trades entered without choosing a portfolio", now, now)))
         con.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('default_portfolio', ?)", (json.dumps(pid),))
     return int(pid)
 
@@ -548,7 +556,8 @@ def transactions(symbol: str | None = None, portfolios: list[int] | None = None,
     given. Nothing is created just by reading."""
     if not exists():
         return []
-    where, args = [], []
+    where: list[str] = []
+    args: list = []
     if symbol:
         where.append("t.symbol = ?")
         args.append(symbol)
@@ -596,7 +605,7 @@ def _insert(con: sqlite3.Connection, row: dict, source: str, import_id: int | No
         (tx_id, pid, v["symbol"], str(v["date"])[:10], v["type"], v["quantity"], v["price"], v["fee"] or 0,
          v["amount"], v["currency"], v["fx_rate"], v["note"], v["ext_ref"], source, import_id, run_id,
          created or now, now))
-    return int(cur.lastrowid)
+    return new_id(cur)
 
 
 def add_tx(row: dict, source: str = "manual") -> int:
@@ -669,9 +678,9 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
             "(SELECT mode FROM portfolios WHERE id = ?) = 'real')", (target, target))]
         keys = {trade_key(r) for r in existing}
         refs = {r["ext_ref"] for r in existing if r["ext_ref"]}
-        imp = con.execute("INSERT INTO imports (source, file_name, at, portfolio_id, rows_replaced, backup) "
+        imp = new_id(con.execute("INSERT INTO imports (source, file_name, at, portfolio_id, rows_replaced, backup) "
                           "VALUES (?, ?, ?, ?, ?, ?)",
-                          (source, file_name, timestamp(), target, replaced, Path(copy).name if copy else None)).lastrowid
+                          (source, file_name, timestamp(), target, replaced, Path(copy).name if copy else None)))
         added = skipped = 0
         for r in rows:
             if (r.get("ext_ref") and r["ext_ref"] in refs) or trade_key(r) in keys:
@@ -724,8 +733,8 @@ def create_with_rows(p: dict, rows: list[dict], source: str) -> int:
         vals["fee_schedule"] = json.dumps(p["fee_schedule"])
     with closing(connect()) as con, con:
         cols = list(vals) + ["created_at", "updated_at"]
-        pid = con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
-                          (*vals.values(), now, now)).lastrowid
+        pid = new_id(con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                          (*vals.values(), now, now)))
         _write_tags(con, pid, p.get("tags"))
         for r in rows:
             _insert(con, r, source, None, portfolio_id=pid)
@@ -741,12 +750,12 @@ def replace_sim_run(pid: int, run: dict, rows: list[dict]) -> int:
             raise ValueError("simulated runs go only into a virtual portfolio made for simulations")
         con.execute("DELETE FROM transactions WHERE portfolio_id = ?", (pid,))
         con.execute("DELETE FROM sim_runs WHERE portfolio_id = ?", (pid,))
-        run_id = con.execute(
+        run_id = new_id(con.execute(
             'INSERT INTO sim_runs (portfolio_id, strategy, params, start, "end", data_asof, status, rows, message, at) '
             "VALUES (?, ?, ?, ?, ?, ?, 'ok', ?, ?, ?)",
             (pid, run["strategy"], json.dumps(run.get("params") or {}), str(run["start"])[:10],
              str(run["end"])[:10] if run.get("end") else None, run.get("data_asof"), len(rows), run.get("message"),
-             timestamp())).lastrowid
+             timestamp())))
         for i, r in enumerate(rows):
             _insert(con, r | {"ext_ref": r.get("ext_ref") or f"sim:{run['strategy']}:{i}"}, "sim", None,
                     portfolio_id=pid, run_id=run_id)
@@ -843,7 +852,7 @@ def import_transactions_csv(text: str) -> int:
         for pid in set(pids):
             con.execute("DELETE FROM transactions WHERE portfolio_id = ?", (pid,))
         for r, pid in zip(rows, pids):
-            _insert(con, r, r.get("source") or "bundle", None, portfolio_id=pid)
+            _insert(con, r, str(r.get("source") or "bundle"), None, portfolio_id=pid)
     return len(rows)
 
 

@@ -81,10 +81,11 @@ def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple
 def cash_balance(rows: list[dict], market, dividends: str = "reinvested") -> tuple[pd.Series, list[str]]:
     """Cash in DKK at the end of each day with a cash row (cumulative), and problems (unknown DKK rates)."""
     moves, problems = cash_moves(rows, market, dividends)
+    messages = [p["message"] for p in problems]
     if not moves:
-        return pd.Series(dtype=float), problems
+        return pd.Series(dtype=float), messages
     s = pd.Series([m["cash"] for m in moves], index=[m["date"] for m in moves]).groupby(level=0).sum().cumsum()
-    return s, [p["message"] for p in problems]
+    return s, messages
 
 
 # ---------------- value and flows ----------------
@@ -226,9 +227,9 @@ def book(rows: list[dict], market, dividends: str = "reinvested") -> Book | None
     return Book(idx, value, holdings.where(~unknown), cash, inflow, outflow, breaks, funding, dividends, missing, notes)
 
 
-def pool(books: list[Book]) -> Book | None:
+def pool(maybe: list[Book | None]) -> Book | None:
     """Several portfolios as one (a tag group): values and flows add up; a gap in any is a gap in the pool."""
-    books = [b for b in books if b is not None]
+    books = [b for b in maybe if b is not None]
     if not books:
         return None
     idx = books[0].dates
@@ -353,6 +354,7 @@ def _period(index: pd.Series, n: int | None = None, since: pd.Timestamp | None =
         if pos < 0:
             return float(index.iloc[-1] / 100 - 1) if index.dropna().index[0] >= since else None
     else:
+        assert n is not None, "a period needs n or since"
         pos = len(index) - 1 - n
         if pos < 0:
             return None
@@ -499,7 +501,7 @@ def compare(market, ids: list[int] | None = None, tags: list[str] | None = None,
     latest first day among them, or `start`), every index rebased to 100 there, with ACWI as the yardstick."""
     from . import userstore
 
-    def run():
+    def run() -> dict:
         lines: list[tuple[dict, Book | None]] = []
         for pid in ids or []:
             p = userstore.get_portfolio(pid)
@@ -548,6 +550,8 @@ def summary(market) -> list[dict]:
         if p["mode"] != "real" or not p["n_tx"]:
             continue
         res = portfolio_performance(p["id"], market)
+        if res is None:
+            continue
         st = res["stats"] or {}
         per = st.get("periods") or {}
         row = {"name": p["name"], "kind": p["kind"], "tags": p["tags"], "funding": res["funding"],

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from conftest import with_settings
 from radar import dashboard, fxrates, ingest, paths, tracked, universe
 from radar.mine import _vs_shadow
 from radar.signals.score import score_vs
@@ -124,7 +125,7 @@ def test_records_are_json_safe():
 @pytest.fixture
 def price_store(tmp_path, monkeypatch):
     paths.configure(paths.Locations.flat(tmp_path))
-    monkeypatch.setattr(ingest, "settings", lambda: {"history_years": 1})
+    with_settings(monkeypatch, history_years=1)
     calls = []
 
     def install(world: dict[str, pd.DataFrame]):
@@ -201,8 +202,7 @@ def test_history_start_reaches_back_before_your_first_trade(tmp_data, monkeypatc
     from datetime import date
 
     from radar import userstore
-    monkeypatch.setattr(universe, "settings", lambda: {"history_years": 3,
-                                                       "backtest": {"warmup_days": 400, "max_years": 10}})
+    with_settings(monkeypatch, history_years=3, backtest={"warmup_days": 400, "max_years": 10})
     today = date(2026, 10, 14)
     assert universe.history_start(today) == date(2023, 10, 15)       # no trades: history_years
     pid = userstore.save_portfolio({"name": "Real"})

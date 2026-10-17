@@ -10,11 +10,10 @@ missing key and says so. Nothing is written before the check (`replace`).
 from __future__ import annotations
 
 from datetime import timedelta
-from pathlib import Path
 
 import pandas as pd
 
-from .config import write_parquet
+from .config import AnyPath, write_parquet
 
 
 class Shrunk(ValueError):
@@ -79,7 +78,7 @@ def check(old: pd.DataFrame | None, new: pd.DataFrame, *, what: str, key: str | 
     if problems:
         raise Shrunk(f"{what}: the answer has less than what is stored ({'; '.join(problems[:5])}"
                      + (f" and {len(problems) - 5} more" if len(problems) > 5 else "") + "): kept the stored copy")
-    if carried:
+    if carried and old is not None:            # carried keys come from `old`
         if wide:
             new = new.join(old[carried], how="outer")
         else:
@@ -87,7 +86,7 @@ def check(old: pd.DataFrame | None, new: pd.DataFrame, *, what: str, key: str | 
     return new, notes
 
 
-def replace(path: Path, old: pd.DataFrame | None, new: pd.DataFrame, **rules) -> list[str]:
+def replace(path: AnyPath, old: pd.DataFrame | None, new: pd.DataFrame, **rules) -> list[str]:
     """`check`, then write (nothing is written when it raises). Returns the notes."""
     out, notes = check(old, new, **rules)
     wide = rules.get("key") is None and rules.get("date", "date") is None

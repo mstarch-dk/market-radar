@@ -158,7 +158,7 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
     R = base.R
     corr = R.corr(min_periods=min_weeks) if not R.empty else pd.DataFrame()
     picked: list[dict] = []
-    added = {d: {} for d in exposure.DIMS}
+    added: dict[str, dict[str, float]] = {d: {} for d in exposure.DIMS}
     per_sector: dict[str, int] = {}
     passed: dict[str, str] = {}
     for t, r in df.iterrows():
@@ -232,7 +232,7 @@ def budgets(amount: float, vols: list[float | None], weighting: str, ticket: flo
     n = len(vols)
     if weighting == "equal" or n == 1 or any(v is None or not v > 0 for v in vols):
         return [amount / n] * n
-    inv = np.array([1 / v for v in vols])
+    inv = np.array([1 / v for v in vols if v is not None])
     fixed = np.zeros(n, dtype=bool)
     b = amount * inv / inv.sum()
     for _ in range(n):

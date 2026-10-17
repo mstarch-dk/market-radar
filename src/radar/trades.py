@@ -78,7 +78,8 @@ def positions(tx: pd.DataFrame, by_portfolio: bool = False) -> tuple[pd.DataFram
     keys = ["symbol", "portfolio"] if by_portfolio else ["symbol"]
     tx = tx.assign(portfolio=tx["portfolio"].fillna("") if "portfolio" in tx else "",
                    portfolio_id=tx["portfolio_id"] if "portfolio_id" in tx else None)
-    rows, warnings = [], {}
+    rows: list[dict] = []
+    warnings: dict[str, list[str]] = {}
     for key, lots in tx.groupby(keys, sort=True):
         sym = key[0] if isinstance(key, tuple) else key
         row, warn = replay(lots)

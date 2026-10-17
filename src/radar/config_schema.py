@@ -1,7 +1,8 @@
 """The shape of config/settings.yaml, checked when it is loaded: a typo, a missing key or a wrong type fails at once
-with the key's path, not as a KeyError deep in a study or a proposal. The models cover the sections the
-simulations and proposals depend on (stops, backtest, risk, propose); a key the code reads with a default is
-optional here too. settings() still returns the plain dict."""
+with the key's path, not as a KeyError deep in a study or a proposal. Every section has a model; a key the code
+reads with a default is optional here too, with that default. `config.typed()` gives the checked `Settings`,
+`config.settings()` the file as written (for what records or hashes it, and the readings that take a section as a
+dict)."""
 from __future__ import annotations
 
 from datetime import date
@@ -160,23 +161,261 @@ class Propose(_Section):
     review_min: int
 
 
-class Settings(BaseModel):
-    """The checked sections; the others pass through as they are."""
-    model_config = ConfigDict(extra="allow")
+class Rotation(_Section):
+    window: int
+    tail: int
+
+
+class Momentum(_Section):
+    top_n: int
+    min_history_days: int
+
+
+class Regime(_Section):
+    vix_calm: float
+    vix_stress: float
+    breadth_strong: float
+    breadth_weak: float
+    highs_lows_band: float
+    vix_term_calm: float
+    rates_shock: float
+    copper_gold_band: float
+    oil_shock: float
+    revisions_band: float
+    cape_rich_pct: float
+    cape_cheap_pct: float
+    erp_low_pct: float
+    erp_high_pct: float
+    momentum_payoff_band: float
+    dispersion_low_pct: float
+    dispersion_high_pct: float
+    crash_rebound: float
+    votes: dict[str, bool] = {}
+
+
+class Positioning(_Section):
+    lookback_weeks: int
+    extreme_pct: float
+
+
+class Sectors(_Section):
+    cluster_min: int
+    cluster_ratio: float
+
+
+class Abtest(_Section):
+    n: int
+    max_per_sector: int
+    capital: float
+    value_score: Literal["qv", "value"]
+
+
+class Analyst(_Section):
+    max_age_days: int
+
+
+class Coverage(_Section):
+    max_age: dict[str, int]                     # source -> days behind the report's as-of date before it is stale
+    blind_spots: list[str]
+
+
+class Limits(_Section):
+    rate: int | float | None = None
+    burst: int | None = None
+    concurrency: int | None = None
+    retries: int | None = None
+    backoff: int | float | None = None
+    max_wait: int | float | None = None
+    budget: int | None = None
+
+
+class Cooldown(_Section):
+    trip: int | None = None
+    window_min: int | float | None = None
+    cooldown_min: int | float | None = None
+    max_cooldown_min: int | float | None = None
+
+
+class Network(_Section):
+    default: Limits = Limits()
+    hosts: dict[str, Limits] = {}               # glob pattern -> limits, the first match wins
+    cooldown: Cooldown = Cooldown()
+
+
+class _FrenchFile(_Section):
+    file: str
+    block: str | None = None
+
+
+class _JkpSet(_Section):
+    region: str
+    theme: str
+    weighting: str
+    series: str = "location"
+    name: str | None = None
+
+
+class _JkpPortfolios(_Section):
+    weighting: str = "vw_cap"
+    regions: list[str]
+    characteristics: list[str]
+
+
+class Factors(_Section):
+    max_age_days: int = 30
+    french: dict[str, str | _FrenchFile] = {}
+    jkp: dict[str, _JkpSet] = {}
+    jkp_portfolios: _JkpPortfolios | None = None
+
+
+class _Panel(_Section):
+    label: str | None = None
+    data: str
+    market: str = "us"
+    excess: bool = False
+    n_top: int = 10
+    min_names: int = 20
+    members: list[str] | None = None
+
+
+class Longrun(_Section):
+    holdout_from: date | None = None
+    horizons: list[int] = [1, 3, 6, 12]
+    regime_months: int = 10
+    panels: dict[str, _Panel] = {}
+    factors: dict[str, tuple[str, str]] = {}    # label -> (dataset, series)
+
+
+class Updates(_Section):
+    repo: str | None = None
+
+
+class Ops(_Section):
+    keep_requests_days: int = 30
+    keep_events_days: int = 180
+
+
+class Valuation(_Section):
+    snapshot_days: int
+    fallback_max: int
+    pe_range: tuple[float, float]
+    fund_pe_range: tuple[float, float]
+    rel_band: float
+    min_peers: int
+    revision_band: float
+    etf_history_weeks: int
+    etf_min_share: float = 0.8
+
+
+class Edgar(_Section):
+    refresh_days: int
+    after_period_days: int
+    max_per_run: int
+    tickers_max_age_days: int
+    max_fail_share: float
+    years: int
+
+
+class _Lags(_Section):
+    quarterly: int
+    annual: int
+
+
+class YahooFundamentals(_Section):
+    refresh_days: int
+    after_earnings_days: int
+    max_per_run: int
+    min_ok_share: float
+    assumed_lag_days: _Lags
+
+
+class _QualityScore(_Section):
+    weights: dict[str, float]
+    min_pillars: int
+    required: list[str]
+
+
+class _ValueScore(_Section):
+    weights: dict[str, float]
+    min_components: int
+    required_any: list[str]
+
+
+class Fundamentals(_Section):
+    edgar: Edgar
+    yahoo: YahooFundamentals
+    top_n: int
+    min_sector_peers: int
+    financial_industries: list[str]
+    ttm_max_age_days: int
+    annual_max_age_days: int
+    stability_years: int
+    min_fy_points: int
+    ey_history_years: int
+    ey_history_min_points: int
+    interest_cover_cap: float
+    shares_low: float
+    shares_high: float
+    mcap_check: float
+    ranges: dict[str, tuple[float, float]]
+    quality: _QualityScore
+    value: _ValueScore
+    financial_value: _ValueScore
+
+
+class Sentiment(_Section):
+    putcall_backfill_days: int
+    putcall_retry_days: int = 10
+    putcall_lookback_days: int
+    aaii_extreme_pct: float
+
+
+class Gauge(_Section):
+    scale: Literal["diverging", "sequential"] = "diverging"
+    unit: Literal["num", "pct"] = "num"
+    anchors: list[tuple[float, float]]          # (value, score): +1 good / bullish / cheap, -1 a warning
+    labels: list[tuple[float | None, str]]      # (upper bound, word); the last bound is None
+    ticks: list[float] = []
+    range: tuple[float, float] | None = None
+    abs_from: float | None = None
+
+
+class Settings(_Section):
+    """The whole of config/settings.yaml."""
+    history_years: int
+    constituents_max_age_days: int
+    snapshot_min_gap_days: int
+    rotation: Rotation
+    momentum: Momentum
+    regime: Regime
+    positioning: Positioning
+    sectors: Sectors
     stops: Stops
     backtest: Backtest
-    risk: Risk
+    abtest: Abtest
     propose: Propose
+    risk: Risk
+    analyst: Analyst
+    coverage: Coverage
+    network: Network
+    factors: Factors
+    longrun: Longrun
+    updates: Updates = Updates()
+    ops: Ops = Ops()
+    valuation: Valuation
+    fundamentals: Fundamentals
+    sentiment: Sentiment
+    gauges: dict[str, Gauge]
 
 
 class SettingsError(ValueError):
     """config/settings.yaml doesn't have the shape the code reads."""
 
 
-def check(raw: dict, source: str = "config/settings.yaml") -> None:
-    """Raise SettingsError naming every key that is missing, unknown (a typo?) or of the wrong type."""
+def check(raw: dict, source: str = "config/settings.yaml") -> Settings:
+    """The checked settings; SettingsError naming every key that is missing, unknown (a typo?) or of the wrong type."""
     try:
-        Settings.model_validate(raw)
+        return Settings.model_validate(raw)
     except ValidationError as e:
         problems = []
         for err in e.errors():

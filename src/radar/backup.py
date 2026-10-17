@@ -60,7 +60,7 @@ def mirror() -> Path | None:
 
 def set_mirror(path: Path | None) -> Path | None:
     loc = _home()
-    m = manifest.read_manifest(loc.home)
+    m = manifest.read_manifest(loc.home) or {}
     if path:
         path = Path(path).expanduser()
         path.mkdir(parents=True, exist_ok=True)
@@ -168,7 +168,7 @@ def listing(where: Path | None = None) -> list[dict]:
 def prune(today: date | None = None) -> list[str]:
     """Thin out old backups in the data folder (the mirror is left to its owner). Returns the names removed."""
     today = today or date.today()
-    zips = [(f, _when(f), _kind(f)) for f in folder().glob(f"{PREFIX}*.zip") if _when(f)]
+    zips = [(f, w, _kind(f)) for f in folder().glob(f"{PREFIX}*.zip") if (w := _when(f))]
     keep: set[Path] = set()
     for kind in ("manual", "restore"):
         keep |= {f for f, _, _ in sorted((x for x in zips if x[2] == kind), key=lambda x: x[1], reverse=True)[:KEEP_MANUAL]}
@@ -193,7 +193,7 @@ def daily() -> Path | None:
     if not is_home():
         return None
     today = date.today()
-    if any(_when(f) and _when(f).date() == today and _kind(f) == "daily" for f in folder().glob(f"{PREFIX}*.zip")):
+    if any((w := _when(f)) and w.date() == today and _kind(f) == "daily" for f in folder().glob(f"{PREFIX}*.zip")):
         return None
     return create("daily", kind="daily")
 
@@ -202,7 +202,7 @@ def before_upgrade() -> Path | None:
     """A backup the first time a new app version opens the data, before anything is changed."""
     if not is_home():
         return None
-    m = manifest.read_manifest(paths.locations().home)
+    m = manifest.read_manifest(paths.locations().home) or {}
     if m.get("last_app_version") == manifest.app_version():
         return None
     return create(f"before-v{manifest.app_version()}", kind="upgrade")

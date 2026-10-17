@@ -10,7 +10,7 @@ import pandas as pd
 import yfinance as yf
 
 from . import guard, locks, net
-from .config import settings, write_parquet, write_text
+from .config import typed, write_parquet, write_text
 from .paths import CACHE, FRED_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
@@ -115,7 +115,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     last = existing.groupby("ticker")["date"].max() if not existing.empty else pd.Series(dtype="datetime64[ns]")
     new = [t for t in tickers if t not in last.index]
     known = [t for t in tickers if t in last.index]
-    full_start = (today or date.today()) - timedelta(days=int(365.25 * settings()["history_years"]))
+    full_start = (today or date.today()) - timedelta(days=int(365.25 * typed().history_years))
     if start is not None and start < full_start:
         full_start = start
     fetched_from = _load_from()

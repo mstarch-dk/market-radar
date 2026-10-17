@@ -19,7 +19,8 @@ from datetime import date, timedelta
 import pandas as pd
 
 from .. import guard, locks, net, sourcelog
-from ..config import settings, write_csv
+from ..config import typed, write_csv
+from ..config_schema import Edgar
 from ..paths import CACHE
 from . import schedule, store
 from .items import ITEMS
@@ -33,8 +34,8 @@ SOURCE = "fundamentals_edgar"
 FORMS = {"10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A", "10-KT", "10-QT"}
 
 
-def _cfg() -> dict:
-    return settings()["fundamentals"]["edgar"]
+def _cfg() -> Edgar:
+    return typed().fundamentals.edgar
 
 
 class NoContact(RuntimeError):
@@ -73,7 +74,7 @@ def cik_map(hdr: dict, today: date | None = None, refresh: bool = False) -> dict
     if CIK_FILE.exists() and not refresh:
         df = pd.read_csv(CIK_FILE)
         age = (pd.Timestamp(today) - pd.Timestamp(CIK_FILE.stat().st_mtime, unit="s").normalize()).days
-        if age < _cfg()["tickers_max_age_days"] and not df.empty:
+        if age < _cfg().tickers_max_age_days and not df.empty:
             return dict(zip(df["ticker"], df["cik"].astype(int)))
     r = net.get(TICKERS_URL, source=SOURCE, headers=hdr, timeout=60)
     r.raise_for_status()
@@ -215,9 +216,9 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
     if tickers or force:
         batch = names
     else:
-        expect = {t: schedule.next_report(le, cfg["after_period_days"])
+        expect = {t: schedule.next_report(le, cfg.after_period_days)
                   for t, le in zip(log["ticker"], log["last_end"])}
-        batch = schedule.due(names, log, today, cfg["refresh_days"], expect)[: cfg["max_per_run"]]
+        batch = schedule.due(names, log, today, cfg.refresh_days, expect)[: cfg.max_per_run]
     if not batch:
         return f"up to date ({len(names)} US stocks)"
 
@@ -230,7 +231,7 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
         js = fetch_companyfacts(cmap[sec_symbol(t)], hdr)
         if js is None:
             raise NotGaap("SEC has no company facts")
-        return parse_companyfacts(js, t, today, settings()["backtest"]["fundamentals_lag_days"], cfg["years"])
+        return parse_companyfacts(js, t, today, typed().backtest.fundamentals_lag_days, cfg.years)
 
     with net.pool(len(batch), HOST) as ex:
         futures = {t: ex.submit(one, t) for t in batch}
@@ -268,7 +269,7 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
     msg = (f"{stored} of {len(batch)} due companies stored" + (f", {len(skipped)} without us-gaap facts (Yahoo covers "
            f"them)" if skipped else "") + f"; {len(names)} US stocks in all")
     attempted = len(batch) - len(skipped)
-    if throttled or (attempted and len(errors) > cfg["max_fail_share"] * attempted):
+    if throttled or (attempted and len(errors) > cfg.max_fail_share * attempted):
         kinds = Counter(e.split(":")[0] for e in errors.values()).most_common(3)
         raise sourcelog.PartialFailure(f"{msg}; {len(errors)} failed ("
                                       + ", ".join(f"{k} × {n}" for k, n in kinds) + ")"

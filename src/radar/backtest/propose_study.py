@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .. import constituents, fxrates, money, propose
-from ..config import settings
+from ..config import typed
 from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
@@ -114,8 +114,10 @@ class Paths:
         xl, n_ex = [], 0
         for t in tickers:
             leg = legs[t]
-            k = mpaths.exit_session(idx, self.below[t], lambda d, t=t: d in self.month_ends
-                                    and bool(self.signal_below(d, tilt).get(t, False)))
+
+            def signal(d: pd.Timestamp, t: str = t) -> bool:
+                return d in self.month_ends and bool(self.signal_below(d, tilt).get(t, False))
+            k = mpaths.exit_session(idx, self.below[t], signal)
             if k is not None:
                 n_ex += 1
                 leg = mpaths.park(leg, idx[k], b, cost)
@@ -140,7 +142,7 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     on D; the composite's IC with the next 6 months; the basket's monthly turnover. The value and mix tilts need K+V
     as known on D (SEC EDGAR's filing dates), so they are US stocks only and skipped when none are stored."""
     c = propose.cfg()
-    bt = settings().get("backtest") or {}
+    bt = typed().backtest
     ns = list(ns or c["study_ns"])
     horizons = list(horizons or c["horizons"])
     for h in horizons:
@@ -149,9 +151,9 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     unknown = [t for t in tilts if t not in propose.TILTS]
     if unknown:
         raise ValueError(f"unknown tilt(s): {', '.join(unknown)}")
-    fill = bt.get("fill", "next")
-    holdout = pd.Timestamp(bt["study_holdout_from"]) if bt.get("study_holdout_from") else None
-    min_names = int(bt.get("study_min_names", 30))
+    fill = bt.fill
+    holdout = pd.Timestamp(bt.study_holdout_from)
+    min_names = bt.study_min_names
     p = p or mp.panels(market)
     needs_fund = any(c["tilts"][t].get("qv", 0) > 0 for t in tilts)
     if needs_fund and p.fund is None:
@@ -167,7 +169,7 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
                          "currency": pd.Series({t: (money.main_unit(ccy.get(t)) or "?")
                                                 for t in p.closes.columns})}).reindex(p.closes.columns)
     W = p.dkk.resample("W-FRI").last().pct_change(fill_method=None)
-    paths = Paths(p, settings()["stops"]["trend_sma"], c)
+    paths = Paths(p, typed().stops.trend_sma, c)
     cost = money.bps(c["study_cost_bps"])
     ctx = None
     if with_regime:
@@ -175,10 +177,10 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
 
         ctx = Context.build(market, set())
     vols = p.volumes.reindex(columns=p.dkk.columns) if p.volumes is not None else None
-    recs = {t: {n: {h: [] for h in horizons} for n in ns} for t in tilts}
-    tops = {t: {n: [] for n in ns} for t in tilts}
+    recs: dict[str, dict[int, dict[int, list[dict]]]] = {t: {n: {h: [] for h in horizons} for n in ns} for t in tilts}
+    tops: dict[str, dict[int, list]] = {t: {n: [] for n in ns} for t in tilts}
     short = {t: {n: 0 for n in ns} for t in tilts}
-    ics = {t: [] for t in tilts}
+    ics: dict[str, list] = {t: [] for t in tilts}
     dates_out = []
     for day in mp.formation_dates(p.sessions, since):
         fi = mp.fill_session(p.sessions, day, fill)
@@ -267,5 +269,8 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     }
 
 
-def write(rep: dict) -> str:
-    return str(artifacts.write("propose-study", rep, data_asof=rep["asof"], rule_hash=rep["settings_hash"]))
+def write(rep: dict) -> artifacts.ProposeStudy:
+    out = artifacts.write("propose-study", rep, data_asof=rep["asof"], rule_hash=rep["settings_hash"])
+    assert isinstance(out, artifacts.ProposeStudy)
+    return out
+

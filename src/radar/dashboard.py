@@ -11,7 +11,7 @@ from datetime import date, datetime
 import pandas as pd
 
 from . import coverage, external, mine, positive_list, sentiment, snapshot, tracked, trades, universe, valuation
-from .config import CONFIG, settings, universe_config
+from .config import CONFIG, settings, typed, universe_config
 from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
 from .ingest import load_fred, load_prices, wide
@@ -66,7 +66,8 @@ def _clusters(top: pd.DataFrame, universe_df: pd.DataFrame, min_count: int, min_
     `expected` is the count the group's share of the whole region would predict; a cluster needs at least
     `min_count` names and `min_ratio` x expected. A sector already fully covered by an industry cluster is skipped.
     """
-    out, covered = [], set()
+    out: list[dict] = []
+    covered: set[str] = set()
     for level in ("industry", "sector"):
         for name, g in top[top[level] != ""].groupby(level):
             base = (universe_df[level] == name).mean() * len(top)
@@ -84,7 +85,7 @@ VOTE_GROUPS = {"credit_eu": "Euro high-yield spread", "valuation": "Valuation (C
 
 
 def vote_options() -> list[dict]:
-    defaults = settings()["regime"].get("votes") or {}
+    defaults = typed().regime.votes
     now = effective_votes()
     return [{"group": g, "label": VOTE_GROUPS.get(g, g), "on": now[g], "default": bool(defaults[g])} for g in defaults]
 
@@ -94,7 +95,7 @@ def with_valuation(rows: list[dict], ctx: valuation.Context, kind: str = "auto",
     or auto (a fund when the ETF snapshot has it)."""
     out = []
     for r in rows:
-        t = r.get("ticker") or r.get("symbol")
+        t = r.get("ticker") or r["symbol"]
         fund = kind == "fund" or (kind == "auto" and t in ctx.etf)
         out.append(r | (ctx.fund(t) if fund else ctx.stock(t, peers)))
     return out
@@ -102,7 +103,7 @@ def with_valuation(rows: list[dict], ctx: valuation.Context, kind: str = "auto",
 
 def with_fundamentals(rows: list[dict], fctx: fcontext.Context) -> list[dict]:
     """Add the kvalitetsscore and værdiscore fields to table rows (all None for a stock without statements)."""
-    return [r | _clean(fctx.stock(r.get("ticker") or r.get("symbol"))) for r in rows]
+    return [r | _clean(fctx.stock(r.get("ticker") or r["symbol"])) for r in rows]
 
 
 def quality_section(fctx: fcontext.Context, groups: dict[str, list[str]], labels: dict[str, str],

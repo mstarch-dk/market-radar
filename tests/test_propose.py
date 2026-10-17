@@ -13,8 +13,8 @@ import pandas as pd
 import pytest
 
 import world
+from conftest import with_settings
 from radar import constituents, fees, profile, propose, universe, userstore
-from radar.config import settings
 from radar.model import artifacts
 from world import IDX, N
 
@@ -51,16 +51,9 @@ def market(tmp_data, monkeypatch):
         {"sector": [SECTORS.get(t, "") for t in ts], "industry": "x"}, index=pd.Index(ts, name="ticker")))
     pd.DataFrame({"ticker": list(SECTORS), "sector": list(SECTORS.values()), "industry": "x"}).to_csv(
         tmp_data / "sectors.csv", index=False)
-    c = copy.deepcopy(settings())
-    c["propose"]["gates"] |= {"min_history_weeks": 40}
-    c["propose"]["bootstrap"] |= {"draws": 400}
-    c["propose"]["min_weeks"] = 20
-    c["propose"]["study_ns"] = [2, 3]
-    c["backtest"] |= {"study_min_names": 4, "fill": "next", "fee_bps": 10}
-    from radar.backtest import picks, propose_study, study
-
-    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store, propose_study, study, picks):   # where settings() is read
-        monkeypatch.setattr(mod, "settings", lambda: c)
+    c = with_settings(monkeypatch, propose={"gates": {"min_history_weeks": 40}, "bootstrap": {"draws": 400},
+                                            "min_weeks": 20, "study_ns": [2, 3]},
+                      backtest={"study_min_names": 4, "fill": "next", "fee_bps": 10})
     # ACWI's weights from the trimmed real file
     df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
     df.to_csv(tmp_data / "acwi_holdings.csv", index=False)

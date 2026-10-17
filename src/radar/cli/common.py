@@ -34,7 +34,7 @@ def portfolio_ids(names: list[str] | None, tags: list[str] | None) -> list[int]:
     for n in names or []:
         p = userstore.portfolio_by_name(n)
         if not p:
-            raise typer.Exit(f"No portfolio called {n!r}: see `radar portfolios list`.")
+            raise SystemExit(f"No portfolio called {n!r}: see `radar portfolios list`.")
         ids.append(p["id"])
     return userstore.portfolio_ids(ids=ids, tags=tags) if (ids or tags) else []
 
@@ -44,7 +44,7 @@ def one_portfolio(name: str) -> dict:
 
     p = userstore.portfolio_by_name(name)
     if not p:
-        raise typer.Exit(f"No portfolio called {name!r}: see `radar portfolios list`.")
+        raise SystemExit(f"No portfolio called {name!r}: see `radar portfolios list`.")
     return p
 
 

@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
+from typing import Any
 
 from . import manifest, paths
-from .config import settings, write_text
+from .config import typed, write_text
 
 CHECK_FILE = paths.CACHE / "updates.json"
 EVERY = timedelta(days=1)
 
 
 def repo() -> str | None:
-    return (settings().get("updates") or {}).get("repo") or None
+    return typed().updates.repo or None
 
 
 def enabled() -> bool:
@@ -43,7 +44,7 @@ def _cached() -> dict | None:
 
 def status(check: bool = True) -> dict:
     """{enabled, repo, current, latest, newer, url, published, checked, error}; checks GitHub when due."""
-    out = {"enabled": False, "repo": repo(), "current": manifest.app_version(), "latest": None, "newer": False,
+    out: dict[str, Any] = {"enabled": False, "repo": repo(), "current": manifest.app_version(), "latest": None, "newer": False,
            "url": None, "published": None, "checked": None, "error": None}
     try:
         out["enabled"] = enabled()

@@ -9,7 +9,7 @@ import time
 import pandas as pd
 
 from . import net, sourcelog
-from .config import settings, write_csv
+from .config import typed, write_csv
 from .paths import CACHE
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
@@ -50,7 +50,7 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
 
     cache_file = CACHE / "constituents_us.csv"
     cached = pd.read_csv(cache_file)["ticker"].tolist() if cache_file.exists() else []
-    max_age = settings()["constituents_max_age_days"] * 86400
+    max_age = typed().constituents_max_age_days * 86400
     if offline or (not refresh and cached and time.time() - cache_file.stat().st_mtime < max_age):
         return cached
     try:
@@ -151,7 +151,7 @@ def acwi_holdings(refresh: bool = False, offline: bool = False) -> pd.DataFrame 
     that the ACWI weights are unknown, never assume them."""
 
     cached = pd.read_csv(ACWI_FILE, keep_default_na=False) if ACWI_FILE.exists() else None
-    max_age = settings()["constituents_max_age_days"] * 86400
+    max_age = typed().constituents_max_age_days * 86400
     if offline or (not refresh and cached is not None and time.time() - ACWI_FILE.stat().st_mtime < max_age):
         return cached
     try:

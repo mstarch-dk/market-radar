@@ -2,6 +2,8 @@
 currency per name, and exposures against ACWI's own weights."""
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 
 from .. import money, tracked, trades, universe
@@ -38,8 +40,9 @@ def look_through() -> set[str]:
     """Tickers counted with ACWI's own weights: ACWI, its UCITS share classes, the filler and broad world funds
     (settings propose.look_through)."""
     f = rules.cfg().get("etf_filler") or {}
-    return ({tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), f.get("ticker"),
-             f.get("model")} | set(rules.cfg().get("look_through") or [])) - {None}
+    named = {tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), f.get("ticker"), f.get("model"),
+             *(rules.cfg().get("look_through") or [])}
+    return {t for t in named if t is not None}
 
 
 def info(tickers, prices: pricing.Prices) -> pd.DataFrame:
@@ -77,8 +80,9 @@ def exposures(values: dict[str, float], meta: pd.DataFrame, acwi: dict | None) -
     """Weights by sector, region and currency of DKK `values` (ACWI look-through), and active weights vs ACWI."""
     lt = look_through()
     total = sum(v for v in values.values() if v)
-    out = {"total_dkk": total, "weights": {d: {} for d in DIMS}, "active": None,
-           "note": None if acwi else "ACWI's own weights are unknown (no holdings file): active weights not shown"}
+    weights: dict[str, dict[str, float]] = {d: {} for d in DIMS}
+    out: dict[str, Any] = {"total_dkk": total, "weights": weights, "active": None,
+                           "note": None if acwi else "ACWI's own weights are unknown (no holdings file): active weights not shown"}
     if total <= 0:
         return out
     for t, v in values.items():
@@ -88,16 +92,16 @@ def exposures(values: dict[str, float], meta: pd.DataFrame, acwi: dict | None) -
             for d in DIMS:
                 if acwi:
                     for k, w in acwi[d].items():
-                        out["weights"][d][k] = out["weights"][d].get(k, 0.0) + v * w / total
+                        weights[d][k] = weights[d].get(k, 0.0) + v * w / total
                 else:
-                    out["weights"][d]["ACWI (look-through unknown)"] = out["weights"][d].get(
+                    weights[d]["ACWI (look-through unknown)"] = weights[d].get(
                         "ACWI (look-through unknown)", 0.0) + v / total
             continue
         m = meta.loc[t] if t in meta.index else None
         for d in DIMS:
             k = (m[d] if m is not None else None) or "?"
-            out["weights"][d][k] = out["weights"][d].get(k, 0.0) + v / total
+            weights[d][k] = weights[d].get(k, 0.0) + v / total
     if acwi:
-        out["active"] = {d: {k: out["weights"][d].get(k, 0.0) - acwi[d].get(k, 0.0)
-                             for k in set(out["weights"][d]) | set(acwi[d])} for d in DIMS}
+        out["active"] = {d: {k: weights[d].get(k, 0.0) - acwi[d].get(k, 0.0)
+                             for k in set(weights[d]) | set(acwi[d])} for d in DIMS}
     return out

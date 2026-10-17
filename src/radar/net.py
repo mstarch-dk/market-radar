@@ -19,7 +19,8 @@ from urllib.parse import urlsplit
 import requests
 
 from . import ops
-from .config import settings
+from .config import typed
+from .config_schema import Network
 
 UA = "Mozilla/5.0 (market-radar personal research script)"
 HEADERS = {"User-Agent": UA}
@@ -44,12 +45,12 @@ class Throttled(RuntimeError):
 
 # ---------------- config ----------------
 
-def _net_cfg() -> dict:
-    return settings().get("network") or {}
+def _net_cfg() -> Network:
+    return typed().network
 
 
 def _pattern(host: str) -> str:
-    for pat in (_net_cfg().get("hosts") or {}):
+    for pat in _net_cfg().hosts:
         if fnmatch.fnmatch(host, pat):
             return pat
     return "*"
@@ -59,11 +60,12 @@ def limits(host: str) -> dict:
     """The limits that apply to `host` (defaults, then `network.default`, then its pattern)."""
     cfg = _net_cfg()
     pat = _pattern(host)
-    return DEFAULTS | (cfg.get("default") or {}) | ((cfg.get("hosts") or {}).get(pat) or {}) | {"pattern": pat}
+    host_limits = cfg.hosts[pat].model_dump(exclude_none=True) if pat in cfg.hosts else {}
+    return DEFAULTS | cfg.default.model_dump(exclude_none=True) | host_limits | {"pattern": pat}
 
 
 def _cooldown_cfg() -> dict:
-    return COOLDOWN | (_net_cfg().get("cooldown") or {})
+    return COOLDOWN | _net_cfg().cooldown.model_dump(exclude_none=True)
 
 
 # ---------------- redaction ----------------

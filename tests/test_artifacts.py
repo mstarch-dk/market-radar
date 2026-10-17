@@ -25,12 +25,12 @@ def test_missing_says_what_to_run(tmp_data):
 
 
 def test_written_report_loads_with_its_header(tmp_data):
-    f = art.write("propose-study", _propose(), data_asof="2026-10-16", rule_hash="abc")
-    raw = json.loads(f.read_text(encoding="utf-8"))
+    written = art.write("propose-study", _propose(), data_asof="2026-10-16", rule_hash="abc")
+    raw = json.loads(art.path("propose-study").read_text(encoding="utf-8"))
     assert list(raw)[:5] == list(art.HEADER)
     assert raw["schema_version"] == art.SCHEMA_VERSION and raw["created"] == "2026-10-16T20:49:11"
     got = art.load("propose-study", rule_hash="abc")
-    assert got.ok and not got.legacy
+    assert got.ok and not got.legacy and got.report == written              # the writer gets what a reader gets
     rep = got.report
     assert isinstance(rep, art.ProposeStudy) and rep.data_asof.isoformat() == "2026-10-16"
     cell = rep.results["momentum"]["5"]["6"]
@@ -43,8 +43,9 @@ def test_a_missing_number_is_written_as_null_not_nan(tmp_data):
     """NaN isn't JSON, and a reader's `is None` check lets it through into the arithmetic (propose's drift)."""
     rep = _propose()
     rep["results"]["momentum"]["5"]["6"]["kept"]["all"]["gross_mean"] = float("nan")
-    f = art.write("propose-study", rep, data_asof="2026-10-16", rule_hash="abc")
-    assert "NaN" not in f.read_text(encoding="utf-8")
+    art.write("propose-study", rep, data_asof="2026-10-16", rule_hash="abc")
+    assert "NaN" not in art.path("propose-study").read_text(encoding="utf-8")
+
     assert art.load("propose-study").report.results["momentum"]["5"]["6"].kept.all.gross_mean is None
 
 

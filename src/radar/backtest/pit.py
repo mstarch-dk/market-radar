@@ -6,11 +6,12 @@ rows): docs/data-conventions.md, *Point-in-time backtests*; for users guide/brug
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from .. import external, tracked, universe, valuation
-from ..config import settings, universe_config
+from ..config import settings, typed, universe_config
 from ..model import inputs as minputs
 from ..model import paths as mpaths
 from ..signals import levels as lv
@@ -18,13 +19,17 @@ from ..signals import momentum, regime, rotation
 from ..signals import valuation as sv
 from ..signals.score import score_vs
 
+if TYPE_CHECKING:
+    from ..market import Market
+
 REGIME_ROWS = 320          # sessions of prices the regime reads (252-day highs/lows + 10-day smoothing + 1 month)
 
 
 @dataclass
 class Context:
-    market: object
+    market: Market
     cfg: dict
+
     stops: dict
     held: dict[str, pd.DataFrame]          # metrics_panel for the replayed symbols
     dist: dict[str, pd.DataFrame]          # r12_1 / r6m / r3m panels for the stock universe
@@ -43,7 +48,7 @@ class Context:
     def build(cls, market, held: set[str]) -> Context:
         cfg = settings()
         closes = market.closes
-        mh = cfg["momentum"]["min_history_days"]
+        mh = typed().momentum.min_history_days
         stocks = sorted({t for g in tracked.stock_groups(offline=True).values() for t in g})
         uni = momentum.metrics_panel(closes, stocks, mh)
         panel = momentum.metrics_panel(closes, sorted(held), mh)
@@ -130,19 +135,19 @@ class Context:
         bench = tracked.benchmark()
         if (self.sessions <= f).sum() < 200:
             return {"label": None, "asof": f.date().isoformat(), "missing": "less than 200 sessions of benchmark prices"}
-        x, bt = self._inputs(), self.cfg.get("backtest") or {}
+        x, bt = self._inputs(), typed().backtest
 
         def upto(df, lag):
             return df.loc[:f - pd.Timedelta(days=lag)] if df is not None and not df.empty else df
 
         closes = self.market.closes.loc[:f].iloc[-REGIME_ROWS:]
-        fred = upto(x["fred"], bt.get("fred_lag_days", 1))
-        cli_raw = upto(x["cli"], bt.get("oecd_lag_days", 70))
+        fred = upto(x["fred"], bt.fred_lag_days)
+        cli_raw = upto(x["cli"], bt.oecd_lag_days)
         cli = external.cli_table(cli_raw, x["cli_labels"]) if cli_raw is not None and not cli_raw.empty else pd.DataFrame()
         fs = x["factset"]
         fs = fs[pd.to_datetime(fs["report_date"]) <= f] if not fs.empty and "report_date" in fs else pd.DataFrame()
         fs = fs.sort_values("report_date").iloc[-1].to_dict() if not fs.empty else None
-        lag = pd.Timedelta(days=bt.get("valuation_lag_days", 30))
+        lag = pd.Timedelta(days=bt.valuation_lag_days)
         mk = x["valuation"]
         real10y = fred["DFII10"] if fred is not None and "DFII10" in fred else pd.Series(dtype=float)
         market_val = sv.market(valuation.market_series("cape", mk).loc[:f - lag],

@@ -4,10 +4,13 @@ redeploy / rotation arms compared on return and risk; `radar study redeploy` ->
 reports/redeploy-study.json."""
 from __future__ import annotations
 
+from collections.abc import Collection
+from typing import Any
+
 import pandas as pd
 
-from .. import money, simulate, tracked
-from ..config import settings
+from .. import simulate, tracked
+from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at
 from ..model.stats import (
@@ -48,13 +51,14 @@ class Picker:
         grp = self.p.group.get(t) if t in self.p.group.index else None
         return sec, grp if isinstance(grp, str) else f"?{t}"
 
-    def capped(self, day: pd.Timestamp, n: int, held: set[str] = frozenset(), barred: set[str] = frozenset(),
+    def capped(self, day: pd.Timestamp, n: int, held: Collection[str] = frozenset(), barred: Collection[str] = frozenset(),
                trend: bool | None = None) -> list[str]:
         """Up to `n` names, best first, that can be added to `held` under the caps."""
         trend = self.trend if trend is None else trend
         tr = self.p.m["trend_ok"]
         up = set(tr.columns[tr.loc[day].eq(True)]) if trend and day in tr.index else None
-        sec, grp = {}, {}
+        sec: dict[str, int] = {}
+        grp: dict[str, int] = {}
         for t in held:
             a, b = self._key(t)
             sec[a], grp[b] = sec.get(a, 0) + 1, grp.get(b, 0) + 1
@@ -91,7 +95,7 @@ def _redeploy_arms(buffer: int = BUFFER, cooldown: int = COOLDOWN):
     from .exits import RuleSpec as R
 
     atr = (("mode", "atr"),)
-    sc = {"redeploy": "score", "cooldown": cooldown}
+    sc: dict[str, Any] = {"redeploy": "score", "cooldown": cooldown}
     rot = sc | {"rotate": buffer}
     arms = [
         (R("sma200-park", "Close below the 200-day average, parked in ACWI", tp="off", stop="trend", sma=200), None),
@@ -147,10 +151,10 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
     from . import exits as ex
     from .pit import Context
 
-    bt = settings().get("backtest") or {}
-    fee = money.fee_bps(bt)
-    park = bt.get("park") or tracked.benchmark()
-    holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
+    bt = typed().backtest
+    fee = bt.fee_bps
+    park = bt.park or tracked.benchmark()
+    holdout = pd.Timestamp(bt.study_holdout_from)
     arms = _redeploy_arms(buffer, cooldown)
     if keys:
         unknown = set(keys) - {s.key for s, _ in arms}
@@ -168,7 +172,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
     longest = max(horizons)
     baskets = []
     for day in formation_dates(p.sessions, since):
-        fi = fill_session(p.sessions, day, bt.get("fill", "next"))
+        fi = fill_session(p.sessions, day, bt.fill)
         if fi is None or fi + study.HORIZONS[min(horizons)] >= len(p.sessions):
             continue
         names = picker.capped(day, n_top, trend=False)
@@ -179,7 +183,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
     ctx = study.fast(Context.build(market, set(p.closes.columns) | {park}), p)
     log(f"{len(baskets)} formation dates, {len(arms)} arms, {len(p.closes.columns)} names to redeploy into")
 
-    recs = []
+    recs: list[dict | None] = []
     for day, fi, names in baskets:
         f = p.sessions[fi]
         rows, problems = simulate.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
@@ -216,7 +220,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
 
     arm_keys = [s.key for s, _ in arms] + ["mix50", "acwi"]
     twins = {s.key: t for s, t in arms}
-    results = {}
+    results: dict = {}
     for h in horizons:
         lag = max(h - 1, 0)
         flat = []
@@ -281,5 +285,7 @@ def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: 
 REDEPLOY_REPORT_FILE = "redeploy-study.json"
 
 
-def write_redeploy(rep: dict) -> None:
-    artifacts.write("redeploy-study", rep, data_asof=rep["asof"], file=REDEPLOY_REPORT_FILE)
+def write_redeploy(rep: dict) -> artifacts.RedeployStudy:
+    out = artifacts.write("redeploy-study", rep, data_asof=rep["asof"], file=REDEPLOY_REPORT_FILE)
+    assert isinstance(out, artifacts.RedeployStudy)
+    return out

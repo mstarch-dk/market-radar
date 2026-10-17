@@ -3,6 +3,7 @@ stress windows and the realised drawdown."""
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -41,7 +42,7 @@ def risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
             k = bench if t in lt and t not in cov.index else t
             agg[k] = agg.get(k, 0.0) + x
     total = sum(agg.values())
-    out = {"vol_ann": None, "beta": None, "te_ann": None, "div_ratio": None, "coverage": None,
+    out: dict[str, Any] = {"vol_ann": None, "beta": None, "te_ann": None, "div_ratio": None, "coverage": None,
            "missing": sorted(t for t in agg if t not in cov.index), "contributions": {}}
     covered = {t: x for t, x in agg.items() if t in cov.index}
     if total <= 0 or not covered or bench not in cov.index:

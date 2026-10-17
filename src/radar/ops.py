@@ -18,8 +18,10 @@ import threading
 import traceback
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
+from typing import Any
 
-from .config import settings
+from .config import typed
+from .config_schema import Ops
 from .paths import CACHE
 
 DB = CACHE / "ops.db"
@@ -83,6 +85,7 @@ def _migrate(con: sqlite3.Connection) -> None:
     """Same scheme as userstore: PRAGMA user_version, each step under the write lock (no backups: rebuildable)."""
     if con.execute("PRAGMA user_version").fetchone()[0] >= len(MIGRATIONS):
         return
+    level = con.isolation_level
     con.isolation_level = None
     try:
         for i, step in enumerate(MIGRATIONS, start=1):
@@ -99,7 +102,7 @@ def _migrate(con: sqlite3.Connection) -> None:
                 con.execute("ROLLBACK")
                 raise
     finally:
-        con.isolation_level = ""
+        con.isolation_level = level
 
 
 def _write(sql: str, args: tuple = ()) -> int | None:
@@ -122,8 +125,10 @@ def _read(sql: str, args: tuple = ()) -> list[dict]:
 @contextmanager
 def context(source: str | None = None, job: int | None = None):
     """Attribute what happens inside (requests, events) to a source and/or a job."""
-    tokens, marks = [], []
-    for name, var, val in (("source", _source, source), ("job", _job, job)):
+    tokens: list[tuple[contextvars.ContextVar[Any], contextvars.Token[Any]]] = []
+    marks: list[tuple[str, object]] = []
+    named: tuple[tuple[str, contextvars.ContextVar[Any], Any], ...] = (("source", _source, source), ("job", _job, job))
+    for name, var, val in named:
         if val is not None:
             tokens.append((var, var.set(val)))
             mark = object()
@@ -239,7 +244,8 @@ def cooldowns() -> list[dict]:
 
 
 def count_requests(host: str, since: datetime, status: int | None = None) -> int:
-    sql, args = "SELECT COUNT(*) AS n FROM requests WHERE host = ? AND ts >= ?", [host, timestamp(since)]
+    sql = "SELECT COUNT(*) AS n FROM requests WHERE host = ? AND ts >= ?"
+    args: list = [host, timestamp(since)]
     if status is not None:
         sql += " AND status = ?"
         args.append(status)
@@ -248,8 +254,8 @@ def count_requests(host: str, since: datetime, status: int | None = None) -> int
 
 # ---------------- housekeeping ----------------
 
-def _cfg() -> dict:
-    return {"keep_requests_days": 30, "keep_events_days": 180} | (settings().get("ops") or {})
+def _cfg() -> Ops:
+    return typed().ops
 
 
 def prune() -> None:
@@ -258,8 +264,8 @@ def prune() -> None:
     t = now()
     try:
         with closing(_connect()) as con, con:
-            con.execute("DELETE FROM requests WHERE ts < ?", (timestamp(t - timedelta(days=cfg["keep_requests_days"])),))
-            old = timestamp(t - timedelta(days=cfg["keep_events_days"]))
+            con.execute("DELETE FROM requests WHERE ts < ?", (timestamp(t - timedelta(days=cfg.keep_requests_days)),))
+            old = timestamp(t - timedelta(days=cfg.keep_events_days))
             con.execute("DELETE FROM events WHERE ts < ?", (old,))
             con.execute("DELETE FROM jobs WHERE started < ? AND status != 'running'", (old,))
     except sqlite3.Error as e:

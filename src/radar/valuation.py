@@ -18,7 +18,8 @@ from datetime import date, datetime
 import pandas as pd
 
 from . import guard, money, net
-from .config import discovery_config, settings, write_parquet
+from .config import discovery_config, typed, write_parquet
+from .config_schema import Valuation as ValuationSettings
 from .paths import CACHE, HISTORY
 from .values import num
 
@@ -31,8 +32,8 @@ STOCK_COLS = ["date", "ticker", "quote_type", "currency", "financial_currency", 
 ETF_COLS = ["date", "ticker", "pe", "pb", "ps", "pcf", "note"]
 
 
-def _cfg() -> dict:
-    return settings()["valuation"]
+def _cfg() -> ValuationSettings:
+    return typed().valuation
 
 
 # ---------------- stocks: one row per screener quote ----------------
@@ -97,9 +98,10 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
         return v
 
     ttm, fy1 = eps["ttm"], eps["fy1"]
-    inconsistent = bool(check_estimates and ttm and fy1 and ttm > 0 and fy1 > 0 and not 1 / 3 <= fy1 / ttm <= 3)
+    ratio = fy1 / ttm if ttm and fy1 and ttm > 0 and fy1 > 0 else None
+    inconsistent = bool(check_estimates and ratio is not None and not 1 / 3 <= ratio <= 3)
     if inconsistent:
-        notes.append(f"next-year EPS is {fy1 / ttm:.2g}× trailing: an inconsistent estimate, left out")
+        notes.append(f"next-year EPS is {ratio:.2g}× trailing: an inconsistent estimate, left out")
     pe_fy1 = None if inconsistent else pe("fy1", px_trade)
     pe_cy = pe("cy", px_fin)
     if pe_cy and pe_fy1 and not 1 / 3 <= pe_cy / pe_fy1 <= 3:
@@ -122,7 +124,7 @@ def quote_valuation(q: dict, fx: dict[str, float], pe_range: tuple[float, float]
            "earnings_date": _local_day(ts, q.get("exchangeTimezoneName")) if ts else None,
            "market_cap": num(q.get("marketCap"))}       # Yahoo's, in the trading currency (a check on ours)
     yahoo = num(q.get("forwardPE"))
-    if out["pe_fy1"] and yahoo and abs(yahoo / out["pe_fy1"] - 1) > 0.05:
+    if pe_fy1 and yahoo and abs(yahoo / pe_fy1 - 1) > 0.05:
         notes.append(f"Yahoo's own forward P/E is {yahoo:.1f}")
     return out | {"note": "; ".join(notes) or None}
 
@@ -189,12 +191,13 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
     from .discovery import scan, sources
 
     cfg = _cfg()
-    due, old = _snapshot_due(STOCKS_FILE, cfg["snapshot_days"], today)
+    due, old = _snapshot_due(STOCKS_FILE, cfg.snapshot_days, today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     fx = scan.fx_rates()
-    rng = tuple(cfg["pe_range"])
-    rows, short = {}, []
+    rng = cfg.pe_range
+    rows: dict = {}
+    short: list = []
     for code, c in _screen_codes().items():
         qs = [q for q in sources.screen_exchange(code, min_cap=c["min_cap"]) if q.get("quoteType") == "EQUITY"]
         if len(qs) < c["min_count"]:
@@ -203,7 +206,7 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
             rows.setdefault(q["symbol"], quote_valuation(q, fx, rng))
     if short:
         raise ValueError("too few names from Yahoo's screener (" + ", ".join(short) + "): keeping the last snapshot")
-    missing = [t for t in stocks if t not in rows][: cfg["fallback_max"]]
+    missing = [t for t in stocks if t not in rows][: cfg.fallback_max]
     looked, failed = _lookups(missing, fx, rng, rows)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
     carried = store_snapshot(STOCKS_FILE, old, df, today)
@@ -243,7 +246,8 @@ def fund_valuation(holdings: dict, pe_range: tuple[float, float] = (3, 150)) -> 
     """yfinance funds_data.equity_holdings → multiples. Yahoo stores them inverted (earnings yield, book yield
     …: 0.0313 for a fund on 32× earnings), so each is turned around; 0 or out of range means unknown."""
     ranges = {"pe": pe_range, "pb": (0.2, 50), "ps": (0.1, 50), "pcf": (1, 200)}
-    out, notes = {}, []
+    out: dict[str, float | None] = {}
+    notes: list[str] = []
     for label, key in FUND_KEYS.items():
         v = num(holdings.get(label))
         if v is None or v <= 0:
@@ -253,7 +257,8 @@ def fund_valuation(holdings: dict, pe_range: tuple[float, float] = (3, 150)) -> 
         lo, hi = ranges[key]
         if not lo <= m <= hi:
             notes.append(f"{label} {m:.3g} outside {lo}–{hi}: left out")
-            m = None
+            out[key] = None
+            continue
         out[key] = m
     return out | {"note": "; ".join(notes) or None}
 
@@ -265,7 +270,7 @@ def update_etfs(tickers: list[str], force: bool = False, today: date | None = No
     yf = net.yf()
 
     cfg = _cfg()
-    due, old = _snapshot_due(ETFS_FILE, cfg["snapshot_days"], today)
+    due, old = _snapshot_due(ETFS_FILE, cfg.snapshot_days, today)
     if not due and not force:
         return f"up to date (snapshot of {pd.to_datetime(old['date']).max():%d %b})"
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
@@ -277,11 +282,11 @@ def update_etfs(tickers: list[str], force: bool = False, today: date | None = No
             continue  # not a fund, or Yahoo has no fund data for it
         if eh is None or eh.empty:
             continue
-        rows.append({"ticker": t} | fund_valuation(eh.iloc[:, 0].to_dict(), tuple(cfg["fund_pe_range"])))
+        rows.append({"ticker": t} | fund_valuation(eh.iloc[:, 0].to_dict(), cfg.fund_pe_range))
     if not rows:
         raise ValueError(f"no fund data for any of {len(tickers)} ETFs: has Yahoo changed?")
     prev = set(latest(old).index) & set(tickers) if not old.empty else set()
-    need = math.ceil(cfg.get("etf_min_share", 0.8) * len(prev))
+    need = math.ceil(cfg.etf_min_share * len(prev))
     if len(rows) < need:   # a thin answer (throttled, Yahoo trouble) would replace a fuller snapshot
         raise ValueError(f"fund data for only {len(rows)} of {len(tickers)} ETFs (the last snapshot had {len(prev)}): "
                          "keeping the last snapshot")
@@ -311,8 +316,8 @@ def parse_damodaran(content: bytes, min_rows: int = 100) -> pd.DataFrame:
     headline number) and the T-bond rate, monthly."""
     raw = pd.read_excel(io.BytesIO(content), sheet_name="Historical ERP", header=None)
     head = [str(v).strip() for v in raw.iloc[0]]
-    need = {"Start of month": None, "ERP (T12m)": None, "T.Bond Rate": None}
-    for k in need:
+    need: dict[str, int] = {}
+    for k in ("Start of month", "ERP (T12m)", "T.Bond Rate"):
         if k not in head:
             raise ValueError(f"Damodaran's sheet has no {k!r} column: has the file changed?")
         need[k] = head.index(k)
@@ -419,15 +424,15 @@ class Context:
         self.disc_group = dict(zip(disc["ticker"], disc["market"])) if not disc.empty else {}
         disc_sector = {t: s for t, s in zip(disc["ticker"], disc["sector"]) if s} if not disc.empty else {}
         self.sector = disc_sector | {t: s for t, s in sectors.items() if s}
-        mp = cfg["min_peers"]
+        mp = cfg.min_peers
         self.rel = {"radar": sv.vs_sector(self.now, self.radar_group, self.sector, mp) if not self.now.empty else pd.Series(dtype=object),
                     "disc": sv.vs_sector(self.now, self.disc_group, self.sector, mp) if not self.now.empty else pd.Series(dtype=object)}
         self.rev, self.rev_base = {}, {}
         for w in REVISION_WEEKS:
             self.rev[w], self.rev_base[w] = sv.revisions(hist, w)
-        self.etf = sv.etf_rows(etf_hist, tracked.benchmark(), cfg["etf_history_weeks"])
+        self.etf = sv.etf_rows(etf_hist, tracked.benchmark(), cfg.etf_history_weeks)
         self.etf_asof = pd.to_datetime(etf_hist["date"]).max().date().isoformat() if not etf_hist.empty else None
-        self.band = cfg["revision_band"]
+        self.band = cfg.revision_band
 
     def stock(self, t: str, peers: str = "radar") -> dict:
         """The valuation fields of one stock (all None when it isn't in the snapshot)."""
@@ -459,7 +464,7 @@ class Context:
 
         labels = tracked.stock_group_labels()
         dmarkets = {k: m["label"] for k, m in discovery_config()["markets"].items()}
-        out = {"weeks_stored": self.weeks, "asof": self.asof, "windows": []}
+        out: dict = {"weeks_stored": self.weeks, "asof": self.asof, "windows": []}
         for w, rev in self.rev.items():
             if rev.empty:
                 out["windows"].append({"weeks": w, "base": None, "rows": []})

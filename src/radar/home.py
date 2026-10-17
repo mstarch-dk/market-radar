@@ -14,9 +14,11 @@ from __future__ import annotations
 import hashlib
 import shutil
 import sqlite3
+from collections.abc import Set as AbstractSet
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
+from typing import Any, TypeGuard
 
 from . import manifest, paths
 from .config import ROOT
@@ -88,8 +90,9 @@ def upgrade(home: Path) -> list[int]:
     return done
 
 
-def _newer(m: dict | None) -> bool:
-    return bool(m) and (m.get("home_format", 0) > HOME_FORMAT)
+def _newer(m: dict | None) -> TypeGuard[dict]:
+    return m is not None and m.get("home_format", 0) > HOME_FORMAT
+
 
 
 # ---------------- status ----------------
@@ -133,7 +136,7 @@ def gate() -> tuple[str, str | None]:
 def status() -> dict:
     """What the app should do at start: run, ask where the data is, or refuse to write."""
     state, ro = gate()
-    out = {"state": state, "source": paths.source(), "app_version": manifest.app_version(),
+    out: dict[str, Any] = {"state": state, "source": paths.source(), "app_version": manifest.app_version(),
            "pointer": str(paths.pointer_file()), "default_home": str(paths.default_home()),
            "default_cache": str(paths.default_cache()), "home": None, "cache": None, "read_only": ro,
            "warning": None, "found": []}
@@ -158,7 +161,7 @@ def sync_warning(home: Path) -> str | None:
 
 # ---------------- finding data from before the home ----------------
 
-def files_under(d: Path, skip: set[str] = frozenset()) -> list[Path]:
+def files_under(d: Path, skip: AbstractSet[str] = frozenset()) -> list[Path]:
     """Every file under `d`, leaving out the top-level folders in `skip` and half-written `.tmp` files."""
     if not d.is_dir():
         return []
@@ -243,7 +246,7 @@ def copy_db(src: Path, dst: Path) -> None:
         s.backup(d)
 
 
-def _copy_tree(src: Path, dst: Path, skip: set[str] = frozenset()) -> int:
+def _copy_tree(src: Path, dst: Path, skip: AbstractSet[str] = frozenset()) -> int:
     n = 0
     for f in files_under(src, skip):
         _copy_file(f, dst / f.relative_to(src))
@@ -322,7 +325,7 @@ def migrate(src_root: Path, home: Path | None = None, cache: Path | None = None,
     if staging.exists():
         shutil.rmtree(staging)
     stage = paths.Locations.at(staging, new.cache)
-    report = {"from": str(src_root), "home": str(home), "cache": str(new.cache), "files": {}}
+    report: dict[str, Any] = {"from": str(src_root), "home": str(home), "cache": str(new.cache), "files": {}}
     try:
         progress("Copying your folders")
         for f in PERSONAL:

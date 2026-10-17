@@ -26,7 +26,7 @@ def abtest_start(capital: float = typer.Option(None, help="DKK per basket (defau
             log(f"Started: picks recorded for {res['recorded']}; {len(res['runs'])} portfolios"
                 + (f" ({'; '.join(res['notes'])})" if res["notes"] else ""))
     except ValueError as e:
-        raise typer.Exit(f"Not started: {e}")
+        raise SystemExit(f"Not started: {e}")
     typer.echo("Follow it with `radar abtest status`, or on the Returns page (tag ab-qvm).")
 
 

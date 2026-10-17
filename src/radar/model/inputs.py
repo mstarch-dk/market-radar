@@ -10,7 +10,7 @@ from typing import NamedTuple
 import pandas as pd
 
 from .. import external, tracked, userstore
-from ..config import settings
+from ..config import typed
 from ..paths import REPORTS
 from ..signals import regime
 
@@ -35,7 +35,7 @@ def level_etfs(cfg: dict) -> set[str]:
 
 def effective_votes() -> dict[str, bool]:
     """Which indicator groups count in the regime vote: the defaults in settings.yaml, then your choice."""
-    votes = {k: bool(v) for k, v in (settings()["regime"].get("votes") or {}).items()}
+    votes = {k: bool(v) for k, v in (typed().regime.votes).items()}
     chosen = userstore.meta_get("regime_votes") or {}
     return votes | {k: bool(v) for k, v in chosen.items() if k in votes}
 

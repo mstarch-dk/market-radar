@@ -47,6 +47,11 @@ class Summary(_Open):
     mean: float | None = None
     gross_mean: float | None = None
     t: float | None = None
+    effective_n: float | None = None
+    hit: float | None = None
+    dd_median: float | None = None
+    dd_p10: float | None = None
+    vs_kept_mean: float | None = None
 
 
 class Split(_Open):
@@ -63,6 +68,15 @@ class ProposeCell(_Open):
 class StudyUniverse(_Open):
     first: str | None = None
     last: str | None = None
+    dates: int | None = None
+    tickers: int | None = None
+    fund_names: int | None = None
+
+
+class IC(_Open):
+    mean: float | None = None
+    t: float | None = None
+    dates: int | None = None
 
 
 class ProposeStudy(Header):
@@ -71,16 +85,114 @@ class ProposeStudy(Header):
     universe: StudyUniverse = StudyUniverse()
     us_only: dict[str, bool] = {}
     results: dict[str, dict[str, dict[str, ProposeCell]]]     # tilt → basket size → horizon (months)
+    ic: dict[str, IC] = {}
+    cost_bps: float | None = None
+    holdout_from: str | None = None
+    caveats: list[str] = []
 
 
 # ---------------- the long-run study (backtest/longrun.py) ----------------
 
+class Window(_Open):
+    first: date | None = None
+    last: date | None = None
+
+
 class Survivorship(_Open):
     implied_haircut: float | None = None
+    configured_haircut: float | None = None
+    window: Window = Window()
+    study_top_quintile_excess_1m: float | None = None
+    survivorship_free_same_months: float | None = None
+    survivorship_free_since_1927: float | None = None
+    note: str | None = None
+
+
+class Verdict(_Open):
+    label: str | None = None
+    why: list[str] = []
+
+
+class StudySettings(_Open):
+    """What a study ran with (the fields a reader shows)."""
+    holdout_from: str | None = None
+    n_top: int | None = None
+    fee_bps: float | None = None
+    park: str | None = None
+    cost_per_6m: float | None = None
+    dd_cut: float | None = None
+    trend: bool | None = None
+    cooldown: int | None = None
+    buffer: int | None = None
+    rf: str | None = None
+
+
+class Labelled(_Open):
+    key: str
+    label: str | None = None
+
+
+class LongrunSummary(_Open):
+    dates: int | None = None
+    eff_n: float | None = None
+    ic_mean: float | None = None
+    ic_t: float | None = None
+    spread: float | None = None
+    spread_t: float | None = None
+    top_excess: float | None = None
+    top_excess_t: float | None = None
+    top_vs_market: float | None = None
+
+
+class LongrunVariant(_Open):
+    all: LongrunSummary | None = None
+    holdout: LongrunSummary | None = None
+    by_decade: dict[str, LongrunSummary | None] = {}
+    by_trend: dict[str, LongrunSummary | None] = {}
+    by_recession: dict[str, LongrunSummary | None] = {}
+
+
+class LongrunPanel(_Open):
+    label: str | None = None
+    members: int | None = None
+    n_top: int | None = None
+    months: int | None = None
+    first: date | None = None
+    last: date | None = None
+    variants_tried: int | None = None
+    results: dict[str, dict[str, LongrunVariant]] = {}       # horizon → variant
+    verdicts: dict[str, dict[str, Verdict]] = {}
+
+
+class Rolling(_Open):
+    share_negative: float | None = None
+
+
+class Drawdown(_Open):
+    max: float | None = None
+    peak: date | None = None
+    months_to_recover: int | None = None
+
+
+class BaseRate(_Open):
+    first: date | None = None
+    last: date | None = None
+    ann_return: float | None = None
+    t: float | None = None
+    last_10y_ann: float | None = None
+    roll6: Rolling = Rolling()
+    roll12: Rolling = Rolling()
+    drawdown: Drawdown = Drawdown()
 
 
 class LongrunStudy(Header):
     survivorship: Survivorship | None = None
+    datasets_asof: dict[str, str] = {}
+    settings: StudySettings = StudySettings()
+    panels: dict[str, LongrunPanel] = {}
+    errors: dict[str, str] = {}
+    base_rates: dict[str, BaseRate | None] = {}
+    caveats: list[str] = []
 
 
 # ---------------- the score study (backtest/study.py) ----------------
@@ -88,24 +200,135 @@ class LongrunStudy(Header):
 class ScoreSummary(_Open):
     dates: int | None = None
     q: list[float | None] | None = None
+    ic_mean: float | None = None
+    ic_t: float | None = None
+    ic_pos: float | None = None
+    spread: float | None = None
+    spread_t: float | None = None
+    top_excess: float | None = None
+    top_hit: float | None = None
+    top_dkk: float | None = None
+    acwi_dkk: float | None = None
+    top_beats_acwi: float | None = None
 
 
 class ScoreVariant(_Open):
     all: ScoreSummary | None = None
+    holdout: ScoreSummary | None = None
+    by_regime: dict[str, ScoreSummary | None] = {}
+    by_group: dict[str, ScoreSummary | None] = {}
+
+
+class VariantInfo(_Open):
+    key: str
+    baseline: bool = False
+    pit: bool = True
+
+
+class MomentumCorr(_Open):
+    mean: float | None = None
+    dates: int | None = None
+
+
+class RuleVsHeld(_Open):
+    """The exit rule against holding the same basket (`hold` and `both`: the baskets themselves)."""
+    dates: int | None = None
+    mean: float | None = None
+    acwi_mean: float | None = None
+    beats_acwi: float | None = None
+    mean_diff: float | None = None
+    t: float | None = None
+    helped: float | None = None
+    worst: float | None = None
+    best: float | None = None
+    exits_mean: float | None = None
+
+
+class ScoreExits(_Open):
+    n_top: int | None = None
+    months: int | None = None
+    fee_bps: float | None = None
+    summary: dict[str, RuleVsHeld] | None = None
+    inputs_missing: dict[str, float] = {}
 
 
 class ScoreStudy(Header):
     signal: str = "momentum"
     universe: StudyUniverse
     results: dict[str, dict[str, ScoreVariant | None]]     # horizon → variant
+    settings: StudySettings = StudySettings()
+    variants: list[VariantInfo] = []
+    variants_tried: int | None = None
+    verdicts: dict[str, dict[str, Verdict]] = {}
+    decay: dict[str, dict[str, float | None]] = {}          # variant → horizon → mean IC
+    turnover: dict[str, float | None] = {}
+    momentum_corr: MomentumCorr | None = None
+    exits: ScoreExits | None = None
+    caveats: list[str] = []
+
+
+class Outcome(_Open):
+    """A basket's outcome across formation dates, with the rule or held (`hold`)."""
+    dates: int | None = None
+    ret_mean: float | None = None
+    ret_p10: float | None = None
+    diff_mean: float | None = None
+    diff_t: float | None = None
+    helped: float | None = None
+    dd_mean: float | None = None
+    dd_worst: float | None = None
+    exits_mean: float | None = None
+    sharpe_mean: float | None = None
+    sortino_mean: float | None = None
+    calmar_mean: float | None = None
+    ir_mean: float | None = None
+    hold: Outcome | None = None
+
+
+class ExitVariant(_Open):
+    all: Outcome | None = None
+    holdout: Outcome | None = None
+    verdict: Verdict = Verdict()
 
 
 class ExitStudy(Header):
-    pass
+    settings: StudySettings = StudySettings()
+    variants: list[Labelled] = []
+    results: dict[str, dict[str, ExitVariant]] = {}         # horizon → variant
+
+
+class Activity(_Open):
+    trades: float | None = None
+    fees_pct: float | None = None
+
+
+class TwinStat(_Open):
+    mean: float | None = None
+    t: float | None = None
+
+
+class TwinSplit(_Open):
+    sharpe: TwinStat | None = None
+
+
+class VsTwin(_Open):
+    all: TwinSplit | None = None
+
+
+class RedeployArm(_Open):
+    all: Outcome | None = None
+    holdout: Outcome | None = None
+    activity: Activity | None = None
+    vs_twin: VsTwin | None = None
+    verdict: Verdict | None = None
 
 
 class RedeployStudy(Header):
-    pass
+    settings: StudySettings = StudySettings()
+    arms: list[Labelled] = []
+    results: dict[str, dict[str, RedeployArm]] = {}         # horizon → arm
+    caveats: list[str] = []
+
 
 
 @dataclass(frozen=True)
@@ -242,17 +465,18 @@ def stamp(name: str, rep: dict, data_asof: str | None, rule_hash: str | None = N
 
 
 def write(name: str, rep: dict, *, data_asof: str | None, rule_hash: str | None = None,
-          file: str | None = None) -> Path:
+          file: str | None = None) -> Header:
     """Stamp, check against the contract, then write `rep` to the reports folder (as `file` when the same contract
-    is written under another name, e.g. score-study-<signal>.json). Raises when the report breaks the contract, so a
-    writer can't put out a report its readers can't read."""
+    is written under another name, e.g. score-study-<signal>.json). Returns the report as its model, as a reader
+    gets it. Raises when the report breaks the contract, so a writer can't put out a report its readers can't
+    read."""
     spec = _spec(name)
     text = dumps(stamp(name, rep, data_asof, rule_hash), indent=1)
     try:
-        spec.model.model_validate(json.loads(text))
+        checked = spec.model.model_validate(json.loads(text))
     except ValidationError as e:
         raise ValueError(f"{name} doesn't match its contract, not written: {_first_error(e)}") from e
     REPORTS.mkdir(parents=True, exist_ok=True)
     f = (REPORTS / (file or spec.file)).now()
     write_text(f, text)
-    return f
+    return checked

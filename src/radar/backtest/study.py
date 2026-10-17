@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, tracked
-from ..config import settings
+from .. import performance, simulate, tracked
+from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
 from ..model.stats import (  # noqa: F401 (re-exported)
@@ -280,11 +281,10 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
     BY_KEY, BASELINE = sig.by_key, sig.baseline       # the module's momentum names, here per signal
     if sig.fund and exits:
         raise ValueError("the exit-rule test runs on the momentum score only")
-    cfg = settings()
-    bt = cfg.get("backtest") or {}
-    min_names = int(bt.get("study_min_names", 30))
-    fill = bt.get("fill", "next")
-    holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
+    bt = typed().backtest
+    min_names = bt.study_min_names
+    fill = bt.fill
+    holdout = pd.Timestamp(bt.study_holdout_from)
     keys = variants or [v.key for v in sig.variants]
     unknown = [k for k in keys if k not in BY_KEY]
     if unknown:
@@ -309,9 +309,9 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         from .pit import Context
 
         ctx = Context.build(market, set())
-    per = {h: {k: [] for k in keys} for h in horizons}
-    groups_res = {h: {k: {} for k in keys} for h in horizons}
-    tops = {k: [] for k in keys}
+    per: dict[int, dict[str, list[dict]]] = {h: {k: [] for k in keys} for h in horizons}
+    groups_res: dict[int, dict[str, dict[str, list[dict]]]] = {h: {k: {} for k in keys} for h in horizons}
+    tops: dict[str, list] = {k: [] for k in keys}
     dates_out = []
     for day in formation_dates(p.sessions, since):
         fi = fill_session(p.sessions, day, fill)
@@ -344,7 +344,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
             f, e = p.sessions[fi], p.sessions[fi + HORIZONS[h]]
             b = p.bench_dkk
             acwi = float(b.asof(e) / b.asof(f) - 1) if len(b) else None
-            hrec = {"fwd_missing": int((base.notna() & y.isna()).sum()), "acwi_dkk": acwi, "ic": {}}
+            hrec: dict[str, Any] = {"fwd_missing": int((base.notna() & y.isna()).sum()), "acwi_dkk": acwi, "ic": {}}
             for k in keys:
                 cs = cross_section(xs[k], y, n_top, min_names, yd)
                 if cs is None:
@@ -366,7 +366,9 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         raise ValueError(f"no formation date with {min_names} ranked names: not enough price history yet")
     log(f"{len(dates_out)} formation dates, {dates_out[0]['date']} to {dates_out[-1]['date']}")
 
-    results, verdicts, decay = {}, {}, {k: {} for k in keys}
+    results: dict[str, dict] = {}
+    verdicts: dict[str, dict] = {}
+    decay: dict[str, dict] = {k: {} for k in keys}
     for h in horizons:
         lag = max(h - 1, 0)
         results[str(h)] = {}
@@ -392,7 +394,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
         "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "asof": p.sessions[-1].date().isoformat(),
         "settings": {"n_top": n_top, "min_names": min_names, "fill": fill, "seasoned": seasoned,
                      "holdout_from": holdout.date().isoformat() if holdout is not None else None,
-                     "horizons": {str(h): HORIZONS[h] for h in horizons}, "fee_bps": money.fee_bps(bt)},
+                     "horizons": {str(h): HORIZONS[h] for h in horizons}, "fee_bps": bt.fee_bps},
         "universe": {"tickers": int(len(p.closes.columns)),
                      "groups": {g: int((p.group == g).sum()) for g in p.group.dropna().unique()},
                      "first": dates_out[0]["date"], "last": dates_out[-1]["date"]},
@@ -407,6 +409,7 @@ def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top
     }
     if sig.fund:
         mc = [d.get("momentum_corr") for d in dates_out]
+        assert p.fund is not None                 # loaded above
         out["universe"]["fund_names"] = len(p.fund.names)
         out["momentum_corr"] = {"mean": _mean(mc), "dates": sum(v is not None for v in mc),
                                 "note": "rank correlation of the baseline with the momentum score per date: near 0 "
@@ -438,9 +441,9 @@ def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: in
     if months not in HORIZONS:
         raise ValueError(f"the exit study horizon must be one of {', '.join(map(str, HORIZONS))} months")
     h = HORIZONS[months]
-    bt = settings().get("backtest") or {}
-    fee = money.fee_bps(bt)
-    park = bt.get("park") or tracked.benchmark()
+    bt = typed().backtest
+    fee = bt.fee_bps
+    park = bt.park or tracked.benchmark()
     capital = 100_000.0
     baskets = []
     for d in dates:
@@ -524,6 +527,8 @@ def fast(ctx, p: Panels):
     return ctx
 
 
-def write(rep: dict) -> None:
-    artifacts.write("score-study", rep, data_asof=rep["asof"],
-                    file=SIGNALS[rep.get("signal", "momentum")].report)
+def write(rep: dict) -> artifacts.ScoreStudy:
+    out = artifacts.write("score-study", rep, data_asof=rep["asof"], file=SIGNALS[rep.get("signal", "momentum")].report)
+    assert isinstance(out, artifacts.ScoreStudy)
+    return out
+

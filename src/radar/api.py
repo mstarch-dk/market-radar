@@ -106,18 +106,19 @@ from .api_models import (
     VotesIn,
     WatchState,
 )
-from .config import ROOT, settings
+from .config import ROOT, settings, typed
 from .model import inputs
 from .userstore import viewstore
 
 WEB_DIST = ROOT / "web" / "dist"
 
-def _open_home() -> None:
-    """Once a usable data home is known: tidy the operations log and record this version in the manifest."""
+def _open_home() -> tuple[str, str | None]:
+    """Once a usable data home is known: tidy the operations log and record this version in the manifest.
+    Returns the home's (state, why read-only)."""
     global _gate
-    _gate = home.gate()
-    if _gate[0] != "ok":
-        return
+    gate = _gate = home.gate()
+    if gate[0] != "ok":
+        return gate
     from . import backup
 
     try:
@@ -129,12 +130,13 @@ def _open_home() -> None:
     home.touch(paths.locations().home)
     ops.mark_interrupted()   # a job 'running' in the log from an earlier server can't still be running
     ops.prune()
+    return gate
 
 
 def _rebuild_if_older() -> None:
     """A dashboard built by a version with an older shape is rebuilt at start (no downloads, about half a
     minute), so a new section doesn't answer 503 until the next update."""
-    if _gate[0] != "ok":
+    if _gate is None or _gate[0] != "ok":
         return
     try:
         d = dashboard.load()
@@ -204,9 +206,7 @@ async def _data_home(request: Request, call_next):
     version: reads only."""
     path = request.url.path
     if path.startswith("/api/") and not path.startswith(SETUP_FREE):
-        if _gate is None:
-            _open_home()
-        state, why = _gate
+        state, why = _gate if _gate is not None else _open_home()
         if state in ("unset", "missing"):
             return JSONResponse({"detail": {"setup": state, "message": "Choose where your data is first."}}, 409)
         if why and request.method not in READS:
@@ -452,7 +452,7 @@ def _view(key: str) -> dict:
     """One dashboard section, with how old its data is: stale once older than the price limit in settings."""
     d = _dashboard()
     age = (date.today() - date.fromisoformat(d["asof"])).days
-    limit = settings()["coverage"]["max_age"]["prices"]
+    limit = typed().coverage.max_age["prices"]
     return {"asof": d["asof"], "generated": d["generated"], "age_days": age, "stale": age > limit,
             "outdated": _outdated(d), **d[key]}
 
@@ -483,7 +483,7 @@ def get_regime_votes() -> list[dict]:
 def put_regime_votes(body: VotesIn) -> list[dict]:
     """Which switchable indicator groups count in the regime vote (stored in userdata; the default is
     settings.yaml regime.votes). Takes effect at once here, and in summary.json from the next `radar report`."""
-    known = set(settings()["regime"].get("votes") or {})
+    known = set(typed().regime.votes)
     unknown = sorted(set(body.votes) - known)
     if unknown:
         raise HTTPException(422, f"unknown group(s): {', '.join(unknown)}; known: {', '.join(sorted(known))}")
@@ -679,7 +679,7 @@ def get_discover() -> dict:
     ctx = valuation.context()
     markets = [m | {"rows": dashboard.with_valuation(m["rows"], ctx, "fund" if m["kind"] == "etf" else "stock", "disc")}
                for m in d["markets"]]
-    return {"age_days": age, "stale": age > settings()["coverage"]["max_age"]["discovery_prices"], **d,
+    return {"age_days": age, "stale": age > typed().coverage.max_age["discovery_prices"], **d,
             "markets": markets}
 
 
@@ -922,7 +922,7 @@ def delete_transaction(tx_id: int) -> dict:
 def restore_transaction(row: TxRow) -> dict:
     if userstore.get_tx(row.id):
         raise HTTPException(409, "That transaction is already there.")
-    return userstore.get_tx(userstore.restore_tx(row.model_dump()))
+    return _found(userstore.get_tx(userstore.restore_tx(row.model_dump())), "The restored transaction is gone.")
 
 
 @app.get("/api/portfolio/positions", response_model=PositionsView)
@@ -960,10 +960,15 @@ def export_transactions(portfolio: list[int] | None = PortfolioQ, tag: list[str]
 # ---------------- portfolios: real ones (your accounts) and virtual ones, with tags ----------------
 
 def _portfolio_or_404(pid: int) -> dict:
-    p = userstore.get_portfolio(pid)
-    if not p:
-        raise HTTPException(404, f"No portfolio {pid}.")
-    return p
+    return _found(userstore.get_portfolio(pid), f"No portfolio {pid}.")
+
+
+def _found(row: dict | None, missing: str) -> dict:
+    """The row, or 404 with `missing` when it isn't there."""
+    if not row:
+        raise HTTPException(404, missing)
+    return row
+
 
 
 def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
@@ -975,7 +980,7 @@ def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
     if "fee_schedule" not in body.model_fields_set:      # an older client: keep the schedule as it is
         data.pop("fee_schedule")
     try:
-        return userstore.get_portfolio(userstore.save_portfolio(data, pid))
+        return _portfolio_or_404(userstore.save_portfolio(data, pid))
     except userstore.NameTaken as e:
         raise HTTPException(409, _sentence(e)) from e
     except (ValueError, sqlite3.IntegrityError) as e:       # the store's rules (kind, mode, a simulation stays virtual)
@@ -1011,7 +1016,7 @@ def delete_portfolio(pid: int) -> dict:
     with trades is 409: move them, or archive it."""
     _portfolio_or_404(pid)
     try:
-        return userstore.delete_portfolio(pid)
+        return _found(userstore.delete_portfolio(pid), f"No portfolio {pid}.")
     except ValueError as e:
         raise HTTPException(409, str(e)) from e
 
@@ -1043,7 +1048,7 @@ def set_tags(pid: int, body: TagsIn) -> dict:
         userstore.set_tags(pid, body.tags)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
-    return userstore.get_portfolio(pid)
+    return _portfolio_or_404(pid)
 
 
 @app.post("/api/portfolios/{pid}/default", response_model=list[Portfolio])
@@ -1124,7 +1129,7 @@ def fork_portfolio(pid: int, body: ForkIn) -> dict:
             new = simulate.fork(pid, name, body.date, market(), body.extra_cash_dkk, body.tags)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
-    return userstore.get_portfolio(new)
+    return _portfolio_or_404(new)
 
 
 @app.post("/api/portfolios/{pid}/move", response_model=MoveResult)

@@ -101,7 +101,7 @@ def info(tickers: list[str] = typer.Argument(..., help="One or more Yahoo symbol
         try:
             data = profile.legacy_info(profile.build(tickers[0].strip().upper(), refresh=refresh))
         except profile.TickerNotFound as e:
-            raise typer.Exit(str(e))
+            raise SystemExit(str(e))
     else:
         sel = portfolio_ids(portfolio, tag) if (portfolio or tag) else None
         data = profile.compare(tickers, personal=personal, portfolios=sel)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from typing import Any
 
 from ..model import artifacts
 from ..model import prior as mprior
@@ -60,7 +61,7 @@ def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None
             _PRIORS[key] = None
         else:
             st = (main.get("by_trend") or {}).get(trend) if trend else None
-            use = st if st and (st.get("eff_n") or 0) >= float(pc.get("min_trend_eff_n", 20)) else main
+            use: dict = st if st is not None and (st.get("eff_n") or 0) >= float(pc.get("min_trend_eff_n", 20)) else main
             _PRIORS[key] = {
                 "mean": use["mean"], "se": use["se"], "t": use["t"], "eff_n": use["eff_n"],
                 "basis": f"{regions[0]}, {trend}trend ({use['eff_n']:g} periods)" if use is st
@@ -98,10 +99,11 @@ def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, 
     study has few independent periods and today's universe, the prior decades of every listed stock. Gross of
     costs (the proposal's own costs are taken off in `evaluate`)."""
     c = c or rules.cfg()
-    out = {"available": False, "stale": None, "drift_gross": None, "drift_gross_raw": None, "drift_short": None,
-           "basis": None, "n_used": None, "us_only": None, "prior": None, "w_short": None, "haircut": None}
+    out: dict[str, Any] = {"available": False, "stale": None, "drift_gross": None, "drift_gross_raw": None,
+                           "drift_short": None, "basis": None, "n_used": None, "us_only": None, "prior": None,
+                           "w_short": None, "haircut": None}
     rep = study.report if study is not None else None
-    if rep is None:
+    if study is None or rep is None:
         out["note"] = (study.reason if study is not None else None) or "no rule study yet: run `radar study propose`"
         return out
     out["stale"] = study.status == "stale"
@@ -123,8 +125,10 @@ def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, 
         return out
     allr = kept.all or artifacts.Summary()
     reg = kept.by_regime.get(str(regime)) if regime else None
-    use = reg if reg is not None and (reg.dates or 0) >= c["min_regime_dates"] else allr
-    out["basis"] = f"regime {regime} ({use.dates} dates)" if use is reg and reg else f"all dates ({allr.dates})"
+    if reg is not None and (reg.dates or 0) >= c["min_regime_dates"]:
+        use, out["basis"] = reg, f"regime {regime} ({reg.dates} dates)"
+    else:
+        use, out["basis"] = allr, f"all dates ({allr.dates})"
     g = use.gross_mean
     hc = haircut(c, artifacts.load("longrun-study"))
     out["drift_gross_raw"] = g

@@ -1,9 +1,9 @@
 """The opt-in check for a new version: silent until switched on, at most once a day, offline is fine."""
-import copy
 
 import pytest
 
-from radar import config, home, manifest, net, updates
+from conftest import with_settings
+from radar import home, manifest, net, updates
 
 
 class Resp:
@@ -17,9 +17,7 @@ class Resp:
 @pytest.fixture
 def checks(tmp_path, monkeypatch):
     home.create(tmp_path / "h", tmp_path / "c")
-    s = copy.deepcopy(config.settings())
-    s["updates"] = {"repo": "someone/market-radar"}
-    monkeypatch.setattr(updates, "settings", lambda: s)
+    with_settings(monkeypatch, updates={"repo": "someone/market-radar"})
     monkeypatch.setattr(manifest, "app_version", lambda: "0.2.0")
     calls = []
 

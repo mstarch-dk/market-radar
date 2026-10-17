@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 
 from .. import factors, ingest
-from ..config import settings
+from ..config import typed
+from ..config_schema import Longrun
 from ..model import artifacts
 from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # noqa: F401 (re-exported)
 from ..model.stats import mean as _mean
@@ -29,8 +30,8 @@ REPORT_FILE = "longrun-study.json"
 BASELINE = "score"
 
 
-def _cfg() -> dict:
-    return settings().get("longrun") or {}
+def _cfg() -> Longrun:
+    return typed().longrun
 
 
 # ---------------- returns over windows ----------------
@@ -106,20 +107,19 @@ def _market(name: str, data: pd.DataFrame) -> pd.Series:
 
 
 def load_panel(key: str, data: pd.DataFrame | None = None) -> Panel:
-    specs = _cfg().get("panels") or {}
+    specs = _cfg().panels
     if key not in specs:
         raise ValueError(f"unknown panel {key} (known: {', '.join(specs)})")
     spec = specs[key]
     data = factors.load() if data is None else data
-    r = factors.panel(spec["data"], data)
+    r = factors.panel(spec.data, data)
     if r.empty:
-        raise ValueError(f"no {spec['data']} data stored: run `radar update` (or `radar study longrun --fetch`) first")
-    if spec.get("members"):
-        r = r.reindex(columns=[m for m in spec["members"] if m in r.columns])
-    if spec.get("excess"):
+        raise ValueError(f"no {spec.data} data stored: run `radar update` (or `radar study longrun --fetch`) first")
+    if spec.members:
+        r = r.reindex(columns=[m for m in spec.members if m in r.columns])
+    if spec.excess:
         r = factors.total(r, data)
-    return Panel(key, spec.get("label", key), r, _market(spec.get("market", "us"), data).reindex(r.index),
-                 int(spec.get("n_top", 10)), int(spec.get("min_names", 20)))
+    return Panel(key, spec.label or key, r, _market(spec.market, data).reindex(r.index), spec.n_top, spec.min_names)
 
 
 def _fx(index: pd.DatetimeIndex) -> pd.Series:
@@ -154,8 +154,8 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
     periods (dates / H), the top N against the panel's market and in DKK, and the splits (holdout, decade, the
     market's trend, US recessions)."""
     cfg = _cfg()
-    horizons = [int(h) for h in (horizons or cfg.get("horizons", [1, 3, 6, 12]))]
-    holdout = pd.Timestamp(cfg["holdout_from"]) if cfg.get("holdout_from") else None
+    horizons = [int(h) for h in (horizons or cfg.horizons)]
+    holdout = pd.Timestamp(cfg.holdout_from) if cfg.holdout_from else None
     keys = variants or [v.key for v in VARIANTS]
     unknown = [k for k in keys if k not in BY_KEY]
     if unknown:
@@ -169,11 +169,11 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
     fx = _fx(r.index)
     fx_ratio = {h: fx.shift(-h) / fx for h in horizons}
     level = (1 + panel.market.fillna(0)).cumprod().where(panel.market.notna())
-    trend = level >= level.rolling(int(cfg.get("regime_months", 10)), min_periods=int(cfg.get("regime_months", 10))).mean()
-    trend = trend.where(level.rolling(int(cfg.get("regime_months", 10))).count() >= int(cfg.get("regime_months", 10)))
+    trend = level >= level.rolling(cfg.regime_months, min_periods=cfg.regime_months).mean()
+    trend = trend.where(level.rolling(cfg.regime_months).count() >= cfg.regime_months)
     rec = _recessions(r.index)
 
-    per = {h: {k: [] for k in keys} for h in horizons}
+    per: dict[int, dict[str, list[dict]]] = {h: {k: [] for k in keys} for h in horizons}
     dates_used = []
     for day in r.index:
         if since is not None and day < pd.Timestamp(since):
@@ -204,7 +204,9 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
         raise ValueError(f"no month with {panel.min_names} ranked members in {panel.key}")
     log(f"{panel.key}: {len(dates_used)} formation months, {dates_used[0]:%Y-%m} to {dates_used[-1]:%Y-%m}")
 
-    results, verdicts = {}, {}
+    results: dict[str, dict] = {}
+    verdicts: dict[str, dict] = {}
+
     for h in horizons:
         lag = max(h - 1, 0)
         results[str(h)] = {}
@@ -286,7 +288,7 @@ def base_rates(r: pd.Series) -> dict | None:
 def factor_base_rates(data: pd.DataFrame | None = None) -> dict:
     data = factors.load() if data is None else data
     out = {}
-    for label, (key, series) in (_cfg().get("factors") or {}).items():
+    for label, (key, series) in _cfg().factors.items():
         p = factors.panel(key, data)
         out[label] = base_rates(p[series]) if series in p else None
     return out
@@ -340,7 +342,7 @@ def survivorship_gauge(data: pd.DataFrame | None = None,
             "study_top_quintile_excess_1m": ours, "survivorship_free_same_months": same,
             "survivorship_free_since_1927": float(top.mean()),
             "implied_haircut": (1 - same / ours) if same is not None and ours and ours > 0 else None,
-            "configured_haircut": (settings().get("propose") or {}).get("survivorship_haircut"),
+            "configured_haircut": typed().propose.survivorship_haircut,
             "note": "a rough gauge: S&P 500 and curated lists against all US stocks, the score against 12-2 momentum, "
                     "equal-weighted deciles on NYSE breakpoints; one window of a few years"}
 
@@ -364,12 +366,12 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
     data = factors.load()
     if data.empty:
         raise ValueError("no long histories stored: run `radar update` (or `radar study longrun --fetch`) first")
-    keys = panels or list(_cfg().get("panels") or {})
+    keys = panels or list(_cfg().panels)
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "datasets_asof": factors.asof(data),
-           "settings": {"holdout_from": _cfg().get("holdout_from"),
-                        "horizons": [int(h) for h in (horizons or _cfg().get("horizons", [1, 3, 6, 12]))],
-                        "regime_months": _cfg().get("regime_months", 10), "since": since},
+           "settings": {"holdout_from": _cfg().holdout_from,
+                        "horizons": [int(h) for h in (horizons or _cfg().horizons)],
+                        "regime_months": _cfg().regime_months, "since": since},
            "panels": {}, "errors": {}}
     for k in keys:
         try:
@@ -384,7 +386,9 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
     return out
 
 
-def write(rep: dict) -> None:
+def write(rep: dict) -> artifacts.LongrunStudy:
     months = (rep.get("datasets_asof") or {}).values()
-    artifacts.write("longrun-study", rep, data_asof=artifacts.month_end(max(months)) if months else None,
-                    file=REPORT_FILE)
+    out = artifacts.write("longrun-study", rep, data_asof=artifacts.month_end(max(months)) if months else None,
+                          file=REPORT_FILE)
+    assert isinstance(out, artifacts.LongrunStudy)
+    return out

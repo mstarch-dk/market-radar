@@ -10,7 +10,7 @@ from ..values import num
 class Prices:
     """DKK closes and weekly DKK returns, computed once per ticker."""
 
-    def __init__(self, market):
+    def __init__(self, market) -> None:
         self.market = market
         self._ccy: dict[str, str | None] = {}
         self._dkk: dict[str, pd.Series | None] = {}
@@ -35,9 +35,8 @@ class Prices:
         if t not in self._dkk:
             c = self.market.closes
             fx = self.fx(t)
-            self._dkk[t] = (c[t] * fx.reindex(c.index)).dropna() if t in c and fx is not None else None
-            if self._dkk[t] is not None and self._dkk[t].empty:
-                self._dkk[t] = None
+            s = (c[t] * fx.reindex(c.index)).dropna() if t in c and fx is not None else None
+            self._dkk[t] = s if s is not None and not s.empty else None
         return self._dkk[t]
 
     def last_px(self, t: str) -> float | None:

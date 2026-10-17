@@ -4,15 +4,26 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Protocol
 
 import numpy as np
 import pandas as pd
 
 from .. import fxrates, tracked, universe
-from ..config import settings
+from ..config import typed
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
 from ..signals.score import COMPONENTS, mean_pct
+
+
+class Fundamentals(Protocol):
+    """Fundamentals as known on a past day (backtest.fund.FundPIT)."""
+    names: list[str]
+    first_known: pd.Timestamp | None
+
+    def table(self, day) -> pd.DataFrame: ...
+
+    def col(self, day, key: str) -> pd.Series: ...
 
 
 @dataclass
@@ -26,7 +37,8 @@ class Panels:
     sessions: pd.DatetimeIndex                   # benchmark calendar
     bench_dkk: pd.Series
     volumes: pd.DataFrame | None = None          # traded volume (gaps forward-filled, as ingest.wide)
-    fund: object | None = None                   # backtest.fund.FundPIT, for the fundamentals signals
+    fund: Fundamentals | None = None             # for the fundamentals signals
+
 
 
 def panels(market, tickers: list[str] | None = None) -> Panels:
@@ -37,7 +49,7 @@ def panels(market, tickers: list[str] | None = None) -> Panels:
             group.setdefault(t, g)
     stocks = sorted(t for t in (tickers or group) if t in market.closes.columns)
     c = market.closes[stocks]
-    m = momentum.metrics_panel(market.closes, stocks, settings()["momentum"]["min_history_days"])
+    m = momentum.metrics_panel(market.closes, stocks, typed().momentum.min_history_days)
     vol = np.log(c).diff().rolling(63, min_periods=32).std() * math.sqrt(TRADING_DAYS)
     ccy = fxrates.currencies(stocks)
     fx_cache: dict = {}

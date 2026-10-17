@@ -3,10 +3,9 @@ formation date only, repeats exactly, records the rule's settings hash (so a cha
 the exits arm equals the kept arm when nothing triggers."""
 from __future__ import annotations
 
-import copy
-
 import pytest
 
+from conftest import with_settings
 from radar import propose
 from radar.backtest import propose_study as ps
 from radar.backtest import study
@@ -46,21 +45,15 @@ def test_a_changed_rule_makes_the_study_stale(market, tmp_data, monkeypatch):  #
     got = propose.load_study()
     assert got.status == "ok" and not got.legacy
     assert got.report.rule_hash == rep["settings_hash"] and got.report.data_asof.isoformat() == rep["asof"]
-    c = copy.deepcopy(market.cfg)
-    c["propose"]["max_corr"] = 0.5
-    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store):
-        monkeypatch.setattr(mod, "settings", lambda: c)
+    c = with_settings(monkeypatch, base=market.cfg, propose={"max_corr": 0.5})
     assert propose.load_study().status == "stale"
     assert propose.study_view(propose.load_study(), "momentum", 2, 1, None, c["propose"])["drift_gross"] is None
 
 
 def test_exits_equal_kept_when_nothing_triggers(market, monkeypatch):  # noqa: F811
-    c = copy.deepcopy(market.cfg)
-    c["propose"]["require_trend_from"] = 2
-    c["propose"]["exit"] |= {"min_score": -1}                      # no signal exit can fire
-    c["stops"] = dict(c["stops"], trend_sma=10_000)                  # no average to fall below
-    for mod in (propose.rules, propose.draft, propose.evaluation, propose.store, ps):
-        monkeypatch.setattr(mod, "settings", lambda: c)
+    with_settings(monkeypatch, base=market.cfg, propose={"require_trend_from": 2,
+                                                         "exit": {"min_score": -1}},   # no signal exit can fire
+                  stops={"trend_sma": 10_000})                                       # no average to fall below
     rep = ps.run(market, ["momentum"], [2], [1], with_regime=False)
     arms = rep["results"]["momentum"]["2"]["1"]
     k, x = arms["kept"]["all"], arms["exits"]["all"]

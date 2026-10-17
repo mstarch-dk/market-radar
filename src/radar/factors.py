@@ -15,7 +15,8 @@ import numpy as np
 import pandas as pd
 
 from . import guard, net
-from .config import settings, write_parquet
+from .config import typed, write_parquet
+from .config_schema import Factors
 from .paths import CACHE
 
 FACTORS_FILE = CACHE / "factors" / "returns.parquet"
@@ -27,8 +28,8 @@ COLUMNS = ["key", "series", "date", "ret", "fetched"]
 FRENCH_MISSING = -99.99                 # this or below (-999) marks a missing value
 
 
-def _cfg() -> dict:
-    return settings().get("factors") or {}
+def _cfg() -> Factors:
+    return typed().factors
 
 
 # ---------------- Kenneth R. French Data Library ----------------
@@ -129,16 +130,16 @@ def datasets() -> dict[str, dict]:
     (a region's stocks in terciles by one characteristic), "jkp_pf:<region>:<characteristic>" with series "1" (low)
     to "3" (high)."""
     cfg = _cfg()
-    out = {}
-    for name, spec in (cfg.get("french") or {}).items():
-        out[f"french:{name}"] = {"source": "french", **({"file": spec} if isinstance(spec, str) else spec)}
-    for name, spec in (cfg.get("jkp") or {}).items():
-        out[f"jkp:{name}"] = {"source": "jkp", **spec}
-    pf = cfg.get("jkp_portfolios") or {}
-    for region in pf.get("regions") or []:
-        for ch in pf.get("characteristics") or []:
+    out: dict[str, dict] = {}
+    for name, f in cfg.french.items():
+        out[f"french:{name}"] = {"source": "french", **({"file": f} if isinstance(f, str) else f.model_dump(exclude_none=True))}
+    for name, j in cfg.jkp.items():
+        out[f"jkp:{name}"] = {"source": "jkp", **j.model_dump(exclude_none=True)}
+    pf = cfg.jkp_portfolios
+    for region in pf.regions if pf else []:
+        for ch in pf.characteristics if pf else []:
             out[f"jkp_pf:{region}:{ch}"] = {"source": "jkp_pf", "region": region, "characteristic": ch,
-                                            "weighting": pf.get("weighting", "vw_cap")}
+                                            "weighting": pf.weighting if pf else "vw_cap"}
     return out
 
 
@@ -161,7 +162,7 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
     against what is stored (guard: the same series, starting no later, ending no earlier, not markedly fewer rows);
     one that fails keeps its stored rows, and the step then fails naming it after the rest are written."""
     today = today or date.today()
-    max_age = timedelta(days=int(_cfg().get("max_age_days", 30)))
+    max_age = timedelta(days=_cfg().max_age_days)
     stored = load()
     fetched = stored.groupby("key")["fetched"].max() if not stored.empty else pd.Series(dtype="datetime64[ns]")
     fresh, failed, skipped = [], [], 0

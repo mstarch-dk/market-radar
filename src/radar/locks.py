@@ -8,12 +8,15 @@ file, not around a download: other writers wait at most `timeout` seconds.
 from __future__ import annotations
 
 import os
+import sys
 import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
 
-if os.name == "nt":
+from .config import AnyPath
+
+if sys.platform == "win32":
     import msvcrt
 
     def _try(fd: int) -> bool:
@@ -46,7 +49,7 @@ class Busy(TimeoutError):
     """Someone else holds the lock."""
 
 
-def lock_path(path: Path) -> Path:
+def lock_path(path: AnyPath) -> Path:
     """`<path>.lock` next to the file it guards; a path that already ends in .lock is the lock itself (a lock for
     a job rather than a file, such as the update)."""
     path = Path(path)
@@ -54,7 +57,7 @@ def lock_path(path: Path) -> Path:
 
 
 @contextmanager
-def file_lock(path: Path, timeout: float = 120, poll: float = 0.1, what: str | None = None):
+def file_lock(path: AnyPath, timeout: float = 120, poll: float = 0.1, what: str | None = None):
     """Hold the lock for `path`; wait up to `timeout` seconds (0: don't wait), else raise `Busy`."""
     lp = lock_path(path)
     held = getattr(_held, "paths", None)

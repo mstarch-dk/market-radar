@@ -1,3 +1,4 @@
+import functools
 import socket
 import sys
 from pathlib import Path
@@ -21,6 +22,27 @@ def reset_caches() -> None:
     for name in CACHED:
         if name in sys.modules:
             sys.modules[name].reset()
+
+
+def with_settings(monkeypatch, base: dict | None = None, **changes) -> dict:
+    """settings.yaml (or `base`) with `changes` merged in, section by section (`backtest={"fee_bps": 0}`), for the
+    rest of the test: settings() and typed() both read it, checked like the file. Returns the raw dict."""
+    import copy
+
+    from radar import config
+    from radar.config_schema import check
+
+    def merge(base, new):
+        if isinstance(base, dict) and isinstance(new, dict):
+            return {**base, **{k: merge(base.get(k), v) for k, v in new.items()}}
+        return new
+
+    raw = copy.deepcopy(config.load_yaml("settings.yaml") if base is None else base)
+    for section, value in changes.items():
+        raw[section] = merge(raw.get(section), value)
+    loaded = (raw, check(raw))
+    monkeypatch.setattr(config, "_load", functools.cache(lambda: loaded))
+    return raw
 
 
 class NetworkBlocked(RuntimeError):

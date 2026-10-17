@@ -1,16 +1,15 @@
 """Hindsight baskets (backtest/picks.py) on the synthetic world: candidates know nothing after their day, blind ids
 resolve, caps hold, the kept basket returns what its weights say, the rule variant equals it when nothing
 triggers, random baskets are repeatable, reruns replace, and none of it ever counts as yours."""
-import copy
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import world
+from conftest import with_settings
 from radar import performance, profile, userstore
 from radar.backtest import picks, study
-from radar.config import settings
 from radar.userstore import viewstore
 from world import IDX, N
 
@@ -21,10 +20,7 @@ D = 260                                     # the score needs 12-1-month momentu
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     performance.reset()
-    c = copy.deepcopy(settings())
-    c["backtest"] |= {"fill": "next", "fee_bps": 10, "random_baskets": 200}
-    for mod in (picks, study):
-        monkeypatch.setattr(mod, "settings", lambda: c)
+    with_settings(monkeypatch, backtest={"fill": "next", "fee_bps": 10, "random_baskets": 200})
     return profile.Market.load()
 
 

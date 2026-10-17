@@ -20,7 +20,7 @@ def dkk_rates(last: dict[str, float]) -> dict[str, float]:
     """Latest DKK per unit of each currency from the latest close per FX ticker; a currency whose
     pair(s) are missing is left out. GBp is left out too (callers use GBP and divide by 100)."""
     out = {"DKK": 1.0} | {c: last[t] for c, t in FX_DKK.items() if t and not money.is_pence(c) and t in last}
-    usd = last.get(FX_DKK["USD"])
+    usd = last.get(FX_DKK["USD"] or "")
     out |= {c: usd / last[t] for c, t in FX_VIA_USD.items() if usd and last.get(t)}
     return out
 

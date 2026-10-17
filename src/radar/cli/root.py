@@ -47,11 +47,11 @@ def _root(ctx: typer.Context,
 
 def _first_use_of_version() -> None:
     """A new app version's first use of the data: back it up, then record the version."""
-    from .. import backup, paths
+    from .. import backup, manifest, paths
     from .. import home as homes
 
     if backup.before_upgrade():
-        typer.echo(f"First use of Market Radar {homes.app_version()} with this data: backed up first.")
+        typer.echo(f"First use of Market Radar {manifest.app_version()} with this data: backed up first.")
     if backup.is_home():
         homes.upgrade(paths.locations().home)
         homes.touch(paths.locations().home)

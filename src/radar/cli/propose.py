@@ -40,7 +40,7 @@ def _load_picks(path: str) -> dict:
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        raise typer.Exit(f"Can't read the picks file: {e}")
+        raise SystemExit(f"Can't read the picks file: {e}")
 
 
 @propose_app.command("candidates")
@@ -67,7 +67,7 @@ def propose_candidates(portfolio: str = typer.Option(..., "--portfolio", help="T
         rep = pr.candidates(profile.Market.load(), portfolio, parse_amount(amount), tilt, mode, n, weighting,
                             max_position, not no_etf, horizon, top)
     except ValueError as e:
-        raise typer.Exit(f"No candidates: {e}")
+        raise SystemExit(f"No candidates: {e}")
     text = to_json(rep, indent=1, ensure_ascii=False)
     _write_out(text, out)
     if as_json:
@@ -101,7 +101,7 @@ def propose_freeze(picks_file: str = typer.Argument(..., help="A picks file (the
     try:
         f = pr.save_picks(_load_picks(picks_file))
     except ValueError as e:
-        raise typer.Exit(f"Not frozen: {e}")
+        raise SystemExit(f"Not frozen: {e}")
     typer.echo(f)
 
 
@@ -123,11 +123,11 @@ def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks 
 
     doc = _load_picks(picks_file)
     if not (doc.get("meta") or {}).get("frozen_at"):
-        raise typer.Exit("Freeze the picks first: radar propose freeze FILE (the picks are fixed before the numbers)")
+        raise SystemExit("Freeze the picks first: radar propose freeze FILE (the picks are fixed before the numbers)")
     try:
         rep = pr.evaluate(profile.Market.load(), doc, max_position, tolerance, light=light)
     except ValueError as e:
-        raise typer.Exit(f"Not evaluated: {e}")
+        raise SystemExit(f"Not evaluated: {e}")
     pr.keep_evaluation(picks_file, rep)
     text = to_json(rep, indent=1, ensure_ascii=False)
     _write_out(text, out)
@@ -162,7 +162,7 @@ def propose_shadow(picks_file: str = typer.Argument(..., help="A frozen picks fi
     try:
         res = pr.shadow(profile.Market.load(), _load_picks(picks_file), name)
     except ValueError as e:
-        raise typer.Exit(f"No shadow: {e}")
+        raise SystemExit(f"No shadow: {e}")
     typer.echo("Created: " + ", ".join(res["names"].values()))
     typer.echo(f"Returns page: {res['returns_link']}  (or radar performance --tag {res['tags'][1]})")
 

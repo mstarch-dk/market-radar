@@ -125,7 +125,8 @@ def _lines(md: str):
 
 def headings(md: str) -> list[dict]:
     """Every heading (h1–h4) outside code, in order, with a unique id."""
-    out, seen = [], {}
+    out: list[dict] = []
+    seen: dict[str, int] = {}
     for line, fenced in _lines(md):
         m = None if fenced else HEADING.match(line)
         if not m:
@@ -159,7 +160,9 @@ def chapter(book: str, slug_: str) -> dict:
 def _sections(md: str) -> list[tuple[str | None, str]]:
     """(heading id, its text) blocks of a chapter, the text before the first h2 under None."""
     hs = iter(headings(md))
-    out, cur, buf = [], None, []
+    out: list[tuple[str | None, str]] = []
+    cur: str | None = None
+    buf: list[str] = []
     for line, fenced in _lines(md):
         if not fenced and HEADING.match(line):
             h = next(hs)
@@ -200,7 +203,8 @@ def search(q: str, limit: int = 20) -> list[dict]:
             hits.append({"book": book, "slug": slug_, "title": title, "section": hs.get(sid), "anchor": sid,
                          "snippet": _snippet(text, terms[0]), "score": score})
     hits.sort(key=lambda h: -h["score"])
-    out, per_chapter = [], {}
+    out: list[dict] = []
+    per_chapter: dict[tuple[str, str], int] = {}
     for h in hits:                              # at most 3 sections per chapter, so other chapters show too
         n = per_chapter.get((h["book"], h["slug"]), 0)
         if n < 3:

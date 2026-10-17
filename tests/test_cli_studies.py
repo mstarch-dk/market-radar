@@ -3,15 +3,14 @@ world plus a crash), the score study's synthetic panels or the long-run tests' s
 exit code and a line of its report."""
 from __future__ import annotations
 
-import copy
 import json
 
 import pytest
 from typer.testing import CliRunner
 
+from conftest import with_settings
 from radar import cli
-from radar.backtest import longrun, picks, study
-from radar.config import settings
+from radar.backtest import longrun, study
 from test_backtest_exits import market  # noqa: F401 - the shared fixture
 from world import IDX
 
@@ -32,11 +31,7 @@ def run_json(*args: str):
 @pytest.fixture
 def quick(monkeypatch):
     """The hindsight baskets' settings as their own tests use them (next-session fills, fewer random baskets)."""
-    c = copy.deepcopy(settings())
-    c["backtest"] |= {"fill": "next", "fee_bps": 10, "random_baskets": 200}
-    for mod in (picks, study):
-        monkeypatch.setattr(mod, "settings", lambda: c)
-    return c
+    return with_settings(monkeypatch, backtest={"fill": "next", "fee_bps": 10, "random_baskets": 200})
 
 
 def test_sim_exits(market):  # noqa: F811
@@ -62,9 +57,7 @@ def test_study_score(market, monkeypatch):  # noqa: F811
     """The real study on the score tests' synthetic panels (the world's dozen stocks are too few to rank)."""
     from test_backtest_study import noise, panels
 
-    c = copy.deepcopy(settings())
-    c["backtest"] |= {"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"}
-    monkeypatch.setattr(study, "settings", lambda: c)
+    with_settings(monkeypatch, backtest={"study_min_names": 20, "study_holdout_from": "2021-06-01", "fill": "next"})
     real = study.run
     monkeypatch.setattr(study, "run", lambda market, hs, keys, n, *a, signal="momentum", **k:
                         real(None, hs, keys, n, with_regime=False, p=panels(noise()), signal=signal))

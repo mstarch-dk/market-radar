@@ -29,7 +29,7 @@ def fundamentals_update(tickers: list[str] = typer.Argument(None, help="Only the
     if source != "all":
         steps = {k: v for k, v in steps.items() if k.endswith(source)}
         if not steps:
-            raise typer.Exit("--source is edgar, yahoo or all")
+            raise SystemExit("--source is edgar, yahoo or all")
     failed = False
     with job("fundamentals") as log:
         for key, (label, fn) in steps.items():
@@ -64,7 +64,7 @@ def fundamentals_show(ticker: str, as_json: bool = typer.Option(False, "--json",
     t = ticker.upper()
     f = fundamentals.facts(t)
     if f.empty:
-        raise typer.Exit(f"No statements stored for {t}: is it tracked? Fetch them with `radar fundamentals update {t}`.")
+        raise SystemExit(f"No statements stored for {t}: is it tracked? Fetch them with `radar fundamentals update {t}`.")
     rows = []
     for it in items.ITEMS:
         v = store.ttm(f, it.key) if it.flow else store.instant(f, it.key)
@@ -95,7 +95,7 @@ def fundamentals_check(tolerance: float = typer.Option(0.10, help="List differen
     e, y = store.load_edgar(), store.load_yahoo()
     both = sorted(set(e["ticker"]) & set(y["ticker"]))
     if not both:
-        raise typer.Exit("No company has statements from both sources yet.")
+        raise SystemExit("No company has statements from both sources yet.")
     off, compared = [], 0
     for t in both:
         fe, fy = e[e["ticker"] == t], y[y["ticker"] == t]
@@ -131,4 +131,4 @@ def fundamentals_contact(email: str = typer.Argument(None, help="Your e-mail add
     try:
         typer.echo(f"SEC contact set to {userstore.set_sec_contact(email)}.")
     except ValueError as e:
-        raise typer.Exit(str(e))
+        raise SystemExit(str(e))

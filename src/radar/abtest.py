@@ -6,11 +6,13 @@ guide/brugervejledning/portefoljer-og-tags.md (*A/B-test*); side by side: guide/
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import pandas as pd
 
 from . import money, performance, simulate, tracked, userstore
-from .config import settings
+from .config import typed
+from .config_schema import Abtest
 from .model.select import capped
 
 TAG = "ab-qvm"
@@ -22,8 +24,8 @@ KINDS = {   # strategy key -> portfolio name
 LABELS = {"ab-qv": "Kvalitet + værdi", "ab-momentum": "Momentum", "ab-blend": "50/50"}
 
 
-def _cfg() -> dict:
-    return settings()["abtest"]
+def _cfg() -> Abtest:
+    return typed().abtest
 
 
 def portfolios() -> dict[str, dict]:
@@ -53,7 +55,7 @@ def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
     sectors = _sectors()
     names = [t for t in groups if t in market.closes.columns]
     ok = {t for t in names if (fx := performance.fx_series(market, t)) is not None and len(fx.dropna())}
-    m = momentum.metrics(market.closes, market.volumes, names, settings()["momentum"]["min_history_days"])
+    m = momentum.metrics(market.closes, market.volumes, names, typed().momentum.min_history_days)
     m = m.assign(score=momentum.score(m))                         # pooled: one ranking over every group
     fctx = fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(), market.mtime)
     t = fctx.table()
@@ -93,9 +95,9 @@ def create(market, capital: float | None = None, n: int | None = None, max_per_s
     if portfolios():
         raise ValueError("the A/B test is already running (radar abtest status)")
     cfg = _cfg()
-    params = {"n": int(n or cfg["n"]), "max_per_sector": max_per_sector if max_per_sector is not None
-              else cfg["max_per_sector"], "capital": float(capital or cfg["capital"]),
-              "value_score": value_score or cfg["value_score"], "fee_bps": money.fee_bps(settings().get("backtest"))}
+    params: dict[str, Any] = {"n": int(n or cfg.n), "max_per_sector": max_per_sector if max_per_sector is not None
+              else cfg.max_per_sector, "capital": float(capital or cfg.capital),
+              "value_score": value_score or cfg.value_score, "fee_bps": typed().backtest.fee_bps}
     if params["value_score"] not in ("qv", "value"):
         raise ValueError("value_score is qv (kvalitet + værdi) or value (værdiscore alone)")
     ranked = rankings(market, params["value_score"])
@@ -150,7 +152,7 @@ class ScoreRebalance:
     spend more cash than there is; a record whose next session isn't in the prices yet waits."""
     key = "ab-rebalance"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.notes: list[str] = []
 
     @staticmethod
@@ -169,7 +171,8 @@ class ScoreRebalance:
         cal = performance.benchmark_sessions(market)
         bps = money.bps(params.get("fee_bps", 0))
         held: dict[str, float] = {}
-        cash, rows = 0.0, []
+        cash = 0.0
+        rows: list[dict] = []
         for rec in params.get("rebalances", []):
             after = cal[cal > pd.Timestamp(rec["date"])]
             if after.empty:
@@ -186,12 +189,13 @@ class ScoreRebalance:
             unpriced = sorted(t for t, v in prices.items() if v is None)
             if unpriced:
                 self.notes.append(f"{ds}: no price or DKK rate for {', '.join(unpriced)}: left as they were")
-            value = cash + sum(q * prices[t][0] * prices[t][1] for t, q in held.items() if prices.get(t))
+            value = cash + sum(q * p[0] * p[1] for t, q in held.items() if (p := prices.get(t)))
             trades = []
             for t in sorted(set(held) | set(target)):
-                if prices.get(t) is None:
+                pr = prices.get(t)
+                if pr is None:
                     continue
-                px, rate = prices[t]
+                px, rate = pr
                 want = target.get(t, 0.0) * value / (px * rate)
                 delta = want - held.get(t, 0.0)
                 if abs(delta) * px * rate < 1.0:
@@ -271,8 +275,8 @@ def view(market) -> dict:
     if weekly and any(len(w) for w in weekly.values()):
         first = min(w.index[0] for w in weekly.values() if len(w))
         weekly["ACWI"] = bench.loc[first:].resample("W-FRI").last().pct_change().dropna()
-    rc = settings()["risk"]
-    corr = risk.correlation(weekly, rc["windows"]["3y"], rc["min_weeks"]) if weekly else None
+    rc = typed().risk
+    corr = risk.correlation(weekly, rc.windows["3y"], rc.min_weeks) if weekly else None
     rebal = []
     for k in order:
         prev: dict[str, float] = {}
@@ -286,8 +290,8 @@ def view(market) -> dict:
     next_due = (pd.Timestamp(last) + pd.offsets.MonthBegin(1)).date().isoformat() if last else None
     notes = []
     weeks = max((len(w) for w in weekly.values()), default=0)
-    if weeks < rc["min_weeks"]:
-        notes.append(f"{weeks} week(s) of returns so far: correlations need {rc['min_weeks']}, and a fair comparison "
+    if weeks < rc.min_weeks:
+        notes.append(f"{weeks} week(s) of returns so far: correlations need {rc.min_weeks}, and a fair comparison "
                      "needs a year or more")
     return {"running": True,
             "portfolios": [{"kind": k, "label": LABELS[k], "id": ps[k]["id"], "name": ps[k]["name"]} for k in order],

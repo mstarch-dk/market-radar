@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from radar import factors
+from radar.config_schema import Factors
 
 # the layout of a French file: notes, a monthly block, a second monthly block with a title, an annual block
 FRENCH = """This file was created using the 202608 CRSP database.
@@ -95,7 +96,7 @@ def test_parse_jkp_rejects_duplicates_and_missing_columns():
 
 
 def _settings(monkeypatch, datasets: dict):
-    monkeypatch.setattr(factors, "_cfg", lambda: {"max_age_days": 30, "french": datasets})
+    monkeypatch.setattr(factors, "_cfg", lambda: Factors(max_age_days=30, french=datasets))
 
 
 def _wide(n: int, cols=("A", "B")) -> pd.DataFrame:

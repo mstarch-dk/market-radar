@@ -6,6 +6,7 @@ import pytest
 
 from radar import factors
 from radar.backtest import longrun
+from radar.config_schema import Longrun
 from radar.model import artifacts, prior
 
 
@@ -19,7 +20,7 @@ def _panel(returns: pd.DataFrame, market: pd.Series | None = None) -> longrun.Pa
 
 
 def _cfg(monkeypatch, holdout="1990-01-01"):
-    monkeypatch.setattr(longrun, "_cfg", lambda: {"holdout_from": holdout, "horizons": [1, 6], "regime_months": 10})
+    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun(holdout_from=holdout, horizons=[1, 6], regime_months=10))
 
 
 def _momentum_world(n_months=480, members=30, seed=1, persistent=True) -> pd.DataFrame:
@@ -79,8 +80,8 @@ def test_load_panel_adds_rf_and_keeps_members(monkeypatch):
         factors._long("jkp:mkt_world", pd.DataFrame({"world": 0.015}, index=idx), date(2026, 1, 1)),
         factors._long("french:ff3_us", pd.DataFrame({"Mkt-RF": 0.01, "RF": 0.001}, index=idx), date(2026, 1, 1)),
     ])
-    monkeypatch.setattr(longrun, "_cfg", lambda: {"panels": {"c": {
-        "data": "jkp:mkt_countries", "excess": True, "market": "world", "members": ["dnk", "usa", "nor"]}}})
+    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun.model_validate({"panels": {"c": {
+        "data": "jkp:mkt_countries", "excess": True, "market": "world", "members": ["dnk", "usa", "nor"]}}}))
     p = longrun.load_panel("c", data)
     assert list(p.returns.columns) == ["dnk", "usa"]                   # configured members only; nor isn't there
     assert p.returns["dnk"].iloc[0] == pytest.approx(0.011)
@@ -88,7 +89,8 @@ def test_load_panel_adds_rf_and_keeps_members(monkeypatch):
 
 
 def test_load_panel_without_data_says_what_to_run(monkeypatch):
-    monkeypatch.setattr(longrun, "_cfg", lambda: {"panels": {"c": {"data": "jkp:mkt_countries"}}})
+    monkeypatch.setattr(longrun, "_cfg", lambda: Longrun.model_validate({"panels": {"c": {"data": "jkp:mkt_countries"}}}))
+
     with pytest.raises(ValueError, match="radar update"):
         longrun.load_panel("c", pd.DataFrame(columns=factors.COLUMNS))
 

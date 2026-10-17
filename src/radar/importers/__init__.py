@@ -123,7 +123,7 @@ def _norm(c: str) -> str:
 def map_columns(columns: list[str], aliases: dict[str, list[str]]) -> dict[str, str]:
     """field -> column, matching names case- and space-insensitively."""
     by_norm = {_norm(c): c for c in columns}
-    out = {}
+    out: dict[str, str] = {}
     for field, names in aliases.items():
         for n in names:
             if _norm(n) in by_norm and by_norm[_norm(n)] not in out.values():
@@ -152,7 +152,7 @@ class Detected(NamedTuple):
 
 def detect(columns: list[str]) -> Detected:
     """The preset whose columns fit best (all required fields found), and its mapping; else a generic guess."""
-    best = (None, {}, 0)
+    best: tuple[str | None, dict[str, str], int] = (None, {}, 0)
     for key, p in presets().items():
         own = map_columns(columns, p["columns"])          # recognised by its own column names only
         if _complete(own) and len(own) > best[2]:

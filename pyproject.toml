@@ -141,15 +141,8 @@ fail_under = 87
 [tool.mypy]
 mypy_path = "src"
 explicit_package_bases = true
-files = ["src/radar/model", "src/radar/signals", "src/radar/paths.py", "src/radar/config_schema.py", "src/radar/net.py", "src/radar/fees.py",
-         "src/radar/jsonsafe.py", "src/radar/market.py", "src/radar/money.py", "src/radar/sourcelog.py", "src/radar/propose/picks_file.py",
-         "src/radar/values.py"]
+files = ["src/radar"]
 follow_imports = "silent"
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
-
-[[tool.mypy.overrides]]
-# float | None arithmetic guarded by hand (`x is not None and …`) that mypy can't follow; to be narrowed properly
-module = "radar.signals.fundamentals"
-ignore_errors = true

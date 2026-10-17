@@ -7,8 +7,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import money, performance, simulate, tracked
-from ..config import settings
+from .. import performance, simulate, tracked
+from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels
 from ..model.stats import mean as _mean
@@ -155,10 +155,10 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     from . import exits as ex
     from .pit import Context
 
-    bt = settings().get("backtest") or {}
-    fee = money.fee_bps(bt)
-    park = bt.get("park") or tracked.benchmark()
-    holdout = pd.Timestamp(bt.get("study_holdout_from")) if bt.get("study_holdout_from") else None
+    bt = typed().backtest
+    fee = bt.fee_bps
+    park = bt.park or tracked.benchmark()
+    holdout = pd.Timestamp(bt.study_holdout_from)
     specs = exit_rule_variants()
     if keys:
         unknown = set(keys) - {s.key for s in specs}
@@ -172,7 +172,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
     longest = max(horizons)
     baskets = []
     for day in formation_dates(p.sessions, since):
-        fi = fill_session(p.sessions, day, bt.get("fill", "next"))
+        fi = fill_session(p.sessions, day, bt.fill)
         if fi is None or fi + study.HORIZONS[min(horizons)] >= len(p.sessions):
             continue
         names = study.top_names(p, day, n_top)
@@ -198,7 +198,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
             rec[f"{spec.key}_reentries"] = len(rep.get("reentries") or [])
         log(f"  {spec.key}: done")
 
-    recs = []
+    recs: list[dict | None] = []
     for day, fi, names in baskets:
         f = p.sessions[fi]
         rows, problems = simulate.basket_rows(market, {t: 1 / len(names) for t in names}, f, 100_000.0, fee)
@@ -282,5 +282,7 @@ def _mix_key(w: float) -> str:
 EXIT_REPORT_FILE = "exit-study.json"
 
 
-def write_exits(rep: dict) -> None:
-    artifacts.write("exit-study", rep, data_asof=rep["asof"], file=EXIT_REPORT_FILE)
+def write_exits(rep: dict) -> artifacts.ExitStudy:
+    out = artifacts.write("exit-study", rep, data_asof=rep["asof"], file=EXIT_REPORT_FILE)
+    assert isinstance(out, artifacts.ExitStudy)
+    return out

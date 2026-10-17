@@ -35,9 +35,14 @@ the module the callers read it from.
   watchlist, the sector ETF each stock is compared with). Theme ETFs carry a UCITS `isin`, checked against SKAT's
   positive list (only the latest year's sheet counts).
 - `config/settings.yaml`: thresholds and rules (regime, momentum, rotation, stops, coverage, backtest, propose,
-  `network:` host limits, `ops:` retention). Checked on load against `config_schema.py`: an unknown key, a missing
-  key or a wrong type fails with the key's path; `radar doctor` reports it. A new key goes in the file and the
-  model together; a key read with a default is optional in the model.
+  `network:` host limits, `ops:` retention). Checked on load against `config_schema.py`, which models every
+  section: an unknown key, a missing key or a wrong type fails with the key's path; `radar doctor` reports it. A
+  new key goes in the file and the model together; a key read with a default is optional in the model, with that
+  default. Code reads values through `config.typed()` (the model); `config.settings()` is the file as written, for
+  what records or hashes it (the proposal rule's hash, a frozen proposal's stops) and the pure readings that take a
+  section as a dict. Tests change settings with `conftest.with_settings(monkeypatch, backtest={...})`, which both
+  views read.
+
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
 - `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
 - `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
@@ -99,7 +104,9 @@ live by the API instead (the holdings table, the regime re-vote, coverage).
 ## Study reports
 The study reports production code reads have a pydantic model for the parts it consumes (`model/artifacts.py`):
 the proposals read the rule study's drift, the long-run study's survivorship gauge and the exit studies' run time;
-the long-run study reads the score study.
+the long-run study reads the score study; `radar study …` prints each report from the model its writer returns, so
+a renamed field fails mypy in the printer too.
+
 Each starts with a header (`schema_version`, `kind`, `created`, `data_asof`, `rule_hash`); writers stamp and check
 it, readers get `ok`, `stale` (another rule: shown, never acted on), `missing` or `invalid` with a reason. A report
 from before the header is read as schema 0; one from a newer version is invalid. A change to a consumed field is a

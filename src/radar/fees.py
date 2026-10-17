@@ -150,7 +150,7 @@ class Terms:
 
 
 def terms(schedule: dict | None, symbol: str, quote_ccy: str | None,
-          convert: Callable[[float, str], float | None]) -> Terms | None:
+          convert: Callable[[float, str], float | None] | None) -> Terms | None:
     """The schedule's rule for this symbol in its quote currency, or None (no schedule, no rule for the market,
     no quote currency, or no rate for converting a minimum or maximum)."""
     rule = rule_for(schedule, market_of(symbol)) if schedule and quote_ccy else None
@@ -160,7 +160,7 @@ def terms(schedule: dict | None, symbol: str, quote_ccy: str | None,
     limits = {}
     for k in ("min", "max"):
         if rule.get(k) is not None:
-            v = float(rule[k]) if ccy == quote_ccy else convert(float(rule[k]), ccy)
+            v = float(rule[k]) if ccy == quote_ccy else convert(float(rule[k]), ccy) if convert else None
             if v is None:
                 return None                       # can't tell whether the minimum applies
             limits[k] = v
@@ -205,7 +205,7 @@ class SimFees:
         """describe() plus the trades that fell back to `bps`."""
         return self.describe() | ({"fallbacks": self.fallbacks} if self.schedule else {})
 
-    def terms(self, symbol: str, quote_ccy: str | None, convert: Callable[[float, str], float | None],
+    def terms(self, symbol: str, quote_ccy: str | None, convert: Callable[[float, str], float | None] | None,
               count: bool = True) -> Terms:
         """The terms a trade in `symbol` pays (`count`: it is the trade itself, not its sizing)."""
         flat = Terms(money.bps(self.bps))

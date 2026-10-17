@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from . import guard, net
-from .config import settings, write_parquet
+from .config import typed, write_parquet
 from .paths import CACHE, HISTORY
 
 PUTCALL_FILE = HISTORY / "putcall.parquet"   # the backfill only reaches a year back
@@ -48,14 +48,15 @@ def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str
 
     today = today or date.today()
     get = get or (lambda url: net.get(url, timeout=30, expected=(403, 404)))
-    cfg = settings()["sentiment"]
+    cfg = typed().sentiment
     old = load_putcall()
     have = set(pd.to_datetime(old["date"]).dt.date) if not old.empty else set()
     last = max(have) if have else None
-    start = (min(last + timedelta(days=1), today - timedelta(days=cfg.get("putcall_retry_days", 10))) if last
-             else today - timedelta(days=cfg["putcall_backfill_days"]))
+    start = (min(last + timedelta(days=1), today - timedelta(days=cfg.putcall_retry_days)) if last
+             else today - timedelta(days=cfg.putcall_backfill_days))
     days = [d.date() for d in pd.bdate_range(start, today) if d.date() not in have]
-    rows, failed = [], None
+    rows: list[dict] = []
+    failed: tuple[date, Exception] | None = None
     for d in days:
         try:
             r = get(CBOE_URL.format(d=d))
@@ -77,8 +78,8 @@ def update_putcall(today: date | None = None, get=None, sleep=time.sleep) -> str
     newest = max([r["date"] for r in rows] + ([pd.Timestamp(last)] if last else []), default=None)
     msg = f"{len(rows)} new days" + (f", latest {newest:%d %b}" if newest is not None else "")
     if failed:
-        d, e = failed
-        raise PartialFailure(f"{msg}; stopped at {d}: {type(e).__name__}: {e}") from e
+        day, err = failed
+        raise PartialFailure(f"{msg}; stopped at {day}: {type(err).__name__}: {err}") from err
     return msg
 
 

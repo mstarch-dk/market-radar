@@ -167,3 +167,12 @@ def test_a_layout_change_runs_once_after_the_backup(tmp_path, unset, monkeypatch
     assert backup.before_upgrade() is not None                           # first the copy, then the change
     assert home.upgrade(tmp_path / "h") == [2] and home.upgrade(tmp_path / "h") == []
     assert moved == [tmp_path / "h"] and manifest.read_manifest(tmp_path / "h")["home_format"] == 2
+
+
+def test_the_cli_says_when_a_new_version_first_opens_the_data(tmp_path, unset):
+    home.create(tmp_path / "h", tmp_path / "c")
+    m = manifest.read_manifest(tmp_path / "h")
+    manifest.write_manifest(tmp_path / "h", m | {"last_app_version": "0.0.1"})
+    r = CliRunner().invoke(cli.app, ["portfolios", "list"])
+    assert r.exit_code == 0, r.output
+    assert f"First use of Market Radar {manifest.app_version()} with this data: backed up first." in r.output

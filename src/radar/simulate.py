@@ -11,7 +11,7 @@ from typing import Protocol
 import pandas as pd
 
 from . import money, performance, trades, userstore
-from .config import settings
+from .config import typed
 from .fees import SimFees
 
 SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
@@ -69,7 +69,7 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         raise ValueError(f"{src['name']} held nothing on {day:%Y-%m-%d}")
     deposit = {"date": day.date().isoformat(), "type": "DEPOSIT", "amount": total, "currency": "DKK",
                "note": f"forked from {src['name']} at the close of {day:%Y-%m-%d}"}
-    fees = SimFees.for_portfolio(src, money.fee_bps(settings().get("backtest")))
+    fees = SimFees.for_portfolio(src, typed().backtest.fee_bps)
     return userstore.create_with_rows(
         {"name": name, "mode": "virtual", "kind": src["kind"], "dividends": src["dividends"], "origin": "fork",
          "parent_id": src_id, "forked_at": day.date().isoformat(), "tags": list(tags),

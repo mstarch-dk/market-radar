@@ -3,21 +3,26 @@ candidates; which account it fits."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
-from .. import constituents, fees, money, tracked, trades, universe, userstore
-from ..config import settings
+from .. import constituents, fees, tracked, trades, universe, userstore
+from ..config import settings, typed
 from ..jsonsafe import clean as _clean
 from ..model import inputs
 from . import basket, drift, exposure, pricing, riskmodel, rules
 
+if TYPE_CHECKING:
+    from ..market import Market
+
 
 @dataclass
 class Ctx:
-    market: object
+    market: Market
     prices: pricing.Prices
+
     portfolio: dict
     holdings: pd.DataFrame
     whole: pd.DataFrame
@@ -44,7 +49,7 @@ def context(market, name: str, offline: bool = False) -> Ctx:
     acwi = constituents.acwi_weights(offline=offline)
     if acwi is None:
         notes.append("ACWI's own weights are unknown (no iShares holdings file): active-weight caps are off")
-    sf = fees.SimFees.for_portfolio(p, money.fee_bps(settings().get("backtest")))
+    sf = fees.SimFees.for_portfolio(p, typed().backtest.fee_bps)
     if not sf.schedule:
         notes.append(f"{name} has no fee schedule: fees are the flat backtest.fee_bps")
     return Ctx(market, prices, p, held, whole, sf, acwi, inputs.current_regime()["label"], notes, _trend(market))
@@ -100,13 +105,13 @@ def rule_basket(ctx: Ctx, scored: pd.DataFrame, amount: float, n: int, mode: str
 def default_exit(tilt: str, fill: str, horizon: int, c: dict | None = None) -> dict:
     """The standard exit criteria every pick gets (thesis checks are added by the skill)."""
     c = c or rules.cfg()
-    st = settings()["stops"]
+    st = typed().stops
     w = c["tilts"][tilt]
     sig = ({"metric": "score", "below": c["exit"]["min_score"]} if w.get("momentum", 0) >= w.get("qv", 0)
            else {"metric": "qv", "below": c["exit"]["min_qv"]})
     review = (pd.Timestamp(fill) + pd.DateOffset(months=horizon)).date().isoformat()
-    return {"review_level": {"rule": f"close below the {st['trend_sma']}-day average", "sma": st["trend_sma"],
-                             "mode": st["mode"], "action": st["action"]},
+    return {"review_level": {"rule": f"close below the {st.trend_sma}-day average", "sma": st.trend_sma,
+                             "mode": st.mode, "action": st.action},
             "signal": sig, "time_stop": review, "thesis": []}
 
 

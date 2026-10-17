@@ -23,6 +23,10 @@
   `tmp_path` and returns it (every tier in one folder, `radar.db` in `userdata/`). Paths are `paths.Lazy`, so never
   monkeypatch a module's path constant: configure the locations instead (`paths.Locations.at(home, cache)` for a real
   data folder, `.legacy(root)` for the old layout).
+- Settings the same way: never monkeypatch a module's `settings`; `with_settings(monkeypatch, backtest={"fee_bps":
+  0})` (in `tests/conftest.py`) merges the changes into settings.yaml, checks them like the file and gives both
+  `config.typed()` and `config.settings()` the result for the rest of the test.
+
 - `tests/fixtures/homes/`: one data folder per release plus the legacy layout, opened by `test_upgrade.py`; written by
   `scripts/release.py fixture` and never changed. An autouse fixture gives every test its own `ops.db` and resets the
   network limiter, so no test writes to `data/ops.db`.

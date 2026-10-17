@@ -20,7 +20,8 @@ import numpy as np
 import pandas as pd
 
 from .. import locks, net, sourcelog
-from ..config import settings
+from ..config import typed
+from ..config_schema import YahooFundamentals
 from ..paths import CACHE
 from . import schedule, store
 from .items import ITEMS
@@ -35,8 +36,8 @@ BLOCKS = {    # (statement, frequency) -> what it holds
 }
 
 
-def _cfg() -> dict:
-    return settings()["fundamentals"]["yahoo"]
+def _cfg() -> YahooFundamentals:
+    return typed().fundamentals.yahoo
 
 
 def fetch_statements(ticker: str) -> dict:
@@ -135,11 +136,11 @@ def update_yahoo(stocks: list[str], today: date | None = None, force: bool = Fal
     if tickers or force:
         batch = list(names)
     else:
-        after = pd.Timedelta(days=cfg["after_earnings_days"])
+        after = pd.Timedelta(days=cfg.after_earnings_days)
         expect = {t: schedule.next_report(le, 45) for t, le in zip(log["ticker"], log["last_end"])}
         for t, d in _earnings_dates().items():
             expect[t] = d + after
-        batch = schedule.due(list(names), log, today, cfg["refresh_days"], expect)[: cfg["max_per_run"]]
+        batch = schedule.due(list(names), log, today, cfg.refresh_days, expect)[: cfg.max_per_run]
     if not batch:
         return f"up to date ({len(names)} stocks)"
     ccy = _currencies()
@@ -166,7 +167,8 @@ def update_yahoo(stocks: list[str], today: date | None = None, force: bool = Fal
     if frames:
         with locks.file_lock(store.YAHOO_FILE, what="the Yahoo statement store"):
             old = store.load_yahoo()
-            fresh = merge(old, pd.concat(frames.values(), ignore_index=True), today, cfg["assumed_lag_days"])
+            fresh = merge(old, pd.concat(frames.values(), ignore_index=True), today, cfg.assumed_lag_days.model_dump()
+)
             if not fresh.empty:
                 store.save(pd.concat([old, fresh], ignore_index=True), store.YAHOO_FILE)
             added = len(fresh)
@@ -180,6 +182,7 @@ def update_yahoo(stocks: list[str], today: date | None = None, force: bool = Fal
     if tried and not frames:
         raise ValueError(f"no statements from Yahoo for any of {tried} stocks (has Yahoo changed?): "
                          + "; ".join(f"{t}: {e}" for t, e in list(errors.items())[:3]))
-    if throttled or (tried and len(frames) < cfg["min_ok_share"] * tried):
+    if throttled or (tried and len(frames) < cfg.min_ok_share * tried):
+
         raise sourcelog.PartialFailure(f"{msg}; {len(errors)} failed" + (f"; stopped: {throttled}" if throttled else ""))
     return msg + (f"; {len(errors)} without statements" if errors else "")

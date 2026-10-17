@@ -105,7 +105,7 @@ def _stocks(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
         quotes = {code: [q for q in qs if q.get("symbol") in keep] for code, qs in quotes.items()}
     df = sources.home_listings(quotes, fx, mk.get("min_cap_dkk", 0), keep)
     if not mk.get("members_only"):
-        sources.check_counts(df, mk.get("min_count"), mk["label"])
+        sources.check_counts(df, mk.get("min_count") or {}, mk["label"])
     hints = {}
     if members is not None:
         screened = {q.get("symbol") for qs in quotes.values() for q in qs}
@@ -166,7 +166,8 @@ def build_universe(log: Log = print, progress: Progress | None = None) -> pd.Dat
     if not frames:
         raise RuntimeError("no market could be built: " + "; ".join(failed))
     # a company in two stock markets (e.g. a Nordic name's German listing) stays only in the first one
-    stocks, seen = [], []
+    stocks: list[pd.DataFrame] = []
+    seen: list[str] = []
     for f in frames:
         if not f.empty and (f["kind"] == "stock").all():
             f = sources.drop_known_names(f, seen, keep=set(f["ticker"]) & INDEX_KEEP)

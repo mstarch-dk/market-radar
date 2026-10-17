@@ -68,7 +68,10 @@ def _me_table(closes, volumes, all_stocks: pd.DataFrame, bench: str, min_history
     df["score"] = [score_vs(all_stocks, r) if pd.notna(r["last"]) else None for _, r in df.iterrows()]
 
     ccy = fxrates.currencies([*df["symbol"], bench])
-    bench_dkk = (b * fxrates.fx_to_dkk(closes, ccy[bench]).reindex(b.index).ffill()).dropna()
+    fx = fxrates.fx_to_dkk(closes, ccy[bench])
+    if fx is None:
+        raise ValueError(f"no DKK rate for {bench}'s currency ({ccy[bench]})")
+    bench_dkk = (b * fx.reindex(b.index).ffill()).dropna()
     tx = trades.transactions(portfolios)
     since, bench_since, since_sell, flags = [], [], [], []
     for _, r in df.iterrows():

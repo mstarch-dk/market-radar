@@ -8,16 +8,20 @@ developers docs/data-conventions.md, *Point-in-time backtests*.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
 from .. import fxrates, money, performance, simulate, tracked, userstore
-from ..config import settings, write_text
+from ..config import typed, write_text
 from ..fees import SimFees, Terms
 from ..jsonsafe import dumps
 from ..model import paths as mpaths
 from ..paths import REPORTS
 from .pit import Context
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 VARIANTS = ("overlay", "rules")
 RULES = ("both", "stop", "take_profit")
@@ -26,6 +30,15 @@ REPORT_FILE = "sim-exits.json"
 
 
 STOP_KINDS = ("atr", "pct", "trend", "none")
+
+
+class Candidates(Protocol):
+    """The names an exit's money can be redeployed into (redeploy.Picker): `n` is the basket size."""
+    n: int
+
+    def pick(self, day: pd.Timestamp, held: set[str], barred: set[str]) -> str | None: ...
+
+    def rank(self, day: pd.Timestamp, t: str) -> int | None: ...
 
 
 @dataclass(frozen=True)
@@ -89,7 +102,7 @@ class Replay:
     cash, then the parked units, then a deposit (`fund`), and each sale's proceeds are withdrawn, as the real
     portfolio's are. With the rule switched off the sim's time-weighted return equals the real one's
     (tests/test_backtest_exits.py pins that)."""
-    market: object
+    market: Market
     ctx: Context
     variant: str
     ledger: bool
@@ -98,7 +111,8 @@ class Replay:
     rule: str = "both"
     fees: SimFees = field(default_factory=lambda: SimFees(0.0))
     spec: RuleSpec = field(default_factory=RuleSpec)
-    picker: object = None            # redeploy.Picker: n, pick(day, held, barred) -> name | None, rank(day, name) -> int | None
+    picker: Candidates | None = None     # the names an exit's money is redeployed into (redeploy.Picker)
+
     sold: dict = field(default_factory=dict)            # symbol -> the session of its last rule / rotation sale
     redeploys: list[dict] = field(default_factory=list)
     watch: dict = field(default_factory=dict)          # exited symbols waiting for a re-entry
@@ -241,6 +255,7 @@ class Replay:
                 self.events.append({"date": ds, "kind": "real sell skipped", "symbol": sym, "quantity": q,
                                     "detail": "already sold by the rule"})
                 return
+            assert ep is not None                       # it holds `sell` > 0
             if sell < q - EPS:
                 self.events.append({"date": ds, "kind": "real sell cut", "symbol": sym, "quantity": q, "sold": sell,
                                     "detail": "partly sold by the rule already"})
@@ -273,6 +288,8 @@ class Replay:
 
     def execute(self, sym: str, ep: Episode, day: pd.Timestamp) -> None:
         p = ep.pending
+        if p is None:
+            return
         px, rate = self.traded(sym, day), self.rate(sym, day)
         if px is None or rate is None:
             self.events.append({"date": day.date().isoformat(), "kind": "fill failed", "symbol": sym,
@@ -291,7 +308,7 @@ class Replay:
         if not (dkk > 0 and self.redeploy(sym, p, day, dkk)):
             ppx, prate = self.traded(self.park, day), self.rate(self.park, day)
             units = self.buy_qty(self.park, day, dkk, ppx, prate) if ppx and prate and dkk > 0 else 0.0
-            if units > EPS:
+            if units > EPS and ppx and prate:
                 self.trade("BUY", self.park, day, units, ppx, prate, f"parked: money from the {sym} exit")
                 self.park_units += units
             elif ppx and prate and dkk > 0:
@@ -340,11 +357,14 @@ class Replay:
     def check_rotation(self, day: pd.Timestamp) -> None:
         """At a month-end: a holding ranked outside `rotate` x the basket size (or without a rank) is sold at the
         next fill and its money redeployed."""
-        keep = self.spec.rotate * self.picker.n
+        picker = self.picker
+        if picker is None:
+            raise ValueError("a rotation needs a picker (the names its money goes into)")
+        keep = self.spec.rotate * picker.n
         for sym, ep in list(self.eps.items()):
             if ep.pending is not None or not self.has_bar(sym, day):
                 continue
-            r = self.picker.rank(day, sym)
+            r = picker.rank(day, sym)
             if r is not None and r <= keep:
                 continue
             ep.pending = {"trigger": "rotation", "stop_kind": "rotation", "trigger_date": day.date().isoformat(),
@@ -420,7 +440,7 @@ class Replay:
         if ep.set_tp and lv is not None:
             ep.tp, ep.set_tp = (lv["take_profit"] if sp.tp == "fixed" else None), False
             ep.tp_meta = {"set": day.date().isoformat(), "source": lv["tp_source"], "k": lv["k"]}
-        if sp.stop == "atr":
+        if sp.stop == "atr" and lv is not None:     # None returned above
             stop = lv["stop"]
         elif sp.stop == "pct":
             stop = ep.anchor * (1 - sp.pct)
@@ -499,13 +519,13 @@ def replay(real_rows: list[dict], ctx: Context, variant: str, start=None, end=No
         raise ValueError("re-entry needs the rules variant (your own sales would mix with the rule's buys)")
     if spec.redeploy == "score" and (variant != "rules" or picker is None):
         raise ValueError("redeploy needs the rules variant and a picker")
-    bt = settings().get("backtest") or {}
+    bt = typed().backtest
     market = ctx.market
     rows = sorted([r for r in real_rows if r["type"] in userstore.TYPES],
                   key=lambda r: (str(r["date"])[:10], r.get("id") or 0))
-    rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.get("fill", "next"),
-                bt.get("park") or tracked.benchmark(), spec.half,
-                fees or SimFees(money.fee_bps(bt) if fee_bps is None else float(fee_bps)), spec, picker)
+    rp = Replay(market, ctx, variant, performance.has_ledger(rows), fill or bt.fill,
+                bt.park or tracked.benchmark(), spec.half,
+                fees or SimFees(bt.fee_bps if fee_bps is None else float(fee_bps)), spec, picker)
     if rp.fill not in ("next", "same"):
         raise ValueError("fill must be next or same")
     if not rows:
@@ -619,7 +639,7 @@ def summary(rep: dict) -> dict:
     def total(h):
         v = [e["after"][h]["saved_dkk"] for e in ex if h in e["after"] and e["after"][h]["saved_dkk"] is not None]
         return {"exits": len(v), "saved_dkk": sum(v) if v else None, "helped": sum(x > 0 for x in v)}
-    kinds = {}
+    kinds: dict[str, int] = {}
     for ev in rep["events"]:
         kinds[ev["kind"]] = kinds.get(ev["kind"], 0) + 1
     return {"stops": sum(e["trigger"] == "stop" for e in ex), "take_profits": sum(e["trigger"] == "take_profit" for e in ex),
@@ -631,15 +651,14 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
             write: bool = True, spec: RuleSpec | None = None) -> dict:
     """Replay each real portfolio with each variant into its simulated portfolio (found again by parent and
     strategy, created the first time) and build the report; written to reports/sim-exits.json."""
-    portfolios = [userstore.get_portfolio(i) for i in real_ids]
-    portfolios = [p for p in portfolios if p]
+    portfolios = [p for i in real_ids if (p := userstore.get_portfolio(i))]
     for p in portfolios:
         if p["mode"] != "real":
             raise ValueError(f"{p['name']} isn't one of your real portfolios")
     rows = {p["id"]: userstore.transactions(portfolios=[p["id"]]) for p in portfolios}
     held = {r["symbol"] for rs in rows.values() for r in rs if r["symbol"]}
-    bt = settings().get("backtest") or {}
-    ctx = Context.build(market, held | {bt.get("park") or tracked.benchmark()})
+    bt = typed().backtest
+    ctx = Context.build(market, held | {bt.park or tracked.benchmark()})
     out = {"generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "asof": ctx.sessions[-1].date().isoformat(), "portfolios": []}
     for p in portfolios:
@@ -649,9 +668,9 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
         for v in variants:
             if spec is not None and spec.reentry and v != "rules":
                 continue
-            fees = SimFees.for_portfolio(p, money.fee_bps(bt))
+            fees = SimFees.for_portfolio(p, bt.fee_bps)
             rep = replay(rows[p["id"]], ctx, v, start, end, fill, spec=spec, fees=fees)
-            params = {"variant": v, "fill": fill or bt.get("fill", "next"), "start": start, "end": end,
+            params = {"variant": v, "fill": fill or bt.fill, "start": start, "end": end,
                       "fee_bps": fees.bps, "fee_model": fees.report(), "spec": spec.key if spec else "rule"}
             sid = _sim_for(p, v, params, spec)
             s = summary(rep)
@@ -659,7 +678,8 @@ def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None
                    f"{s['at_end']['saved_dkk']:,.0f} DKK" if s["at_end"]["saved_dkk"] is not None else
                    f"{s['stops']} stops, {s['take_profits']} take-profits")
             res = simulate.write_run(sid, key(v, spec), params, rep["start"], rep["end"], rep["rows"], market, msg)
-            entry["variants"][v] = {"portfolio_id": sid, "name": userstore.get_portfolio(sid)["name"], "run_id": res["run_id"],
+            entry["variants"][v] = {"portfolio_id": sid, "name": (userstore.get_portfolio(sid) or {}).get("name"), "run_id": res["run_id"],
+
                                     "summary": s} | {k: rep[k] for k in ("start", "end", "funding", "park", "fill", "exits",
                                                                           "events", "pending")}
         sims = [entry["variants"][v]["portfolio_id"] for v in entry["variants"]]

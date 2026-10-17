@@ -8,8 +8,8 @@ import math
 import numpy as np
 import pandas as pd
 
-from .. import fees, money, tracked, trades, userstore
-from ..config import settings, write_text
+from .. import fees, tracked, trades, userstore
+from ..config import typed, write_text
 from ..jsonsafe import clean as _clean
 from ..model import artifacts
 from ..model import paths as mpaths
@@ -98,7 +98,7 @@ def shadow(market, doc: dict, name: str) -> dict:
         if userstore.portfolio_by_name(v):
             raise ValueError(f"there is already a portfolio called {v}: shadows are new, virtual portfolios")
     prices = pricing.Prices(market)
-    sf = fees.SimFees.for_portfolio(src, money.fee_bps(settings().get("backtest")))
+    sf = fees.SimFees.for_portfolio(src, typed().backtest.fee_bps)
     day = pd.Timestamp(market.closes.index[-1])
     tags = ["proposal", f"proposal-{m['date']}"]
     amount = float(m["amount"])
@@ -122,7 +122,7 @@ def shadow(market, doc: dict, name: str) -> dict:
             userstore.add_tx({"symbol": t, "date": day.date().isoformat(), "type": "BUY", "quantity": qty, "price": px,
                               "fee": tm.fee(qty * px), "fx_rate": rate, "portfolio_id": pid,
                               "note": f"proposal {m['date']} ({arm})"}, source="fork")
-        p = userstore.get_portfolio(pid)
+        p = userstore.get_portfolio(pid) or {}
         userstore.save_portfolio({"params": (p.get("params") or {}) | {"proposal": {
             "date": m["date"], "arm": arm, "tickers": ticks, "amount": amount, "picks_sha": evaluation.picks_sha(doc)}}}, pid)
         ids[arm] = pid
@@ -144,6 +144,8 @@ def _basket_path(prices: pricing.Prices, tickers: list[str], start: pd.Timestamp
         leg = w / w.iloc[0]
         legs.append(leg)
         if sma and t in prices.market.closes:
+            if b is None:
+                raise ValueError(f"no {bench} prices in DKK to park the exits in")
             below = mpaths.below_trend(prices.market.closes[t], sma).reindex(w.index, fill_value=False)
             k = mpaths.exit_session(w.index, below)
             if k is not None:
@@ -166,7 +168,7 @@ def review(market) -> dict:
     """How each frozen proposal did since its day, against ACWI, its rule basket and its own modelled range."""
     c = rules.cfg()
     prices = pricing.Prices(market)
-    st = settings()["stops"]
+    st = typed().stops
     rows = []
     for fname, d in proposals():
         m = d["meta"]
@@ -175,7 +177,7 @@ def review(market) -> dict:
             rows.append({"file": fname, "date": m["date"], "portfolio": m["portfolio"], "note": "no prices since yet"})
             continue
         ticks = [x["ticker"] for x in d["picks"]]
-        mine = _basket_path(prices, ticks, start, st["trend_sma"])
+        mine = _basket_path(prices, ticks, start, st.trend_sma)
         rule = _basket_path(prices, m.get("rule_basket") or [], start) if m.get("rule_basket") else {}
         band = _band(fname)
         rows.append({"file": fname, "date": m["date"], "portfolio": m["portfolio"], "tilt": m.get("tilt"),
@@ -203,7 +205,7 @@ def check(market, portfolio: str | None = None) -> dict:
 
     c = rules.cfg()
     prices = pricing.Prices(market)
-    st = settings()["stops"]
+    st = typed().stops
     p = mp.panels(market)
     pl = basket.pool(market, prices, p)
     exit_run = max((r.report.created for r in (artifacts.load("exit-study"), artifacts.load("redeploy-study"))
@@ -232,7 +234,7 @@ def check(market, portfolio: str | None = None) -> dict:
             ex = x.get("exit") or draft.default_exit(m.get("tilt", "mix"), m["date"], int(m.get("horizon", 6)))
             items = []
             cl = market.closes[t].dropna() if t in market.closes else pd.Series(dtype=float)
-            sma = int((ex.get("review_level") or {}).get("sma") or st["trend_sma"])
+            sma = int((ex.get("review_level") or {}).get("sma") or st.trend_sma)
             if len(cl) >= sma:
                 lvl = float(mpaths.trend_level(cl, sma).iloc[-1])
                 gap = float(cl.iloc[-1] / lvl - 1)
