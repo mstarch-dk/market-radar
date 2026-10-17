@@ -1216,7 +1216,7 @@ def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a c
     if as_json:
         typer.echo(text)
         return
-    typer.echo("\nData to: " + ", ".join(f"{k} {m}" for k, m in rep["data_asof"].items()))
+    typer.echo("\nData to: " + ", ".join(f"{k} {m}" for k, m in rep["datasets_asof"].items()))
     for key, pr in rep["panels"].items():
         typer.echo(f"\n{pr['label']}: {pr['members']} members, top {pr['n_top']}, {pr['months']} formation months "
                    f"{pr['first']:%Y-%m} to {pr['last']:%Y-%m}; holdout from {rep['settings']['holdout_from']}; "

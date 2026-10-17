@@ -23,14 +23,12 @@ proposal model cuts a positive excess by `propose.survivorship_haircut`. A chang
 hash in the report) makes the report stale: the proposal then shows no drift until it is run again."""
 from __future__ import annotations
 
-import json
-
 import numpy as np
 import pandas as pd
 
 from .. import propose, universe
-from ..config import settings, write_text
-from ..paths import REPORTS
+from ..config import settings
+from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
 from . import study
@@ -277,7 +275,5 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
 
 
 def write(rep: dict) -> str:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / propose.STUDY_FILE
-    write_text(f, json.dumps(rep, indent=1, default=study._json))
-    return str(f)
+    return str(artifacts.write("propose-study", rep, data_asof=rep["asof"], rule_hash=rep["settings_hash"],
+                               default=study._json))

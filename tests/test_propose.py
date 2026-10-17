@@ -15,6 +15,7 @@ import pytest
 import world
 from radar import fees, profile, propose, universe, userstore
 from radar.config import settings
+from radar.model import artifacts
 from world import IDX, N
 
 FIX = Path(__file__).parent / "fixtures"
@@ -308,16 +309,35 @@ def test_decision_rule(market):
     assert propose.decide({"drift_net": 0.05}, {"kept": {"holdout": {"gross_mean": -0.01}}}, dd, None, c)["verdict"] == "A0"
 
 
+def _study(results: dict, status: str = "ok") -> artifacts.Loaded:
+    rep = artifacts.ProposeStudy.model_validate(
+        {"schema_version": 1, "kind": "propose-study", "created": "2026-10-16T00:00:00", "data_asof": None,
+         "rule_hash": "x", "results": results})
+    return artifacts.Loaded("propose-study", status, rep)
+
+
+def _longrun(gauge: float) -> artifacts.Loaded:
+    rep = artifacts.LongrunStudy.model_validate(
+        {"schema_version": 1, "kind": "longrun-study", "created": "2026-10-16T00:00:00", "data_asof": None,
+         "survivorship": {"implied_haircut": gauge}})
+    return artifacts.Loaded("longrun-study", "ok", rep)
+
+
 def test_study_view_haircut_regime_and_staleness(market):
     c = market.cfg["propose"]
     kept = {"all": {"dates": 40, "gross_mean": 0.10}, "holdout": {"gross_mean": 0.02},
             "by_regime": {"Risk-on": {"dates": 30, "gross_mean": 0.20}, "Mixed": {"dates": 3, "gross_mean": -0.5}}}
-    rep = {"stale": False, "results": {"mix": {"3": {"6": {"kept": kept}}, "5": {"6": {"kept": kept}}}}}
-    v = propose.study_view(rep, "mix", 4, 6, "Risk-on", c)
+    results = {"mix": {"3": {"6": {"kept": kept}}, "5": {"6": {"kept": kept}}}}
+    v = propose.study_view(_study(results), "mix", 4, 6, "Risk-on", c)
     assert v["n_used"] == 3 and v["drift_gross"] == pytest.approx(0.20 * (1 - c["survivorship_haircut"]))
-    assert propose.study_view(rep, "mix", 5, 6, "Mixed", c)["drift_gross"] == pytest.approx(0.07)  # too few dates
-    assert propose.study_view(rep | {"stale": True}, "mix", 5, 6, None, c)["drift_gross"] is None
+    assert v["kept"] == kept                                     # passed on as the study wrote it
+    assert propose.study_view(_study(results), "mix", 5, 6, "Mixed", c)["drift_gross"] == pytest.approx(0.07)
+    stale = propose.study_view(_study(results, "stale"), "mix", 5, 6, None, c)
+    assert stale["drift_gross"] is None and stale["stale"] is True and stale["kept"] == kept
     assert propose.study_view(None, "mix", 5, 6, None, c)["drift_gross"] is None
+    bad = artifacts.Loaded("propose-study", "invalid", reason="propose-study.json can't be read")
+    v = propose.study_view(bad, "mix", 5, 6, None, c)
+    assert v["drift_gross"] is None and v["note"] == "propose-study.json can't be read"     # said, never empty
 
 
 def test_rule_hash_moves_with_the_rule_only(market):
@@ -437,17 +457,19 @@ def test_shrink_weights_by_precision():
 
 def test_haircut_from_the_gauge_is_never_smaller():
     c = {"survivorship_haircut": 0.3, "haircut_from_gauge": True}
-    assert propose.haircut(c, {"survivorship": {"implied_haircut": 0.55}})["used"] == 0.55
-    assert propose.haircut(c, {"survivorship": {"implied_haircut": 0.1}})["used"] == 0.3
-    assert propose.haircut(c, {"survivorship": {"implied_haircut": 1.4}})["used"] == 0.3   # nonsense: ignored
+    assert propose.haircut(c, _longrun(0.55))["used"] == 0.55
+    assert propose.haircut(c, _longrun(0.1))["used"] == 0.3
+    assert propose.haircut(c, _longrun(1.4))["used"] == 0.3   # nonsense: ignored
     assert propose.haircut(c, None)["used"] == 0.3
-    assert propose.haircut(c | {"haircut_from_gauge": False}, {"survivorship": {"implied_haircut": 0.55}})["used"] == 0.3
+    assert propose.haircut(c | {"haircut_from_gauge": False}, _longrun(0.55))["used"] == 0.3
+    missing = propose.haircut(c, artifacts.Loaded("longrun-study", "missing", reason="no longrun-study yet"))
+    assert missing["used"] == 0.3 and missing["gauge_note"] == "no longrun-study yet"     # configured, and why
 
 
 def test_study_view_shrinks_toward_the_prior(market, monkeypatch):
     c = market.cfg["propose"] | {"prior": {"tau_annual": 0.0}}
     kept = {"all": {"dates": 40, "gross_mean": 0.10, "mean": 0.09, "t": 3.0}}
-    rep = {"stale": False, "results": {"momentum": {"5": {"6": {"kept": kept}}}}}
+    rep = _study({"momentum": {"5": {"6": {"kept": kept}}}})
     monkeypatch.setattr(propose, "long_prior", lambda tilt, h, trend, c=None: {"mean": 0.01, "se": 0.03})
     v = propose.study_view(rep, "momentum", 5, 6, None, c, "up")
     short = 0.10 * (1 - c["survivorship_haircut"])

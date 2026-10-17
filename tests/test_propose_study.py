@@ -43,11 +43,13 @@ def test_picks_know_nothing_after_their_day(market):  # noqa: F811
 def test_a_changed_rule_makes_the_study_stale(market, tmp_data, monkeypatch):  # noqa: F811
     rep = _run(market)
     ps.write(rep)
-    assert propose.load_study()["stale"] is False
+    got = propose.load_study()
+    assert got.status == "ok" and not got.legacy
+    assert got.report.rule_hash == rep["settings_hash"] and got.report.data_asof.isoformat() == rep["asof"]
     c = copy.deepcopy(market.cfg)
     c["propose"]["max_corr"] = 0.5
     monkeypatch.setattr(propose, "settings", lambda: c)
-    assert propose.load_study()["stale"] is True
+    assert propose.load_study().status == "stale"
     assert propose.study_view(propose.load_study(), "momentum", 2, 1, None, c["propose"])["drift_gross"] is None
 
 
