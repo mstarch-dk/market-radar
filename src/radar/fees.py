@@ -70,6 +70,7 @@ def estimate(schedule: dict | None, symbol: str, quantity: float | None, price: 
     if t is None:
         return None
     rule = rule_for(schedule, market)
+    assert rule is not None                       # terms() found one
     value = quantity * price
     fee = t.fee(value)                            # without the FX surcharge (fx_fee below)
     applied = "pct" if fee == value * t.rate else "min" if fee == t.lo else "max"

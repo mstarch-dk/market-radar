@@ -81,7 +81,7 @@ def window_stats(asset: pd.Series, bench: pd.Series, rf: pd.Series | None, weeks
                (down["b"] - (r.loc[down.index] if r is not None else 0)).to_numpy()[:, None]) if len(down) >= 10 else None
     vol = df["y"].std() * math.sqrt(WEEKS_PER_YEAR)
     excess = (df["y"] - r) if r is not None else None
-    neg = excess[excess < 0] if excess is not None else None
+    neg = excess[excess < 0] if excess is not None else pd.Series(dtype=float)
     dd, dd_weeks = drawdown(df["y"])
     total = (1 + df["y"]).prod() ** (WEEKS_PER_YEAR / len(df)) - 1
     return {
@@ -125,7 +125,7 @@ def correlation(returns: dict[str, pd.Series], weeks: int, min_weeks: int) -> di
     """Pairwise correlation of weekly returns over the last `weeks` (pairwise complete; None below min_weeks)."""
     syms = list(returns)
     df = pd.concat(returns.values(), axis=1, keys=syms, sort=True).iloc[-weeks:]
-    m = [[None] * len(syms) for _ in syms]
+    m: list[list[float | None]] = [[None] * len(syms) for _ in syms]
     for i, a in enumerate(syms):
         for j, c in enumerate(syms):
             pair = df[[a, c]].dropna()

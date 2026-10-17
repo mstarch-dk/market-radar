@@ -34,7 +34,12 @@ packages = ["src/radar"]
 dev = [
     "httpx>=0.28.1",
     "import-linter>=2.15",
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+    "types-pyyaml>=6.0.12.20260906",
+    "types-requests>=2.33.0.20261006",
 ]
 # screenshots and the PDF in marketing/ (scripts/marketing.py); drives the installed Microsoft Edge
 marketing = [
@@ -73,3 +78,95 @@ name = "The app reads the studies' reports (model.artifacts), never runs a study
 type = "forbidden"
 source_modules = ["radar.updater", "radar.report", "radar.api", "radar.abtest", "radar.propose"]
 forbidden_modules = ["radar.backtest"]
+
+[[tool.importlinter.contracts]]
+# Top to bottom; a module imports its own layer and below (":" = the modules of a layer may import each other).
+# Every top-level module needs a layer. ignore_imports holds the upward imports that were there when the
+# contract came in: the list only shrinks (an entry that no longer matches fails the contract).
+name = "The whole package in layers: interfaces, features, the kernel, the domain, data sources, pure readings, infrastructure"
+type = "layers"
+containers = ["radar"]
+exhaustive = true
+layers = [
+    "api : api_models : cli",
+    "abtest : backtest : coverage : dashboard : health : mine : profile : propose : report : updater",
+    "model",
+    "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : tickers : universe : userstore",
+    "discovery : external : factors : fundamentals : ingest : sentiment : updates : valuation",
+    "signals",
+    "config : guard : jsonsafe : locks : net : ops : paths",
+]
+ignore_imports = [
+    # data sources that log their freshness or failures into coverage (a feature)
+    "radar.discovery.scan -> radar.coverage",
+    "radar.fundamentals.edgar -> radar.coverage",
+    "radar.fundamentals.yahoo -> radar.coverage",
+    "radar.sentiment -> radar.coverage",
+    "radar.universe -> radar.coverage",
+    # data sources that read the universe or the store (tickers, currencies, the SEC contact)
+    "radar.discovery.scan -> radar.universe",
+    "radar.fundamentals.context -> radar.universe",
+    "radar.fundamentals.edgar -> radar.universe",
+    "radar.fundamentals.edgar -> radar.userstore",
+    "radar.valuation -> radar.universe",
+    # pure readings that use the kernel or the fact store
+    "radar.signals.fundamentals -> radar.fundamentals.store",
+    "radar.signals.momentum -> radar.model.score",
+    # the rest
+    "radar.tickers -> radar.dashboard",
+    "radar.updates -> radar.home",
+]
+
+# The linter (CI runs `uv run ruff check`). Lint only, no formatter: the code keeps its own layout.
+[tool.ruff]
+line-length = 120
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = [
+    "B008",    # typer.Option / FastAPI Query defaults are calls by design
+    "B905",    # zip() without strict=: the lengths are equal by construction where it is used
+    "E731",    # a one-line lambda for a local helper is house style
+    "SIM105",  # try/except/pass reads as plainly as contextlib.suppress
+    "SIM108",  # ternaries only where they read better
+    "SIM401",  # `x[k] if k in x else None` on DataFrames: .get isn't obviously the same
+]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 140   # 120 is the aim (isort wraps there); a line may run over when splitting it reads worse
+
+[tool.ruff.lint.isort]
+known-first-party = ["radar"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/radar/cli.py" = ["B904"]   # `raise typer.Exit(message)` inside except: the message is the whole report
+"src/radar/export.py" = ["E501"]   # EXPORT.md's Markdown table rows can't be wrapped
+
+# Coverage (CI: `uv run pytest -q --cov`): measured and reported, no floor yet; one is set once the untested CLI
+# commands have smoke tests.
+[tool.coverage.run]
+source = ["radar"]
+branch = true
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = false
+sort = "cover"
+
+# Type checking (CI runs `uv run mypy`): the pure modules first, widened tranche by tranche. Imported modules
+# outside `files` are followed silently (their errors aren't reported); pandas has no stubs here, so it is Any.
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+files = ["src/radar/model", "src/radar/signals", "src/radar/paths.py", "src/radar/net.py", "src/radar/fees.py",
+         "src/radar/jsonsafe.py", "src/radar/market.py"]
+follow_imports = "silent"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+# float | None arithmetic guarded by hand (`x is not None and …`) that mypy can't follow; to be narrowed properly
+module = "radar.signals.fundamentals"
+ignore_errors = true

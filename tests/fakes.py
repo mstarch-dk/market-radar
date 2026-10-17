@@ -48,7 +48,7 @@ def serve(monkeypatch, answers: dict, default=None) -> list[str]:
 
     def get(url, **kw):
         calls.append(url)
-        for pattern, answer in answers.items():
+        for pattern, answer in answers.items():  # noqa: B007 (`answer` is read after the break)
             if re.search(pattern, url):
                 break
         else:

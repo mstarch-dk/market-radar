@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from typing import Callable
 
 import pandas as pd
 
@@ -53,7 +53,7 @@ def fx_rates() -> dict[str, float]:
         last = fx.sort_values("date").groupby("ticker").last()
         recent = last[last["date"] >= pd.Timestamp.today().normalize() - pd.Timedelta(days=7)]
         out = universe.dkk_rates(recent["close"].astype(float).to_dict())
-        if FX_NEEDED <= set(out):   # a rate still missing (e.g. a new currency) leaves those caps unknown
+        if set(out) >= FX_NEEDED:   # a rate still missing (e.g. a new currency) leaves those caps unknown
             return out
         older = universe.dkk_rates(last["close"].astype(float).to_dict())
     raw = sources.retry(lambda: yf.download(universe.FX_TICKERS, period="10d", auto_adjust=False,

@@ -10,7 +10,6 @@ import pytest
 from radar import coverage, external, factors, ingest, net, sentiment, universe, updater, valuation
 from radar.fundamentals import edgar, yahoo
 
-
 # ---------------- updater: one failing step never stops the rest ----------------
 
 def test_a_failing_step_is_recorded_and_the_next_steps_still_run(tmp_data):
@@ -265,7 +264,7 @@ def test_a_frame_without_adj_close_fails_clearly_or_skips_that_ticker(fake_yf):
     try:
         out = ingest._download(["A", "B"], date(2026, 10, 1))
     except KeyError:
-        raise AssertionError("bare KeyError")
+        raise AssertionError("bare KeyError") from None
     except ValueError:
         return                                   # a clear error naming the column is fine too
     assert out["ticker"].unique().tolist() == ["B"]

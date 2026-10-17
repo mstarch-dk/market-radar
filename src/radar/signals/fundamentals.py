@@ -35,7 +35,7 @@ import pandas as pd
 
 from ..fundamentals import store
 
-QUALITY = {
+QUALITY: dict[str, dict[str, tuple[str, ...]]] = {
     "standard": {"profitability": ("fcf_margin", "roic"), "durability": ("gm_stability", "rev_stability"),
                  "balance": ("nd_ebitda", "interest_cover"), "record": ("div_years",)},
     "financial": {"profitability": ("roe",), "durability": ("roe_stability",), "balance": ("equity_assets",),

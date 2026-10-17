@@ -9,6 +9,7 @@ settings.yaml `gauges:`; regime rows build theirs from the `regime:` thresholds 
 from __future__ import annotations
 
 import math
+from collections.abc import Set as AbstractSet
 
 from ..config import settings
 
@@ -83,7 +84,7 @@ WARN_LEVEL = -3
 TRAITS = {"atr_pct", "beta"}           # how a stock is, not a change worth acting on: coloured, but not a watch-out
 
 
-def watchouts(gs: dict[str, dict], skip: set[str] = frozenset()) -> list[dict]:
+def watchouts(gs: dict[str, dict], skip: AbstractSet[str] = frozenset()) -> list[dict]:
     """The gauges deep in the red (level <= WARN_LEVEL), worst first: what to look at before anything else.
     Traits and the keys in `skip` (e.g. a hypothetical stop on a ticker that isn't held) are left out."""
     out = [{"key": k, "label": v["label"], "level": v["level"], "text": f"{NAMES.get(k, k)}: {v['label']}"}

@@ -55,7 +55,7 @@ Nothing the user owns lives in the install folder (`config.ROOT`, now app files 
 
 ## Layers
 The app and the studies share one kernel and meet only through it, so an experiment can't change what the app shows
-and the app never runs a study. Three import-linter contracts in `pyproject.toml` enforce it (`uv run lint-imports`,
+and the app never runs a study. Import-linter contracts in `pyproject.toml` enforce it (`uv run lint-imports`,
 also `tests/test_layers.py` and CI); they count indirect imports and imports inside functions too.
 
 - **Kernel** (`model/`): what both must compute the same way. It never imports `backtest`, `dashboard`, `api`,
@@ -65,6 +65,12 @@ also `tests/test_layers.py` and CI); they count indirect imports and imports ins
   rule; never `dashboard`, `mine`, `profile`, `api` or `cli` (the report builder and the app).
 - **App** (`updater`, `report`, `api`, `abtest`, `propose`): never imports `backtest`; it reads the studies' reports
   through `model/artifacts.py`.
+- **The whole package**, top to bottom (each imports its own layer and below; every module has one):
+  interfaces (`api`, `cli`) → features (`backtest`, `dashboard`, `profile`, `propose`, `report`, `updater`, …)
+  → the kernel (`model`) → the domain (`universe`, `userstore`, `portfolio`, `performance`, `market`, `home`, …)
+  → data sources (`ingest`, `external`, `valuation`, `fundamentals`, `discovery`, …) → pure readings (`signals`)
+  → infrastructure (`config`, `paths`, `net`, `ops`, `locks`, `guard`, `jsonsafe`). The upward imports that were
+  there when this came in are listed in its `ignore_imports`; the list only shrinks.
 
 A helper both sides need goes down a layer, with the old name re-exported: `Market` lives in `market.py` (also
 `profile.Market`), `region_for` in `universe.py` (also `profile.region_for`), the JSON cleaner in `jsonsafe.py`,

@@ -1,6 +1,5 @@
 """Forks (a virtual copy of a portfolio at a day's close, for A/B tests) and the interface simulations write
 through: one checked, idempotent run per simulated portfolio, never into a real one."""
-import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 

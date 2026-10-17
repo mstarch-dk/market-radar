@@ -20,7 +20,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar paths [--json]` / `uv run radar setup`: where the data folder, history and cache are / choose it (first start of 0.2.0: copies an older version's data in)
 - `uv run radar backup` / `backups` / `restore FILE`, `uv run radar export` / `import-export FILE`: backups of the data folder; open-format export
 - `uv run radar ops [--errors]`: the operations log (external requests per host, errors, 429s, paused hosts, jobs); the app's Operations page shows the same
-- `uv run pytest -q`: the tests
+- `uv run pytest -q`: the tests; `uv run ruff check` and `uv run mypy`: lint and types (CI runs them and `uv run lint-imports`; `tests/test_layers.py` guards the layers, see docs/testing.md)
 - Releases: `CHANGELOG.md` + guide *Nyheder*, then `uv run python scripts/release.py prepare X.Y.Z` (version, fixture data folder for the upgrade test)
 
 ## Skills

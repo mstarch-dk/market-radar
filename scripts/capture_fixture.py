@@ -16,8 +16,6 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-import pandas as pd
-
 from radar import external, net, sentiment
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"

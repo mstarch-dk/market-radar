@@ -396,8 +396,8 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
                         (*vals.values(), now, pid))
         if "tags" in p:
             _write_tags(con, pid, p["tags"])
-        if vals.get("archived") or vals.get("mode") == "virtual":
-            if _default_id(con) == pid:            # the default must stay a real, active portfolio
+        # the default must stay a real, active portfolio
+        if (vals.get("archived") or vals.get("mode") == "virtual") and _default_id(con) == pid:
                 con.execute("DELETE FROM meta WHERE key = 'default_portfolio'")
     return int(pid)
 
@@ -665,8 +665,9 @@ def add_import(rows: list[dict], source: str, file_name: str | None = None, repl
     """Store an import as one unit, into `portfolio_id` (default: the default portfolio) unless a row names its
     own portfolio (created as a real one if new). Rows already stored (same broker trade id, or same symbol,
     date, type, quantity and price) are skipped: in any real portfolio when importing into a real one, so trades
-    moved to another account aren't imported twice; in the target only when importing into a virtual one. `replace_source` first removes the target's earlier rows from this source
-    (for a snapshot export such as Yahoo's, which always contains the full history). A backup is taken first."""
+    moved to another account aren't imported twice; in the target only when importing into a virtual one.
+    `replace_source` first removes the target's earlier rows from this source (for a snapshot export such as
+    Yahoo's, which always contains the full history). A backup is taken first."""
     copy = backup(f"before-{source}-import")
     with closing(_connect()) as con, con:
         target = _target(con, {}, portfolio_id)

@@ -5,12 +5,11 @@ import json
 import pandas as pd
 import pytest
 
+from conftest import FIXTURES
 from radar import external, sentiment, valuation
 from radar.external import parse_ecb
 from radar.signals import regime
 from radar.signals import valuation as sv
-
-from conftest import FIXTURES
 
 FX = {"DKK": 1.0, "EUR": 7.46, "USD": 6.40, "GBP": 8.62}
 

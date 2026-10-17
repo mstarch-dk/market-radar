@@ -4,8 +4,8 @@ from datetime import date
 
 import pytest
 
-from radar import external, paths
 from conftest import FIXTURES
+from radar import external, paths
 
 
 def _raw(name):

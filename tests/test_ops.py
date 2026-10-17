@@ -46,9 +46,8 @@ def test_job_context_records_status_log_and_attribution():
     with ops.job("cli_run", lines) as jid:
         lines.append("12:00:00 Prices: 10 rows.")
         ops.record_request("a.org", "/", "GET", 200, True, 1)
-    with pytest.raises(RuntimeError):
-        with ops.job("cli_run"):
-            raise RuntimeError("boom")
+    with pytest.raises(RuntimeError), ops.job("cli_run"):
+        raise RuntimeError("boom")
     jobs = ops.jobs()
     assert [j["status"] for j in jobs] == ["failed", "done"] and "boom" in jobs[0]["error"]
     d = OpsJobDetail.model_validate(ops.job_detail(jid))

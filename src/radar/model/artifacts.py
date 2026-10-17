@@ -157,7 +157,7 @@ def _spec(name: str) -> Spec:
 
 
 def path(name: str) -> Path:
-    return REPORTS / _spec(name).file
+    return (REPORTS / _spec(name).file).now()
 
 
 def _asof(raw: dict) -> str | None:
@@ -197,7 +197,7 @@ def load(name: str, *, rule_hash: str | None = None) -> Loaded:
     """The report `name` (a key of `ARTIFACTS`) as its model. `rule_hash`: the rule the reader acts on; a report
     that tested another one is `stale`. Cached per file version."""
     spec = _spec(name)
-    f = REPORTS / spec.file
+    f = (REPORTS / spec.file).now()
     try:
         st = f.stat()
     except FileNotFoundError:
@@ -256,6 +256,6 @@ def write(name: str, rep: dict, *, data_asof: str | None, rule_hash: str | None 
     except ValidationError as e:
         raise ValueError(f"{name} doesn't match its contract, not written: {_first_error(e)}") from e
     REPORTS.mkdir(parents=True, exist_ok=True)
-    f = REPORTS / (file or spec.file)
+    f = (REPORTS / (file or spec.file)).now()
     write_text(f, text)
     return f

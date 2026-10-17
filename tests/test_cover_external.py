@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import external, net
 from conftest import FIXTURES
 from fakes import Resp, fake_yf
+from radar import external, net
 
 # ---------------- CFTC: update_cot ----------------
 

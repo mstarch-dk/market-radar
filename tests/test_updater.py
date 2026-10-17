@@ -4,7 +4,7 @@ import threading
 import pytest
 from typer.testing import CliRunner
 
-from radar import cli, coverage, external, ingest, locks, updater, universe
+from radar import cli, ingest, locks, universe, updater
 from radar.discovery import scan
 
 

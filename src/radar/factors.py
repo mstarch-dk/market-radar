@@ -174,7 +174,6 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
     max_age = timedelta(days=int(_cfg().get("max_age_days", 30)))
     stored = load()
     fetched = stored.groupby("key")["fetched"].max() if not stored.empty else pd.Series(dtype="datetime64[ns]")
-    keep = [stored] if not stored.empty else []
     fresh, failed, skipped = [], [], 0
     specs = datasets()
     for key, spec in specs.items():

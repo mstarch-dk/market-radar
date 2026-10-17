@@ -25,9 +25,9 @@ import pandas as pd
 
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
-from ..paths import REPORTS
 from ..model import panels as mp
 from ..model.select import capped
+from ..paths import REPORTS
 from . import exits as ex
 from . import study
 
@@ -153,8 +153,8 @@ def _after_cutoff(day: pd.Timestamp, cutoff: str | None) -> bool | None:
 def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
     """Your views created by `day`, aligned with prices up to `day` (personal)."""
     from .. import market_views as mv
-    from ..universe import region_for
     from ..signals import views as sv
+    from ..universe import region_for
 
     vs = [v for v in userstore.views() if str(v["created_at"])[:10] <= day.date().isoformat()]
     meta = [{"id": v["id"], "statement": v["statement"], "conviction": v["conviction"], "horizon": v["horizon"],

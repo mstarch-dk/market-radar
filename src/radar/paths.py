@@ -46,7 +46,7 @@ class Locations:
                    reports=root / "reports")
 
     @classmethod
-    def at(cls, home: Path, cache: Path | None = None) -> Locations:
+    def at(cls, home: Path, cache: Path | str | None = None) -> Locations:
         """The data home: your material and radar.db in `home`, history in `home/history`, the cache elsewhere."""
         home = Path(home).expanduser()
         cache = Path(cache).expanduser() if cache else default_cache()

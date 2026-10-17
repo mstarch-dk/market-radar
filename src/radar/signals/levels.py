@@ -183,6 +183,8 @@ def for_ticker(ticker: str, closes: pd.DataFrame, highs: pd.DataFrame, lows: pd.
     if a.empty:
         return None
     anc, basis = anchor(closes[ticker], since, cfg["info_anchor_days"])
+    if anc is None:                               # no closes at all
+        return None
     view = analyst_view(analyst_hist, ticker, closes[ticker], max_age_days=cfg.get("analyst_max_age_days"))
     close = closes[ticker].dropna()
     if cfg.get("mode", "atr") == "trend":

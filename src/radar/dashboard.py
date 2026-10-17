@@ -14,10 +14,10 @@ from . import coverage, external, mine, sentiment, snapshot, universe, valuation
 from .config import CONFIG, settings, universe_config
 from .fundamentals import context as fcontext
 from .fundamentals import store as fstore
-from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .ingest import load_fred, load_prices, wide
 from .jsonsafe import clean as _clean
 from .model.inputs import effective_votes
+from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation
 from .signals import valuation as sv

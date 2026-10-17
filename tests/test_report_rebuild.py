@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 import world
 from radar import api, cli, dashboard, ingest, locks, report, updater
-from radar.fundamentals.store import YAHOO_FILE   # the synthetic world keeps its prices in memory; this one is on disk
+from radar.fundamentals.store import YAHOO_FILE  # the synthetic world keeps its prices in memory; this one is on disk
 from test_updater import held  # noqa: F401 - the fixture
 
 

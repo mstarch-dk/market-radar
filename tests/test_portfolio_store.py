@@ -1,6 +1,5 @@
 """The transaction store as the portfolio's source of truth: the one-time move of the old CSV files, positions
 derived with fees and per portfolio, import semantics (snapshot vs additive, duplicates, undo) and backups."""
-import pandas as pd
 import pytest
 
 from radar import universe, userstore

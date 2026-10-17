@@ -10,7 +10,6 @@ from fakes import Resp, fake_yf, serve
 from radar import coverage, ingest, net, universe
 from radar.discovery import scan, sources
 
-
 # ---------------- Yahoo screener ----------------
 
 class FakeScreener:

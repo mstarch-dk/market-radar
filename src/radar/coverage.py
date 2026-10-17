@@ -14,7 +14,7 @@ from datetime import date, datetime
 import pandas as pd
 
 from .config import POSITIVE_LIST_FILE, write_text
-from .paths import CACHE, HOLDINGS_FILE, TRANSACTIONS_FILE
+from .paths import CACHE
 
 LOG_FILE = CACHE / "sources.json"
 _log_lock = threading.Lock()  # the update and the discovery scan can record at the same time

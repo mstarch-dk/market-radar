@@ -11,7 +11,7 @@ from radar import api, dashboard, importers, ingest, performance, profile, repor
 from world import IDX
 
 DAY, LATER = IDX[100].date().isoformat(), IDX[150].date().isoformat()
-S2 = lambda i: 100 * 1.0010 ** i            # noqa: E731  S2's close at bar i (USD; USDDKK is 6.5)
+S2 = lambda i: 100 * 1.0010 ** i            # S2's close at bar i (USD; USDDKK is 6.5)
 
 
 @pytest.fixture

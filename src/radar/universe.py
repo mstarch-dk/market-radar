@@ -234,7 +234,8 @@ def names(tickers: list[str]) -> dict[str, str]:
 def sectors(tickers: list[str]) -> pd.DataFrame:
     """Yahoo sector and industry per stock (cached in data/sectors.csv; ETFs and unknowns stay blank)."""
     cache_file = CACHE / "sectors.csv"
-    cached = pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()         else pd.DataFrame(columns=["ticker", "sector", "industry"])
+    cached = (pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()
+              else pd.DataFrame(columns=["ticker", "sector", "industry"]))
     missing = sorted(set(tickers) - set(cached["ticker"]))
     if missing:
         yf = net.yf()
@@ -459,8 +460,8 @@ def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]],
 
 def _import_market():
     """The stored prices, to check imported prices against the day's close; None before the first download."""
-    from .paths import PRICES_FILE
     from .market import Market
+    from .paths import PRICES_FILE
 
     return Market.load() if PRICES_FILE.exists() else None   # no prices yet: the import works, unchecked
 
