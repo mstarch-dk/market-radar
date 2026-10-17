@@ -11,6 +11,9 @@ helps you spot:
   stop/target levels, and warning signs.
 - **Any ticker in depth:** price chart, technicals, risk, analyst estimates, valuation and peers.
 
+**See it before you install:** the [brochure (PDF, in Danish)](marketing/market-radar.pdf) shows each page of
+the app in screenshots, taken from a demo copy that holds only a fictional investor.
+
 > **Not investment advice.** Market Radar is an analysis tool. The data comes from free sources (mostly Yahoo
 > Finance) without any guarantee. Check anything important before you act on it.
 >
