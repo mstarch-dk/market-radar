@@ -9,7 +9,7 @@ import pytest
 
 import world
 from radar import fees, performance, profile, simulate, userstore
-from radar.backtest import exits, pit
+from radar.backtest import exit_rules, exits, pit, redeploy
 from radar.model import inputs as minputs
 from radar.model.score import score_vs
 from radar.signals import momentum, regime
@@ -404,16 +404,15 @@ def test_wider_k_moves_the_stop_down(market):
 # ---------------- risk on a path ----------------
 
 def test_path_measures_return_and_drawdown(market):
-    from radar.backtest import study
 
     i0 = N - len(crash())
     rows = [{"date": IDX[i0].date().isoformat(), "type": "DEPOSIT", "amount": 10 * float(crash()[0]) * FX},
             {**buy("CRASH", i0, 10, float(crash()[0]), FX)}]
-    r = study.path(rows, market, IDX[i0], IDX[N - 1])
+    r = exit_rules.path(rows, market, IDX[i0], IDX[N - 1])
     assert r["ret"] == pytest.approx(crash()[-1] / crash()[0] - 1)
     assert r["max_dd"] == pytest.approx(crash()[UP + DOWN - 1] / crash()[UP - 1] - 1)
     assert r["worst20"] == pytest.approx(0.99 ** 20 - 1)
-    assert study.path(rows, market, IDX[i0], IDX[N - 1] + pd.Timedelta(days=30)) is None
+    assert exit_rules.path(rows, market, IDX[i0], IDX[N - 1] + pd.Timedelta(days=30)) is None
 
 
 # ---------------- redeploy and rotation ----------------
@@ -508,9 +507,8 @@ def test_redeploy_needs_a_picker_and_the_rules_variant(market):
 
 
 def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
-    from radar.backtest import study
 
-    rep = study.redeploy_study(market, n_top=3, horizons=(1,), keys=["sma200-redeploy", "rotate-tp-only"])
+    rep = redeploy.redeploy_study(market, n_top=3, horizons=(1,), keys=["sma200-redeploy", "rotate-tp-only"])
     assert [a["key"] for a in rep["arms"]][:3] == ["sma200-park", "sma200-redeploy", "rotate"]
     res = rep["results"]["1"]
     assert set(res) == {"sma200-park", "sma200-redeploy", "rotate", "rotate-tp-only", "mix50", "acwi"}
@@ -520,5 +518,5 @@ def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
     for d in rep["dates"]:
         for run in d["runs"].values():
             assert run["trades"] >= 3 and run["fees_pct"] > 0
-    study.write_redeploy(rep)
-    assert (exits.REPORTS / study.REDEPLOY_REPORT_FILE).exists()
+    redeploy.write_redeploy(rep)
+    assert (exits.REPORTS / redeploy.REDEPLOY_REPORT_FILE).exists()
