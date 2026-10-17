@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from .. import coverage, ingest, net, ops, universe
+from .. import coverage, ingest, net, ops, positive_list, universe
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
@@ -120,7 +120,7 @@ def _stocks(key: str, mk: dict, fx: dict[str, float], log: Log) -> pd.DataFrame:
 
 
 def _etfs(mk: dict, cfg: dict, log: Log, progress: Progress | None) -> pd.DataFrame:
-    pl = universe.positive_list()
+    pl = positive_list.load()
     if pl is None:
         raise RuntimeError("no positive list: save SKAT's list as imports/positivliste.xlsx")
     funds = sources.positive_list_funds(pl)
@@ -265,8 +265,8 @@ def build_report(fx: dict[str, float] | None = None) -> dict:
     df = sig.compute(closes, raw, volumes, meta, bench, fx, tracked, cfg, s["momentum"]["min_history_days"], asof,
                      s["rotation"]["window"])
     df = df.merge(meta.drop(columns=["market"]), on="ticker", how="left")
-    isins = universe.positive_list_isins()
-    df["positive_list"] = [universe.positive_list_flag(i, isins) if k == "etf" else None
+    isins = positive_list.isins()
+    df["positive_list"] = [positive_list.flag(i, isins) if k == "etf" else None
                            for i, k in zip(df["isin"], df["kind"])]
     df["spark"] = [sig.sparkline(closes[t]) for t in df["ticker"]]
     keys = ["ticker", "name", "kind", "exchange", "country", "currency", "sector", "industry", "category", "isin",

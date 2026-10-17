@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from conftest import FIXTURES
-from radar import external, ingest, net, paths, universe
+from radar import constituents, external, ingest, net, paths, positive_list, universe
 
 # ---------------- FRED ----------------
 
@@ -174,7 +174,7 @@ def test_spy_holdings_layout():
             ["US DOLLAR", "CASH_USD", "-", "-", 0.1, "-", 1, "USD"],
             ["SOME ADR", "XYZ", "-", "-", 0.1, "-", 1, "EUR"],
             ["APPLE INC", "AAPL", "037833100", "2046251", 7.1, "-", 1, "USD"]]
-    df = universe.parse_spy_holdings(_spy_xlsx(rows), min_holdings=1)
+    df = constituents.parse_spy_holdings(_spy_xlsx(rows), min_holdings=1)
     assert df["ticker"].tolist() == ["AAPL", "BRK-B", "MSFT"]   # Yahoo spelling, no cash, no non-USD, no dupes
     assert df.set_index("ticker").loc["AAPL", "name"] == "APPLE INC"
 
@@ -182,10 +182,10 @@ def test_spy_holdings_layout():
 def test_spy_holdings_layout_change_fails():
     rows = [["APPLE INC", "AAPL", "037833100", "2046251", 7.1, "-", 1, "USD"]]
     with pytest.raises(ValueError, match="Weight"):
-        universe.parse_spy_holdings(_spy_xlsx(rows, header=("Name", "Ticker", "Identifier", "SEDOL", "Pct", "Sector",
+        constituents.parse_spy_holdings(_spy_xlsx(rows, header=("Name", "Ticker", "Identifier", "SEDOL", "Pct", "Sector",
                                                              "Shares Held", "Local Currency")))
     with pytest.raises(ValueError, match="only 1 stocks"):
-        universe.parse_spy_holdings(_spy_xlsx(rows))            # default minimum: a full index
+        constituents.parse_spy_holdings(_spy_xlsx(rows))            # default minimum: a full index
 
 
 # ---------------- SKAT positive list ----------------
@@ -212,24 +212,24 @@ def test_positive_list_uses_the_latest_year_only(tmp_data):
     keep = ["IE", " ie00b6r52259 ", "", "", "", "", "", "ACWI", "2018", ""]
     bad = ["IE", "not an isin", "", "", "", "", "", "Footnote", "", ""]
     _poslist(tmp_data, {"2025": [old, keep], "2026": [keep, bad]})
-    isins = universe.positive_list_isins()
+    isins = positive_list.isins()
     assert isins == {"IE00B6R52259"}
-    assert universe.positive_list().attrs["year"] == "2026"
-    assert universe.positive_list_flag("IE00BOLD0001", isins) == "no"
-    assert universe.positive_list_flag("ie00b6r52259", isins) == "yes"
-    assert universe.positive_list_flag(None, isins) == "?" and universe.positive_list_flag("X", None) == "?"
+    assert positive_list.load().attrs["year"] == "2026"
+    assert positive_list.flag("IE00BOLD0001", isins) == "no"
+    assert positive_list.flag("ie00b6r52259", isins) == "yes"
+    assert positive_list.flag(None, isins) == "?" and positive_list.flag("X", None) == "?"
 
 
 def test_positive_list_finds_the_isin_column_by_header(tmp_data):
     header = POSLIST_HEADER[2:3] + POSLIST_HEADER[:2] + POSLIST_HEADER[3:]   # SKAT moved a column
     _poslist(tmp_data, {"2026": [["ACWI", "IE", "IE00B6R52259", "", "", "", "", "", "", ""]]}, header)
-    assert universe.positive_list_isins() == {"IE00B6R52259"}
+    assert positive_list.isins() == {"IE00B6R52259"}
 
 
 def test_positive_list_without_isins_fails(tmp_data):
     _poslist(tmp_data, {"2026": [["IE", "", "", "", "", "", "", "Nothing", "", ""]]})
     with pytest.raises(ValueError, match="no valid ISINs"):
-        universe.positive_list()
+        positive_list.load()
 
 
 # ---------------- Yahoo download frames ----------------

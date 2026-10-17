@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from . import (
     dashboard,
     home,
+    importers,
     mine,
     money,
     net,
@@ -26,6 +27,7 @@ from . import (
     portfolio,
     profile,
     tickers,
+    trades,
     universe,
     updater,
     userstore,
@@ -428,7 +430,7 @@ def search(q: str = Query(..., min_length=1, max_length=60)) -> list[dict]:
 @app.get("/api/context", response_model=AppContext)
 def context() -> dict:
     """Regime and your holdings and watchlist, for the start page."""
-    h = universe.holdings()
+    h = trades.holdings()
     h = h[h["status"].isin(["holding", "watch"])] if not h.empty else h
     names = universe.names(list(h["symbol"])) if not h.empty else {}
     return {"regime": inputs.current_regime(dashboard.load()),
@@ -729,7 +731,7 @@ def get_tickers() -> list[dict]:
 
 
 def _status(symbol: str) -> str | None:
-    h = universe.holdings()
+    h = trades.holdings()
     st = h.loc[h["symbol"] == symbol, "status"]
     return st.iloc[0] if len(st) else None
 
@@ -818,7 +820,7 @@ async def import_portfolio(request: Request) -> dict:
         path = Path(tmp) / "yahoo_portfolio.csv"
         path.write_bytes(body)
         try:
-            df, warnings = universe.import_yahoo_csv(str(path))
+            df, warnings = importers.import_yahoo_csv(str(path))
         except Exception as e:
             raise HTTPException(400, f"Couldn't read this Yahoo Finance export ({type(e).__name__}: {e}).") from e
     counts = df["status"].value_counts()
@@ -862,7 +864,7 @@ def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict
 @app.get("/api/portfolio/transactions", response_model=list[TxRow])
 def list_transactions(symbol: str | None = None, portfolio: list[int] | None = PortfolioQ,
                       tag: list[str] | None = TagQ, scope: str | None = ScopeQ) -> list[dict]:
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     sel = _selection(portfolio, tag, scope)
     return userstore.transactions(_symbol(symbol) if symbol else None, userstore.portfolio_ids() if sel is None else sel)
 
@@ -870,7 +872,7 @@ def list_transactions(symbol: str | None = None, portfolio: list[int] | None = P
 @app.post("/api/portfolio/validate", response_model=TxCheck)
 def check_transaction(body: TxIn, id: int | None = None) -> dict:
     """Issues, the effect on the position and the price check for a row being typed, without saving it."""
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     row = _tx_row(body)
     issues = _validated(row, id)
     with _lock:
@@ -909,7 +911,7 @@ def _fee_estimate(row: dict, pc: dict) -> dict | None:
 
 @app.post("/api/portfolio/transactions", response_model=TxResult)
 def add_transaction(body: TxIn) -> dict:
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     row, issues = _checked(body)
     return {"tx": userstore.get_tx(userstore.add_tx(row)), "issues": issues}
 
@@ -966,7 +968,7 @@ def export_transactions(portfolio: list[int] | None = PortfolioQ, tag: list[str]
                         scope: str | None = ScopeQ) -> Response:
     """The chosen portfolios' transactions as CSV (default: your real ones; a backup you can keep, or open in a
     spreadsheet)."""
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     return Response(userstore.export_transactions_csv(_selection(portfolio, tag, scope)), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="transactions-{dt.date.today()}.csv"'})
 
@@ -1005,7 +1007,7 @@ def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
 @app.get("/api/portfolios", response_model=list[Portfolio])
 def list_portfolios(archived: bool = True) -> list[dict]:
     """Every portfolio with its tags, number of rows and date range."""
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     return userstore.portfolios(include_archived=archived)
 
 
@@ -1247,7 +1249,7 @@ async def import_preview(request: Request, filename: str = "", preset: str | Non
     """What importing this file would do, without saving: format, column mapping, symbol matches, each row with
     its issues. `mapping` and `symbols` (JSON) override the detected columns and the suggested symbols; rows go
     into `portfolio` (default: the default portfolio) unless the file names one."""
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     return _preview(await request.body(), filename, preset, mapping, symbols, portfolio)
 
 
@@ -1257,7 +1259,7 @@ async def import_commit(request: Request, filename: str = "", preset: str | None
     """Save the import exactly as the same preview shows it (re-run here, so nothing unchecked gets in)."""
     from . import importers
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     pv = _preview(await request.body(), filename, preset, mapping, symbols, portfolio)
     try:
         return importers.commit(pv, filename, confirm)

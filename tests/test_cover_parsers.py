@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import coverage, external, factors, ingest, net, sentiment, universe, updater, valuation
+from radar import coverage, external, factors, ingest, net, sentiment, trades, updater, valuation
 from radar.fundamentals import edgar, yahoo
 
 # ---------------- updater: one failing step never stops the rest ----------------
@@ -47,7 +47,7 @@ def test_every_external_source_is_tried_even_when_one_raises(tmp_data, monkeypat
     def fails(*a, **k):
         ran.append("ecb")
         raise ValueError("ECB changed its format")
-    monkeypatch.setattr(universe, "holdings", lambda: pd.DataFrame())
+    monkeypatch.setattr(trades, "holdings", lambda: pd.DataFrame())
     monkeypatch.setattr(external, "update_cot", ok("cftc", 5))
     monkeypatch.setattr(external, "update_oecd_cli", ok("oecd"))
     monkeypatch.setattr(external, "update_factset", ok("factset", None))

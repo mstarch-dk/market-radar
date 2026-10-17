@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, ingest, report, universe, userstore
+from radar import api, dashboard, ingest, report, trades, universe, userstore
 from world import IDX
 
 
@@ -49,7 +49,7 @@ def test_the_upgrade_turns_accounts_into_portfolios_and_keeps_every_number(tmp_d
     assert pf["Main"]["is_default"] and pf["Main"]["n_tx"] == 2               # the trades without an account
     by_id = {t["id"]: t["portfolio"] for t in userstore.transactions()}
     assert by_id == {3: "ASK", 5: "Main", 9: "frie midler", 11: "Main"}        # ids kept
-    pos = universe.holdings().set_index("symbol")
+    pos = trades.holdings().set_index("symbol")
     for sym, (q, avg) in pooled_before.items():                              # yours, pooled: unchanged
         assert pos.loc[sym, "quantity"] == q and pos.loc[sym, "avg_price"] == pytest.approx(avg)
     with closing(sqlite3.connect(tmp_data / "userdata" / userstore.DB_NAME)) as con:
@@ -90,8 +90,8 @@ def test_only_real_portfolios_are_yours_unless_chosen(tmp_data):
     sim = userstore.save_portfolio({"name": "Sim", "mode": "virtual"})
     userstore.add_tx(_tx("R", "2026-01-05", "BUY", 1, 10, "ASK"))
     userstore.add_tx(_tx("V", "2026-01-05", "BUY", 1, 10, "Sim"))
-    assert set(universe.holdings()["symbol"]) == {"R"}
-    assert set(universe.holdings([sim])["symbol"]) == {"V"}
+    assert set(trades.holdings()["symbol"]) == {"R"}
+    assert set(trades.holdings([sim])["symbol"]) == {"V"}
     assert "V" not in userstore.export_transactions_csv() and "V" in userstore.export_transactions_csv([sim])
 
 

@@ -1,7 +1,7 @@
 """Your own stateful data, kept in radar.db in the data folder (SQLite; paths.py says where; never committed).
 
 - **transactions**: every buy and sell (and cash row), the source of truth for the portfolios. Positions and average costs are
-  derived from them (universe.holdings). Each row records where it came from (manual entry or an import).
+  derived from them (trades.holdings). Each row records where it came from (manual entry or an import).
 - **imports**: one row per import run, so an import can be undone as a whole.
 - **portfolios**: real ones (your accounts, e.g. ASK and frie midler) and virtual ones (simulations, A/B
   tests), each with a tax kind and free-form **portfolio_tags**. Every transaction belongs to one; only real

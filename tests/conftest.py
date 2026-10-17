@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from radar import coverage, net, paths, universe
+from radar import coverage, net, paths, positive_list
 
 pytest_plugins = ["pytester"]  # tests/test_offline.py runs a nested session
 
@@ -100,6 +100,6 @@ def tmp_data(tmp_path, monkeypatch):
     """Every data folder in one temporary directory (tmp_path), with no positive list and no in-memory caches."""
     paths.configure(paths.Locations.flat(tmp_path))
     monkeypatch.setattr(coverage, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
-    monkeypatch.setattr(universe, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
+    monkeypatch.setattr(positive_list, "POSITIVE_LIST_FILE", tmp_path / "positivliste.xlsx")
     reset_caches()
     return tmp_path

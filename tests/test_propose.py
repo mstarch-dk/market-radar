@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 import world
-from radar import fees, profile, propose, universe, userstore
+from radar import constituents, fees, profile, propose, universe, userstore
 from radar.config import settings
 from radar.model import artifacts
 from world import IDX, N
@@ -62,7 +62,7 @@ def market(tmp_data, monkeypatch):
     for mod in (propose, propose_study, study, picks):
         monkeypatch.setattr(mod, "settings", lambda: c)
     # ACWI's weights from the trimmed real file
-    df = universe.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
+    df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
     df.to_csv(tmp_data / "acwi_holdings.csv", index=False)
     m = profile.Market.load()
     m.cfg = c
@@ -84,21 +84,21 @@ def ask(market):
 # ---------------- ACWI's weights ----------------
 
 def test_acwi_holdings_parse_to_weights_by_sector_region_and_currency():
-    df = universe.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
+    df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
     assert df["weight"].sum() == pytest.approx(1.0)
     assert not df["ticker"].isin(["USD", "MESZ6"]).any()               # cash and futures left out
     assert set(df["sector"]) <= {"Technology", "Communication Services", "Consumer Cyclical", "Financial Services",
                                  "Healthcare"}
-    w = universe.acwi_weights(df)
+    w = constituents.acwi_weights(df)
     assert w["region"]["us"] > 0.5 and w["region"]["nordic"] > 0 and w["region"]["other"] > 0    # Canada: other
     assert w["currency"]["USD"] > 0.5 and "DKK" in w["currency"]
     with pytest.raises(ValueError, match="only"):
-        universe.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"))
+        constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"))
 
 
 def test_acwi_holdings_missing_is_none_not_a_guess(tmp_data):
-    assert universe.acwi_holdings(offline=True) is None
-    assert universe.acwi_weights(offline=True) is None
+    assert constituents.acwi_holdings(offline=True) is None
+    assert constituents.acwi_weights(offline=True) is None
 
 
 @pytest.mark.parametrize("bad", ["error", "empty", "few"])
@@ -106,16 +106,16 @@ def test_a_bad_acwi_answer_keeps_the_cached_file(tmp_data, monkeypatch, bad):
     from fakes import Resp, serve
 
     good = (FIX / "ishares_ssac_holdings.csv").read_bytes()
-    monkeypatch.setattr(universe, "ACWI_MIN_HOLDINGS", 10)
+    monkeypatch.setattr(constituents, "ACWI_MIN_HOLDINGS", 10)
     serve(monkeypatch, {"ishares-msci-acwi": Resp(content=good)})
-    first = universe.acwi_holdings(refresh=True)
-    assert first is not None and len(first) >= 10 and universe.ACWI_FILE.exists()
+    first = constituents.acwi_holdings(refresh=True)
+    assert first is not None and len(first) >= 10 and constituents.ACWI_FILE.exists()
     lines = good.decode("utf-8").splitlines()
     few = "\n".join(lines[:6]).encode()                     # the header and three stocks: below the minimum
     answer = {"error": Resp(500), "empty": Resp(content=b""), "few": Resp(content=few)}[bad]
     serve(monkeypatch, {"ishares-msci-acwi": answer})
-    again = universe.acwi_holdings(refresh=True)
-    pd.testing.assert_frame_equal(again, pd.read_csv(universe.ACWI_FILE, keep_default_na=False))
+    again = constituents.acwi_holdings(refresh=True)
+    pd.testing.assert_frame_equal(again, pd.read_csv(constituents.ACWI_FILE, keep_default_na=False))
     assert len(again) == len(first)
 
 

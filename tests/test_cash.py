@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, ingest, performance, profile, report, universe, userstore
+from radar import api, dashboard, importers, ingest, performance, profile, report, trades, userstore
 from world import IDX
 
 DAY, LATER = IDX[100].date().isoformat(), IDX[150].date().isoformat()
@@ -103,7 +103,7 @@ def test_dividends_are_recorded_but_not_double_counted(client):
     assert _post(client, symbol="S2", date=LATER, type="DIVIDEND", amount=20, portfolio_id=sim, confirm=True).status_code == 200
     r = _post(client, symbol="S3", date=LATER, type="DIVIDEND", amount=20, portfolio_id=sim)
     assert any("wasn't held" in i["message"] for i in r.json()["detail"]["issues"])
-    pos = universe.holdings([sim]).set_index("symbol")
+    pos = trades.holdings([sim]).set_index("symbol")
     assert pos.loc["S2", "quantity"] == 5                                                 # cash rows don't move shares
 
 

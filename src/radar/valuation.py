@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import guard, money, net
+from . import guard, money, net, trades
 from .config import discovery_config, settings, write_parquet
 from .paths import CACHE, HISTORY
 from .values import num
@@ -187,7 +187,7 @@ def tracked_stocks() -> list[str]:
     from . import universe
 
     names = {t for g in universe.stock_groups(offline=True).values() for t in g}
-    h = universe.holdings()
+    h = trades.holdings()
     if not h.empty:
         names |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna())
     etfs = {i.ticker for i in universe.etfs()} | {universe.benchmark()}
@@ -274,7 +274,7 @@ def etf_tickers() -> list[str]:
 
     out = {i.ticker for i in universe.etfs()} | {universe.benchmark()}
     out |= {b["ticker"] for b in universe.group_benchmarks().values()}
-    h = universe.holdings()
+    h = trades.holdings()
     stocks = {t for g in universe.stock_groups(offline=True).values() for t in g}
     if not h.empty:  # held or watched funds; stocks among them are skipped by the lookup
         out |= set(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) - stocks

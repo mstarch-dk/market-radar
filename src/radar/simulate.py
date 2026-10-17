@@ -20,7 +20,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from . import money, performance, universe, userstore
+from . import money, performance, trades, userstore
 from .config import settings
 from .fees import SimFees
 
@@ -49,8 +49,8 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
         raise ValueError(f"no prices on or before {at}")
     day = day[-1]
     rows = [r for r in userstore.transactions(portfolios=[src_id]) if str(r["date"])[:10] <= day.date().isoformat()]
-    pos, _ = universe.positions(pd.DataFrame(rows, columns=universe.TX_COLS + ["id"]).assign(
-        date=lambda d: pd.to_datetime(d["date"])) if rows else pd.DataFrame(columns=universe.TX_COLS))
+    pos, _ = trades.positions(pd.DataFrame(rows, columns=trades.TX_COLS + ["id"]).assign(
+        date=lambda d: pd.to_datetime(d["date"])) if rows else pd.DataFrame(columns=trades.TX_COLS))
     buys, problems, total = [], [], 0.0
     for _, p in pos[pos["status"] == "holding"].iterrows():
         sym, qty = p["symbol"], float(p["quantity"])
@@ -123,10 +123,10 @@ def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[
             problems.append(f"row {i}: has an id (rows are stored new)")
     if problems:
         return problems
-    trades = pd.DataFrame([r for r in rows if r["type"] in ("BUY", "SELL")], columns=universe.TX_COLS)
-    if not trades.empty:
-        trades["date"] = pd.to_datetime(trades["date"])
-        _, warn = universe.positions(trades.assign(fee=trades["fee"].fillna(0)))
+    deals = pd.DataFrame([r for r in rows if r["type"] in ("BUY", "SELL")], columns=trades.TX_COLS)
+    if not deals.empty:
+        deals["date"] = pd.to_datetime(deals["date"])
+        _, warn = trades.positions(deals.assign(fee=deals["fee"].fillna(0)))
         problems += [f"{s}: {w}" for s, ws in warn.items() for w in ws]
     bal, fx_problems = performance.cash_balance(rows, market, dividends)
     problems += fx_problems

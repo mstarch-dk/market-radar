@@ -10,7 +10,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import money, universe, userstore
+from . import money, trades, universe, userstore
 from .values import whole
 
 ERROR, WARNING = "error", "warning"
@@ -72,7 +72,7 @@ def price_check(market, symbol: str, day, price: float | None = None) -> dict:
 
 
 def _frame(rows: list[dict]) -> pd.DataFrame:
-    df = pd.DataFrame(rows, columns=universe.TX_COLS + ["id"])
+    df = pd.DataFrame(rows, columns=trades.TX_COLS + ["id"])
     if not df.empty:
         df["date"] = pd.to_datetime(df["date"])
     return df
@@ -149,7 +149,7 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
         issues.append(_issue(WARNING, "date", f"The same {TYPE_WORDS[kind]} is already stored in this portfolio."))
     if trade:
         same = [t for t in rest if t["symbol"] == sym]
-        _, warn = universe.positions(_frame(same + [candidate]))
+        _, warn = trades.positions(_frame(same + [candidate]))
         if warn.get(sym):
             issues.append(_issue(ERROR, "quantity", "This would sell more than was held in this portfolio at that date "
                                  f"({warn[sym][0]}). Add the missing buy first, or check the quantity."))
@@ -158,7 +158,7 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
             issues.append(_issue(WARNING, "price", pc["message"]))
     p = userstore.get_portfolio(pid) if pid is not None and pid > 0 else None
     if kind == "DIVIDEND":
-        held, _ = universe.positions(_frame([t for t in rest if t["symbol"] == sym and str(t["date"])[:10] <= candidate["date"]]))
+        held, _ = trades.positions(_frame([t for t in rest if t["symbol"] == sym and str(t["date"])[:10] <= candidate["date"]]))
         if held.empty or held.iloc[0]["status"] != "holding":
             issues.append(_issue(WARNING, "symbol", f"{sym} wasn't held in this portfolio on that date."))
         if (p or {}).get("dividends", "reinvested") == "reinvested":
@@ -213,8 +213,8 @@ def effect(row: dict, others: list[dict] | None = None, exclude_id: int | None =
     stored = userstore.transactions() if others is None else others
     rest = [t for t in stored if t.get("id") != exclude_id and t["symbol"] == sym and t.get("portfolio_id") == pid
             and t["type"] in userstore.TRADE_TYPES]
-    before, _ = universe.positions(_frame(rest))
-    after, _ = universe.positions(_frame(rest + [dict(row, symbol=sym, fee=row.get("fee") or 0, portfolio_id=pid)]))
+    before, _ = trades.positions(_frame(rest))
+    after, _ = trades.positions(_frame(rest + [dict(row, symbol=sym, fee=row.get("fee") or 0, portfolio_id=pid)]))
 
     def pick(df):
         if df.empty or df.iloc[0]["status"] != "holding":
@@ -226,9 +226,9 @@ def effect(row: dict, others: list[dict] | None = None, exclude_id: int | None =
 def positions_view(market, portfolios: list[int] | None = None) -> dict:
     """Open positions per portfolio and in total over these portfolios (ids; default: your real ones), valued at
     the last traded close (in the quote currency)."""
-    tx = universe.transactions(portfolios)
-    total, warn = universe.positions(tx)
-    per, _ = universe.positions(tx, by_portfolio=True)
+    tx = trades.transactions(portfolios)
+    total, warn = trades.positions(tx)
+    per, _ = trades.positions(tx, by_portfolio=True)
 
     def rows(df, by_portfolio):
         out = []
@@ -277,7 +277,7 @@ def check_move(from_id: int, to_id: int, ids=None, symbols=None) -> list[str]:
     after = [dict(t, portfolio_id=to_id) if moving(t) else t for t in rows]
     problems = []
     for pid in (from_id, to_id):
-        _, before = universe.positions(_frame([t for t in rows if t["portfolio_id"] == pid]))
-        _, now = universe.positions(_frame([t for t in after if t["portfolio_id"] == pid]))
+        _, before = trades.positions(_frame([t for t in rows if t["portfolio_id"] == pid]))
+        _, now = trades.positions(_frame([t for t in after if t["portfolio_id"] == pid]))
         problems += [f"{sym}: {w}" for sym, ws in now.items() for w in ws if w not in before.get(sym, [])]
     return problems

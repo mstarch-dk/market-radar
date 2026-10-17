@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 import typer
 
-from . import universe
+from . import importers, trades, universe
 
 app = typer.Typer(add_completion=False, help="Market radar: rotation, momentum, regime and holdings signals.")
 
@@ -366,7 +366,7 @@ def ops_summary(days: int = typer.Option(7, help="Look back this many days"),
 @app.command(name="import-yahoo")
 def import_yahoo(csv_path: str):
     """Import a Yahoo Finance portfolio CSV export as holdings/watchlist."""
-    df, warnings = universe.import_yahoo_csv(csv_path)
+    df, warnings = importers.import_yahoo_csv(csv_path)
     counts = df["status"].value_counts()
     typer.echo(f"Imported {counts.get('holding', 0)} holdings, {counts.get('sold', 0)} sold positions, "
                f"{counts.get('watch', 0)} watchlist names.")
@@ -566,7 +566,7 @@ def portfolio_list(symbol: str = typer.Option(None, help="Only this ticker"),
     """Stored transactions, oldest first."""
     from . import userstore
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     names = [*(portfolio or []), *([account] if account else [])]
     sel = _portfolio_ids(names, tag) if (names or tag) else userstore.portfolio_ids()
     rows = userstore.transactions(symbol.upper() if symbol else None, sel)
@@ -592,7 +592,7 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
 
     from . import portfolio, profile, userstore
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     row = {"symbol": symbol.strip().upper(), "date": date or _date.today().isoformat(), "type": type_.upper(),
            "quantity": quantity, "price": price, "fee": fee, "portfolio": portfolio_name or account, "note": note}
     try:
@@ -620,7 +620,7 @@ def portfolio_export(out: str = typer.Option(None, "--out", help="Write to this 
 
     from . import userstore
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     sel = _portfolio_ids(portfolio, None) if portfolio else (userstore.portfolio_ids("all", include_archived=True)
                                                               if all_ else None)
     text = userstore.export_transactions_csv(sel)
@@ -642,7 +642,7 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
     from . import performance as perf
     from . import profile, userstore
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     ids = _portfolio_ids(names, None) if names else [p["id"] for p in userstore.portfolios(include_archived=False)
                                                      if p["mode"] == "real" and p["n_tx"]]
     res = perf.compare(profile.Market.load(), ids, tag, start)
@@ -699,7 +699,7 @@ def portfolios_list(as_json: bool = typer.Option(False, "--json", help="As JSON 
 
     from . import userstore
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     rows = userstore.portfolios(include_archived=archived)
     if as_json:
         typer.echo(json.dumps(rows, indent=1, ensure_ascii=False))
@@ -860,7 +860,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
     from . import profile, userstore
     from .backtest import exits
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     variants = exits.VARIANTS if variant == "both" else (variant,)
     if any(v not in exits.VARIANTS for v in variants):
         raise typer.Exit("--variant must be overlay, rules or both")
@@ -1018,7 +1018,7 @@ def sim_picks(asof: str = typer.Option(None, "--asof", help="1M, 3M, 6M, 1Y, tod
     from . import profile
     from .backtest import picks, study
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     with _job("sim") as log:
         market = profile.Market.load()
         p = study.panels(market)

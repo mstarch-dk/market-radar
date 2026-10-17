@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from datetime import datetime
 
-from . import coverage, external, factors, ingest, locks, ops, report, sentiment, universe, valuation
+from . import coverage, external, factors, ingest, locks, ops, report, sentiment, trades, universe, valuation
 from .config import settings
 from .fundamentals import edgar, yahoo
 from .paths import CACHE
@@ -93,7 +93,7 @@ def _update(log: Log, refresh_constituents: bool, progress) -> None:
 
 def update_external(log: Log = print) -> None:
     """Non-price sources. A failure keeps the previous cached file, so the report still builds."""
-    h = universe.holdings()
+    h = trades.holdings()
     mine = sorted(h.loc[h["status"].isin(["holding", "watch"]), "symbol"].dropna()) if not h.empty else []
     _steps({
         "cftc": ("CFTC positioning", lambda: f"{external.update_cot()} new rows"),

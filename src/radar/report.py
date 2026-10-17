@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import date
 
-from . import dashboard, ops, snapshot
+from . import dashboard, ops, snapshot, trades
 from .config import write_text
 from .fundamentals import context as fcontext
 from .jsonsafe import dumps
@@ -79,9 +79,9 @@ def _write(path, data: dict) -> None:
 
 
 def _portfolios() -> list[dict]:
-    from . import performance, profile, universe
+    from . import performance, profile
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
     return performance.summary(profile.Market.load())
 
 

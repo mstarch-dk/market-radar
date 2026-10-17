@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 
+from . import trades
 from .config import POSITIVE_LIST_FILE, ROOT, settings
 from .paths import NOTES, PRICES_FILE, REPORTS
 
@@ -112,7 +113,7 @@ def _positive_list() -> list[dict]:
 
 
 def _portfolio() -> list[dict]:
-    from . import universe, userstore
+    from . import userstore
 
     out = []
     legacy = userstore.meta_get("legacy_csv") or {}
@@ -123,7 +124,7 @@ def _portfolio() -> list[dict]:
                           "The old files are still used. Re-import from Yahoo Finance or enter the trades on the "
                           "Portfolio page; nothing was lost."))
     else:
-        n = len(universe.transactions())
+        n = len(trades.transactions())
         out.append(_check("Your portfolio", "info", f"{n} transactions" if n else "no transactions yet (optional)",
                           None if n else "In the app: Portfolio → add a trade, or import from your broker or Yahoo Finance."))
     profile = NOTES / "investor.md"

@@ -13,14 +13,14 @@ import csv
 import io
 import math
 import re
-from datetime import datetime
+from datetime import date, datetime
 from functools import cache
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
-from .. import money
+from .. import money, trades
 
 FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref",
           "cash_amount"]
@@ -520,3 +520,83 @@ def commit(pv: dict, filename: str, confirm_warnings: bool) -> dict:
                 if key.upper() != m["chosen"]:
                     userstore.map_symbol(key, m["chosen"])
     return res | {"source": source}
+
+
+# ---------- the Yahoo Finance portfolio export (a full snapshot) ----------
+
+def _yahoo_rows(path: str) -> tuple[list[dict], list[str], dict[str, list[str]], list[str]]:
+    """A Yahoo Finance portfolio export as transaction rows, the symbols without transactions (its watchlist),
+    a note per symbol for rows that were skipped (types other than BUY/SELL), and the buys/sells that can't be read
+    (no purchase price or trade date: "SYMBOL (row n)"). Indices, futures, FX and cash rows are left out."""
+    raw = pd.read_csv(path)
+    raw.columns = [c.strip() for c in raw.columns]
+    raw["Quantity"] = pd.to_numeric(raw.get("Quantity"), errors="coerce")
+    raw["Purchase Price"] = pd.to_numeric(raw.get("Purchase Price"), errors="coerce")
+    raw["Commission"] = pd.to_numeric(raw.get("Commission"), errors="coerce")
+    trade = pd.to_numeric(raw.get("Trade Date"), errors="coerce").astype("Int64").astype("string")
+    raw["Trade Date"] = pd.to_datetime(trade, format="%Y%m%d", errors="coerce")
+    # older exports have no type: their lots are buys
+    kind = raw.get("Transaction Type", pd.Series("", index=raw.index)).fillna("").astype(str).str.strip().str.upper()
+    raw["Transaction Type"] = kind.replace("", "BUY")
+    raw = raw[~raw["Symbol"].map(trades.is_market_symbol)]
+    watch = sorted(s for s, lots in raw.groupby("Symbol") if lots["Quantity"].isna().all())
+    skipped: dict[str, list[str]] = {}
+    for _, r in raw[~raw["Transaction Type"].isin(["BUY", "SELL"]) & raw["Quantity"].notna()].iterrows():
+        day = f" on {r['Trade Date']:%Y-%m-%d}" if pd.notna(r["Trade Date"]) else ""
+        skipped.setdefault(r["Symbol"], []).append(
+            f"skipped a {r['Transaction Type']} transaction{day}: only BUY/SELL are replayed")
+    deals = raw[raw["Transaction Type"].isin(["BUY", "SELL"]) & raw["Quantity"].notna()]
+    bad = deals[deals["Purchase Price"].isna() | deals["Trade Date"].isna()]
+    unreadable = [f"{r['Symbol']} (row {i + 2}: no {'purchase price' if pd.isna(r['Purchase Price']) else 'trade date'})"
+                  for i, r in bad.iterrows()]
+    tx = deals.drop(bad.index)
+    rows = [{"symbol": r["Symbol"], "date": r["Trade Date"].date().isoformat(), "type": r["Transaction Type"],
+             "quantity": float(r["Quantity"]), "price": float(r["Purchase Price"]),
+             "fee": 0.0 if pd.isna(r["Commission"]) else float(r["Commission"])} for _, r in tx.iterrows()]
+    return rows, watch, skipped, unreadable
+
+
+def _import_market():
+    """The stored prices, to check imported prices against the day's close; None before the first download."""
+    from ..market import Market
+    from ..paths import PRICES_FILE
+
+    return Market.load() if PRICES_FILE.exists() else None   # no prices yet: the import works, unchecked
+
+
+def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    """Import a Yahoo Finance portfolio export into the transaction store.
+
+    The export is a full snapshot of that Yahoo portfolio, so it replaces the default portfolio's rows from the
+    previous Yahoo import (manual entries, other brokers' imports and trades moved to another portfolio are
+    kept) and its watchlist. Because it replaces, a file with a buy or sell that can't be read (no purchase price
+    or trade date) or one dated in the future is refused before anything changes: importing it would silently
+    drop that lot. Prices about 100× off or far from the day's close are noted. Returns the positions of the
+    exported symbols and the notes per symbol (skipped rows, price checks, replay warnings)."""
+    from .. import portfolio, userstore
+
+    trades.ensure_migrated()
+    rows, watch, skipped, unreadable = _yahoo_rows(path)   # read everything before writing anything
+    if unreadable:
+        raise ValueError(f"{len(unreadable)} buy/sell rows can't be read: {'; '.join(unreadable[:8])}"
+                         + (f" and {len(unreadable) - 8} more" if len(unreadable) > 8 else "")
+                         + ". Importing would drop those lots, so nothing was changed: fill them in on Yahoo and "
+                           "export again, or use the import wizard (Portfolio → Import) to enter them.")
+    future = sorted({r["symbol"] for r in rows if r["date"] > date.today().isoformat()})
+    if future:
+        raise ValueError(f"trades dated in the future for {', '.join(future)}: nothing was changed")
+    market = _import_market()
+    if market is not None:
+        for r in rows:
+            pc = portfolio.price_check(market, r["symbol"], r["date"], r["price"])
+            if pc["verdict"] in ("x100", "div100", "far"):
+                skipped.setdefault(r["symbol"], []).append(f"{r['date']}: {pc['message']}")
+    userstore.add_import(rows, "yahoo", Path(path).name, replace_source=True)
+    userstore.meta_set("yahoo_watch", watch)
+    exported = {r["symbol"] for r in rows} | set(watch)
+    pos, warnings = trades.positions(trades.transactions())
+    pos = pos[pos["symbol"].isin(exported)]
+    watch_rows = pd.DataFrame({"symbol": [w for w in watch if w not in set(pos["symbol"])], "status": "watch"})
+    df = pd.concat([pos, watch_rows], ignore_index=True)[trades.HOLDING_COLS]
+    notes = {k: skipped.get(k, []) + warnings.get(k, []) for k in exported if skipped.get(k) or warnings.get(k)}
+    return df.sort_values("symbol").reset_index(drop=True), notes

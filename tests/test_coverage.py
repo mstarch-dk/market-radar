@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from radar import coverage, universe
+from radar import constituents, coverage
 from radar.signals import levels
 
 
@@ -29,10 +29,10 @@ def test_constituents_fall_back_to_cache_when_download_fails(tmp_data, monkeypat
 
     def boom():
         raise ConnectionError("ssga down")
-    monkeypatch.setattr(universe, "_spy_holdings", boom)
-    assert universe.us_constituents(refresh=True) == ["AAPL", "MSFT"]
+    monkeypatch.setattr(constituents, "_spy_holdings", boom)
+    assert constituents.us_constituents(refresh=True) == ["AAPL", "MSFT"]
     assert "ssga down" in coverage.load_log()["constituents"]["error"]
-    assert universe.us_constituents(offline=True) == ["AAPL", "MSFT"]
+    assert constituents.us_constituents(offline=True) == ["AAPL", "MSFT"]
 
 
 def test_analyst_view_ignores_old_consensus():

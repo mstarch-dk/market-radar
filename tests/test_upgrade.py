@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from radar import backup, export, home, paths, universe, userstore
+from radar import backup, export, home, paths, trades, userstore
 
 HOMES = Path(__file__).parent / "fixtures" / "homes"
 FIXTURES = sorted(p for p in HOMES.iterdir() if (p / "expected.json").exists())
@@ -39,7 +39,7 @@ def test_a_released_data_folder_opens_with_nothing_lost(fixture, tmp_path):
     assert pf and pf["tags"] == ["lang"] and pf["kind"] == "frie_midler"
     rows = userstore.transactions(portfolios=[pf["id"]])
     assert sorted(r["type"] for r in rows) == ["BUY", "BUY", "DEPOSIT", "SELL"]
-    assert "ASML.AS" in set(universe.holdings()["symbol"])
+    assert "ASML.AS" in set(trades.holdings()["symbol"])
     assert (loc.home / "notes" / "investor.md").read_text(encoding="utf-8").endswith("Æøå.")
     assert (loc.history / "snapshots" / "2025-09-01_momentum.parquet").exists()
 

@@ -17,7 +17,7 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from radar import external, ingest, net, sentiment, universe, valuation
+from radar import constituents, external, ingest, net, sentiment, valuation
 from radar.discovery import sources
 
 pytestmark = pytest.mark.network
@@ -89,7 +89,7 @@ def test_damodaran_erp():
 
 
 def test_spy_holdings():
-    assert len(universe._spy_holdings()) >= universe.SPY_MIN_HOLDINGS
+    assert len(constituents._spy_holdings()) >= constituents.SPY_MIN_HOLDINGS
 
 
 @pytest.mark.parametrize("key", ["stoxx600", "sp500"])

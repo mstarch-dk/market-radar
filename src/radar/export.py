@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from . import home, paths, userstore
+from . import home, paths, trades, userstore
 
 EXPORT_FORMAT = 1
 TX = "transactions.csv"
@@ -85,9 +85,8 @@ def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str
 
 
 def universe_migrated() -> None:
-    from . import universe
 
-    universe.ensure_migrated()
+    trades.ensure_migrated()
 
 
 def restore_holdings(z: zipfile.ZipFile, reason: str = "before-unbundle") -> dict:
