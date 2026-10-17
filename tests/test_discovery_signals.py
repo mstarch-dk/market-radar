@@ -45,7 +45,7 @@ def test_scores_rank_within_each_market_and_compare_with_a_month_ago():
     closes, volumes = _world()
     df = _compute(closes, volumes)
     assert df.loc["A", "score"] > df.loc["B", "score"] > df.loc["C", "score"]
-    assert df.loc["D", "market"] == "m2" and df.loc["D", "score"] == 100     # alone in its market
+    assert df.loc["D", "market"] == "m2" and pd.isna(df.loc["D", "score"])  # alone in its market: no peers
     assert df.loc["A", "d_score"] == pytest.approx(df.loc["A", "score"] - df.loc["A", "score_prev"])
     assert df.loc["A", "r1w"] == pytest.approx((1.002) ** 5 - 1)
 

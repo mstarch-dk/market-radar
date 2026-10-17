@@ -10,6 +10,7 @@ import pytest
 import world
 from radar import fees, mine, performance, profile, simulate, userstore
 from radar.backtest import exits, pit
+from radar.model.score import score_vs
 from radar.signals import momentum, regime
 from world import IDX, N
 
@@ -73,7 +74,7 @@ def test_score_is_the_percentile_against_the_universe_that_day(market):
     lead = momentum.leaders(market.closes.loc[:d], market.volumes.loc[:d], {"us": world.UNIVERSE["stock_groups"]["us"]["tickers"],
                             "europe": world.UNIVERSE["stock_groups"]["europe"]["tickers"]}, 200)
     row = momentum.metrics(market.closes.loc[:d], market.volumes.loc[:d], ["S3"], 200).iloc[0]
-    assert ctx.score("S3", d) == mine._pct_vs(lead, row) is not None
+    assert ctx.score("S3", d) == score_vs(lead, row) is not None
 
 
 def test_the_regime_reads_enough_rows_to_equal_the_full_history(market):

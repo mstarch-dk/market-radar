@@ -22,7 +22,7 @@ Hver region viser sine top {{settings:momentum.top_n}} navne. Aktierne konkurrer
 Kolonnen *Score* (0–100) er radarens samlede momentummål. Den regnes sådan:
 
 1. For hver aktie i regionen beregnes tre afkast: **12-1 måneder** (de seneste 12 måneder, men uden den seneste måned), **6 måneder** og **3 måneder**.
-2. For hvert af de tre afkast findes aktiens **percentil** i regionen: 100 er regionens højeste, 0 den laveste.
+2. For hvert af de tre afkast findes aktiens **percentil** i regionen: andelen af regionens aktier med et lavere afkast. Den laveste får 0, den højeste lige under 100.
 3. Scoren er **gennemsnittet** af de tre percentiler.
 
 En score på 90 betyder altså, at aktien i gennemsnit ligger i toppen 10 % af sin region på de tre horisonter. Den seneste måned springes over i 12-månedersmålet, fordi meget kortsigtede bevægelser har en tendens til at vende (kortsigtet reversal).

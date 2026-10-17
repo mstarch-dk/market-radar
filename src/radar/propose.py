@@ -40,6 +40,7 @@ import pandas as pd
 
 from . import fees, performance, universe, userstore
 from .config import settings, universe_config, write_text
+from .model import paths as mpaths
 from .paths import HOME, REPORTS
 
 STUDY_FILE = "propose-study.json"
@@ -256,11 +257,11 @@ def exposures(values: dict[str, float], meta: pd.DataFrame, acwi: dict | None) -
 
 def pool(market, prices: Prices, p=None, day=None, fund_table: pd.DataFrame | None = None, live: bool = True) -> pd.DataFrame:
     """The stock universe ranked on `day` (default: the latest session) with what the proposal needs."""
-    from .backtest import picks, study
+    from .model import panels as mp
 
-    p = p or study.panels(market)
+    p = p or mp.panels(market)
     day = pd.Timestamp(day) if day is not None else p.sessions[-1]
-    df = picks.ranked(p, day).set_index("ticker")
+    df = mp.ranked(p, day).set_index("ticker")
     tick = list(df.index)
     df["history"] = p.m["history"].loc[day].reindex(tick)
     dk = p.dkk.loc[:day].iloc[-20:]
@@ -1493,8 +1494,8 @@ def shadow(market, doc: dict, name: str) -> dict:
 
 
 def _basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
-    """Equal DKK weights bought at the close of `start`: kept, and with the trend exit (close below the average,
-    sold at the next close, parked in ACWI)."""
+    """Equal DKK weights bought at the close of `start`: kept, and with the trend exit (model.paths: a close below
+    the average after the buy day, sold at the next close, parked in ACWI)."""
     bench = universe.benchmark()
     b = prices.dkk(bench)
     legs, legs_x, events = [], [], []
@@ -1503,19 +1504,17 @@ def _basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: i
         if s is None or s.loc[start:].empty:
             continue
         w = s.loc[start:]
-        legs.append(w / w.iloc[0])
+        leg = w / w.iloc[0]
+        legs.append(leg)
         if sma and t in prices.market.closes:
-            c = prices.market.closes[t]
-            below = (c < c.rolling(sma, min_periods=sma).mean()).loc[start:]
-            hit = below[below].index
-            if len(hit) and hit[0] < w.index[-1]:
-                k = w.index[w.index > hit[0]][0]
-                bb = b.reindex(w.index).ffill()
-                leg = (w / w.iloc[0]).where(w.index <= k, (w.loc[k] / w.iloc[0]) * bb / bb.loc[k])
-                legs_x.append(leg)
-                events.append({"ticker": t, "date": k.date().isoformat()})
+            below = mpaths.below_trend(prices.market.closes[t], sma).reindex(w.index, fill_value=False)
+            k = mpaths.exit_session(w.index, below)
+            if k is not None:
+                kd = w.index[k]
+                legs_x.append(mpaths.park(leg, kd, b.reindex(w.index).ffill()))
+                events.append({"ticker": t, "date": kd.date().isoformat()})
                 continue
-        legs_x.append(w / w.iloc[0])
+        legs_x.append(leg)
     if not legs:
         return {}
     v = pd.concat(legs, axis=1).ffill().mean(axis=1)
@@ -1568,12 +1567,12 @@ def _mean(v):
 
 def check(market, portfolio: str | None = None) -> dict:
     """Each open proposal's exit criteria today: Intact, Weakening or Triggered, with the evidence."""
-    from .backtest import study
+    from .model import panels as mp
 
     c = cfg()
     prices = Prices(market)
     st = settings()["stops"]
-    p = study.panels(market)
+    p = mp.panels(market)
     pl = pool(market, prices, p)
     exit_mtime = max((f.stat().st_mtime for f in (REPORTS / "exit-study.json", REPORTS / "redeploy-study.json")
                       if f.exists()), default=None)
@@ -1603,7 +1602,7 @@ def check(market, portfolio: str | None = None) -> dict:
             cl = market.closes[t].dropna() if t in market.closes else pd.Series(dtype=float)
             sma = int((ex.get("review_level") or {}).get("sma") or st["trend_sma"])
             if len(cl) >= sma:
-                lvl = float(cl.rolling(sma).mean().iloc[-1])
+                lvl = float(mpaths.trend_level(cl, sma).iloc[-1])
                 gap = float(cl.iloc[-1] / lvl - 1)
                 items.append({"criterion": f"close vs {sma}-day average", "value": gap,
                               "status": "triggered" if gap < 0 else "weakening" if gap < c["exit"]["weakening"] else "intact"})

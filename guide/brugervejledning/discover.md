@@ -36,7 +36,7 @@ Markedet for UCITS-ETF'er kræver, at positivlisten ligger i `imports/positivlis
 
 ## Scoren og Δ score
 
-*Score* er den samme momentumscore som på [Momentum](brugervejledning/momentum#momentumscoren): gennemsnittet af percentilerne for 12-1-måneds-, 6-måneds- og 3-månedsafkast. Den rangeres **inden for hvert marked**, så en nordisk small cap konkurrerer med nordiske navne og ikke med de største europæiske selskaber.
+*Score* er den samme momentumscore som på [Momentum](brugervejledning/momentum#momentumscoren): gennemsnittet af percentilerne for 12-1-måneds-, 6-måneds- og 3-månedsafkast. Den rangeres **inden for hvert marked**, så en nordisk small cap konkurrerer med nordiske navne og ikke med de største europæiske selskaber. Står en aktie alene i sit marked, har den ingen score, for der er ingen at sammenligne den med.
 
 *Δ score* er ændringen i scoren over den seneste måned (21 handelsdage): scoren i dag minus scoren regnet på kurserne for en måned siden. En stor stigning betyder, at navnet klatrer i rangeringen, også selvom det endnu ikke er blandt de højeste. Det er ofte det mest interessante tal på siden.
 

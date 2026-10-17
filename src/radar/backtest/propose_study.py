@@ -31,7 +31,9 @@ import pandas as pd
 from .. import propose, universe
 from ..config import settings, write_text
 from ..paths import REPORTS
-from . import picks, study
+from ..model import panels as mp
+from ..model import paths as mpaths
+from . import study
 
 CAVEATS = [
     "Survivorship: today's universe (S&P 500 constituents and the curated lists), so names that left it are missing; "
@@ -86,14 +88,14 @@ def split(recs: list[dict], h: int, prefix: str, holdout) -> dict:
 class Paths:
     """Basket paths on the session calendar: kept and with the proposal's exits."""
 
-    def __init__(self, p: study.Panels, sma_n: int, c: dict):
+    def __init__(self, p: mp.Panels, sma_n: int, c: dict):
         self.p = p
         self.dkk = p.dkk.reindex(p.sessions).ffill(limit=5)
         self.close = p.closes.reindex(p.sessions).ffill(limit=5)
-        self.below = self.close < p.closes.rolling(sma_n, min_periods=sma_n).mean().reindex(p.sessions)
+        self.below = self.close < mpaths.trend_level(p.closes, sma_n).reindex(p.sessions)
         self.bench = p.bench_dkk.reindex(p.sessions).ffill()
         self.c = c
-        self.month_ends = set(study.formation_dates(p.sessions))
+        self.month_ends = set(mp.formation_dates(p.sessions))
         self._sig: dict = {}
 
     def signal_below(self, day, tilt: str) -> pd.Series:
@@ -102,7 +104,7 @@ class Paths:
         if key not in self._sig:
             w = self.c["tilts"][tilt]
             if w.get("momentum", 0) >= w.get("qv", 0):
-                s = study._score(self.p, day)
+                s = mp.score_at(self.p, day)
                 self._sig[key] = s < self.c["exit"]["min_score"]
             else:
                 s = self.p.fund.col(day, "qv") if self.p.fund is not None else pd.Series(dtype=float)
@@ -125,15 +127,11 @@ class Paths:
         xl, n_ex = [], 0
         for t in tickers:
             leg = legs[t]
-            k = None
-            for i, d in enumerate(idx[1:-1], 1):
-                if bool(self.below.at[d, t]) or (d in self.month_ends and bool(self.signal_below(d, tilt).get(t, False))):
-                    k = i + 1                                  # sold at the next session's close
-                    break
-            if k is not None and k < len(idx):
+            k = mpaths.exit_session(idx, self.below[t], lambda d, t=t: d in self.month_ends
+                                    and bool(self.signal_below(d, tilt).get(t, False)))
+            if k is not None:
                 n_ex += 1
-                kd = idx[k]
-                leg = leg.where(leg.index <= kd, leg.loc[kd] * (1 - cost) * b / b.loc[kd])
+                leg = mpaths.park(leg, idx[k], b, cost)
             xl.append(leg)
         vx = pd.concat(xl, axis=1).mean(axis=1)
         out |= self._stats(vx, cost, "x_") | {"x_exits": n_ex}
@@ -149,7 +147,7 @@ class Paths:
 
 
 def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_regime: bool = True,
-        log=lambda *_: None, p: study.Panels | None = None) -> dict:
+        log=lambda *_: None, p: mp.Panels | None = None) -> dict:
     c = propose.cfg()
     bt = settings().get("backtest") or {}
     ns = list(ns or c["study_ns"])
@@ -163,7 +161,7 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     fill = bt.get("fill", "next")
     holdout = pd.Timestamp(bt["study_holdout_from"]) if bt.get("study_holdout_from") else None
     min_names = int(bt.get("study_min_names", 30))
-    p = p or study.panels(market)
+    p = p or mp.panels(market)
     needs_fund = any(c["tilts"][t].get("qv", 0) > 0 for t in tilts)
     if needs_fund and p.fund is None:
         from .fund import FundPIT
@@ -191,11 +189,11 @@ def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_re
     short = {t: {n: 0 for n in ns} for t in tilts}
     ics = {t: [] for t in tilts}
     dates_out = []
-    for day in study.formation_dates(p.sessions, since):
-        fi = study.fill_session(p.sessions, day, fill)
+    for day in mp.formation_dates(p.sessions, since):
+        fi = mp.fill_session(p.sessions, day, fill)
         if fi is None:
             continue
-        df0 = picks.ranked(p, day).set_index("ticker")
+        df0 = mp.ranked(p, day).set_index("ticker")
         if df0["score"].notna().sum() < min_names:
             continue
         tick = list(df0.index)

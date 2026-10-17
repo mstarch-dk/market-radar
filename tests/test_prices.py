@@ -6,6 +6,7 @@ import pytest
 
 from radar import dashboard, ingest, mine, paths
 from radar.mine import _vs_shadow
+from radar.model.score import score_vs
 
 
 def _bars(ticker, closes, start="2026-01-05"):
@@ -106,8 +107,8 @@ def test_won_and_taiwan_dollar_cross_via_usd():
 def test_pct_vs_is_the_mean_percentile_against_the_region():
     dist = pd.DataFrame({"r12_1": [0.1, 0.2, 0.3, 0.4], "r6m": [0.1, 0.2, 0.3, 0.4], "r3m": [0.1, 0.2, 0.3, 0.4]})
     row = pd.Series({"r12_1": 0.35, "r6m": 0.05, "r3m": 0.25})
-    assert mine._pct_vs(dist, row) == pytest.approx(round(100 * (0.75 + 0 + 0.5) / 3, 1))
-    assert mine._pct_vs(dist, row.copy().replace(0.35, np.nan)) is None
+    assert score_vs(dist, row) == pytest.approx(round(100 * (0.75 + 0 + 0.5) / 3, 1))
+    assert score_vs(dist, row.copy().replace(0.35, np.nan)) is None
 
 
 def test_records_are_json_safe():

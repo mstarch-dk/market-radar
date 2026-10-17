@@ -49,6 +49,7 @@ import pandas as pd
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
 from ..fees import SimFees, Terms
+from ..model import paths as mpaths
 from ..paths import REPORTS
 from .pit import Context
 
@@ -382,7 +383,7 @@ class Replay:
 
     def sma(self, sym: str, day: pd.Timestamp) -> float | None:
         if sym not in self._sma:
-            self._sma[sym] = self.market.closes[sym].rolling(self.spec.sma, min_periods=self.spec.sma).mean()
+            self._sma[sym] = mpaths.trend_level(self.market.closes[sym], self.spec.sma)
         v = self._sma[sym].get(day)
         return None if v is None or pd.isna(v) else float(v)
 

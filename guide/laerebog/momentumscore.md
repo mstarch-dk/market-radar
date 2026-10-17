@@ -58,19 +58,19 @@ $$
 
 ### Scoren
 
-Inden for hver region rangeres hvert af de tre afkast med pandas' `rank(pct=True)`: rang divideret med antal aktier med en værdi, hvor den højeste får 1 og lige store værdier deler gennemsnitsrangen. Scoren er
+Inden for hver region får hvert af de tre afkast en percentil: **andelen af regionens aktier med en værdi, der har et strengt lavere afkast** (`model/score.py`). Lige store værdier får samme percentil, nemlig andelen under dem. Scoren er
 
 $$
 \text{score} = 100 \cdot \frac{q(r_{12\text{-}1}) + q(r_{6m}) + q(r_{3m})}{3}
 $$
 
-hvor $q$ er percentilrangen, afrundet til én decimal. Aktierne sorteres efter scoren, og rang 1 er den stærkeste (ved lighed afgør rækkefølgen i listen).
+hvor $q$ er percentilen, afrundet til én decimal. Aktierne sorteres efter scoren, og rang 1 er den stærkeste (ved lighed afgør rækkefølgen i listen).
 
 Fire regler er værd at kende:
 
 - **Manglende input giver ingen score.** Mangler ét af de tre afkast, er scoren tom, ikke et gennemsnit af de to andre (`skipna=False`). Aktien vises ikke på toplisten.
 - **Historikkrav.** Har en aktie færre end {{settings:momentum.min_history_days}} rækker med kurs i vinduet (`momentum.min_history_days`), sættes 12-1-afkastet og SMA200 til manglende. I praksis kræver 12-1-afkastet desuden en kurs 252 rækker tilbage, altså cirka et års historik. En aktie med 200–252 dages historik får derfor heller ingen score.
-- **Laveste mulige score er ikke 0.** Med $N$ aktier i en region er den laveste percentilrang $1/N$, så selv den svageste aktie får $100/N$. For S&P 500 er det 0,2, for en kurateret liste på 40 aktier 2,5.
+- **Højeste mulige score er ikke 100.** Med $N$ aktier i en region har den stærkeste højst $N-1$ aktier under sig, så den får højst $100 \cdot (N-1)/N$. For S&P 500 er det 99,8, for en kurateret liste på 40 aktier 97,5. Den svageste får 0.
 - **Hver horisont rangeres for sig.** En aktie uden 12-1-afkast (fx en ny notering) indgår stadig i rangeringen af 6- og 3-måneders afkast for de andre, selvom den ikke selv får en score.
 
 Scoren vises i kolonnen *Score* med en farvet måler (`gauges.score` i `settings.yaml`, med markeringer ved {{settings:gauges.score.ticks}}) og ordene *weak*, *below average*, *average*, *strong* og *leader*.
@@ -103,12 +103,9 @@ En gruppe vises som klynge, hvis den har mindst {{settings:sectors.cluster_min}}
 
 ### Dine beholdninger: percentil mod hele universet
 
-I [Mine beholdninger](/me) beregnes scoren anderledes (`mine._pct_vs`), så aktier fra forskellige markeder kan sammenlignes: for hvert af de tre afkast tælles **andelen af alle aktier i alle fire regioner, der har et strengt lavere afkast** (en aktie på to lister tæller to gange), og gennemsnittet ganges med 100. Mangler ét af beholdningens tre afkast, er der ingen score. To forskelle fra regionsscoren:
+I [Mine beholdninger](/me) bruges samme regel (andelen strengt under), men mod en anden gruppe, så aktier fra forskellige markeder kan sammenlignes: **alle aktier i alle fire regioner** (en aktie på to lister tæller to gange). Mangler ét af beholdningens tre afkast, er der ingen score.
 
-1. Sammenligningsgruppen er hele universet, ikke regionen.
-2. "Strengt under" giver den laveste 0 og er $1/N$ lavere end `rank(pct=True)` for en aktie uden ligestillede.
-
-Den samme aktie kan derfor have én score på [Momentum](/momentum) og en anden i [Mine beholdninger](/me). På tickerprofilen bruges regionsscoren, hvis aktien er på en regionsliste; ellers andelen strengt under inden for den region, aktien hører til (eller den amerikanske liste, hvis regionen er ukendt). Profilen skriver, hvilket grundlag der er brugt.
+Den samme aktie kan derfor have én score på [Momentum](/momentum) og en anden i [Mine beholdninger](/me), fordi gruppen er en anden. Reglen er den samme. Det er også den regel, som [testen af scoren](laerebog/test-af-scoren), forslagene og simuleringerne bruger: radaren regner scoren ét sted, så det, der er testet, er det, du ser. På tickerprofilen bruges regionsscoren, hvis aktien er på en regionsliste; ellers andelen strengt under inden for den region, aktien hører til (eller den amerikanske liste, hvis regionen er ukendt). Profilen skriver, hvilket grundlag der er brugt.
 
 Scoren bruges også i de regelbaserede stop: med intakt trend og en score på mindst {{settings:stops.strong_score}} (`stops.strong_score`) får positionen mere plads. Se [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse).
 
@@ -124,29 +121,29 @@ Scoren bruges også i de regelbaserede stop: med intakt trend og en score på mi
 | D | −10 % | −5 % | 3 % |
 | E | 25 % | 30 % | 15 % |
 
-**Trin 1: percentilrang pr. horisont** (rang fra lavest = 1 til højest = 5, divideret med 5):
+**Trin 1: percentil pr. horisont** (antal af de fem aktier med et strengt lavere afkast, divideret med 5):
 
 | Aktie | $q(r_{12\text{-}1})$ | $q(r_{6m})$ | $q(r_{3m})$ |
 |---|---|---|---|
-| A | 4/5 = 0,8 | 4/5 = 0,8 | 3/5 = 0,6 |
-| B | 2/5 = 0,4 | 3/5 = 0,6 | 4/5 = 0,8 |
-| C | 5/5 = 1,0 | 2/5 = 0,4 | 1/5 = 0,2 |
-| D | 1/5 = 0,2 | 1/5 = 0,2 | 2/5 = 0,4 |
-| E | 3/5 = 0,6 | 5/5 = 1,0 | 5/5 = 1,0 |
+| A | 3/5 = 0,6 | 3/5 = 0,6 | 2/5 = 0,4 |
+| B | 1/5 = 0,2 | 2/5 = 0,4 | 3/5 = 0,6 |
+| C | 4/5 = 0,8 | 1/5 = 0,2 | 0/5 = 0,0 |
+| D | 0/5 = 0,0 | 0/5 = 0,0 | 1/5 = 0,2 |
+| E | 2/5 = 0,4 | 4/5 = 0,8 | 4/5 = 0,8 |
 
 **Trin 2: gennemsnit gange 100:**
 
 | Aktie | Beregning | Score | Rang |
 |---|---|---|---|
-| E | (0,6 + 1,0 + 1,0)/3 · 100 | **86,7** | 1 |
-| A | (0,8 + 0,8 + 0,6)/3 · 100 | **73,3** | 2 |
-| B | (0,4 + 0,6 + 0,8)/3 · 100 | **60,0** | 3 |
-| C | (1,0 + 0,4 + 0,2)/3 · 100 | **53,3** | 4 |
-| D | (0,2 + 0,2 + 0,4)/3 · 100 | **26,7** | 5 |
+| E | (0,4 + 0,8 + 0,8)/3 · 100 | **66,7** | 1 |
+| A | (0,6 + 0,6 + 0,4)/3 · 100 | **53,3** | 2 |
+| B | (0,2 + 0,4 + 0,6)/3 · 100 | **40,0** | 3 |
+| C | (0,8 + 0,2 + 0,0)/3 · 100 | **33,3** | 4 |
+| D | (0,0 + 0,0 + 0,2)/3 · 100 | **6,7** | 5 |
 
-C har det klart bedste 12-1-afkast, men er faldet tilbage de seneste måneder og ender som nummer 4. E er ikke bedst på lang sigt, men stærkest på de to korte horisonter og vinder samlet. Med fem aktier er den lavest mulige score 100/5 = 20.
+C har det klart bedste 12-1-afkast, men er faldet tilbage de seneste måneder og ender som nummer 4. E er ikke bedst på lang sigt, men stærkest på de to korte horisonter og vinder samlet. Med fem aktier er den højest mulige score 100 · 4/5 = 80. I en lille gruppe trækker reglen alle scorer ned; i en region med flere hundrede aktier er det under et point.
 
-**Målerne.** E's score på 86,7 ligger mellem ankrene (80; 0,6) og (95; 1) i standardopsætningen: $0.6 + 0.4 \cdot 6.7 / 15 \approx 0.78$, niveau 3 af 4 og ordet *leader*. D's 26,7 ligger mellem (25; −0,5) og (40; 0): $-0.5 + 0.5 \cdot 1.7/15 \approx -0.44$, niveau −2 og ordet *below average*.
+**Målerne.** E's score på 66,7 ligger mellem ankrene (60; 0) og (80; 0,6) i standardopsætningen: $0.6 \cdot 6.7 / 20 \approx 0.20$, niveau 1 af 4 og ordet *strong*. D's 6,7 ligger mellem (0; −1) og (25; −0,5): $-1 + 0.5 \cdot 6.7/25 \approx -0.87$, niveau −3 og ordet *weak*.
 
 ### En beholdning mod universet
 
@@ -156,9 +153,7 @@ Du ejer aktie H med $r_{12\text{-}1}$ = 30 %, $r_{6m}$ = 20 % og $r_{3m}$ = 11 %
 - 6m: D, C og B (−5, 5, 18) er under 20 → 3/5 = 0,6
 - 3m: C, D og A (−2, 3, 10) er under 11 → 3/5 = 0,6
 
-H's score i [Mine beholdninger](/me) er 60,0.
-
-Til sammenligning: beregnet på samme måde (strengt under) ville E få (2/5 + 4/5 + 4/5)/3 · 100 = 66,7 mod de 86,7 i regionsrangeringen. Forskellen kommer af, at E ikke tæller sig selv som "under", og at gruppen er lille. I et univers på flere hundrede aktier er forskellen mellem metoderne under et point.
+H's score i [Mine beholdninger](/me) er 60,0. H er ikke selv med i gruppen og kan derfor nå 100. En aktie i gruppen tæller ikke sig selv som "under", og derfor kan E højst få 80.
 
 ### 12-1-afkastet
 

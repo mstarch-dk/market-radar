@@ -4,7 +4,7 @@
 - **Own row** (last, 50/200-day averages, trend, 1-month return): `momentum.metrics_panel`, row D, which equals
   `momentum.metrics(closes.loc[:D])`.
 - **Momentum score**: percentile of 12-1, 6- and 3-month returns against every stock in the universe on D, as on
-  My holdings (mine._pct_vs). The universe is today's list (survivorship: names that left it are missing).
+  My holdings (model.score.score_vs). The universe is today's list (survivorship: names that left it are missing).
 - **Quadrant** (sector/theme funds; a note only, it doesn't move k): the RRG at the last completed week (W-FRI)
   on or before D.
 - **Regime**: computed at the last session of each week and held until the next one. Prices up to that day
@@ -24,6 +24,8 @@ import pandas as pd
 
 from .. import dashboard, external, mine, universe, valuation
 from ..config import settings, universe_config
+from ..model import paths as mpaths
+from ..model.score import score_vs
 from ..signals import levels as lv
 from ..signals import momentum, regime, rotation
 from ..signals import valuation as sv
@@ -90,7 +92,7 @@ class Context:
         r = self.row(t, day)
         if r is None or day not in self.dist["r3m"].index:
             return None
-        return mine._pct_vs(pd.DataFrame({c: self.dist[c].loc[day] for c in self.dist}),
+        return score_vs(pd.DataFrame({c: self.dist[c].loc[day] for c in self.dist}),
                             pd.Series({c: r[c] if r[c] is not None else float("nan") for c in self.dist}))
 
     def quadrant(self, t: str, day: pd.Timestamp) -> str | None:
@@ -198,7 +200,7 @@ class Context:
         if cfg.get("mode") == "trend" and int(cfg.get("trend_sma", 200)) != 200:
             n = int(cfg["trend_sma"])
             if (t, "sma", n) not in self._atr_by:
-                self._atr_by[(t, "sma", n)] = self.market.closes[t].rolling(n, min_periods=n).mean()
+                self._atr_by[(t, "sma", n)] = mpaths.trend_level(self.market.closes[t], n)
             v = self._atr_by[(t, "sma", n)].get(day)
             extra["trend_level"] = None if v is None or pd.isna(v) else float(v)
         out = lv.levels(row | extra, atr, anchor, rg["label"], a, cfg)

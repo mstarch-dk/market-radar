@@ -1,7 +1,7 @@
 """Hindsight baskets: a basket chosen on a past day D from what the radar knew then, simulated from there, for
 inspiration and as single-date illustrations of the score (the evidence is the rolling study, backtest/study.py).
 
-- **Candidates** (`candidates`): the stock universe ranked on D (study.Panels, row D): score, its components,
+- **Candidates** (`candidates`): the stock universe ranked on D (mp.Panels, row D): score, its components,
   trend, volatility, close. Nothing after D. `blind` replaces tickers and names with C001… (by rank on D, so the
   same data gives the same ids), for picking on a date before the picker's knowledge cutoff. With `views`, your
   market views created by D, aligned with prices up to D (a view edited after D is flagged).
@@ -26,6 +26,8 @@ import pandas as pd
 from .. import performance, simulate, universe, userstore
 from ..config import settings, write_text
 from ..paths import REPORTS
+from ..model import panels as mp
+from ..model.select import capped
 from . import exits as ex
 from . import study
 
@@ -63,7 +65,7 @@ def resolve_asof(spec: str, sessions: pd.DatetimeIndex, fill: str = "next") -> t
 
 
 def _fill(sessions: pd.DatetimeIndex, day: pd.Timestamp) -> pd.Timestamp:
-    fi = study.fill_session(sessions, day, (settings().get("backtest") or {}).get("fill", "next"))
+    fi = mp.fill_session(sessions, day, (settings().get("backtest") or {}).get("fill", "next"))
     if fi is None:
         raise ValueError(f"no session after {day:%Y-%m-%d} to buy at yet: pick an earlier day (or 'today')")
     return sessions[fi]
@@ -71,20 +73,7 @@ def _fill(sessions: pd.DatetimeIndex, day: pd.Timestamp) -> pd.Timestamp:
 
 # ---------------- candidates ----------------
 
-def ranked(p: study.Panels, day: pd.Timestamp) -> pd.DataFrame:
-    """Every stock with a price on `day`, by score (best first; ties by ticker), with the inputs known then."""
-    last = p.m["last"].loc[day]
-    df = pd.DataFrame({
-        "score": study._score(p, day), "score_region": study.BY_KEY["score_region"].fn(p, day),
-        **{c: p.m[c].loc[day] for c in ("r1m", "r3m", "r6m", "r12_1", "from_high", "trend_ok", "above200")},
-        "vol": p.vol.loc[day], "close": last, "group": p.group, "sector": p.sector,
-        "dkk": p.dkk.loc[day].notna(),
-    })[last.notna()]
-    df.index.name = "ticker"
-    df = df.reset_index().sort_values(["score", "ticker"], ascending=[False, True], na_position="last", kind="stable")
-    df["rank"] = np.where(df["score"].notna(), np.arange(1, len(df) + 1), np.nan)
-    df["id"] = [f"C{i:03d}" for i in range(1, len(df) + 1)]
-    return df.reset_index(drop=True)
+ranked = mp.ranked
 
 
 def _clean(v):
@@ -99,8 +88,8 @@ def _clean(v):
 
 
 def candidates(market, asof, blind: bool = False, views: bool = False, top: int | None = None,
-               model_cutoff: str | None = None, p: study.Panels | None = None, fund: bool = False) -> dict:
-    p = p or study.panels(market)
+               model_cutoff: str | None = None, p: mp.Panels | None = None, fund: bool = False) -> dict:
+    p = p or mp.panels(market)
     day, note = resolve_asof(asof, p.sessions, (settings().get("backtest") or {}).get("fill", "next"))
     df = ranked(p, day)
     sec = universe.sectors(list(df["ticker"]))
@@ -197,28 +186,13 @@ def select(df: pd.DataFrame, n: int, max_per_sector: int | None = None, max_per_
     pool = df[df["score"].notna() & df["dkk"].eq(True)]        # a name without a DKK rate can't be bought here
     if trend:
         pool = pool[pool["trend_ok"].eq(True)]
-    chosen = _capped(list(pool.itertuples(index=False)), n, max_per_sector, max_per_group)
+    chosen = capped(list(pool.itertuples(index=False)), n, max_per_sector, max_per_group)
     if not chosen:
         return []
     w = np.ones(len(chosen)) if weighting == "equal" else np.array([r.score for r in chosen], dtype=float)
     w = w / w.sum()
     return [{"ticker": r.ticker, "weight": float(x), "why": f"score {r.score:.0f} (rank {int(r.rank)})"}
             for r, x in zip(chosen, w)]
-
-
-def _capped(rows: list, n: int, max_sector, max_group) -> list:
-    out, sec, grp = [], {}, {}
-    for r in rows:
-        s = r.sector or f"?{r.ticker}"
-        if max_sector and sec.get(s, 0) >= max_sector:
-            continue
-        if max_group and grp.get(r.group, 0) >= max_group:
-            continue
-        out.append(r)
-        sec[s], grp[r.group] = sec.get(s, 0) + 1, grp.get(r.group, 0) + 1
-        if len(out) >= n:
-            break
-    return out
 
 
 def random_percentile(pool: pd.DataFrame, ret: pd.Series, n: int, actual: float, max_per_sector=None,
@@ -233,7 +207,7 @@ def random_percentile(pool: pd.DataFrame, ret: pd.Series, n: int, actual: float,
     vals = []
     for _ in range(draws):
         order = rng.permutation(len(rows))
-        b = _capped([rows[i] for i in order], n, max_per_sector, max_per_group)
+        b = capped([rows[i] for i in order], n, max_per_sector, max_per_group)
         if len(b) == n:
             vals.append(float(ret.reindex([r.ticker for r in b]).mean()))
     if not vals:
@@ -324,13 +298,13 @@ def _ret(c: pd.DataFrame, t: str, f, e) -> float | None:
 
 
 def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_000.0, meta: dict | None = None,
-        end=None, model_cutoff: str | None = None, tags=(), write: bool = True, p: study.Panels | None = None) -> dict:
+        end=None, model_cutoff: str | None = None, tags=(), write: bool = True, p: mp.Panels | None = None) -> dict:
     """Simulate a basket picked on `asof` (picks by ticker or blind id; None = the score's own top N from `meta`)
     into three simulated portfolios, and build the report (reports/sim-picks/<slug>.json)."""
     meta = dict(meta or {})
     bt = settings().get("backtest") or {}
     fee = float(bt.get("fee_bps", 0))
-    p = p or study.panels(market)
+    p = p or mp.panels(market)
     fill_mode = bt.get("fill", "next")
     day, note = resolve_asof(asof, p.sessions, fill_mode)
     fday = _fill(p.sessions, day)
@@ -445,7 +419,7 @@ def baskets(tag: str | None = None) -> list[dict]:
             and (t is None or t in p["tags"])]
 
 
-def rerun(market, hold: dict, p: study.Panels | None = None) -> dict:
+def rerun(market, hold: dict, p: mp.Panels | None = None) -> dict:
     """Run a stored basket again on the latest prices, with its own picks and settings."""
     prm = hold.get("params") or {}
     if not prm.get("picks"):
