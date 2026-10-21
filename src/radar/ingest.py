@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from datetime import date, timedelta
 
 import numpy as np
@@ -11,7 +12,7 @@ import yfinance as yf
 
 from . import guard, locks, net
 from .config import typed, write_parquet, write_text
-from .paths import CACHE, FRED_FILE, PRICES_FILE
+from .paths import CACHE, FRED_FILE, FRED_ROLLING_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
 COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]
@@ -265,31 +266,66 @@ def norm_dates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+class Unavailable(RuntimeError):
+    """FRED answered with a web page (its maintenance page, say) instead of CSV: the site, not the series, is down."""
+
+
 def update_fred(series: list[str]) -> list[str]:
     """Download each FRED series in full; a series that fails, or answers with less than is cached (ending
-    earlier, starting later, fewer values: guard.check), keeps its cached values. Returns the failures."""
+    earlier, fewer values: guard.check), keeps its cached values. Returns the failures.
+
+    A series whose answer starts later than the cache (FRED serves ICE BofA's spreads for ~3 years only, a window
+    that rolls forward) is merged into it: fresh values win, the older ones FRED no longer serves are kept, and the
+    merged series also goes to FRED_ROLLING_FILE (history: it can't be downloaded again). An HTML answer stops the
+    loop: every series left keeps its cached values."""
     cached = load_fred()
-    cols, failed = {}, []
+    cols, failed, rolling = {}, [], {}
+    down: Unavailable | None = None
     for sid in series:
         url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
         try:
+            if down:
+                raise down
             resp = net.get(url, timeout=30)
             resp.raise_for_status()
+            if "html" in resp.headers.get("Content-Type", "").lower():
+                raise Unavailable(_html_reason(resp.text))
             s = parse_fred_csv(resp.text, sid)
             if sid in cached:
+                old = cached[sid].dropna()
+                if not old.empty and s.dropna().index.min() > old.index.min():
+                    s = s.combine_first(old)
+                    rolling[sid] = s
                 guard.check(cached[[sid]], s.to_frame(sid), what=f"FRED {sid}", key=None, date=None, row_tol=0.01)
             cols[sid] = s
+            continue
+        except Unavailable as e:
+            failed.append(f"{sid} (Unavailable)" if down else f"{sid} (Unavailable: {e})")
+            down = e
         except Exception as e:
             failed.append(f"{sid} ({type(e).__name__})")
-            if sid in cached:
-                cols[sid] = cached[sid]
+        rolling.pop(sid, None)
+        if sid in cached:
+            cols[sid] = cached[sid]
     if cols:
         write_parquet(pd.DataFrame(cols), FRED_FILE)
+    if rolling:
+        kept = pd.read_parquet(FRED_ROLLING_FILE) if FRED_ROLLING_FILE.exists() else pd.DataFrame()
+        write_parquet(pd.concat([kept.drop(columns=list(rolling), errors="ignore"), pd.DataFrame(rolling)], axis=1),
+                      FRED_ROLLING_FILE)
     return failed
+
+
+def _html_reason(text: str) -> str:
+    title = re.search(r"<title>(.*?)</title>", text, re.I | re.S)
+    name = re.sub(r"\s+", " ", title.group(1)).strip(" <") if title else ""
+    return f"FRED answered with a web page{f' ({name})' if name else ''}, not CSV"
 
 
 def parse_fred_csv(text: str, sid: str) -> pd.Series:
     """One series from FRED's graph CSV (date column first, named DATE or observation_date; gaps blank or ".")."""
+    if text.lstrip().startswith("<"):
+        raise Unavailable(_html_reason(text))
     csv = pd.read_csv(io.StringIO(text))
     if sid not in csv.columns:
         raise ValueError(f"no {sid} column in FRED's CSV (columns: {', '.join(csv.columns)})")
@@ -301,7 +337,12 @@ def parse_fred_csv(text: str, sid: str) -> pd.Series:
 
 
 def load_fred() -> pd.DataFrame:
-    return pd.read_parquet(FRED_FILE) if FRED_FILE.exists() else pd.DataFrame()
+    """The cached series, with the history FRED no longer serves (FRED_ROLLING_FILE) filled in behind them."""
+    df = pd.read_parquet(FRED_FILE) if FRED_FILE.exists() else pd.DataFrame()
+    if not FRED_ROLLING_FILE.exists():
+        return df
+    kept = pd.read_parquet(FRED_ROLLING_FILE)
+    return df.combine_first(kept)[list(df.columns) + [c for c in kept.columns if c not in df.columns]]
 
 
 def wide(prices: pd.DataFrame, field: str = "close") -> pd.DataFrame:

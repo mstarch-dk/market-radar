@@ -36,8 +36,12 @@ def _months(n: int, end: str = "2026-09") -> pd.DatetimeIndex:
     return pd.period_range(end=end, periods=n, freq="M").to_timestamp()
 
 
-def fred_csv(sid: str, n: int, trim_end: int = 0) -> str:
-    days = pd.bdate_range(end="2026-10-14", periods=n)[: n - trim_end]
+MAINTENANCE = Resp(text="<!doctype html>\n<html><head><title>Site Maintenance | St. Louis Fed<</title></head></html>",
+                   headers={"Content-Type": "text/html; charset=utf-8"})
+
+
+def fred_csv(sid: str, n: int, trim_end: int = 0, end: str = "2026-10-14") -> str:
+    days = pd.bdate_range(end=end, periods=n)[: n - trim_end]
     return "observation_date," + sid + "\n" + "".join(f"{d:%Y-%m-%d},{4 + i / 1000:.3f}\n" for i, d in enumerate(days))
 
 
@@ -100,7 +104,7 @@ class Source:
 class Fred(Source):
     file = ingest.FRED_FILE
     measure = {"key": None, "date": None}
-    modes = ("error", "empty", "short")
+    modes = ("error", "empty", "short", "html")
 
     def good(self, mp):
         serve(mp, {"DGS10": Resp(text=fred_csv("DGS10", 400)), "T10Y2Y": Resp(text=fred_csv("T10Y2Y", 400))})
@@ -108,7 +112,7 @@ class Fred(Source):
 
     def bad(self, mp, mode):
         answer = {"error": Resp(500), "empty": Resp(text="observation_date,DGS10\n"),
-                  "short": Resp(text=fred_csv("DGS10", 400, trim_end=30))}[mode]
+                  "short": Resp(text=fred_csv("DGS10", 400, trim_end=30)), "html": MAINTENANCE}[mode]
         serve(mp, {"DGS10": answer, "T10Y2Y": Resp(text=fred_csv("T10Y2Y", 400))})
         ingest.update_fred(["DGS10", "T10Y2Y"])
 
@@ -334,6 +338,34 @@ SOURCES = [Fred(), Oecd(), Ecb(), Aaii(), Cape(), Erp(), Etfs(), Prices(), Disco
 CASES = [pytest.param(s, m, id=f"{type(s).__name__}-{m}",
                       marks=[pytest.mark.xfail(strict=True, reason=s.gaps[m])] if m in s.gaps else [])
          for s in SOURCES for m in s.modes]
+
+
+def test_fred_maintenance_page_is_named_and_stops_the_loop(monkeypatch):
+    Fred().good(monkeypatch)
+    calls = serve(monkeypatch, {"fredgraph": MAINTENANCE})
+    failed = ingest.update_fred(["DGS10", "T10Y2Y"])
+    assert len(calls) == 1                                  # one request to a site that is down, not one per series
+    assert failed == ["DGS10 (Unavailable: FRED answered with a web page (Site Maintenance | St. Louis Fed), not CSV)",
+                      "T10Y2Y (Unavailable)"]
+    assert set(ingest.load_fred().columns) == {"DGS10", "T10Y2Y"}
+
+
+def test_fred_rolling_window_is_merged_into_history(monkeypatch):
+    serve(monkeypatch, {"BAML": Resp(text=fred_csv("BAML", 400))})
+    ingest.update_fred(["BAML"])
+    first = ingest.load_fred()["BAML"].dropna()
+    # the window rolls a week: starts later, ends later, same length
+    serve(monkeypatch, {"BAML": Resp(text=fred_csv("BAML", 400, end="2026-10-21"))})
+    assert ingest.update_fred(["BAML"]) == []
+    got = ingest.load_fred()["BAML"].dropna()
+    assert got.index.min() == first.index.min() and got.index.max() == pd.Timestamp("2026-10-21")
+    assert len(got) == 405
+    assert ingest.FRED_ROLLING_FILE.exists()
+    # the cache alone is lost (a new cache folder): the history fills it in again
+    ingest.FRED_FILE.unlink()
+    serve(monkeypatch, {"BAML": Resp(text=fred_csv("BAML", 400, end="2026-10-28"))})
+    assert ingest.update_fred(["BAML"]) == []
+    assert ingest.load_fred()["BAML"].dropna().index.min() == first.index.min()
 
 
 @pytest.mark.parametrize("source, mode", CASES)
