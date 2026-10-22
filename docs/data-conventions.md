@@ -35,7 +35,10 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   ends earlier than stored or has markedly fewer rows keeps the stored file (`guard.Shrunk`); a configured series
   missing from the answer keeps its stored values, with a note in the step's message. Every source that replaces what
   it stores uses it: OECD CLI and the ECB (rolling six-year windows, so their start may move by up to two months),
-  each FRED series (a series that shrinks counts as a failed series and keeps its cached values), AAII, and CAPE/ERP
+  each FRED series (a series that shrinks counts as a failed series and keeps its cached values; one that starts
+  later than stored, like ICE BofA's spreads that FRED serves for ~3 years only, is merged into the stored one and
+  kept in history as `fred_rolling.parquet`; a web page instead of CSV, such as FRED's maintenance page, is
+  `ingest.Unavailable`: the step stops asking and every series keeps its cached values), AAII, and CAPE/ERP
   (all of one source's series are checked before any is written). Discovery prices are re-downloaded whole, but names
   Yahoo didn't return keep their stored bars in the window; their last date then marks them stale.
 - Reference caches remember answers, not failures: a name lookup that fails isn't cached (the ticker is shown

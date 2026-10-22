@@ -54,7 +54,7 @@ Nothing the user owns lives in the install folder (`config.ROOT` holds app files
 | Tier | What | Default |
 |---|---|---|
 | home / userdata / imports | `radar.db` and `backups/`, `notes/`, `briefs/`, `research/`, `journal/`, `exports/`, broker files in `imports/` | `~/Market Radar` |
-| history | what builds up run by run and can't be downloaded again: rank and discovery snapshots, valuation snapshots, analyst, FactSet and put/call history, Yahoo statements | `~/Market Radar/history` |
+| history | what builds up run by run and can't be downloaded again: rank and discovery snapshots, valuation snapshots, analyst, FactSet and put/call history, Yahoo statements, FRED series that roll out of FRED's window (ICE BofA spreads) | `~/Market Radar/history` |
 | cache | everything `radar run` downloads or rebuilds (prices, macro, profiles, `sources.json`, `ops.db`) | `platformdirs.user_cache_dir("MarketRadar")` |
 | reports | built from the cache | `<cache>/reports` |
 

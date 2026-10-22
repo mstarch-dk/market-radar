@@ -216,6 +216,7 @@ IMPORTS = Lazy("imports")
 NOTES = HOME / "notes"
 PRICES_FILE = CACHE / "prices.parquet"
 FRED_FILE = CACHE / "fred.parquet"
+FRED_ROLLING_FILE = HISTORY / "fred_rolling.parquet"
 SNAPSHOTS = HISTORY / "snapshots"
 HOLDINGS_FILE = IMPORTS / "holdings.csv"            # legacy CSVs, moved into radar.db on first use
 TRANSACTIONS_FILE = IMPORTS / "transactions.csv"
@@ -234,6 +235,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "valuation/etfs.parquet",
         "factset.parquet",              # the source only looks 14 days back
         "putcall.parquet",              # the backfill reaches one year back
+        "fred_rolling.parquet",         # FRED serves ICE BofA's spreads for ~3 years only
         "fundamentals/yahoo.parquet",   # Yahoo's statements: it shows ~4 years, what scrolls out is gone
         "fundamentals/scores.parquet",  # weekly kvalitets- and værdiscore per stock
     ),

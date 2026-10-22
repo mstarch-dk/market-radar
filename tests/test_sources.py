@@ -29,7 +29,9 @@ def test_fred_csv_legacy_header_and_dot_for_missing():
 
 def test_fred_csv_without_the_series_fails():
     with pytest.raises(ValueError, match="no DGS10 column"):
-        ingest.parse_fred_csv("<html>Service unavailable</html>", "DGS10")
+        ingest.parse_fred_csv("observation_date,T10Y2Y\n2026-10-01,0.5\n", "DGS10")
+    with pytest.raises(ingest.Unavailable, match=r"web page \(Service unavailable\), not CSV"):
+        ingest.parse_fred_csv("<html><title>Service unavailable</title></html>", "DGS10")
     with pytest.raises(ValueError, match="no values"):
         ingest.parse_fred_csv("observation_date,DGS10\n2026-10-01,\n", "DGS10")
 
@@ -42,7 +44,7 @@ def test_update_fred_keeps_cached_series_when_one_fails(tmp_path, monkeypatch):
 
     class Resp:
         def __init__(self, text, ok=True):
-            self.text, self.ok = text, ok
+            self.text, self.ok, self.headers = text, ok, {}
 
         def raise_for_status(self):
             if not self.ok:
