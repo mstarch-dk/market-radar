@@ -223,7 +223,8 @@ FACTSET_TEXT_PAGES = ("Key Metrics", "Earnings Revisions", "Forward Estimates & 
 _NUM = r"(-?\d+(?:\.\d+)?)"
 FACTSET_REQUIRED = ("growth_now", "growth_start")  # the regime vote; without them the report is useless
 FACTSET_PATTERNS = {
-    "quarter": r"For (Q\d \d{4}), the estimated \(year-over-year\) earnings growth rate",
+    # "estimated" before the season, "blended" (actuals + estimates) once companies report
+    "quarter": r"For (Q\d \d{4}), the (?:estimated|blended) \(year-over-year\) earnings growth rate",
     "growth_now": r"earnings growth rate for the S&P 500 is " + _NUM + "%",
     "growth_start": r"On \w+ \d+, the estimated \(year-over-year\) earnings growth rate for the S&P 500 for Q\d\s+\d{4}\s+was "
                     + _NUM + "%",

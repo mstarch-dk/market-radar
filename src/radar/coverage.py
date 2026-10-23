@@ -151,7 +151,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     fs_last = factset["report_date"].max() if not factset.empty else None
     quarter = factset.sort_values("report_date").iloc[-1].get("quarter") if not factset.empty else None
     rows.append(_row("factset", fs_last, ref, max_age["factset"], "S&P 500 aggregate only",
-                     f"Report for {quarter}" if quarter else "", log))
+                     f"Report for {quarter}" if pd.notna(quarter) else "", log))
 
     # analyst consensus for holdings/watchlist: the oldest fetch decides
     if not analyst.empty and analyst_tickers:
