@@ -42,6 +42,14 @@ def test_parse_factset():
     assert r["rev_down_sectors"] == "Materials, Consumer Staples, Health Care"
 
 
+def test_parse_factset_quarter_in_earnings_season():
+    # once companies report, FactSet calls the growth rate "blended" instead of "estimated"
+    text = FACTSET_TEXT.replace("the estimated (year-over-year) earnings growth rate for the S&P 500 is",
+                                "the blended (year-over-year) earnings growth rate for the S&P 500 is")
+    assert "blended" in text
+    assert external.parse_factset([text])["quarter"] == "Q3 2026"
+
+
 def test_parse_factset_missing_fields_are_none():
     r = external.parse_factset(["nothing useful here"])
     assert all(v is None for v in r.values())

@@ -303,7 +303,8 @@ def indicators(closes: pd.DataFrame, fred: pd.DataFrame, bench: str, groups: dic
         st = ON if rev > band else OFF if rev < -band else NEUTRAL
         guid = (f"; guidance +{factset['guidance_pos']:.0f} / -{factset['guidance_neg']:.0f}"
                 if factset.get("guidance_pos") is not None and factset.get("guidance_neg") is not None else "")
-        out.append(_ind(f"Earnings revisions (S&P 500, {factset.get('quarter') or 'current qtr'})",
+        quarter = factset.get("quarter") if pd.notna(factset.get("quarter")) else "current qtr"
+        out.append(_ind(f"Earnings revisions (S&P 500, {quarter})",
                         f"{rev:+.1f} pts", st,
                         f"Growth est. {factset['growth_now']:.1f}% vs {factset['growth_start']:.1f}% at quarter start"
                         f"{guid} (FactSet {factset['report_date']:%d %b})", "factset", factset["report_date"],
