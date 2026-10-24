@@ -34,7 +34,7 @@ def shrunk_cov(R: pd.DataFrame, shrink: float, min_weeks: int) -> pd.DataFrame:
     return pd.DataFrame(M, index=S.index, columns=S.columns)
 
 
-def risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
+def ex_ante_risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
     """Ex-ante risk of DKK `values` from a weekly covariance (that includes `bench`)."""
     lt = exposure.look_through()
     agg: dict[str, float] = {}
@@ -65,7 +65,7 @@ def risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
     return out
 
 
-def series(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.Series | None:
+def weekly_returns(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.Series | None:
     """Weekly return of fixed DKK weights (rebalanced weekly; names without a return that week are left out and
     the rest re-weighted)."""
     lt = exposure.look_through()

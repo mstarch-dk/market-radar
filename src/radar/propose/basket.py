@@ -91,7 +91,7 @@ def _pctl(s: pd.Series) -> pd.Series:
     return s.rank(pct=True) * 100
 
 
-def score(df: pd.DataFrame, tilt: str, c: Propose | None = None, corr: pd.Series | None = None) -> pd.DataFrame:
+def proposal_score(df: pd.DataFrame, tilt: str, c: Propose | None = None, corr: pd.Series | None = None) -> pd.DataFrame:
     """The proposal score on the gated pool, best first, with its parts."""
     c = c or rules.cfg()
     w, pen = c.tilts[tilt], c.penalties
@@ -254,7 +254,7 @@ def budgets(amount: float, vols: list[float | None], weighting: str, ticket: flo
     return [float(x) for x in b]
 
 
-def size(amount: float, picks: list[dict], df: pd.DataFrame, prices: pricing.Prices, sf: fees.SimFees, weighting: str = "equal",
+def size_picks(amount: float, picks: list[dict], df: pd.DataFrame, prices: pricing.Prices, sf: fees.SimFees, weighting: str = "equal",
          c: Propose | None = None) -> dict:
     """Whole shares per pick within its budget, every cost counted; leftover cash stated."""
     c = c or rules.cfg()

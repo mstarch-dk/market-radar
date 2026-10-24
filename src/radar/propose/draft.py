@@ -41,8 +41,8 @@ def context(market: Market, name: str, offline: bool = False) -> Ctx:
         raise ValueError(f"no portfolio called {name} (yours: {known or 'none'})")
     prices = pricing.Prices(market)
     notes = []
-    held = exposure.book(market, prices, [p["id"]])
-    whole = exposure.book(market, prices, userstore.portfolio_ids())
+    held = exposure.holdings_book(market, prices, [p["id"]])
+    whole = exposure.holdings_book(market, prices, userstore.portfolio_ids())
     for df, what in ((held, name), (whole, "your real portfolios")):
         miss = df[df["value_dkk"].isna()]["symbol"].tolist()
         if miss:
@@ -76,7 +76,7 @@ def values_of(df: pd.DataFrame) -> dict[str, float]:
 
 def holdings_base(ctx: Ctx, extra=(), weeks: int = 52) -> basket.Base:
     vals = values_of(ctx.holdings)
-    meta = exposure.info(list(vals) + list(extra), ctx.prices)
+    meta = exposure.ticker_meta(list(vals) + list(extra), ctx.prices)
     R = ctx.prices.weekly(list(vals) + list(extra), weeks)
     return basket.Base(vals, meta, ctx.acwi, values_of(ctx.whole), R)
 
@@ -90,17 +90,17 @@ def ranked_pool(ctx: Ctx, tilt: str, ticket: float, p=None, raw: pd.DataFrame | 
     kept, excluded = basket.gates(df, tilt, ticket, c)
     vals = values_of(ctx.holdings)
     R = ctx.prices.weekly(list(kept.index) + list(vals) + [tracked.benchmark()], 52)
-    book_r = riskmodel.series(vals, R, tracked.benchmark()) if vals else None
+    book_r = riskmodel.weekly_returns(vals, R, tracked.benchmark()) if vals else None
     corr = basket.corr_to(R.reindex(columns=list(kept.index)), book_r, c.min_weeks) if book_r is not None else None
-    kept = exposure.annotate(kept, exposure.info(list(kept.index), ctx.prices))
-    return basket.score(kept, tilt, c, corr), excluded, df
+    kept = exposure.annotate(kept, exposure.ticker_meta(list(kept.index), ctx.prices))
+    return basket.proposal_score(kept, tilt, c, corr), excluded, df
 
 
 def rule_basket(ctx: Ctx, scored: pd.DataFrame, amount: float, n: int, mode: str, max_position: float | None,
                 weighting: str) -> tuple[list[dict], dict, dict]:
     base = holdings_base(ctx, list(scored.index[: max(4 * n, 40)]))
     chosen, passed = basket.select(scored, n, amount, base, rules.cfg(), mode, max_position)
-    return chosen, passed, basket.size(amount, chosen, scored, ctx.prices, ctx.sf, weighting)
+    return chosen, passed, basket.size_picks(amount, chosen, scored, ctx.prices, ctx.sf, weighting)
 
 
 def default_exit(tilt: str, fill: str, horizon: int, c: Propose | None = None) -> dict:
@@ -134,7 +134,7 @@ def candidates(market: Market, name: str, amount: float, tilt: str = "mix", mode
     fill_ = basket.filler(sz["leftover_dkk"], ctx.portfolio["kind"], ctx.prices, ctx.sf, etf, c)
     today = pd.Timestamp(market.closes.index[-1]).date().isoformat()
     vals = values_of(ctx.holdings)
-    meta = exposure.info(list(vals), ctx.prices)
+    meta = exposure.ticker_meta(list(vals), ctx.prices)
     rows = []
     names = universe.names(list(scored.index[:top]))
     for t, r in scored.head(top).iterrows():

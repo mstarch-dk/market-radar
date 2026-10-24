@@ -214,7 +214,7 @@ def _stops_changed(frozen: dict, now: Stops) -> bool:
         return True
 
 
-def check(market: Market, portfolio: str | None = None) -> dict:
+def check_exits(market: Market, portfolio: str | None = None) -> dict:
     """Each open proposal's exit criteria today: Intact, Weakening or Triggered, with the evidence."""
     from ..model import panels as mp
 

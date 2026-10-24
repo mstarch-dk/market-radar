@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..market import Market
 
 
-def book(market: Market, prices: pricing.Prices, portfolio_ids: list[int]) -> pd.DataFrame:
+def holdings_book(market: Market, prices: pricing.Prices, portfolio_ids: list[int]) -> pd.DataFrame:
     """Holdings of these portfolios valued at the last close in DKK: symbol, quantity, price, rate, value_dkk
     (None when the price or rate is unknown)."""
     tx = trades.transactions(portfolio_ids)
@@ -48,7 +48,7 @@ def look_through() -> set[str]:
     return {t for t in named if t is not None}
 
 
-def info(tickers, prices: pricing.Prices) -> pd.DataFrame:
+def ticker_meta(tickers, prices: pricing.Prices) -> pd.DataFrame:
     """sector, region and currency per ticker (funds: a sector fund's sector, else '(fund)')."""
     from ..universe import region_for
 
@@ -75,7 +75,7 @@ DIMS = ("sector", "region", "currency")
 
 
 def annotate(df: pd.DataFrame, meta: pd.DataFrame) -> pd.DataFrame:
-    """`df` with its sector, region and currency columns taken from `meta` (info())."""
+    """`df` with its sector, region and currency columns taken from `meta` (ticker_meta())."""
     return df.drop(columns=[x for x in DIMS if x in df]).join(meta[list(DIMS)])
 
 

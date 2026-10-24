@@ -213,7 +213,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
                 continue
             kept, _ = propose.gates(df0, tilt, c.min_ticket_dkk, c, day)
             kept = propose.annotate(kept, meta)
-            sc = propose.score(kept, tilt, c, None)
+            sc = propose.proposal_score(kept, tilt, c, None)
             if len(sc) < max(ns) * 2:
                 continue
             if y6 is not None:

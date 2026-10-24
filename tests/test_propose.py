@@ -135,7 +135,7 @@ def test_each_exclusion_is_listed_and_missing_qv_is_never_zero(market):
     assert "E3" in out["no K+V (kvalitet + værdi)"] and "E3" not in kept.index
     listed = {t for v in out.values() for t in v}
     assert listed | set(kept.index) == set(df.index) and not listed & set(kept.index)
-    sc = propose.score(propose.annotate(kept, propose.info(list(kept.index), pr)), "value", _pc())
+    sc = propose.proposal_score(propose.annotate(kept, propose.ticker_meta(list(kept.index), pr)), "value", _pc())
     assert sc["composite"].notna().all() and "E3" not in sc.index
 
 
@@ -146,7 +146,7 @@ def test_momentum_tilt_needs_an_uptrend_and_ranks_by_momentum(market):
     c = _pc(penalties={"vol": 0, "stretch": 0, "corr": 0})
     kept, out = propose.gates(df, "momentum", 10_000, c)
     assert "S2" in out["not in an uptrend"]
-    sc = propose.score(kept, "momentum", c)
+    sc = propose.proposal_score(kept, "momentum", c)
     assert list(sc.index) == list(kept.sort_values("score", ascending=False).index)
 
 
@@ -157,10 +157,10 @@ def test_an_unknown_correlation_is_not_scored_as_unrelated(market):
     corr = pd.Series(0.6, index=kept.index)
     unknown = kept.index[0]
     corr[unknown] = np.nan                                       # too few shared weeks with the portfolio
-    sc = propose.score(kept, "momentum", c, corr)
+    sc = propose.proposal_score(kept, "momentum", c, corr)
     assert sc.loc[unknown, "pen_corr"] == pytest.approx(c.penalties.corr * 0.6)   # the pool's median
     assert np.isnan(sc.loc[unknown, "corr_book"])                # shown as unknown, not as 0
-    none = propose.score(kept, "momentum", c, pd.Series(np.nan, index=kept.index))      # no book to compare with
+    none = propose.proposal_score(kept, "momentum", c, pd.Series(np.nan, index=kept.index))      # no book to compare with
     assert (none["pen_corr"] == 0).all()
 
 
@@ -201,7 +201,7 @@ def test_size_stays_within_each_budget_with_fees_fx_and_spread(market, ask):
     sf = fees.SimFees.for_portfolio(userstore.get_portfolio(ask["id"]), 10)
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
-    sz = propose.size(30_000, [{"ticker": "S2"}, {"ticker": "S3"}], df, pr, sf, "equal", _pc())
+    sz = propose.size_picks(30_000, [{"ticker": "S2"}, {"ticker": "S3"}], df, pr, sf, "equal", _pc())
     for r in sz["rows"]:
         assert float(r["quantity"]).is_integer() and r["cash_dkk"] <= r["budget_dkk"] + 1e-6
         tm = propose.terms_for(pr, sf, r["ticker"])
@@ -217,8 +217,8 @@ def _scored(market, tilt="momentum"):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
     kept, _ = propose.gates(df, tilt, 10_000, _pc())
-    kept = propose.annotate(kept, propose.info(list(kept.index), pr))
-    return propose.score(kept, tilt, _pc()), pr
+    kept = propose.annotate(kept, propose.ticker_meta(list(kept.index), pr))
+    return propose.proposal_score(kept, tilt, _pc()), pr
 
 
 def test_sector_count_and_correlation_caps(market):
@@ -289,7 +289,7 @@ def test_ask_filler_only_from_the_positive_list(market, monkeypatch):
 def test_bootstrap_is_seeded_and_drawdowns_are_never_positive(market):
     pr = propose.Prices(market)
     R = pr.weekly(["S1", "S3", "ACWI"], 60)
-    rp = propose.series({"S1": 1, "S3": 1}, R, "ACWI")
+    rp = propose.weekly_returns({"S1": 1, "S3": 1}, R, "ACWI")
     c = _pc()
     a = propose.bootstrap(rp, R["ACWI"], 26, 0.02, c)
     b = propose.bootstrap(rp, R["ACWI"], 26, 0.02, c)
@@ -315,9 +315,9 @@ def test_shrunk_covariance_is_positive_semidefinite(market):
     R = pr.weekly(["S1", "S2", "S3", "E1", "ACWI"], 60)
     cov = propose.shrunk_cov(R, 0.3, 20)
     assert np.linalg.eigvalsh(cov.to_numpy()).min() >= -1e-12
-    r = propose.risk({"S1": 1, "S3": 1}, cov, "ACWI")
+    r = propose.ex_ante_risk({"S1": 1, "S3": 1}, cov, "ACWI")
     assert r["vol_ann"] > 0 and r["coverage"] == 1 and sum(r["contributions"].values()) == pytest.approx(1)
-    acwi = propose.risk({"ACWI": 1}, cov, "ACWI")
+    acwi = propose.ex_ante_risk({"ACWI": 1}, cov, "ACWI")
     assert acwi["te_ann"] == pytest.approx(0, abs=1e-9) and acwi["beta"] == pytest.approx(1)
 
 
@@ -430,7 +430,7 @@ def test_shadow_review_and_check_never_touch_a_real_portfolio(market, ask):
         propose.shadow(market, d, "Try")
     rev = propose.review(market)
     assert rev["proposals"][0]["note"] == "no prices since yet" and rev["enough"] is False
-    chk = propose.check(market)
+    chk = propose.check_exits(market)
     names = chk["proposals"][0]["names"]
     assert {x["status"] for x in names} <= {"Intact", "Weakening", "Triggered"}
     assert all(x["held"] is False for x in names)                      # proposed, not bought
@@ -445,7 +445,7 @@ def test_check_flags_a_close_below_the_average_and_a_passed_time_stop(market, as
                                        {"text": "management keeps guiding up"}]
     propose.save_picks(d)
     market.closes.loc[market.closes.index[-5:], t] *= 0.5                  # a crash below the 200-day average
-    x = next(n for n in propose.check(market)["proposals"][0]["names"] if n["ticker"] == t)
+    x = next(n for n in propose.check_exits(market)["proposals"][0]["names"] if n["ticker"] == t)
     st = {i["criterion"]: i["status"] for i in x["items"]}
     assert x["status"] == "Triggered"
     assert st["close vs 200-day average"] == "triggered" and st[f"time stop {IDX[200].date()}"] == "triggered"
@@ -457,7 +457,7 @@ def test_older_rule_is_flagged(market, ask):
     d = _draft(market, ask)["draft_picks"]
     d["meta"]["settings_hash"] = "000000000000"
     propose.save_picks(d)
-    assert "changed since" in propose.check(market)["proposals"][0]["older_rule"][0]
+    assert "changed since" in propose.check_exits(market)["proposals"][0]["older_rule"][0]
 
 
 def test_stops_frozen_today_are_not_a_change(market, ask):
@@ -465,7 +465,7 @@ def test_stops_frozen_today_are_not_a_change(market, ask):
     same = Path(propose.save_picks(d)).name
     d["meta"]["stops"] = d["meta"]["stops"] | {"trend_sma": 100}
     moved = Path(propose.save_picks(d)).name
-    older = {x["file"]: x["older_rule"] for x in propose.check(market)["proposals"]}
+    older = {x["file"]: x["older_rule"] for x in propose.check_exits(market)["proposals"]}
     assert older == {same: [], moved: ["settings.stops have changed since"]}
 
 
@@ -517,7 +517,7 @@ def test_study_view_shrinks_toward_the_prior(market, monkeypatch):
 def test_kv_picks_outside_the_us_are_flagged_untested(market, ask):
     d = _draft(market, ask)["draft_picks"]
     tickers = [p["ticker"] for p in d["picks"]]
-    region = propose.info(tickers, propose.Prices(market))["region"]
+    region = propose.ticker_meta(tickers, propose.Prices(market))["region"]
     ev = propose.evaluate(market, d, offline=True, light=True)                     # momentum: K+V not used
     assert ev["untested_kv"] == []
     d["meta"]["tilt"] = "mix"

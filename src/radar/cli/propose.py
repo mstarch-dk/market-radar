@@ -192,7 +192,7 @@ def propose_check(portfolio: str = typer.Option(None, "--portfolio", help="Only 
 
     from .. import propose as pr
 
-    rep = pr.check(Market.load(), portfolio)
+    rep = pr.check_exits(Market.load(), portfolio)
     if as_json:
         typer.echo(to_json(rep, indent=1, ensure_ascii=False))
         return
