@@ -211,7 +211,7 @@ export function RiskCard({ p }: { p: Profile }) {
               </Badge>
             ))}
           </div>
-          <p className="small muted">Residual alpha {pct(r.factors.alpha_ann)} a year (t {f2(r.factors.alpha_t, 1)}). Highlighted: |t| ≥ 2.</p>
+          <p className="small muted">Residual alpha {pct(r.factors.alpha_ann)} a year (t {f2(r.factors.alpha_t, 1)}; {r.factors.alpha_basis}). Highlighted: |t| ≥ 2.</p>
         </>
       )}
       {r.budget != null && (

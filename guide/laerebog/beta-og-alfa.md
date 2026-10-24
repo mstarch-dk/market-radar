@@ -117,7 +117,7 @@ Radaren har to betaer. Den grundige står i kortet *Risk vs ACWI (DKK, weekly)* 
 - Aktivets merafkast regresseres på ACWI's merafkast og på spændet (ETF minus ACWI) for hver af faktor-ETF'erne {{settings:risk.factors}} (`risk.factors`) samt aktivets sektor-ETF, hvis den kendes. Alt i kroner, ugentligt.
 - Det længste vindue bruges ({{settings:risk.windows.3y}} uger).
 - En regressor, der slet ikke bevæger sig, droppes. Der kræves mindst $\max(\text{min\_weeks},\, 4(k+1))$ uger, hvor $k$ er antal regressorer, så der er rimeligt mange observationer pr. koefficient.
-- Hver faktor vises med sin koefficient og t-værdi; en badge fremhæves, når $|t| \ge 2$. Modellens samlede $R^2$ og den tilbageværende alfa vises også.
+- Hver faktor vises med sin koefficient og t-værdi; en badge fremhæves, når $|t| \ge 2$. Modellens samlede $R^2$ og den tilbageværende alfa vises også, med grundlaget: *excess over T-bills* (merafkast over renten) eller *raw returns*, når renten mangler.
 
 **Den simple beta** (`signals/technicals.py`, `beta_corr`): kovarians over varians på ugentlige afkast over de seneste 52 uger (mindst 26), uden risikofri rente og uden standardfejl. Den beregnes på kurser i aktiens egen noteringsvaluta mod ACWI i dollar, ikke i kroner. Den vises som *Beta / correlation vs ACWI* sammen med korrelationen. Fundamentkortet viser desuden Yahoos egen beta ved siden af radarens.
 

@@ -8,6 +8,7 @@ docs/data-conventions.md, *Returns over time*.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 import numpy as np
 import pandas as pd
@@ -53,11 +54,19 @@ def has_ledger(rows: list[dict]) -> bool:
     return any(r["type"] in EXTERNAL for r in rows)
 
 
-def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple[list[dict], list[dict]]:
-    """Each row's effect on cash (DKK) and whether it is an external flow, oldest first; plus problems (a trade
-    whose DKK rate is unknown: {date, message}). DIVIDEND rows only move cash under the `cash` dividend policy."""
+class CashProblem(TypedDict):
+    """A trade whose DKK rate is unknown, so its effect on cash is too. Match on the fields, not the message."""
+    date: pd.Timestamp
+    symbol: str
+    message: str
+
+
+def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple[list[dict], list[CashProblem]]:
+    """Each row's effect on cash (DKK) and whether it is an external flow, oldest first; plus problems (trades
+    whose DKK rate is unknown). DIVIDEND rows only move cash under the `cash` dividend policy."""
     fx_cache: dict[str, pd.Series | None] = {}
-    out, problems = [], []
+    out: list[dict] = []
+    problems: list[CashProblem] = []
     for r in sorted(rows, key=lambda r: (str(r["date"])[:10], r.get("id") or 0)):
         t, day = r["type"], pd.Timestamp(str(r["date"])[:10])
         if t in EXTERNAL:
@@ -72,20 +81,20 @@ def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple
                 fx_cache[sym] = fx_series(market, sym)
             c = trade_cash_dkk(r, fx_cache[sym])
             if c is None:
-                problems.append({"date": day, "message": f"{sym} on {day:%Y-%m-%d}: no DKK rate for its currency"})
+                problems.append({"date": day, "symbol": sym,
+                                 "message": f"{sym} on {day:%Y-%m-%d}: no DKK rate for its currency"})
                 continue
             out.append({"date": day, "cash": c, "external": False, "row": r})
     return out, problems
 
 
-def cash_balance(rows: list[dict], market, dividends: str = "reinvested") -> tuple[pd.Series, list[str]]:
+def cash_balance(rows: list[dict], market, dividends: str = "reinvested") -> tuple[pd.Series, list[CashProblem]]:
     """Cash in DKK at the end of each day with a cash row (cumulative), and problems (unknown DKK rates)."""
     moves, problems = cash_moves(rows, market, dividends)
-    messages = [p["message"] for p in problems]
     if not moves:
-        return pd.Series(dtype=float), messages
+        return pd.Series(dtype=float), problems
     s = pd.Series([m["cash"] for m in moves], index=[m["date"] for m in moves]).groupby(level=0).sum().cumsum()
-    return s, messages
+    return s, problems
 
 
 # ---------------- value and flows ----------------

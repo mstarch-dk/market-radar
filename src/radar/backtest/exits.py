@@ -485,7 +485,7 @@ def _opening(rp: Replay, rows: list[dict], start: pd.Timestamp) -> list[dict]:
     if rp.ledger:
         bal, problems = performance.cash_balance(before, rp.market)
         if problems:
-            raise ValueError("its cash that day is unknown: " + "; ".join(problems))
+            raise ValueError("its cash that day is unknown: " + "; ".join(x["message"] for x in problems))
         total += float(bal.iloc[-1]) if len(bal) else 0.0
     if total > 0:
         rp.cash_row("DEPOSIT", start.date().isoformat(), total, f"what the portfolio held at the close of {start:%Y-%m-%d}")

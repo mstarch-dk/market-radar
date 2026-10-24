@@ -1,6 +1,7 @@
 import functools
 import socket
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -91,6 +92,10 @@ def _offline(request, monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
     monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
+    # pacing and retry backoff take no real time: net's clock jumps by what it would have slept
+    slept = [0.0]
+    monkeypatch.setattr(net, "clock", lambda: time.monotonic() + slept[0])
+    monkeypatch.setattr(net, "sleep", lambda s: slept.__setitem__(0, slept[0] + s))
     try:
         from curl_cffi import requests as curl
         monkeypatch.setattr(curl.Session, "request", lambda self, method, url, *a, **kw: refuse(f"{method} {url}"))

@@ -62,7 +62,7 @@ def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=(
     if performance.has_ledger(rows):
         bal, cash_problems = performance.cash_balance(rows, market, src["dividends"])
         if cash_problems:
-            raise ValueError("its cash that day is unknown: " + "; ".join(cash_problems))
+            raise ValueError("its cash that day is unknown: " + "; ".join(x["message"] for x in cash_problems))
         total += float(bal.iloc[-1]) if len(bal) else 0.0
     total += float(extra_cash_dkk or 0)
     if total <= 0:
@@ -123,7 +123,7 @@ def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[
         _, warn = trades.positions(deals.assign(fee=deals["fee"].fillna(0)))
         problems += [f"{s}: {w}" for s, ws in warn.items() for w in ws]
     bal, fx_problems = performance.cash_balance(rows, market, dividends)
-    problems += fx_problems
+    problems += [x["message"] for x in fx_problems]
     if len(bal) and bal.min() < -0.5:
         problems.append(f"cash goes negative: {bal.min():,.0f} DKK on {bal.idxmin():%Y-%m-%d}")
     return problems

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import money, net
+from . import money, net, ops
 from .config import write_csv
 from .paths import CACHE
 
@@ -53,7 +53,8 @@ def currencies(tickers: list[str]) -> dict[str, str | None]:
         def lookup(t):
             try:
                 return t, yf.Ticker(t).fast_info.get("currency")
-            except Exception:
+            except Exception as e:  # noqa: BLE001 - yfinance raises anything; the ticker stays without a currency
+                ops.event("warn", "source", f"currency lookup for {t} failed: {type(e).__name__}: {e}", source="fx")
                 return t, None
         with net.pool(8) as ex:
             cached |= {t: c for t, c in ex.map(lookup, missing) if c}

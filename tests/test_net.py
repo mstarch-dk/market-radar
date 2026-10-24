@@ -1,5 +1,6 @@
 """The network layer: per-host pacing, the retry policy, cooldown after repeated 429s, redaction, and that every
 request lands in the operations log with its source."""
+import sqlite3
 import threading
 from datetime import datetime, timedelta
 
@@ -139,6 +140,15 @@ def test_a_repeat_pause_within_a_day_lasts_longer(fake_time, monkeypatch):
     net.note_429("h.example.org")
     st = ops.host_state("h.example.org")
     assert st["strikes"] == 2 and st["cooldown_until"] == ops.timestamp(t0 + timedelta(minutes=30))
+
+
+def test_an_unreadable_operations_log_turns_the_breaker_off_out_loud(fake_time, monkeypatch):
+    def locked(*a, **kw):
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(ops, "count_requests", locked)
+    net.note_429("h.example.org")                           # no crash, no pause ...
+    assert ops.host_state("h.example.org") is None
+    assert any("429 breaker off" in e["message"] and e["level"] == "error" for e in ops.events())   # ... but said
 
 
 def test_over_budget_is_a_warning_not_a_block(fake_time, monkeypatch):

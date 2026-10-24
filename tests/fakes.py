@@ -42,9 +42,8 @@ class Resp:
 
 def serve(monkeypatch, answers: dict, default=None) -> list[str]:
     """Answer `net.get` by URL: the first pattern (regex) found in the URL decides. No match: `default`, or a 404.
-    Retries don't wait. Returns the URLs asked for, in order."""
+    Retries don't wait (conftest's net clock). Returns the URLs asked for, in order."""
     calls: list[str] = []
-    monkeypatch.setattr(net, "sleep", lambda s: None)
 
     def get(url, **kw):
         calls.append(url)

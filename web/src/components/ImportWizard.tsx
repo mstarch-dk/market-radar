@@ -168,7 +168,7 @@ export function ImportWizard({ onDone }: { onDone?: () => void }) {
                             if (s) setSymbols({ ...symbols, [m.ident]: s });
                           }}>other…</button>
                         </td>
-                        <td className="l small">{m.certain ? <span className="pos">{how ?? "chosen"}</span> : <span className="warn-text">{how ? `${how}: please check` : "not found"}</span>}</td>
+                        <td className="l small">{m.certain ? <span className="pos">{how ?? "chosen"}</span> : <span className="warn-text">{how ? `${how}: please check` : m.search_failed ? "Yahoo search failed: choose by hand" : "not found"}</span>}</td>
                       </tr>
                     );
                   })}

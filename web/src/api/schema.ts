@@ -2166,6 +2166,8 @@ export interface components {
             alpha_ann?: number | null;
             /** Alpha T */
             alpha_t?: number | null;
+            /** Alpha Basis */
+            alpha_basis: string;
             /** Loadings */
             loadings: components["schemas"]["Loading"][];
         };
@@ -4793,6 +4795,11 @@ export interface components {
             chosen?: string | null;
             /** Certain */
             certain: boolean;
+            /**
+             * Search Failed
+             * @default false
+             */
+            search_failed: boolean;
         };
         /** TagCount */
         TagCount: {

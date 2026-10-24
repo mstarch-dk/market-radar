@@ -48,6 +48,9 @@ def test_factor_clone_loads_on_its_factor():
     assert load["market"]["beta"] == pytest.approx(1, abs=0.1)
     assert load["MTUM"]["beta"] == pytest.approx(1, abs=0.1) and load["MTUM"]["t"] > 10
     assert abs(load["VLUE"]["beta"]) < 0.1
+    assert f["alpha_basis"].startswith("raw returns")      # no risk-free rate: alpha is not an excess return
+    rf = pd.Series(4.0, index=IDX)                           # % a year, like FRED DGS3MO
+    assert risk.factor_loadings(asset, MKT, {"MTUM": mom}, rf, 156, 26)["alpha_basis"] == "excess over T-bills"
 
 
 def test_drawdown_and_correlation():

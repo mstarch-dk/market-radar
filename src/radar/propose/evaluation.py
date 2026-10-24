@@ -202,10 +202,7 @@ def factors(values: dict[str, float], R: pd.DataFrame, market) -> dict | None:
     if rp is None or bench not in R:
         return None
     tilts = {f: R[f] for f in typed().risk.factors if f in R}
-    try:
-        rf = market.fred().get("DGS3MO")
-    except Exception:  # noqa: BLE001 - no FRED cache: raw returns
-        rf = None
+    rf = market.fred().get("DGS3MO")   # None without the series: raw returns, said by alpha_basis
     return rk.factor_loadings(rp, R[bench], tilts, rf, rules.cfg()["history_weeks"], rules.cfg()["min_weeks"])
 
 

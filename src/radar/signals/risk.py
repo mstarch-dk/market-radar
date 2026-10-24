@@ -140,6 +140,7 @@ def factor_loadings(asset: pd.Series, market: pd.Series, tilts: dict[str, pd.Ser
     fit = ols(y.to_numpy(), X.to_numpy())
     return {"n_weeks": int(len(df)), "r2": num(fit["r2"]),
             "alpha_ann": num(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": num(fit["t"][0]),
+            "alpha_basis": "excess over T-bills" if r is not None else "raw returns (no risk-free rate)",
             "loadings": [{"factor": k, "beta": num(fit["coef"][i + 1]), "t": num(fit["t"][i + 1])} for i, k in enumerate(cols)]}
 
 

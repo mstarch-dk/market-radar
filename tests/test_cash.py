@@ -68,6 +68,17 @@ def test_a_virtual_portfolio_cannot_spend_money_it_does_not_have(client):
     assert cash["Sim"]["funding"] == "ledger" and cash["Sim"]["cash_dkk"] == pytest.approx(1, abs=0.01)
 
 
+def test_a_buy_without_a_dkk_rate_asks_for_its_rate(client, monkeypatch):
+    from radar import fxrates
+    sim = _sim(client)
+    _post(client, date=DAY, type="DEPOSIT", amount=100_000, portfolio_id=sim)
+    monkeypatch.setattr(fxrates, "currencies", lambda syms: dict.fromkeys(syms))   # S2's currency unknown
+    buy = dict(symbol="S2", date=DAY, type="BUY", quantity=10, price=round(S2(100), 4), portfolio_id=sim)
+    r = _post(client, **buy)
+    assert r.status_code == 422 and [i["field"] for i in r.json()["detail"]["issues"]] == ["fx_rate"]
+    assert _post(client, **buy, fx_rate=6.5).status_code == 200                         # with its rate it's fine
+
+
 def test_a_real_portfolio_with_a_ledger_only_warns(client):
     ask = next(p["id"] for p in client.get("/api/portfolios").json() if p["name"] == "ASK")
     _post(client, date=DAY, type="DEPOSIT", amount=100, portfolio_id=ask)

@@ -85,6 +85,7 @@ Kun det seneste års ark tæller. Mangler filen, viser kolonnen "?" i stedet for
 | Formatet genkendes ikke | Vælg selv kolonnerne under *Columns*. Gem evt. filen som CSV fra Excel |
 | *unverified format* | Bankens format (fx Danske Bank, Nordea, Saxo Bank eller Nordnet) er ikke afprøvet mod en rigtig eksport. Gennemse rækkerne grundigt |
 | Symbol *not found* eller *please check* | Vælg det rigtige Yahoo-symbol eller skriv det med *other…*. Nordiske symboler har suffiks: `NOVO-B.CO`, `VOLV-B.ST` |
+| *Yahoo search failed: choose by hand* | Yahoos symbolsøgning svarede ikke, så der er ingen forslag (det er ikke det samme som *not found*). Skriv symbolet med *other…*, eller prøv igen senere; fejlen står på siden *Operations* |
 | *No Yahoo price data for …* | Symbolet findes ikke hos Yahoo. Ret det |
 | Advarsel om kurs omkring 100 gange lukkekursen | Typisk pence mod pund (GBp/GBP) på London-børsen. Ret kursen, eller bekræft hvis den er rigtig |
 | *This would sell more than was held* | Et salg uden tilsvarende køb i samme portefølje. Importér købet først, eller tjek portefølje og antal |

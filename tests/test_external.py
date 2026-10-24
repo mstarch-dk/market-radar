@@ -112,7 +112,6 @@ def _socrata(monkeypatch, records: dict, honour_where=True) -> list[tuple[str, l
     """Answer like Socrata: the dataset's records whose code is in the list and whose date is after `since`.
     Returns what was asked: (dataset, codes, since)."""
     asked = []
-    monkeypatch.setattr(net, "sleep", lambda s: None)
 
     def get(url, params=None, **kw):
         dataset = re.search(r"resource/([\w-]+)\.json", url).group(1)

@@ -246,6 +246,7 @@ class Factors(Strict):
     r2: Num = None
     alpha_ann: Num = None
     alpha_t: Num = None
+    alpha_basis: str
     loadings: list[Loading]
 
 
@@ -1537,6 +1538,7 @@ class SymbolMatch(Strict):
     candidates: list[SymbolCandidate]
     chosen: str | None = None
     certain: bool
+    search_failed: bool = False
 
 
 class ImportCounts(Strict):

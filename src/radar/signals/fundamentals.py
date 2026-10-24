@@ -136,6 +136,7 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     other = sum(_v(bal(i)) or 0.0 for i in ("minority", "preferred"))
 
     vals: dict[str, float | None] = {m: None for m in ALL_METRICS}
+    nd_rank: float | None = None   # what nd_ebitda ranks by: net cash ties as best, debt without EBITDA as worst
     vals |= {"rev_cagr": None, "ev_ebit": None, "pe": None, "pb": None, "fcf": None, "ebitda": None}
 
     def check(key, v):
@@ -204,12 +205,12 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
             nd = debt - cash_v
             vals["nd_ebitda"] = check("nd_ebitda", nd / ebitda) if ebitda > 0 else None
             if nd <= 0:
-                vals["_nd_rank"] = -1.0                     # net cash: best, tied
+                nd_rank = -1.0                              # net cash: best, tied
             elif ebitda <= 0:
-                vals["_nd_rank"] = 99.0                     # debt and no earnings to carry it: worst
+                nd_rank = 99.0                              # debt and no earnings to carry it: worst
                 notes.append("net debt with negative EBITDA")
             else:
-                vals["_nd_rank"] = vals["nd_ebitda"]
+                nd_rank = vals["nd_ebitda"]
         if ebit_v is not None:
             cap = cfg["interest_cover_cap"]
             interest_v = _v(interest)
@@ -254,9 +255,8 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
 
     rank = {}
     for m in ALL_METRICS:
-        v = vals.get("_nd_rank") if m == "nd_ebitda" else vals.get(m)
+        v = nd_rank if m == "nd_ebitda" else vals.get(m)
         rank[m] = None if v is None else (-v if m in LOWER_BETTER else v)
-    vals.pop("_nd_rank", None)
     ends = [x.end for x in (rev, ebit, cfo, ni) if x is not None]
     return {"values": vals, "rank": rank, "notes": notes,
             "period_end": max(ends).date().isoformat() if ends else None,

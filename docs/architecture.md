@@ -40,7 +40,8 @@ the module the callers read it from.
   new key goes in the file and the model together; a key read with a default is optional in the model, with that
   default. Code reads values through `config.typed()` (the model); `config.settings()` is the file as written, for
   what records or hashes it (the proposal rule's hash, a frozen proposal's stops) and the pure readings that take a
-  section as a dict. Tests change settings with `conftest.with_settings(monkeypatch, backtest={...})`, which both
+  section as a dict. Not yet everywhere: `propose/` (`rules.cfg()`), `profile.build` and `dashboard.compute` still
+  index `settings()`, so a misspelt key there fails at runtime, not in mypy. Tests change settings with `conftest.with_settings(monkeypatch, backtest={...})`, which both
   views read.
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
