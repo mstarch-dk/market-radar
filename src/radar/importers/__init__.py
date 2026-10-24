@@ -408,9 +408,12 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
             cands.append({"symbol": isin_cfg[isin], "how": "radar ISIN list"})
         if sym and market_has(sym):
             cands.append({"symbol": sym, "how": "as in the file"})
+        search_failed = False
         for q in filter(None, [isin, name]):
+            hits = yahoo_search(q)
+            search_failed |= hits is None
             cands += [{"symbol": h["symbol"], "how": f"Yahoo search for {q}", "name": h.get("name"),
-                       "exchange": h.get("exchange")} for h in yahoo_search(q)[:4]]
+                       "exchange": h.get("exchange")} for h in (hits or [])[:4]]
         seen, uniq = set(), []
         for c in cands:
             if c["symbol"] not in seen:
@@ -418,17 +421,21 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
                 uniq.append(c)
         out[ident] = {"ident": ident, "isin": isin, "name": name, "candidates": uniq,
                       "chosen": uniq[0]["symbol"] if uniq else None,
-                      "certain": bool(uniq) and uniq[0]["how"] in ("remembered", "radar ISIN list", "as in the file")}
+                      "certain": bool(uniq) and uniq[0]["how"] in ("remembered", "radar ISIN list", "as in the file"),
+                      "search_failed": search_failed}
     return out
 
 
-def yahoo_search(q: str) -> list[dict]:
-    try:
-        from .. import net
+def yahoo_search(q: str) -> list[dict] | None:
+    """Yahoo's matches for `q`; None if the search itself failed (logged), which is not the same as no match."""
+    from .. import net, ops
 
-        quotes = net.yf().Search(q, max_results=6, news_count=0).quotes
-    except Exception:
-        return []
+    try:
+        with ops.context(source="search"):
+            quotes = net.yf().Search(q, max_results=6, news_count=0).quotes
+    except Exception as e:  # noqa: BLE001 - yfinance raises anything; the preview says the search failed
+        ops.event("warn", "source", f"Yahoo search for {q!r} failed: {type(e).__name__}", source="search", exc=e)
+        return None
     return [{"symbol": x["symbol"], "name": x.get("longname") or x.get("shortname"),
              "exchange": x.get("exchDisp") or x.get("exchange")}
             for x in quotes if x.get("symbol") and x.get("quoteType") in ("EQUITY", "ETF", "MUTUALFUND")]

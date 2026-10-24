@@ -15,7 +15,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
   `dashboard.check`, and `profile.build` its profile; `test_report_e2e` and `test_profile` hold both to it).
   `api_models` sits in the features layer, below the API, so the producers can import it.
 - After changing the models, run `pnpm -C web gen:api` to regenerate `web/src/api/schema.ts` from `radar openapi`.
-  `pnpm -C web build` then fails on any field the UI uses that no longer exists.
+  `pnpm -C web build` then fails on any field the UI uses that no longer exists. Only the responses are checked:
+  `web/src/api/client.ts` writes the URLs and query parameters by hand, so a renamed route or parameter still
+  compiles and only fails at runtime.
 - TypeScript is pinned to 5.9: version 7's native compiler lacks the API `openapi-typescript` needs.
 
 ## Endpoints

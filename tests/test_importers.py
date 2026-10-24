@@ -8,8 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, ingest, userstore
+from radar import api, dashboard, importers, ingest, net, ops, userstore
 from world import IDX
+
+YAHOO_SEARCH = importers.yahoo_search   # before the fixture below stubs it
 
 D1, D2 = IDX[150].date(), IDX[220].date()
 P1, P2 = 100 * 1.0006 ** 150, 100 * 1.0006 ** 220            # S4's closes on those days
@@ -98,6 +100,18 @@ def test_nordnet_preset_isin_matching_and_a_new_portfolio(client, monkeypatch):
     assert userstore.mapped_symbol("US0000000004") == "S4"                 # remembered for next time
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [])
     assert _preview(client, nordnet_tsv())["symbols"][0]["candidates"][0]["how"] == "remembered"
+
+
+def test_a_failed_yahoo_search_is_not_no_match(client, monkeypatch):
+    def down(*a, **kw):
+        raise ConnectionError("yahoo is down")
+    monkeypatch.setattr(importers, "yahoo_search", YAHOO_SEARCH)                     # the real one, over a broken Yahoo
+    monkeypatch.setattr(net, "yf", lambda: type("Yf", (), {"Search": staticmethod(down)}))
+    m = _preview(client, nordnet_tsv())["symbols"][0]
+    assert m["candidates"] == [] and m["search_failed"] is True
+    assert any("Yahoo search" in e["message"] for e in ops.events())
+    monkeypatch.setattr(importers, "yahoo_search", lambda q: [])
+    assert _preview(client, nordnet_tsv())["symbols"][0]["search_failed"] is False   # no match is just no match
 
 
 def test_excel_and_unknown_symbols_block_the_commit(client):

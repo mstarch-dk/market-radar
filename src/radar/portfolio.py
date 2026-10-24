@@ -177,8 +177,8 @@ def _cash_issues(rows: list[dict], market, p: dict | None, candidate: dict, perf
         return []
     out = []
     bal, problems = performance.cash_balance(rows, market, (p or {}).get("dividends", "reinvested"))
-    own = [m for m in problems if candidate.get("symbol") and m.startswith(f"{candidate['symbol']} on {candidate['date']}")]
-    if own:
+    day = pd.Timestamp(str(candidate.get("date"))[:10]) if candidate.get("date") else None
+    if any(x["symbol"] == candidate.get("symbol") and x["date"] == day for x in problems):
         out.append(_issue(ERROR if virtual else WARNING, "fx_rate",
                           f"No DKK exchange rate for {candidate['symbol']} on that date: enter the rate you traded at."))
     if len(bal) and bal.min() < -CASH_SLACK:
@@ -266,7 +266,8 @@ def cash_view(market, portfolios: list[int] | None = None) -> list[dict]:
             continue
         bal, problems = performance.cash_balance(rows, market, p["dividends"])
         out.append({"portfolio_id": p["id"], "portfolio": p["name"], "funding": "ledger",
-                    "cash_dkk": None if problems else (float(bal.iloc[-1]) if len(bal) else 0.0), "problems": problems})
+                    "cash_dkk": None if problems else (float(bal.iloc[-1]) if len(bal) else 0.0),
+                    "problems": [x["message"] for x in problems]})
     return out
 
 

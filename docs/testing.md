@@ -103,8 +103,10 @@
 
 ## Static checks
 - `uv run ruff check`: the linter (rules and the few deliberate ignores in pyproject.toml `[tool.ruff]`; lint only,
-  no formatter). `uv run mypy`: type checks the modules listed in `[tool.mypy] files` (the pure ones first; add a
-  module once it passes). `uv run pytest -q --cov`: coverage with a floor (`[tool.coverage.report] fail_under`):
+  no formatter). `uv run mypy`: type checks all of `src/radar` (`[tool.mypy] files`), but loosely: only
+  annotated functions are checked (no `check_untyped_defs` yet) and pandas is `Any`, so a wrong column name or an
+  untyped `market` passes. Tighten in steps: annotate, then `check_untyped_defs`, then `disallow_incomplete_defs`
+  package by package. `uv run pytest -q --cov`: coverage with a floor (`[tool.coverage.report] fail_under`):
   raise it when coverage rises, never lower it to let a change in.
 
 ## The command line

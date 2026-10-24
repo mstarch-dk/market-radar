@@ -144,11 +144,9 @@ def risk_adjusted(idx: pd.Series, max_dd: float, bench: pd.Series | None, rf: pd
 
 def daily_rf(market) -> pd.Series | None:
     """The ECB deposit rate (FRED ECBDFR, % a year) as a daily return: the krone follows the euro, so it is the
-    nearest risk-free rate for DKK returns in the data. None without it."""
-    try:
-        f = market.fred()
-    except Exception:  # noqa: BLE001 - no FRED cache: the statistics that need it stay None
-        return None
+    nearest risk-free rate for DKK returns in the data. None without it (no FRED cache reads as an empty frame;
+    a cache that can't be read is an error, not a missing rate)."""
+    f = market.fred()
     if "ECBDFR" not in f or f["ECBDFR"].dropna().empty:
         return None
     return (1 + f["ECBDFR"].dropna().sort_index() / 100) ** (1 / TRADING_DAYS) - 1

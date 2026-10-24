@@ -10,6 +10,7 @@ import contextvars
 import fnmatch
 import random
 import re
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -159,15 +160,22 @@ def _check_paused(host: str) -> None:
         raise Throttled(host, st["cooldown_until"], st["reason"])
 
 
+def _count(host: str, since, status: int | None = None) -> int | None:
+    """Requests to `host` since `since` from the operations log; None (said, not silent) if it can't be read, which
+    leaves the 429 breaker and the budget warning off until it can."""
+    try:
+        return ops.count_requests(host, since, status=status)
+    except (sqlite3.Error, OSError) as e:
+        ops.event("error", "throttle", f"{host}: operations log unreadable, 429 breaker off: {type(e).__name__}: {e}")
+        return None
+
+
 def note_429(host: str) -> None:
     """Count recent 429s; trip the host's cooldown when there are too many."""
     cfg = _cooldown_cfg()
     t = ops.now()
-    try:
-        n = ops.count_requests(host, t - timedelta(minutes=cfg["window_min"]), status=429)
-    except Exception:
-        return
-    if n < cfg["trip"]:
+    n = _count(host, t - timedelta(minutes=cfg["window_min"]), status=429)
+    if n is None or n < cfg["trip"]:
         return
     st = ops.host_state(host) or {}
     if st.get("cooldown_until") and st["cooldown_until"] > ops.timestamp(t):
@@ -190,11 +198,8 @@ def _note_budget(host: str, lim: dict) -> None:
     if _budget_warned.get(lim["pattern"]) == today:
         return
     start = ops.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    try:
-        n = ops.count_requests(host, start)
-    except Exception:
-        return
-    if n > budget:
+    n = _count(host, start)
+    if n is not None and n > budget:
         _budget_warned[lim["pattern"]] = today
         ops.event("warn", "throttle", f"{host}: {n:,} requests today, over the soft budget of {budget:,}")
 
