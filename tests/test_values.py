@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar.model.stats import mean
+from radar.model.stats import mean, split_holdout
 from radar.values import num, whole
 
 
@@ -26,3 +26,10 @@ def test_mean_leaves_out_what_is_missing():
 def test_whole_is_an_int_or_missing():
     assert whole(np.int64(3)) == 3 and isinstance(whole(3.0), int)
     assert whole(None) is None and whole(np.nan) is None and whole(pd.NA) is None
+
+
+def test_the_holdout_split_is_by_date_and_none_means_all_in_sample():
+    recs = [{"date": pd.Timestamp(d)} for d in ("2020-01-31", "2021-12-31", "2022-01-31", "2023-06-30")]
+    parts = split_holdout(recs, pd.Timestamp("2022-01-31"))
+    assert [len(parts[k]) for k in ("all", "in_sample", "holdout")] == [4, 2, 2]      # the holdout starts on its day
+    assert split_holdout(recs, None) == {"all": recs, "in_sample": recs, "holdout": []}

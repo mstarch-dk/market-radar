@@ -139,8 +139,7 @@ def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict
     p = userstore.get_portfolio(pid)
     if not p or p["mode"] != "virtual" or p["origin"] != "sim":
         raise ValueError("simulated runs go only into a virtual portfolio made for simulations (new_sim_portfolio)")
-    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None)
-            for r in sorted(rows, key=lambda r: str(r["date"])[:10])]
+    rows = performance.sim_rows(sorted(rows, key=lambda r: str(r["date"])[:10]))
     problems = check_rows(rows, market, p["dividends"])
     if problems:
         raise ValueError("; ".join(problems[:5]))

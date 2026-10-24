@@ -16,7 +16,7 @@ from ..config_schema import Propose
 from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
-from ..model.stats import path_stats
+from ..model.stats import path_stats, split_holdout
 from . import study
 
 if TYPE_CHECKING:
@@ -67,9 +67,7 @@ def summarize(recs: list[dict], h: int, prefix: str = "") -> dict | None:
 
 
 def split(recs: list[dict], h: int, prefix: str, holdout) -> dict:
-    return {"all": summarize(recs, h, prefix),
-            "in_sample": summarize([r for r in recs if holdout is None or r["date"] < holdout], h, prefix),
-            "holdout": summarize([r for r in recs if holdout is not None and r["date"] >= holdout], h, prefix),
+    return {**{k: summarize(xs, h, prefix) for k, xs in split_holdout(recs, holdout).items()},
             "by_regime": {str(g): summarize([r for r in recs if r["regime"] == g], h, prefix)
                           for g in sorted({r["regime"] for r in recs}, key=str)}}
 

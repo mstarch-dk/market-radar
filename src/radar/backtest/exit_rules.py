@@ -18,6 +18,7 @@ from ..model.stats import (
     nw_t,
     path_stats,
     risk_adjusted,
+    split_holdout,
 )
 from ..signals.risk import annualised_vol
 from . import study
@@ -75,17 +76,9 @@ def path(rows: list[dict], market: Market, start: pd.Timestamp, end: pd.Timestam
     put in (the first day's buying fees included). None when the value at the end is unknown. With `rf` (a daily
     return series): Sharpe and Sortino of the daily returns over it, annualised; with `bench` (ACWI in DKK): the
     information ratio and tracking error against it. Calmar is the annualised return over the max drawdown."""
-    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
-    b = performance.book(rows, market)
-    if b is None:
+    idx = performance.paid_in_index(rows, market, start, end)
+    if idx is None:
         return None
-    v = b.value.loc[start:end].dropna()
-    if not len(v) or v.index[-1] != end:
-        return None
-    ext = float((b.inflow - b.outflow).loc[:end].sum())
-    if ext <= 0:
-        return None
-    idx = v / ext
     r = idx.pct_change().dropna()
     p = path_stats(idx)
     out = {"ret": p["ret"], "max_dd": p["max_dd"], "vol": annualised_vol(r) if len(r) > 2 else None,
@@ -234,10 +227,9 @@ def exit_variants(market: Market, n_top: int = 15, horizons=EXIT_HORIZONS, keys:
                              **{f"{k}_exits": r.get(f"{k}_exits") for k in spec_keys},
                              **{f"{k}_reentries": r.get(f"{k}_reentries") for k in spec_keys}})
             out[str(h)] = {}
+            split = split_holdout(flat, holdout)
             for k in spec_keys:
-                parts = {"all": summarize_exits(flat, k, lag),
-                         "in_sample": summarize_exits([x for x in flat if holdout is None or x["date"] < holdout], k, lag),
-                         "holdout": summarize_exits([x for x in flat if holdout is not None and x["date"] >= holdout], k, lag)}
+                parts = {p: summarize_exits(xs, k, lag) for p, xs in split.items()}
                 out[str(h)][k] = parts | {"verdict": exit_verdict(parts, h)}
         return out
 
