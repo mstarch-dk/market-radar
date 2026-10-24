@@ -94,6 +94,13 @@ def test_unknown_ticker(env):
         profile.build("NOPE")
 
 
+def test_refresh_asks_for_a_tracked_tickers_missing_sessions(env, monkeypatch):
+    seen = []
+    monkeypatch.setattr(profile, "ensure_prices", lambda t, m=None, refresh=False: seen.append(refresh) or m)
+    profile.load_inputs("S1", profile.Market.load(), refresh=True)
+    assert seen == [True]                     # `radar info --refresh` and the app's refresh button alike
+
+
 def test_legacy_info_keeps_the_old_keys(env):
     flat = profile.legacy_info(profile.build("S1"))
     for k in ("ticker", "last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "above50",

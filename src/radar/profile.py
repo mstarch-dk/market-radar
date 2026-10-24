@@ -249,7 +249,7 @@ def load_inputs(ticker: str, market: Market | None = None, refresh: bool = False
     """Read everything the profile of `ticker` needs, prices first (TickerNotFound without them). `refresh` asks
     Yahoo for a fresh detail; `anonymous` leaves your holdings out (see build)."""
     cfg = settings()
-    market = ensure_prices(ticker, market)
+    market = ensure_prices(ticker, market, refresh=refresh)   # refresh: a tracked ticker's missing sessions too
     raw, raw_status = external.detail(ticker, cfg.get("profile", {}).get("max_age_hours", 24), refresh)
     info = (raw or {}).get("info") or {}
     etfs = tracked.etfs()
