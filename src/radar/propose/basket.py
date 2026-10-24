@@ -63,7 +63,8 @@ def gates(df: pd.DataFrame, tilt: str, ticket: float, c: dict | None = None, day
         tests.append(("no K+V (kvalitet + værdi)", df["qv"].isna()))
     tests += [("no DKK rate", ~df["dkk"].eq(True)),
               ("stale price", (day - pd.to_datetime(df["last_bar"])).dt.days > g["max_stale_days"]),
-              ("short history", df["history"].fillna(0) < g["min_history_weeks"] * 5),
+              ("no price history", df["history"].isna()),
+              ("short history", df["history"] < g["min_history_weeks"] * 5),
               ("no volume data", df["adv_dkk"].isna()),
               ("thin trading", df["adv_dkk"] < g["min_adv_dkk"]),
               ("no price", df["price_dkk"].isna()),
@@ -100,7 +101,8 @@ def score(df: pd.DataFrame, tilt: str, c: dict | None = None, corr: pd.Series | 
     hi = df["r1m"].quantile(0.9) if df["r1m"].notna().any() else np.inf
     df["pen_stretch"] = np.where(df["r1m"] >= hi, pen["stretch"], 0.0)
     df["corr_book"] = corr.reindex(df.index) if corr is not None else np.nan
-    df["pen_corr"] = (pen["corr"] * df["corr_book"].clip(lower=0)).fillna(0.0)
+    pc = pen["corr"] * df["corr_book"].clip(lower=0)
+    df["pen_corr"] = pc.fillna(pc.median() if pc.notna().any() else 0.0)   # unknown: the pool's median, not "unrelated"
     df["composite"] = base - df["pen_vol"] - df["pen_stretch"] - df["pen_corr"]
     df = df[df["composite"].notna()]
     return df.assign(_t=df.index).sort_values(["composite", "_t"], ascending=[False, True]).drop(columns="_t")

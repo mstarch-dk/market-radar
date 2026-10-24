@@ -190,6 +190,16 @@ def test_a_column_without_evidence_follows_the_rest_of_the_file():
     assert [r["quantity"] for r in out] == [10, 1000] and not any(r["ambiguous"] for r in out)
 
 
+def test_an_unreadable_fee_skips_the_row_instead_of_becoming_zero():
+    rows = ["Dato;Type;Symbol;Antal;Kurs;Kurtage", f"{D1:%d-%m-%Y};Køb;S4;10;412,50;29,00",
+            f"{D1:%d-%m-%Y};Køb;S4;10;412,50;", f"{D1:%d-%m-%Y};Køb;S4;10;412,50;-",
+            f"{D1:%d-%m-%Y};Køb;S4;10;412,50;n/a"]
+    df = importers.read_table("\n".join(rows).encode())
+    out, _ = importers.normalize(df, importers.map_columns(list(df.columns), importers.GENERIC))
+    assert [r["fee"] for r in out[:3]] == [29.0, 0.0, 0.0] and not any(r["skip"] for r in out[:3])   # blank or "-"
+    assert out[3]["fee"] is None and "unreadable fee" in out[3]["skip"]
+
+
 # ---------------- the file's currency against the listing's (hardening 3.3) ----------------
 
 @pytest.mark.parametrize("file, quote, fee, fields", [

@@ -250,6 +250,17 @@ def saxo_to_yahoo(sym: str) -> str | None:
     return f"{base}{'-' + share_class.upper() if share_class else ''}{SAXO_EXCHANGES[ex]}"
 
 
+NO_FEE = ("", "-", "–", "—")
+
+
+def _fee(v: float | None, cell) -> float | None:
+    """The fee as a positive amount: a blank cell or a dash is no fee (0); a cell that doesn't read as a number is
+    unknown (None), never 0."""
+    if v is not None:
+        return abs(v)
+    return 0.0 if str(cell).strip() in NO_FEE else None
+
+
 def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = None) -> tuple[list[dict], list[str]]:
     """Rows as transactions (unresolved: `ident` is what identifies the instrument), plus the watch-only symbols
     (Yahoo exports). Rows that aren't buys or sells are kept with `skip` saying why. A file's account column
@@ -311,7 +322,7 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
                "name": name or None, "date": parse_date(get(r, "date"), p.get("date_formats"), p.get("dayfirst", True)),
                "type": kind, "quantity": abs(qty) if qty is not None else None,
                "price": abs(v) if (v := num(r, i, "price", unclear)) is not None else None,
-               "fee": abs(num(r, i, "fee", unclear) or 0.0),
+               "fee": _fee(num(r, i, "fee", unclear), get(r, "fee")),
                "currency": get(r, "currency") or None, "portfolio": get(r, "account").strip() or None,
                "ext_ref": get(r, "ext_ref") or None, "amount": None, "skip": None, "ambiguous": unclear}
         if kind is None:
@@ -320,6 +331,8 @@ def normalize(df: pd.DataFrame, mapping: dict[str, str], preset: str | None = No
             row["skip"] = f"unreadable date ({get(r, 'date')!r})"
         elif not row["quantity"] or not row["price"]:
             row["skip"] = "no quantity or price"
+        elif row["fee"] is None:
+            row["skip"] = f"unreadable fee ({get(r, 'fee')!r})"
         rows.append(row)
     return rows, sorted(set(watch))
 

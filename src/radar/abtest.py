@@ -149,7 +149,8 @@ class ScoreRebalance:
     """A simulate.Strategy that replays a portfolio's recorded rebalances (params["rebalances"]): on the session
     after each record, sell what left the list, then trade every holding to its target weight at that day's traded
     closes and DKK rates, paying `backtest.fee_bps` on what is traded (no account, so no broker schedule). Buys never
-    spend more cash than there is; a record whose next session isn't in the prices yet waits."""
+    spend more cash than there is; a record whose next session isn't in the prices yet waits. A holding without a
+    price that day stays as it is and counts at its last price in the value the targets are sized from."""
     key = "ab-rebalance"
 
     def __init__(self) -> None:
@@ -171,6 +172,7 @@ class ScoreRebalance:
         cal = performance.benchmark_sessions(market)
         bps = money.bps(params.get("fee_bps", 0))
         held: dict[str, float] = {}
+        last: dict[str, tuple[float, float]] = {}          # each name's last (traded close, DKK rate) seen
         cash = 0.0
         rows: list[dict] = []
         for rec in params.get("rebalances", []):
@@ -188,8 +190,10 @@ class ScoreRebalance:
             prices = {t: self._px(market, t, day) for t in set(held) | set(target)}
             unpriced = sorted(t for t, v in prices.items() if v is None)
             if unpriced:
-                self.notes.append(f"{ds}: no price or DKK rate for {', '.join(unpriced)}: left as they were")
-            value = cash + sum(q * p[0] * p[1] for t, q in held.items() if (p := prices.get(t)))
+                self.notes.append(f"{ds}: no price or DKK rate for {', '.join(unpriced)}: left as they were, "
+                                  "a holding counted at its last price")
+            last |= {t: p for t, p in prices.items() if p is not None}
+            value = cash + sum(q * p[0] * p[1] for t, q in held.items() if (p := last.get(t)))
             trades = []
             for t in sorted(set(held) | set(target)):
                 pr = prices.get(t)

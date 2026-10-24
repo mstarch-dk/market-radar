@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, ingest, mine, performance, profile, report, userstore
+from radar import api, dashboard, fxrates, ingest, mine, performance, profile, report, userstore
 from radar.api_models import Comparison, Performance
 from radar.config import settings
 from world import IDX, N
@@ -110,6 +110,17 @@ def test_a_missing_price_is_a_gap_not_a_zero(market):
     assert performance.period_return(series, END - 130) is None                 # starts inside the gap: unknown
     res = _run([_buy("NOPX", 100, 1, 10)], market)                    # never had prices
     assert res["missing"] == ["NOPX: no prices"] and all(v is None for v in res["series"]["value_dkk"])
+
+
+def test_an_unpriced_trade_after_the_last_close_leaves_the_history_known(market, monkeypatch):
+    monkeypatch.setattr(fxrates, "currencies", lambda ts: {t: None if t == "NOPX" else "USD" for t in ts})
+    today = (IDX[END] + pd.Timedelta(days=3)).date().isoformat()      # booked before the next update
+    rows = [_cash("DEPOSIT", 50, 10 * c1(50) * FX), _buy("S1", 50, 10, c1(50)),
+            _buy("NOPX", 0, 1, 10) | {"date": today}]
+    res = _run(rows, market)
+    assert any("NOPX" in m for m in res["missing"])                    # the gap is still said
+    assert res["stats"]["value_dkk"] == pytest.approx(10 * c1(END) * FX)
+    assert res["stats"]["twr_total"] == pytest.approx(1.0012 ** (END - 50) - 1, abs=1e-9)
 
 
 def test_dividends_count_once_either_way(market):
