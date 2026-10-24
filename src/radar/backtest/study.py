@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,9 @@ from ..model.stats import (  # noqa: F401 (re-exported)
 from ..model.stats import mean as _mean
 from ..signals.score import COMPONENTS
 from ..signals.score import mean_pct as pct
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
 GROUP_MIN = 10                                   # names a stock group needs on a date for its own IC
@@ -266,7 +269,7 @@ def forward(p: Panels, fi: int, h: int, dkk: bool = False) -> pd.Series | None:
     return c.loc[e] / c.loc[f] - 1
 
 
-def run(market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top: int = 15, exits: int | None = None,
+def run(market: Market, horizons=(1, 3, 6, 12), variants: list[str] | None = None, n_top: int = 15, exits: int | None = None,
         seasoned: bool = False, since=None, with_regime: bool = True, log=lambda *_: None, p: Panels | None = None,
         signal: str = "momentum") -> dict:
     """The study at every month-end D on the benchmark calendar: each variant from prices up to D only
@@ -433,7 +436,7 @@ CAVEATS = [
 
 # ---------------- the exit rule across dates ----------------
 
-def exit_study(market, p: Panels, ctx, dates: list[dict], months: int, n_top: int, log) -> dict:
+def exit_study(market: Market, p: Panels, ctx, dates: list[dict], months: int, n_top: int, log) -> dict:
     """Each date's top-N basket (production score, equal weights) held for `months` against the same buys with the
     rule (both halves, stop only, take-profit only), in DKK, fees included."""
     from . import exits as ex

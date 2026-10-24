@@ -6,7 +6,7 @@ guide/brugervejledning/portefoljer-og-tags.md (*A/B-test*); side by side: guide/
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -14,6 +14,9 @@ from . import money, performance, simulate, tracked, userstore
 from .config import typed
 from .config_schema import Abtest
 from .model.select import capped
+
+if TYPE_CHECKING:
+    from .market import Market
 
 TAG = "ab-qvm"
 KINDS = {   # strategy key -> portfolio name
@@ -43,7 +46,7 @@ def _sectors() -> dict[str, str]:
     return (pd.read_csv(f, keep_default_na=False).set_index("ticker")["sector"].to_dict() if f.exists() else {})
 
 
-def rankings(market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
+def rankings(market: Market, value_score: str = "qv") -> dict[str, pd.DataFrame]:
     """Today's candidates per basket from the radar's stock lists: ticker, score, sector, group, sorted best first,
     only names with a price and a DKK rate. K+V (or the værdiscore, `abtest.value_score`) from fundamentals/context.py;
     momentum as the momentum score pooled over every stock group (one ranking, not one per region)."""
@@ -88,7 +91,7 @@ def blend(a: list[dict], b: list[dict]) -> list[dict]:
 
 # ---------------- creating and recording ----------------
 
-def create(market, capital: float | None = None, n: int | None = None, max_per_sector: int | None = None,
+def create(market: Market, capital: float | None = None, n: int | None = None, max_per_sector: int | None = None,
            value_score: str | None = None, today: date | None = None) -> dict:
     """Start the A/B test: the three portfolios and their first picks (refused when it exists, or when fewer than
     `n` stocks have a score yet)."""
@@ -118,7 +121,7 @@ def _month(d: str) -> str:
     return str(d)[:7]
 
 
-def record_due(market, today: date | None = None, ranked: dict | None = None) -> str | None:
+def record_due(market: Market, today: date | None = None, ranked: dict | None = None) -> str | None:
     """This month's picks, when none are recorded yet for the month of the latest prices. Returns the date
     recorded, or None."""
     ps = portfolios()
@@ -157,7 +160,7 @@ class ScoreRebalance:
         self.notes: list[str] = []
 
     @staticmethod
-    def _px(market, t: str, day: pd.Timestamp) -> tuple[float, float] | None:
+    def _px(market: Market, t: str, day: pd.Timestamp) -> tuple[float, float] | None:
         """(traded close, DKK rate) on `day` (or the last within 7 days before), else None."""
         b = market.bars(t) if t in market.closes.columns else pd.DataFrame()
         col = "raw_close" if "raw_close" in b else "close"
@@ -168,7 +171,7 @@ class ScoreRebalance:
             return None
         return float(s.iloc[-1]), rate
 
-    def rows(self, market, start, end, capital_dkk: float, params: dict) -> list[dict]:
+    def rows(self, market: Market, start, end, capital_dkk: float, params: dict) -> list[dict]:
         cal = performance.benchmark_sessions(market)
         bps = money.bps(params.get("fee_bps", 0))
         held: dict[str, float] = {}
@@ -227,7 +230,7 @@ class ScoreRebalance:
         return rows
 
 
-def refresh(market, today: date | None = None, ranked: dict | None = None, log=None) -> dict:
+def refresh(market: Market, today: date | None = None, ranked: dict | None = None, log=None) -> dict:
     """Record this month's picks if due, then replay every A/B portfolio from its records. `simulate.write_run`
     stores each run, its params saying how fees were charged (`fee_model`), so a rerun gives the same rows."""
     ps = portfolios()
@@ -258,7 +261,7 @@ def _weekly(b) -> pd.Series:
     return idx.resample("W-FRI").last().pct_change().dropna() if len(idx) else pd.Series(dtype=float)
 
 
-def view(market) -> dict:
+def view(market: Market) -> dict:
     """The test's state: the three lines and ACWI from the first purchase, the correlation of their weekly
     returns, every recorded rebalance with its turnover, and when the next picks are due."""
     from .signals import risk
@@ -303,7 +306,7 @@ def view(market) -> dict:
             "comparison": cmp, "correlation": corr, "rebalances": rebal, "next_due": next_due, "notes": notes}
 
 
-def summary(market) -> dict:
+def summary(market: Market) -> dict:
     """The compact digest for summary.json (the skills read it): per basket its return, ACWI's and the difference
     since the first purchase, and its latest picks; the correlation of the weekly returns; when the next picks are
     due. {"running": False} when no test runs."""

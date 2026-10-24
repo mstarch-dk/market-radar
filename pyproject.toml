@@ -138,8 +138,8 @@ show_missing = false
 sort = "cover"
 fail_under = 87
 
-# Type checking (CI runs `uv run mypy`): the pure modules first, widened tranche by tranche. Imported modules
-# outside `files` are followed silently (their errors aren't reported); pandas has no stubs here, so it is Any.
+# Type checking (CI runs `uv run mypy`): all of src/radar, with the bodies of unannotated functions checked too.
+# pandas has no stubs here, so it is Any. Next rung: disallow_incomplete_defs, package by package.
 [tool.mypy]
 mypy_path = "src"
 explicit_package_bases = true
@@ -148,3 +148,4 @@ follow_imports = "silent"
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
+check_untyped_defs = true

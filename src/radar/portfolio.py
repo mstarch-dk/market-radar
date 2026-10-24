@@ -7,12 +7,15 @@ must be confirmed.
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import pandas as pd
 
 from . import fxrates, money, trades, universe, userstore
 from .values import whole
+
+if TYPE_CHECKING:
+    from .market import Market
 
 ERROR, WARNING = "error", "warning"
 
@@ -26,7 +29,7 @@ def _issue(level: str, field: str, message: str) -> dict:
     return {"level": level, "field": field, "message": message}
 
 
-def session_close(market, symbol: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
+def session_close(market: Market, symbol: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
     """The traded close on `day`, or the last session before it (weekends, holidays)."""
     if symbol not in market.closes.columns:
         return None
@@ -38,7 +41,7 @@ def session_close(market, symbol: str, day: pd.Timestamp) -> tuple[pd.Timestamp,
     return s.index[-1], float(s.iloc[-1])
 
 
-def price_check(market, symbol: str, day, price: float | None = None) -> dict:
+def price_check(market: Market, symbol: str, day, price: float | None = None) -> dict:
     """The traded close on that day (to prefill a price) and, given a price, whether it looks plausible: about
     100× off is the classic pence/pound (GBp/GBP) or cents mix-up; far from the day's close is worth a second
     look. Prices are per share in the instrument's quote currency."""
@@ -88,7 +91,7 @@ def _is_number(v) -> TypeGuard[int | float]:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
 
 
-def validate(row: dict, market, others: list[dict] | None = None, exclude_id: int | None = None,
+def validate(row: dict, market: Market, others: list[dict] | None = None, exclude_id: int | None = None,
              check_symbol: bool = True) -> list[dict]:
     """Issues with one row (a trade or a cash row), in the context of its portfolio's stored rows (`others`,
     default: the store), leaving out `exclude_id` (the row being edited)."""
@@ -169,7 +172,7 @@ def validate(row: dict, market, others: list[dict] | None = None, exclude_id: in
     return issues
 
 
-def _cash_issues(rows: list[dict], market, p: dict | None, candidate: dict, performance) -> list[dict]:
+def _cash_issues(rows: list[dict], market: Market, p: dict | None, candidate: dict, performance) -> list[dict]:
     """Would cash go negative? An error in a virtual portfolio (it can only spend what was put in), a warning in
     a real one that keeps a cash ledger (a missing deposit?); real portfolios without cash rows aren't checked."""
     virtual = (p or {}).get("mode") == "virtual"
@@ -224,7 +227,7 @@ def effect(row: dict, others: list[dict] | None = None, exclude_id: int | None =
     return {"symbol": sym, "before": pick(before), "after": pick(after)}
 
 
-def positions_view(market, portfolios: list[int] | None = None) -> dict:
+def positions_view(market: Market, portfolios: list[int] | None = None) -> dict:
     """Open positions per portfolio and in total over these portfolios (ids; default: your real ones), valued at
     the last traded close (in the quote currency)."""
     tx = trades.transactions(portfolios)
@@ -251,7 +254,7 @@ def positions_view(market, portfolios: list[int] | None = None) -> dict:
             "warnings": warn, "transactions": len(tx), "cash": cash_view(market, portfolios)}
 
 
-def cash_view(market, portfolios: list[int] | None = None) -> list[dict]:
+def cash_view(market: Market, portfolios: list[int] | None = None) -> list[dict]:
     """Cash per portfolio, in DKK, for those that keep a cash ledger (deposits/withdrawals)."""
     from . import performance
 

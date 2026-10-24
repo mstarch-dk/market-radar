@@ -5,7 +5,7 @@ reports/redeploy-study.json."""
 from __future__ import annotations
 
 from collections.abc import Collection
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -19,6 +19,9 @@ from ..model.stats import (
 )
 from ..model.stats import mean as _mean
 from . import exit_rules, study
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 
 class Picker:
@@ -142,7 +145,7 @@ def redeploy_verdict(parts: dict, months: int) -> dict:
     return {"label": "better" if not why else "not better", "why": why, "cost_limit": limit}
 
 
-def redeploy_study(market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: int = BUFFER, cooldown: int = COOLDOWN,
+def redeploy_study(market: Market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, buffer: int = BUFFER, cooldown: int = COOLDOWN,
                    max_per_sector: int | None = None, max_per_group: int | None = None, trend: bool = True, since=None,
                    keys: list[str] | None = None, log=lambda *_: None, p: Panels | None = None) -> dict:
     """Each month-end's top N (under the caps, equal weights, fees) held against the exit rules with the money

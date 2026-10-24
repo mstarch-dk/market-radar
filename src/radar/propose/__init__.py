@@ -21,7 +21,7 @@ from .draft import (  # noqa: F401
     values_of,
 )
 from .drift import haircut, load_study, long_prior, shrink, study_view  # noqa: F401
-from .evaluation import adv_dkk, alternatives, decide, evaluate, factors, metrics, picks_doc, picks_sha, randoms  # noqa: F401
+from .evaluation import adv_dkk, alternatives, decide, evaluate, factors, metrics, picks_sha, randoms  # noqa: F401
 from .exposure import DIMS, annotate, book, exposures, info, look_through  # noqa: F401
 from .pricing import Prices  # noqa: F401
 from .riskmodel import bootstrap, realised_dd, risk, series, shrunk_cov, stress  # noqa: F401

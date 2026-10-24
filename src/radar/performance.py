@@ -8,7 +8,7 @@ docs/data-conventions.md, *Returns over time*.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,9 @@ import pandas as pd
 from . import fxrates, money, tracked
 from .signals.risk import annualised_vol, deepest_drawdown
 from .userstore import TRADE_TYPES
+
+if TYPE_CHECKING:
+    from .market import Market
 
 EXTERNAL = {"DEPOSIT": 1.0, "WITHDRAW": -1.0}
 INCOME = {"DIVIDEND": 1.0, "INTEREST": 1.0, "FEE": -1.0}
@@ -26,7 +29,7 @@ MIN_MWR_DAYS = 365         # an annual rate from a few weeks is mostly noise
 
 # ---------------- cash ----------------
 
-def fx_series(market, symbol: str | None) -> pd.Series | None:
+def fx_series(market: Market, symbol: str | None) -> pd.Series | None:
     """DKK per unit of the symbol's quoted price (None when the currency or its rate is unknown)."""
     if not symbol:
         return None
@@ -61,7 +64,7 @@ class CashProblem(TypedDict):
     message: str
 
 
-def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple[list[dict], list[CashProblem]]:
+def cash_moves(rows: list[dict], market: Market, dividends: str = "reinvested") -> tuple[list[dict], list[CashProblem]]:
     """Each row's effect on cash (DKK) and whether it is an external flow, oldest first; plus problems (trades
     whose DKK rate is unknown). DIVIDEND rows only move cash under the `cash` dividend policy."""
     fx_cache: dict[str, pd.Series | None] = {}
@@ -88,7 +91,7 @@ def cash_moves(rows: list[dict], market, dividends: str = "reinvested") -> tuple
     return out, problems
 
 
-def cash_balance(rows: list[dict], market, dividends: str = "reinvested") -> tuple[pd.Series, list[CashProblem]]:
+def cash_balance(rows: list[dict], market: Market, dividends: str = "reinvested") -> tuple[pd.Series, list[CashProblem]]:
     """Cash in DKK at the end of each day with a cash row (cumulative), and problems (unknown DKK rates)."""
     moves, problems = cash_moves(rows, market, dividends)
     if not moves:
@@ -120,12 +123,12 @@ def _session(idx: pd.DatetimeIndex, day: pd.Timestamp) -> int | None:
     return i if i < len(idx) else None
 
 
-def benchmark_sessions(market) -> pd.DatetimeIndex:
+def benchmark_sessions(market: Market) -> pd.DatetimeIndex:
     """The trading days: the sessions the benchmark has a close on."""
     return market.closes[tracked.benchmark()].dropna().index
 
 
-def book(rows: list[dict], market, dividends: str = "reinvested") -> Book | None:
+def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Book | None:
     """The daily value of one portfolio's rows in DKK, with its external flows. None without any rows.
 
     Rows from before the price history (settings: history_years) can't be valued on their dates: the series then
@@ -323,7 +326,7 @@ def _mwr(dates: pd.DatetimeIndex, inflow: pd.Series, outflow: pd.Series, final_v
     return xirr(ds + [dates[-1]], am + [final_value])
 
 
-def bench_dkk(market) -> pd.Series:
+def bench_dkk(market: Market) -> pd.Series:
     b = tracked.benchmark()
     px = market.closes[b].dropna()
     fx = fxrates.fx_to_dkk(market.closes, fxrates.currencies([b])[b])
@@ -386,7 +389,7 @@ def _vol(index: pd.Series) -> float | None:
     return annualised_vol(r) if len(r) > 20 else None
 
 
-def analyze(b: Book, market, start=None, end=None) -> dict:
+def analyze(b: Book, market: Market, start=None, end=None) -> dict:
     """Series and statistics for one book, optionally over a window (`start` rebases the index to 100)."""
     bench = bench_dkk(market)
     end = pd.Timestamp(end) if end else None
@@ -463,7 +466,7 @@ def reset() -> None:
     _cache.clear()
 
 
-def portfolio_book(p: dict, market) -> Book | None:
+def portfolio_book(p: dict, market: Market) -> Book | None:
     """The book (daily DKK value, flows) of one portfolio from the store, with its dividend policy."""
     from . import userstore
 
@@ -482,7 +485,7 @@ def _identity(p: dict) -> dict:
     return {k: p[k] for k in ("id", "name", "mode", "kind", "tags", "archived")}
 
 
-def portfolio_performance(pid: int, market, start=None, end=None) -> dict | None:
+def portfolio_performance(pid: int, market: Market, start=None, end=None) -> dict | None:
     """One portfolio's value, TWR/MWR and the same for ACWI (None if there is no such portfolio)."""
     from . import userstore
 
@@ -497,7 +500,7 @@ def portfolio_performance(pid: int, market, start=None, end=None) -> dict | None
     return _cached(("one", pid, start, end, market.mtime, userstore.transactions_version()), run)
 
 
-def _asof(market) -> str:
+def _asof(market: Market) -> str:
     return market.closes[tracked.benchmark()].dropna().index[-1].date().isoformat()
 
 
@@ -507,7 +510,7 @@ def _empty() -> dict:
                                        "acwi_same_flows_dkk")}}
 
 
-def compare(market, ids: list[int] | None = None, tags: list[str] | None = None, start=None) -> dict:
+def compare(market: Market, ids: list[int] | None = None, tags: list[str] | None = None, start=None) -> dict:
     """Portfolios (by id) and tag groups (each pooled into one line) side by side from a common start (the
     latest first day among them, or `start`), every index rebased to 100 there, with ACWI as the yardstick."""
     from . import userstore
@@ -551,7 +554,7 @@ def compare(market, ids: list[int] | None = None, tags: list[str] | None = None,
 SUMMARY_PERIODS = ("1m", "3m", "ytd", "1y")
 
 
-def summary(market) -> list[dict]:
+def summary(market: Market) -> list[dict]:
     """Your real portfolios' returns for summary.json (the skills read it): per portfolio its tax kind, tags,
     funding, value and time-weighted returns over 1m/3m/YTD/1y and since its start, each next to ACWI's."""
     from . import userstore
@@ -576,7 +579,7 @@ def summary(market) -> list[dict]:
     return out
 
 
-def return_on_paid_in(rows: list[dict], market, end: pd.Timestamp) -> float | None:
+def return_on_paid_in(rows: list[dict], market: Market, end: pd.Timestamp) -> float | None:
     """The return of trade rows on the money paid in, valued at `end`; None when their book doesn't reach `end` or
     nothing went in."""
     rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]

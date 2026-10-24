@@ -1,16 +1,21 @@
 """Prices in DKK for a proposal: traded and adjusted closes, the exchange rate on a day, weekly returns."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from .. import fxrates, money
 from ..values import num
 
+if TYPE_CHECKING:
+    from ..market import Market
+
 
 class Prices:
     """DKK closes and weekly DKK returns, computed once per ticker."""
 
-    def __init__(self, market) -> None:
+    def __init__(self, market: Market) -> None:
         self.market = market
         self._ccy: dict[str, str | None] = {}
         self._dkk: dict[str, pd.Series | None] = {}

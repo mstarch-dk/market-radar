@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -12,8 +13,12 @@ from .. import fees, fxrates, money, positive_list
 from ..values import num
 from . import exposure, pricing, rules
 
+if TYPE_CHECKING:
+    from ..market import Market
 
-def pool(market, prices: pricing.Prices, p=None, day=None, fund_table: pd.DataFrame | None = None, live: bool = True) -> pd.DataFrame:
+
+def pool(market: Market, prices: pricing.Prices, p=None, day=None, fund_table: pd.DataFrame | None = None,
+         live: bool = True) -> pd.DataFrame:
     """The stock universe ranked on `day` (default: the latest session) with what the proposal needs."""
     from ..model import panels as mp
 

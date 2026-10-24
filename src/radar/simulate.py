@@ -6,7 +6,7 @@ Comparing them: docs/data-conventions.md, *Returns over time*; which portfolios 
 """
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
@@ -14,17 +14,20 @@ from . import money, performance, trades, userstore
 from .config import typed
 from .fees import SimFees
 
+if TYPE_CHECKING:
+    from .market import Market
+
 SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
 
 
-def _close(market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
+def _close(market: Market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
     """The traded close on `day`, or the last one before it."""
     from .portfolio import session_close
 
     return session_close(market, sym, day)
 
 
-def fork(src_id: int, name: str, at, market, extra_cash_dkk: float = 0.0, tags=()) -> int:
+def fork(src_id: int, name: str, at, market: Market, extra_cash_dkk: float = 0.0, tags=()) -> int:
     """A virtual copy of portfolio `src_id` as it stood at the close of `at`: one deposit of its value then (plus
     `extra_cash_dkk`), and a buy of each holding at that day's traded close and DKK rate. Refused (ValueError)
     when a holding has no price or rate that day. Compare the two from that day (/api/portfolios/compare with
@@ -85,7 +88,7 @@ class Strategy(Protocol):
     start with a deposit of `capital_dkk` and only use prices known on each row's date."""
     key: str
 
-    def rows(self, market, start: pd.Timestamp, end: pd.Timestamp, capital_dkk: float, params: dict) -> list[dict]: ...
+    def rows(self, market: Market, start: pd.Timestamp, end: pd.Timestamp, capital_dkk: float, params: dict) -> list[dict]: ...
 
 
 def new_sim_portfolio(name: str, strategy: str, params: dict | None = None, tags=(), kind: str = "other",
@@ -102,7 +105,7 @@ def find_sim(parent_id: int, strategy: str) -> dict | None:
                  and p.get("strategy") == strategy), None)
 
 
-def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[str]:
+def check_rows(rows: list[dict], market: Market, dividends: str = "reinvested") -> list[str]:
     """Everything wrong with a run's rows taken together: unknown types or fields, sales beyond what was held,
     cash going negative, trades without a DKK rate."""
     problems = []
@@ -129,7 +132,7 @@ def check_rows(rows: list[dict], market, dividends: str = "reinvested") -> list[
     return problems
 
 
-def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market, message: str | None = None) -> dict:
+def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict], market: Market, message: str | None = None) -> dict:
     """Check a run's rows (the whole ledger) and store them in simulated portfolio `pid` as one run, replacing its
     previous run: the same inputs give the same rows, so a rerun is idempotent. Raises ValueError (nothing stored)
     when the portfolio isn't a simulation or the rows don't add up."""
@@ -148,14 +151,15 @@ def write_run(pid: int, strategy: str, params: dict, start, end, rows: list[dict
     return {"run_id": run_id, "rows": len(rows), "stats": perf["stats"] if perf else None}
 
 
-def run(strategy: Strategy, pid: int, start, end, capital_dkk: float, market, params: dict | None = None) -> dict:
+def run(strategy: Strategy, pid: int, start, end, capital_dkk: float, market: Market, params: dict | None = None) -> dict:
     """Let `strategy` produce its rows for the period and store them as a run of portfolio `pid`."""
     params = params or {}
     rows = strategy.rows(market, pd.Timestamp(start), pd.Timestamp(end), capital_dkk, params)
     return write_run(pid, strategy.key, params, start, end, rows, market)
 
 
-def basket_rows(market, weights: dict[str, float], day: pd.Timestamp, capital: float, fee_bps: float) -> tuple[list[dict], list[str]]:
+def basket_rows(market: Market, weights: dict[str, float], day: pd.Timestamp, capital: float,
+                fee_bps: float) -> tuple[list[dict], list[str]]:
     """A deposit of `capital` DKK and a buy of each name for its weight at `day`'s traded close (or the last one
     in the 7 days before), paying the fee. Names without a price or DKK rate are left out (listed); the rest keep
     their weights, so some cash stays uninvested."""
