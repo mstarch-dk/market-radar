@@ -6,7 +6,8 @@ import hashlib
 import json
 import re
 
-from ..config import settings
+from ..config import settings, typed
+from ..config_schema import Propose
 from ..paths import HOME
 
 PROPOSALS = HOME / "exports" / "proposals"
@@ -31,13 +32,21 @@ RULE_KEYS = ("min_ticket_dkk", "max_names", "tilts", "require_trend_from", "pena
 WEEKS_PER_MONTH = 52 / 12
 
 
-def cfg() -> dict:
-    return settings()["propose"]
+def cfg() -> Propose:
+    """settings.yaml `propose:` as the checked model: read the rule's values through this."""
+    return typed().propose
 
 
-def rule_hash(c: dict | None = None) -> str:
-    c = c or cfg()
-    blob = json.dumps({k: c.get(k) for k in RULE_KEYS}, sort_keys=True, default=str)
+def rule_settings(section: dict | None = None) -> dict:
+    """The values that make up the rule, as written in settings.yaml (`section`: a raw `propose:` section)."""
+    section = section if section is not None else settings()["propose"]
+    return {k: section.get(k) for k in RULE_KEYS}
+
+
+def rule_hash(section: dict | None = None) -> str:
+    """The rule's fingerprint, frozen with every proposal and study. Taken of the raw YAML values, not the model:
+    the model writes 10000 as 10000.0, which would change every hash already stored."""
+    blob = json.dumps(rule_settings(section), sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:12]
 
 

@@ -12,16 +12,16 @@ from radar.backtest import study
 from test_propose import market  # noqa: F401 - the shared fixture
 
 
-def _run(m, **kw):
-    m.cfg["propose"]["require_trend_from"] = 2      # the small world has few uptrends: test the rest of the rule
+def _run(m, monkeypatch, **kw):
+    with_settings(monkeypatch, base=m.cfg, propose={"require_trend_from": 2})   # the small world has few uptrends
     return ps.run(m, ["momentum"], [2], [1], with_regime=False, **kw)
 
 
-def test_the_study_runs_and_repeats(market):  # noqa: F811
-    a = _run(market)
-    b = _run(market)
+def test_the_study_runs_and_repeats(market, monkeypatch):  # noqa: F811
+    a = _run(market, monkeypatch)
+    b = _run(market, monkeypatch)
     assert a["results"] == b["results"] and a["dates"] == b["dates"]
-    assert a["settings_hash"] == propose.rule_hash(market.cfg["propose"])
+    assert a["settings_hash"] == propose.rule_hash()
     picked = [d for d in a["dates"] if d["picks"].get("momentum", {}).get("2")]
     assert picked, "no formation date with a basket"
     kept = a["results"]["momentum"]["2"]["1"]["kept"]["all"]
@@ -29,25 +29,25 @@ def test_the_study_runs_and_repeats(market):  # noqa: F811
     assert a["us_only"] == {"momentum": False}
 
 
-def test_picks_know_nothing_after_their_day(market):  # noqa: F811
-    first = _run(market)
+def test_picks_know_nothing_after_their_day(market, monkeypatch):  # noqa: F811
+    first = _run(market, monkeypatch)
     d = next(x for x in first["dates"] if x["picks"].get("momentum", {}).get("2"))
     day = study.pd.Timestamp(d["date"])
     market.closes.loc[market.closes.index > day] *= 3.0
-    again = _run(market, p=study.panels(market))
+    again = _run(market, monkeypatch, p=study.panels(market))
     same = next(x for x in again["dates"] if x["date"] == d["date"])
     assert same["picks"] == d["picks"]
 
 
 def test_a_changed_rule_makes_the_study_stale(market, tmp_data, monkeypatch):  # noqa: F811
-    rep = _run(market)
+    rep = _run(market, monkeypatch)
     ps.write(rep)
     got = propose.load_study()
     assert got.status == "ok" and not got.legacy
     assert got.report.rule_hash == rep["settings_hash"] and got.report.data_asof.isoformat() == rep["asof"]
-    c = with_settings(monkeypatch, base=market.cfg, propose={"max_corr": 0.5})
+    with_settings(monkeypatch, base=market.cfg, propose={"max_corr": 0.5})
     assert propose.load_study().status == "stale"
-    assert propose.study_view(propose.load_study(), "momentum", 2, 1, None, c["propose"])["drift_gross"] is None
+    assert propose.study_view(propose.load_study(), "momentum", 2, 1, None, propose.cfg())["drift_gross"] is None
 
 
 def test_exits_equal_kept_when_nothing_triggers(market, monkeypatch):  # noqa: F811

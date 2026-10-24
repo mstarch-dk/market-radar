@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..config_schema import Propose
 from ..signals.risk import deepest_drawdown
 from . import exposure, pricing, rules
 
@@ -84,29 +85,29 @@ def series(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.Series |
     return out.dropna()
 
 
-def bootstrap(rp: pd.Series, rb: pd.Series, weeks: int, excess: float | None, c: dict | None = None) -> dict:
+def bootstrap(rp: pd.Series, rb: pd.Series, weeks: int, excess: float | None, c: Propose | None = None) -> dict:
     """Block bootstrap of the basket's and ACWI's weekly returns together: demeaned, scaled to today's (EWMA)
     volatility, re-centred on ACWI's assumed drift plus the modelled excess (none: on ACWI's drift alone)."""
     c = c or rules.cfg()
-    bc = c["bootstrap"]
+    bc = c.bootstrap
     d = pd.concat([rp, rb], axis=1, keys=["p", "b"]).dropna()
-    if len(d) < c["min_weeks"]:
-        return {"weeks_used": len(d), "note": f"fewer than {c['min_weeks']} weeks of joint returns: no bootstrap"}
-    lam = bc["ewma_lambda"]
+    if len(d) < c.min_weeks:
+        return {"weeks_used": len(d), "note": f"fewer than {c.min_weeks} weeks of joint returns: no bootstrap"}
+    lam = bc.ewma_lambda
     scale = {}
     for k in ("p", "b"):
         x = d[k] - d[k].mean()
         ew = float((x ** 2).ewm(alpha=1 - lam).mean().iloc[-1])
         full = float((x ** 2).mean())
         scale[k] = float(np.clip(math.sqrt(ew / full), 0.5, 2.0)) if full > 0 else 1.0
-    mu_b = (1 + c["acwi_drift_annual"]) ** (1 / 52) - 1
+    mu_b = (1 + c.acwi_drift_annual) ** (1 / 52) - 1
     mu_p = mu_b + (excess / weeks if excess is not None else 0.0)
     X = np.column_stack([(d["p"] - d["p"].mean()) * scale["p"] + mu_p, (d["b"] - d["b"].mean()) * scale["b"] + mu_b])
-    T, blk = len(X), max(1, int(bc["block_weeks"]))
-    rng = np.random.default_rng(int(bc["seed"]))
+    T, blk = len(X), max(1, bc.block_weeks)
+    rng = np.random.default_rng(bc.seed)
     nb = math.ceil(weeks / blk)
-    starts = rng.integers(0, T - blk + 1, size=(int(bc["draws"]), nb))
-    idx = (starts[:, :, None] + np.arange(blk)).reshape(int(bc["draws"]), -1)[:, :weeks]
+    starts = rng.integers(0, T - blk + 1, size=(bc.draws, nb))
+    idx = (starts[:, :, None] + np.arange(blk)).reshape(bc.draws, -1)[:, :weeks]
     paths = {}
     for j, k in enumerate(("p", "b")):
         cum = np.cumprod(1 + X[idx, j], axis=1)
@@ -116,8 +117,8 @@ def bootstrap(rp: pd.Series, rb: pd.Series, weeks: int, excess: float | None, c:
 
     def q(a, p):
         return float(np.percentile(a, p))
-    return {"draws": int(bc["draws"]), "weeks": weeks, "weeks_used": T, "block_weeks": blk, "vol_scale": scale,
-            "drift_used": excess is not None, "acwi_drift_annual": c["acwi_drift_annual"],
+    return {"draws": bc.draws, "weeks": weeks, "weeks_used": T, "block_weeks": blk, "vol_scale": scale,
+            "drift_used": excess is not None, "acwi_drift_annual": c.acwi_drift_annual,
             "ret": {"median": q(paths["p"]["ret"], 50), "p10": q(paths["p"]["ret"], 10), "p90": q(paths["p"]["ret"], 90)},
             "acwi_ret": {"median": q(paths["b"]["ret"], 50), "p10": q(paths["b"]["ret"], 10), "p90": q(paths["b"]["ret"], 90)},
             "excess": {"median": q(ex, 50), "p10": q(ex, 10), "p90": q(ex, 90)},
@@ -127,14 +128,14 @@ def bootstrap(rp: pd.Series, rb: pd.Series, weeks: int, excess: float | None, c:
             "note": "weekly steps: a fall inside a week isn't seen, so drawdowns read a little shallow"}
 
 
-def stress(values: dict[str, float], prices: pricing.Prices, bench: str, c: dict | None = None) -> list[dict]:
+def stress(values: dict[str, float], prices: pricing.Prices, bench: str, c: Propose | None = None) -> list[dict]:
     """Today's DKK weights through each stress window (daily DKK closes), where the price history covers it."""
     c = c or rules.cfg()
     lt = exposure.look_through()
     out = []
-    for e in c.get("stress") or []:
-        s, t1 = pd.Timestamp(e["start"]), pd.Timestamp(e["end"])
-        rec = {"key": e["key"], "label": e["label"], "start": s.date().isoformat(), "end": t1.date().isoformat(),
+    for e in c.stress:
+        s, t1 = pd.Timestamp(e.start), pd.Timestamp(e.end)
+        rec = {"key": e.key, "label": e.label, "start": s.date().isoformat(), "end": t1.date().isoformat(),
                "coverage": None, "ret": None, "max_dd": None, "acwi_ret": None, "acwi_max_dd": None, "missing": []}
         total = sum(x for x in values.values() if x)
         legs, cov = [], 0.0

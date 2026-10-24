@@ -579,15 +579,25 @@ def summary(market: Market) -> list[dict]:
     return out
 
 
-def return_on_paid_in(rows: list[dict], market: Market, end: pd.Timestamp) -> float | None:
-    """The return of trade rows on the money paid in, valued at `end`; None when their book doesn't reach `end` or
-    nothing went in."""
-    rows = [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
-    b = book(rows, market)
+def sim_rows(rows: list[dict]) -> list[dict]:
+    """Rows a simulation built, as the book reads them: a fee left out is none charged, cash rows are in DKK."""
+    return [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
+
+
+def paid_in_index(rows: list[dict], market: Market, start: pd.Timestamp | None, end: pd.Timestamp) -> pd.Series | None:
+    """A simulation's value per DKK paid in (net of what came out by `end`), from `start` (None: its first day) to
+    `end`; None when the value at `end` is unknown or nothing went in. What the studies measure and the sims show."""
+    b = book(sim_rows(rows), market)
     if b is None:
         return None
-    v = b.value.loc[:end].dropna()
+    v = b.value.loc[start:end].dropna()
     if not len(v) or v.index[-1] != end:
         return None
     ext = float((b.inflow - b.outflow).loc[:end].sum())
-    return float(v.iloc[-1] / ext - 1) if ext > 0 else None
+    return v / ext if ext > 0 else None
+
+
+def return_on_paid_in(rows: list[dict], market: Market, end: pd.Timestamp) -> float | None:
+    """The return of simulated rows on the money paid in, valued at `end` (`paid_in_index`)."""
+    idx = paid_in_index(rows, market, None, end)
+    return None if idx is None else float(idx.iloc[-1] - 1)

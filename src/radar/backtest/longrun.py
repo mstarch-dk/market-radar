@@ -21,6 +21,7 @@ from ..config_schema import Longrun
 from ..model import artifacts
 from ..model.prior import prior_weights, tercile_excess, tilt_prior, window  # noqa: F401 (re-exported)
 from ..model.stats import mean as _mean
+from ..model.stats import split_holdout
 from ..signals.risk import MONTHS_PER_YEAR, underwater
 from ..signals.score import COMPONENTS, weighted_pct
 from ..signals.score import mean_pct as pct
@@ -213,22 +214,20 @@ def run(panel: Panel, horizons=None, variants: list[str] | None = None, since=No
         for k in keys:
             rows = per[h][k]
 
-            def part(sel, rows=rows, lag=lag, h=h):
-                s = summarize([x for x in rows if sel(x)], lag)
+            def part(xs, lag=lag, h=h):
+                s = summarize(xs, lag)
                 if s is not None:   # here the benchmark is the panel's market, not ACWI
                     s["market_dkk"], s["top_beats_market"] = s.pop("acwi_dkk"), s.pop("top_beats_acwi")
-                    tv = [x["top_vs_market"] for x in rows if sel(x)]
+                    tv = [x["top_vs_market"] for x in xs]
                     s |= {"top_vs_market": _mean(tv), "top_vs_market_t": nw_t(tv, lag)}
                 return _eff(s, h)
 
             decades = sorted({x["date"].year // 10 * 10 for x in rows})
             results[str(h)][k] = {
-                "all": part(lambda x: True),
-                "in_sample": part(lambda x: holdout is None or x["date"] < holdout),
-                "holdout": part(lambda x: holdout is not None and x["date"] >= holdout),
-                "by_decade": {f"{d}s": part(lambda x, d=d: x["date"].year // 10 * 10 == d) for d in decades},
-                "by_trend": {g: part(lambda x, g=g: x["regime"] == g) for g in ("up", "down")},
-                "by_recession": {lbl: part(lambda x, v=v: x["recession"] is v)
+                **{p: part(xs) for p, xs in split_holdout(rows, holdout).items()},
+                "by_decade": {f"{d}s": part([x for x in rows if x["date"].year // 10 * 10 == d]) for d in decades},
+                "by_trend": {g: part([x for x in rows if x["regime"] == g]) for g in ("up", "down")},
+                "by_recession": {lbl: part([x for x in rows if x["recession"] is v])
                                  for lbl, v in (("recession", True), ("expansion", False))},
             }
         base = results[str(h)][BASELINE]
@@ -302,14 +301,14 @@ def priors(data: pd.DataFrame | None = None) -> dict:
     from ..propose import cfg as pcfg
 
     c = pcfg()
-    pc = c.get("prior") or {}
+    pc = c.prior
     data = factors.load() if data is None else data
     out = {}
-    for tilt, tw in (c.get("tilts") or {}).items():
-        w = prior_weights(tw, pc.get("components") or {}, pc.get("qv") or {})
-        out[tilt] = {str(h): {r: tilt_prior(w, int(h), r, data, pc.get("since"), int(pc.get("trend_months", 10)))
-                              for r in [pc.get("region", "developed"), *(pc.get("report_regions") or [])]}
-                     for h in c.get("horizons", [3, 6])}
+    for tilt, tw in c.tilts.items():
+        w = prior_weights(tw.model_dump(), pc.components, pc.qv)
+        out[tilt] = {str(h): {r: tilt_prior(w, int(h), r, data, pc.since, pc.trend_months)
+                              for r in [pc.region, *pc.report_regions]}
+                     for h in c.horizons}
     return out
 
 

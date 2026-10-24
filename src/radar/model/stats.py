@@ -89,6 +89,13 @@ def turnover(tops: list[set]) -> float | None:
     return mean(v)
 
 
+def split_holdout(recs: list[dict], holdout: pd.Timestamp | None) -> dict[str, list[dict]]:
+    """Records (each with a "date") by part: all, in-sample (before `holdout`) and the holdout (from it on). Without
+    a holdout date every record is in-sample and the holdout is empty. The one split every study reports."""
+    return {"all": recs, "in_sample": [r for r in recs if holdout is None or r["date"] < holdout],
+            "holdout": [r for r in recs if holdout is not None and r["date"] >= holdout]}
+
+
 def holdout_diff_t(rows: list[dict], base: list[dict], holdout, lag: int) -> float | None:
     """Newey-West t of the holdout's per-date IC difference (variant − baseline), on the dates both have."""
     b = {r["date"]: r["ic"] for r in base if holdout is not None and r["date"] >= holdout}

@@ -25,6 +25,7 @@ from ..model.stats import (  # noqa: F401 (re-exported)
     nw_t,  # noqa: F401 (re-exported)
     path_stats,
     risk_adjusted,
+    split_holdout,
     summarize,
     turnover,
     variant_verdict,
@@ -377,9 +378,7 @@ def run(market: Market, horizons=(1, 3, 6, 12), variants: list[str] | None = Non
         results[str(h)] = {}
         for k in keys:
             rows = per[h][k]
-            res = {"all": summarize(rows, lag),
-                   "in_sample": summarize([r for r in rows if holdout is None or r["date"] < holdout], lag),
-                   "holdout": summarize([r for r in rows if holdout is not None and r["date"] >= holdout], lag),
+            res = {**{p: summarize(xs, lag) for p, xs in split_holdout(rows, holdout).items()},
                    "by_year": {str(y): summarize([r for r in rows if r["date"].year == y], lag)
                                for y in sorted({r["date"].year for r in rows})},
                    "by_regime": {str(g): summarize([r for r in rows if r["regime"] == g], lag)

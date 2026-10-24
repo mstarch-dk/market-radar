@@ -38,11 +38,12 @@ the module the callers read it from.
   `network:` host limits, `ops:` retention). Checked on load against `config_schema.py`, which models every
   section: an unknown key, a missing key or a wrong type fails with the key's path; `radar doctor` reports it. A
   new key goes in the file and the model together; a key read with a default is optional in the model, with that
-  default. Code reads values through `config.typed()` (the model); `config.settings()` is the file as written, for
-  what records or hashes it (the proposal rule's hash, a frozen proposal's stops) and the pure readings that take a
-  section as a dict. Not yet everywhere: `propose/` (`rules.cfg()`), `profile.build` and `dashboard.compute` still
-  index `settings()`, so a misspelt key there fails at runtime, not in mypy. Tests change settings with `conftest.with_settings(monkeypatch, backtest={...})`, which both
-  views read.
+  default. Code reads values through `config.typed()` (the model; `propose.cfg()` is its `propose` section);
+  `config.settings()` is the file as written, for what hashes it (`propose.rule_hash`, of the raw values, so a
+  stored hash doesn't move when the model writes 10000 as 10000.0) and the pure readings that take a section as a
+  dict (`fundamentals/context.py`, `signals/gauges.py`). Tests change settings with
+  `conftest.with_settings(monkeypatch, backtest={...})`, which both views read; never by editing the dict
+  `settings()` returns, which `typed()` doesn't see.
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
 - `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
@@ -209,7 +210,9 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   a host paused after repeated 429s (shared by the CLI and the server). One honest User-Agent; no proxies or
   identity rotation.
 - `ops.py`: the operations log in `ops.db` (requests, events, jobs, host state). A failed write never breaks the
-  work; nothing here feeds a market reading.
+  work; nothing here feeds a market reading. Timestamps are UTC with their offset (`ops.timestamp`), so they
+  compare as text across a change of the clocks; `ops.local` turns one into local time for showing and daily
+  grouping, and a day's budget runs from `ops.local_midnight()`.
 - `sourcelog.py`: the update log `sources.json`; a failure keeps the last success.
 - `guard.py`, `locks.py`, `jsonsafe.py`: see *Writing files*.
 - `manifest.py`: the data folder's `market-radar.json` (format, the versions that opened it, its log) and the

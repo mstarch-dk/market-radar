@@ -195,14 +195,14 @@ def review(market: Market) -> dict:
                      "exits_ret": mine.get("exits_ret"), "exits_vs_kept": None if mine.get("exits_ret") is None
                      else mine["exits_ret"] - mine["ret"], "exit_events": mine.get("exits")})
     judged = [r for r in rows if r.get("excess") is not None]
-    return _clean({"proposals": rows, "count": len(judged), "enough": len(judged) >= c["review_min"],
+    return _clean({"proposals": rows, "count": len(judged), "enough": len(judged) >= c.review_min,
                    "summary": {"mean_excess": float(np.mean([r["excess"] for r in judged])) if judged else None,
                                "beat_acwi": float(np.mean([r["excess"] > 0 for r in judged])) if judged else None,
                                "mean_judgment_vs_rule": _mean([r.get("judgment_vs_rule") for r in judged]),
                                "dd_inside_band": _mean([r.get("dd_inside_band") for r in judged]),
                                "mean_exits_vs_kept": _mean([r.get("exits_vs_kept") for r in judged])},
-                   "note": None if len(judged) >= c["review_min"] else
-                   f"{len(judged)} proposal(s) with a result: fewer than {c['review_min']} say nothing about the method yet"})
+                   "note": None if len(judged) >= c.review_min else
+                   f"{len(judged)} proposal(s) with a result: fewer than {c.review_min} say nothing about the method yet"})
 
 
 def _stops_changed(frozen: dict, now: Stops) -> bool:
@@ -255,7 +255,7 @@ def check(market: Market, portfolio: str | None = None) -> dict:
                 lvl = float(mpaths.trend_level(cl, sma).iloc[-1])
                 gap = float(cl.iloc[-1] / lvl - 1)
                 items.append({"criterion": f"close vs {sma}-day average", "value": gap,
-                              "status": "triggered" if gap < 0 else "weakening" if gap < c["exit"]["weakening"] else "intact"})
+                              "status": "triggered" if gap < 0 else "weakening" if gap < c.exit.weakening else "intact"})
             else:
                 items.append({"criterion": f"close vs {sma}-day average", "value": None, "status": "unknown"})
             sig = ex.get("signal") or {}
