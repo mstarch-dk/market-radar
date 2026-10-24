@@ -10,8 +10,9 @@ import pandas as pd
 import pytest
 
 import world
-from radar import fxrates, report, snapshot
+from radar import report, snapshot
 from radar.config import settings
+from radar.sources import fxrates
 from world import BUY_AT, IDX, N
 
 

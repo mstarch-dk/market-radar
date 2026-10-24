@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..config import universe_config
 from . import constituents
-from .config import universe_config
 
 
 @dataclass(frozen=True)

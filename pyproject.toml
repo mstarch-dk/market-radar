@@ -93,8 +93,8 @@ layers = [
     "api : cli",
     "abtest : api_models : backtest : coverage : dashboard : health : mine : profile : propose : report : tickers : updater",
     "model",
-    "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : trades : universe : userstore",
-    "constituents : discovery : external : factors : fundamentals : fxrates : ingest : positive_list : sentiment : tracked : updates : valuation",
+    "backup : export : guide : home : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",
+    "discovery : fundamentals : sources : updates",
     "signals",
     "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",
 ]

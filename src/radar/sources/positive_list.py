@@ -6,7 +6,7 @@ import re
 
 import pandas as pd
 
-from .config import POSITIVE_LIST_FILE
+from ..config import POSITIVE_LIST_FILE
 
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 

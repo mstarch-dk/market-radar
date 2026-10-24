@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from .. import constituents, fxrates, money, propose
+from .. import money, propose
 from ..config import typed
 from ..config_schema import Propose
 from ..model import artifacts
@@ -18,6 +18,7 @@ from ..model import panels as mp
 from ..model import paths as mpaths
 from ..model import stats as mstats
 from ..model.stats import path_stats, split_holdout
+from ..sources import constituents, fxrates
 from . import study
 
 if TYPE_CHECKING:

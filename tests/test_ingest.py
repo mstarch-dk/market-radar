@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import ingest, net
+from radar import net
+from radar.sources import ingest
 
 # ---------------- Yahoo price download ----------------
 

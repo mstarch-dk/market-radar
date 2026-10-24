@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .. import factors
+from ..sources import factors
 from .stats import nw_t
 
 

@@ -3,8 +3,9 @@ from collections import Counter
 
 import pytest
 
-from radar import coverage, fxrates, positive_list, tracked, universe
+from radar import coverage, universe
 from radar.config import settings, universe_config
+from radar.sources import fxrates, positive_list, tracked
 from test_levels import CFG as LEVELS_CFG
 from test_signals import CFG as REGIME_CFG
 

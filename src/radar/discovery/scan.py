@@ -13,11 +13,12 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from .. import fxrates, ingest, net, ops, positive_list, sourcelog, tracked
+from .. import net, ops, sourcelog
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
 from ..jsonsafe import dumps
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
+from ..sources import fxrates, ingest, positive_list, tracked
 from . import sources
 
 DIR = CACHE / "discovery"

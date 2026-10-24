@@ -3,14 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from .. import (
-    dashboard,
-    net,
-    ops,
-    profile,
-    trades,
-    universe,
-)
+from .. import dashboard, net, ops, profile, universe
 from ..api_models import (
     AppContext,
     Profile,
@@ -18,6 +11,7 @@ from ..api_models import (
     Series,
 )
 from ..model import inputs
+from ..portfolios import trades
 from . import state
 from .common import (
     ticker_symbol,

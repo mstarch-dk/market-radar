@@ -57,7 +57,7 @@ Både put/call og AAII-spreadet har niveauer, der flytter sig over tid. Equity p
 
 ### Put/call
 
-Radaren henter CBOE's daglige markedsstatistik (en JSON-fil pr. handelsdag, `sentiment.py`) med det totale, det equity- og det indeksbaserede forhold. Første gang hentes {{settings:sentiment.putcall_backfill_days}} dages historik (`sentiment.putcall_backfill_days`); derefter hver hverdag siden den seneste gemte. En dag, CBOE svarer 403 eller 404 på, springes over (helligdag eller endnu ikke offentliggjort). Kommer der intet for en hel uges hverdage, fejler opdateringen højlydt, og de gemte data bliver stående. Forhold uden for 0,05–10 afvises (fast i koden).
+Radaren henter CBOE's daglige markedsstatistik (en JSON-fil pr. handelsdag, `sources/sentiment.py`) med det totale, det equity- og det indeksbaserede forhold. Første gang hentes {{settings:sentiment.putcall_backfill_days}} dages historik (`sentiment.putcall_backfill_days`); derefter hver hverdag siden den seneste gemte. En dag, CBOE svarer 403 eller 404 på, springes over (helligdag eller endnu ikke offentliggjort). Kommer der intet for en hel uges hverdage, fejler opdateringen højlydt, og de gemte data bliver stående. Forhold uden for 0,05–10 afvises (fast i koden).
 
 Beregningen (`signals/valuation.py`):
 

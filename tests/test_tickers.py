@@ -3,7 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, ingest, report
+from radar import api, dashboard, report
+from radar.sources import ingest
 
 
 @pytest.fixture

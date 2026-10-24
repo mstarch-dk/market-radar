@@ -8,10 +8,11 @@ import pandas as pd
 import pytest
 
 import world
-from radar import config, fees, paths, performance, simulate, userstore
+from radar import config, paths, userstore
 from radar.backtest import exit_rules, exits, pit, redeploy
 from radar.market import Market
 from radar.model import inputs as minputs
+from radar.portfolios import fees, performance, simulate
 from radar.signals import momentum, regime
 from radar.signals.score import score_vs
 from world import IDX, N

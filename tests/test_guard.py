@@ -288,8 +288,8 @@ def test_settings_are_read_through_the_model():
 
 
 def test_a_missing_value_is_never_quietly_zero():
-    """In the readings (signals/, fundamentals/, propose/, performance.py) `x or 0` and `.fillna(0)` turn a value
-    that is missing into one that looks known, against the rule that missing shows as missing. Where zero is
+    """In the readings (signals/, fundamentals/, propose/, portfolios/performance.py) `x or 0` and `.fillna(0)` turn a
+    value that is missing into one that looks known, against the rule that missing shows as missing. Where zero is
     really right (a fee not charged, a sum over nothing, a minimum an unknown can't pass), say why with a
     `# zero: …` comment on the line or the one above it."""
     import re
@@ -298,7 +298,7 @@ def test_a_missing_value_is_never_quietly_zero():
     import radar
     root = Path(radar.__file__).parent
     files = [*(root / "signals").rglob("*.py"), *(root / "fundamentals").rglob("*.py"), *(root / "propose").rglob("*.py"),
-             root / "performance.py"]
+             root / "portfolios" / "performance.py"]
     pattern = re.compile(r"\bor 0(\.0)?\b|\.fillna\(0")
     bad = []
     for f in files:

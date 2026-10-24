@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from .. import simulate, tracked
 from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at
@@ -19,6 +18,8 @@ from ..model.stats import (
     split_holdout,
 )
 from ..model.stats import mean as _mean
+from ..portfolios import simulate
+from ..sources import tracked
 from . import exit_rules, study
 
 if TYPE_CHECKING:

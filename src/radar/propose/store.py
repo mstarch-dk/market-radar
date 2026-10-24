@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from pydantic import ValidationError
 
-from .. import fees, tracked, trades, userstore
+from .. import userstore
 from ..config import typed, write_text
 from ..config_schema import Stops
 from ..jsonsafe import clean as _clean
@@ -18,7 +18,9 @@ from ..jsonsafe import dumps
 from ..model import artifacts
 from ..model import paths as mpaths
 from ..model.stats import mean as _mean
+from ..portfolios import fees, trades
 from ..signals.risk import deepest_drawdown
+from ..sources import tracked
 from ..values import num
 from . import basket, draft, evaluation, picks_file, pricing, rules
 
@@ -91,7 +93,7 @@ def proposals() -> list[tuple[str, picks_file.PicksFile]]:
 def shadow(market: Market, doc: dict, name: str) -> dict:
     """Virtual copies of the portfolio at the latest close plus the amount: the proposal, ACWI (A0) and the rule
     basket (A1), tagged proposal and proposal-<date>. Never touches a real portfolio."""
-    from .. import simulate
+    from ..portfolios import simulate
 
     pf = picks_file.check(doc)
     m = pf.meta

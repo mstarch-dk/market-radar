@@ -5,7 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, dashboard, ingest, paths, report
+from radar import api, api_models, dashboard, paths, report
+from radar.sources import ingest
 
 
 @pytest.fixture
@@ -163,7 +164,7 @@ def test_regime_vote_switches(client):
     at once in /api/regime and in summary.json from the next report."""
     import pandas as pd
 
-    from radar import valuation
+    from radar.sources import valuation
 
     months = pd.date_range(end=world.IDX[-1], periods=440, freq="MS")     # fresh as of the world's last day
     valuation.market_merge({"cape": pd.Series(range(10, 450), index=months, dtype=float)})      # last = highest

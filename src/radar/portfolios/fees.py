@@ -19,8 +19,8 @@ from functools import cache
 
 import yaml
 
-from . import money
-from .config import CONFIG
+from .. import money
+from ..config import CONFIG
 
 MARKETS = ("DK", "NORDIC", "US", "EU", "UK", "OTHER")
 MARKET_LABELS = {"DK": "Denmark", "NORDIC": "Nordic", "US": "USA", "EU": "Europe", "UK": "UK", "OTHER": "Other"}
@@ -94,7 +94,8 @@ def for_trade(row: dict, quote_ccy: str | None, quote_dkk: float | None, closes:
     `closes()` gives the price store's closes, only asked for when a minimum or maximum needs converting."""
     import pandas as pd
 
-    from . import fxrates, userstore
+    from .. import userstore
+    from ..sources import fxrates
 
     pid = row["portfolio_id"] or userstore.default_portfolio()
     p = userstore.get_portfolio(pid) if pid else None
@@ -182,7 +183,7 @@ class SimFees:
     def for_portfolio(cls, p: dict | None, bps: float) -> SimFees:
         """The fees a simulation of portfolio `p` pays: its own schedule, else its parent's (a fork's source),
         else the flat `bps`."""
-        from . import userstore
+        from .. import userstore
 
         seen = set()
         while p and p["id"] not in seen:

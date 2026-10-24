@@ -11,7 +11,8 @@ import pytest
 
 from conftest import FIXTURES
 from fakes import Resp, fake_yf
-from radar import external, net
+from radar import net
+from radar.sources import external
 
 FACTSET_TEXT = """EARNINGS INSIGHT
 Key Metrics

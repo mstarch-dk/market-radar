@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .. import external, tracked, universe, valuation
+from .. import universe
 from ..config import settings, typed, universe_config
 from ..model import inputs as minputs
 from ..model import paths as mpaths
@@ -18,6 +18,7 @@ from ..signals import levels as lv
 from ..signals import momentum, regime, rotation
 from ..signals import valuation as sv
 from ..signals.score import score_vs
+from ..sources import external, tracked, valuation
 
 if TYPE_CHECKING:
     from ..market import Market

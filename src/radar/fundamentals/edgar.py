@@ -191,7 +191,7 @@ def _keep_or_replace(old: pd.DataFrame, new: pd.DataFrame, ticker: str) -> str |
 
 def us_tickers(stocks: list[str]) -> list[str]:
     """The US listings among the tracked `stocks`, plus the US stock group."""
-    from .. import tracked
+    from ..sources import tracked
 
     us = set(tracked.stock_groups(offline=True).get("us", []))
     return sorted(us | {t for t in stocks if "." not in t and not t.startswith("^")})
@@ -201,7 +201,7 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
                  tickers: list[str] | None = None) -> str:
     """Fetch company facts for the US tickers among the tracked `stocks` that are due (or `tickers`, or all with `force`); store per ticker.
     A ticker whose fresh answer has less than what is stored keeps its stored values (and counts as failed)."""
-    from .. import tracked
+    from ..sources import tracked
 
     cfg = _cfg()
     today = today or date.today()

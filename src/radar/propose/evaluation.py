@@ -9,10 +9,11 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from .. import fees, tracked
 from ..config import typed, universe_config
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
+from ..portfolios import fees
+from ..sources import tracked
 from ..values import num
 from . import basket, draft, drift, exposure, picks_file, pricing, riskmodel, rules
 

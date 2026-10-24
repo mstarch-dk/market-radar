@@ -8,7 +8,8 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from radar import dashboard, external, fxrates, ingest, profile, tracked, universe
+from radar import dashboard, profile, universe
+from radar.sources import external, fxrates, ingest, tracked
 
 N = 300
 END = pd.Timestamp(date.today())

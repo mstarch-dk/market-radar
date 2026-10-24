@@ -21,8 +21,9 @@ from typing import NamedTuple
 import pandas as pd
 import yaml
 
-from .. import money, trades
+from .. import money
 from ..errors import Unreadable
+from ..portfolios import trades
 
 FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref",
           "cash_amount"]
@@ -392,7 +393,8 @@ def suggest_symbols(idents: list[tuple[str, str | None, str | None, str | None]]
     """For each (ident, symbol, isin, name): a suggested Yahoo symbol and how it was found, best first:
     remembered → the radar's own ISIN list → the symbol itself when Yahoo has prices → Yahoo search (ISIN, then
     name). `market_has(symbol)` says whether prices exist (it may download them)."""
-    from .. import tracked, userstore
+    from .. import userstore
+    from ..sources import tracked
 
     isin_cfg = {}
     for e in tracked.etfs():
@@ -453,8 +455,8 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
     in the file is fine after its buy. `market_has(symbol)` makes sure prices exist (downloading them if needed);
     `get_market()` returns the current price store. Rows go into `portfolio` (an id; default: the default
     portfolio) unless the file names one."""
-    from .. import portfolio as checks
     from .. import userstore
+    from ..portfolios import checks
 
     df = read_table(data, filename)
     detected, guessed = detect(list(df.columns))
@@ -504,7 +506,7 @@ def preview(data: bytes, filename: str, get_market, market_has, preset: str | No
             market_has(tx["symbol"])
         r["issues"] = checks.validate(tx, get_market(), others=stored + so_far)
         if r["type"] in ("BUY", "SELL") and r.get("currency") and tx["symbol"]:
-            from .. import fxrates
+            from ..sources import fxrates
             quote = fxrates.currencies([tx["symbol"]]).get(tx["symbol"])
             r["issues"] += currency_issues(r["currency"], quote, tx["symbol"], r["fee"])
         for field, value in r.get("ambiguous") or []:
@@ -610,7 +612,8 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     or trade date) or one dated in the future is refused before anything changes: importing it would silently
     drop that lot. Prices about 100× off or far from the day's close are noted. Returns the positions of the
     exported symbols and the notes per symbol (skipped rows, price checks, replay warnings)."""
-    from .. import portfolio, userstore
+    from .. import userstore
+    from ..portfolios import checks
 
     rows, watch, skipped, unreadable = _yahoo_rows(path)   # read (and check) everything before writing anything
     trades.ensure_migrated()
@@ -625,7 +628,7 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     market = import_market()
     if market is not None:
         for r in rows:
-            pc = portfolio.price_check(market, r["symbol"], r["date"], r["price"])
+            pc = checks.price_check(market, r["symbol"], r["date"], r["price"])
             if pc["verdict"] in ("x100", "div100", "far"):
                 skipped.setdefault(r["symbol"], []).append(f"{r['date']}: {pc['message']}")
     userstore.add_import(rows, "yahoo", Path(path).name, replace_source=True)

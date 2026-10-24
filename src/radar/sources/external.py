@@ -13,10 +13,10 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-from . import guard, net
-from .config import universe_config, write_parquet, write_text
-from .jsonsafe import clean, dumps
-from .paths import CACHE, HISTORY
+from .. import guard, net
+from ..config import universe_config, write_parquet, write_text
+from ..jsonsafe import clean, dumps
+from ..paths import CACHE, HISTORY
 
 COT_FILE = CACHE / "cot.parquet"
 CLI_FILE = CACHE / "oecd_cli.parquet"

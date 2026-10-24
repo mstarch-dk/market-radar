@@ -8,9 +8,9 @@ import time
 
 import pandas as pd
 
-from . import net, sourcelog
-from .config import typed, write_csv
-from .paths import CACHE
+from .. import net, sourcelog
+from ..config import typed, write_csv
+from ..paths import CACHE
 
 # State Street publishes SPY's full holdings daily – an official S&P 500 constituent list.
 SPY_HOLDINGS = ("https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/"
@@ -54,7 +54,7 @@ def us_constituents(refresh: bool = False, offline: bool = False) -> list[str]:
     if offline or (not refresh and cached and time.time() - cache_file.stat().st_mtime < max_age):
         return cached
     try:
-        from . import ops
+        from .. import ops
 
         with ops.context(source="constituents"):
             df = spy_holdings()
@@ -109,7 +109,7 @@ def parse_acwi_holdings(text: str, min_rows: int | None = None) -> pd.DataFrame:
     futures lines are left out)."""
     import csv
 
-    from .discovery.sources import ISHARES_SECTORS
+    from ..discovery.sources import ISHARES_SECTORS
 
     rows = list(csv.reader(io.StringIO(text)))
     head = next((i for i, r in enumerate(rows) if r and r[0].strip() == "Emittententicker"), None)
@@ -155,7 +155,7 @@ def acwi_holdings(refresh: bool = False, offline: bool = False) -> pd.DataFrame 
     if offline or (not refresh and cached is not None and time.time() - ACWI_FILE.stat().st_mtime < max_age):
         return cached
     try:
-        from . import ops
+        from .. import ops
 
         with ops.context(source="acwi_holdings"):
             resp = net.get(ACWI_HOLDINGS, timeout=60)

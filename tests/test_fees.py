@@ -4,8 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, fees, ingest, userstore
+from radar import api, dashboard, userstore
 from radar.api_models import FeePreset
+from radar.portfolios import fees
+from radar.sources import ingest
 from world import IDX
 
 SCHEDULE = {"markets": [{"market": "US", "pct": 0.1, "min": 29, "currency": "DKK"},

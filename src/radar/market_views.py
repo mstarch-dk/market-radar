@@ -8,10 +8,11 @@ from functools import cache
 
 import pandas as pd
 
-from . import external, ingest, tracked, universe
+from . import universe
 from .config import load_yaml
 from .errors import Invalid
 from .signals import views as sv
+from .sources import external, ingest, tracked
 from .userstore import viewstore
 
 DISCLAIMER = ("These are your own subjective beliefs about where markets are heading, not facts or forecasts. "

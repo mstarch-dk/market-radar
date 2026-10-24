@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import factors
 from radar.backtest import longrun
 from radar.config_schema import Longrun
 from radar.model import artifacts, prior
 from radar.model import prior as mprior
+from radar.sources import factors
 
 
 def _months(n: int) -> pd.DatetimeIndex:

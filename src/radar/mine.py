@@ -5,11 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from . import external, fxrates, tracked, trades, universe
+from . import universe
 from .model.inputs import level_etfs, level_universe
+from .portfolios import trades
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
 from .signals.score import score_vs
+from .sources import external, fxrates, tracked
 
 METRIC_KEYS = ("last", "r1m", "r3m", "r6m", "r12_1", "from_high", "sma50", "sma200", "vol_surge", "history",
                "above50", "above200", "trend_ok")

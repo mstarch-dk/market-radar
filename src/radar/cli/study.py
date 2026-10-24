@@ -136,8 +136,8 @@ def study_longrun(panels: str = typer.Option("all", "--panel", help="all, or a c
     reports/longrun-study.json."""
     from pathlib import Path
 
-    from .. import factors
     from ..backtest import longrun
+    from ..sources import factors
 
     try:
         with job("study") as log:

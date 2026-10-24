@@ -11,24 +11,12 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from . import (
-    external,
-    factors,
-    ingest,
-    locks,
-    ops,
-    report,
-    sentiment,
-    sourcelog,
-    tracked,
-    universe,
-    userstore,
-    valuation,
-)
+from . import locks, ops, report, sourcelog, universe, userstore
 from .config import typed
 from .fundamentals import edgar, yahoo
 from .market import Market
 from .paths import CACHE
+from .sources import external, factors, ingest, sentiment, tracked, valuation
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
 BUSY = "an update is already running (in the app or in a terminal): wait for it to finish"

@@ -3,8 +3,9 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from radar import constituents, coverage, sourcelog
+from radar import coverage, sourcelog
 from radar.signals import levels
+from radar.sources import constituents
 
 
 def test_status_boundaries():

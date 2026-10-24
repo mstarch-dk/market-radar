@@ -6,11 +6,7 @@ import datetime as dt
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
-from .. import (
-    portfolio,
-    trades,
-    userstore,
-)
+from .. import userstore
 from ..api_models import (
     PositionsView,
     PriceCheck,
@@ -19,6 +15,7 @@ from ..api_models import (
     TxResult,
     TxRow,
 )
+from ..portfolios import checks, trades
 from . import state
 from .common import (
     PortfolioQ,
@@ -47,16 +44,16 @@ def _validated(row: dict, exclude_id: int | None) -> list[dict]:
     with state.lock:
         if row["symbol"]:
             state.ensure(row["symbol"], missing="ignore")                # validate() reports the unknown symbol
-        return portfolio.validate(row, state.market(), exclude_id=exclude_id)
+        return checks.validate(row, state.market(), exclude_id=exclude_id)
 
 
 def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict]]:
-    """The row and its issues; 422 with the issues when it can't be saved (portfolio.checked)."""
+    """The row and its issues; 422 with the issues when it can't be saved (checks.checked)."""
     row = _tx_row(body)
     with state.lock:
         if row["symbol"]:
             state.ensure(row["symbol"], missing="ignore")                # validate() reports the unknown symbol
-        return row, portfolio.checked(row, state.market(), body.confirm, exclude_id)
+        return row, checks.checked(row, state.market(), body.confirm, exclude_id)
 
 
 @router.get("/api/portfolio/transactions", response_model=list[TxRow])
@@ -74,17 +71,17 @@ def check_transaction(body: TxIn, id: int | None = None) -> dict:
     row = _tx_row(body)
     issues = _validated(row, id)
     with state.lock:
-        pc = portfolio.price_check(state.market(), row["symbol"], row["date"], row["price"]) \
+        pc = checks.price_check(state.market(), row["symbol"], row["date"], row["price"]) \
             if row["symbol"] in state.market().closes.columns else None
     blocking = {i["field"] for i in issues if i["level"] == "error"} & {"symbol", "type", "date"}
     trade = row["type"] in userstore.TRADE_TYPES
-    return {"issues": issues, "effect": portfolio.effect(row, exclude_id=id) if trade and not blocking else None,
+    return {"issues": issues, "effect": checks.effect(row, exclude_id=id) if trade and not blocking else None,
             "price": pc, "fee_estimate": _fee_estimate(row, pc) if trade and pc else None}
 
 
 def _fee_estimate(row: dict, pc: dict) -> dict | None:
     """The commission the trade's portfolio schedule gives (fees.for_trade): your fx rate, else Yahoo's that day."""
-    from .. import fees
+    from ..portfolios import fees
 
     def closes():
         return state.market().closes
@@ -127,7 +124,7 @@ def restore_transaction(row: TxRow) -> dict:
 @router.get("/api/portfolio/positions", response_model=PositionsView)
 def get_positions(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = TagQ,
                   scope: str | None = ScopeQ) -> dict:
-    from .. import portfolio as pf
+    from ..portfolios import checks as pf
 
     sel = selection(portfolio, tag, scope)
     with state.lock:
@@ -139,7 +136,7 @@ def get_price_check(symbol: str, date: str, price: float | None = None) -> dict:
     sym = ticker_symbol(symbol)
     with state.lock:
         state.ensure(sym)
-        return portfolio.price_check(state.market(), sym, date, price)
+        return checks.price_check(state.market(), sym, date, price)
 
 
 @router.get("/api/portfolio/export.csv", response_class=Response)

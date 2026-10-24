@@ -62,7 +62,7 @@ Et samlet afkast $R$ over $D$ dage svarer til en årlig rate $(1+R)^{365/D} - 1$
 
 ## Sådan gør radaren
 
-Afkast over tid beregnes i `performance.py` og vises på siden [Returns](/returns) (se [Afkast over tid](brugervejledning/afkast)).
+Afkast over tid beregnes i `portfolios/performance.py` og vises på siden [Returns](/returns) (se [Afkast over tid](brugervejledning/afkast)).
 
 ### Værdi hver dag
 

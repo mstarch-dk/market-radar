@@ -9,11 +9,12 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from .. import external, tracked, userstore
+from .. import userstore
 from ..config import typed
 from ..errors import Invalid
 from ..paths import REPORTS
 from ..signals import regime
+from ..sources import external, tracked
 
 DASHBOARD_FILE = "dashboard.json"
 

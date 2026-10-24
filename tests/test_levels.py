@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar.external import parse_analyst
 from radar.signals import levels
+from radar.sources.external import parse_analyst
 
 CFG = {"atr_days": 14, "k_base": 3.0, "k_min": 1.5, "k_max": 3.5, "k_step": 0.5, "strong_score": 80,
        "extended_vs_sma50": 0.25, "reward_risk": 2.0, "near_atr": 1.0, "min_analysts": 5, "target_cut": 0.05,

@@ -4,15 +4,7 @@ from __future__ import annotations
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-from .. import (
-    dashboard,
-    mine,
-    tickers,
-    tracked,
-    universe,
-    userstore,
-    valuation,
-)
+from .. import dashboard, mine, tickers, universe, userstore
 from ..api_models import (
     MeView,
     TickerSummary,
@@ -20,6 +12,7 @@ from ..api_models import (
 )
 from ..config import settings
 from ..model import inputs
+from ..sources import tracked, valuation
 from . import state
 from .common import (
     PortfolioQ,

@@ -56,7 +56,7 @@ def test_no_data_path_is_built_from_the_install_folder():
 
 
 def test_configure_reaches_module_constants(tmp_path):
-    from radar import external
+    from radar.sources import external
 
     paths.configure(paths.Locations(home=tmp_path / "h", imports=tmp_path / "h" / "imports", userdata=tmp_path / "h",
                                     history=tmp_path / "h" / "history", cache=tmp_path / "c",

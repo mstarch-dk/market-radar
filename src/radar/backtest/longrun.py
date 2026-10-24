@@ -15,7 +15,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .. import factors, ingest
 from ..config import typed
 from ..config_schema import Longrun
 from ..model import artifacts
@@ -25,6 +24,7 @@ from ..model.stats import mean as _mean
 from ..signals.risk import MONTHS_PER_YEAR, underwater
 from ..signals.score import COMPONENTS, weighted_pct
 from ..signals.score import mean_pct as pct
+from ..sources import factors, ingest
 
 REPORT_FILE = "longrun-study.json"
 BASELINE = "score"

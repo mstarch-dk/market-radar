@@ -5,13 +5,9 @@ from datetime import date
 
 from fastapi import HTTPException, Query
 
-from .. import (
-    dashboard,
-    trades,
-    updater,
-    userstore,
-)
+from .. import dashboard, updater, userstore
 from ..config import typed
+from ..portfolios import trades
 
 
 def ticker_symbol(s: str) -> str:

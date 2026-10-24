@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from .. import money, tracked, trades, universe
+from .. import money, universe
 from ..config import universe_config
+from ..portfolios import trades
+from ..sources import tracked
 from . import pricing, rules
 
 if TYPE_CHECKING:

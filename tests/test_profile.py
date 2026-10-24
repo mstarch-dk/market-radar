@@ -7,8 +7,9 @@ import pytest
 
 import world
 from conftest import FIXTURES
-from radar import api_models, external, ingest, profile
+from radar import api_models, profile
 from radar.market import Market
+from radar.sources import external, ingest
 
 
 @pytest.fixture
@@ -178,7 +179,8 @@ def test_a_profile_the_app_cant_show_fails_naming_the_field():
 # ---- the sections, each a pure function of hand-made inputs (no world installed, nothing stubbed)
 
 def _inputs(ticker="S1", prices=None, raw=None, holdings=(), **over) -> profile.ProfileInputs:
-    from radar import config, trades
+    from radar import config
+    from radar.portfolios import trades
 
     prices = world.prices() if prices is None else prices
     market = Market(prices, ingest.wide(prices), ingest.wide(prices, "high"), ingest.wide(prices, "low"),

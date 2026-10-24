@@ -14,10 +14,10 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-from . import guard, net
-from .config import typed, write_parquet
-from .config_schema import Factors
-from .paths import CACHE
+from .. import guard, net
+from ..config import typed, write_parquet
+from ..config_schema import Factors
+from ..paths import CACHE
 
 FACTORS_FILE = CACHE / "factors" / "returns.parquet"
 FRENCH_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/{file}.zip"

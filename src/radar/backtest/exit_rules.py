@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from .. import performance, simulate, tracked
 from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels
@@ -20,7 +19,9 @@ from ..model.stats import (
     risk_adjusted,
     split_holdout,
 )
+from ..portfolios import performance, simulate
 from ..signals.risk import annualised_vol
+from ..sources import tracked
 from . import study
 
 if TYPE_CHECKING:

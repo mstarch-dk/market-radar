@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from . import money, performance, simulate, tracked, userstore
+from . import money, userstore
 from .config import typed
 from .config_schema import Abtest
 from .model.select import capped
+from .portfolios import performance, simulate
+from .sources import tracked
 
 if TYPE_CHECKING:
     from .market import Market

@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 from datetime import date
 
-from . import dashboard, ops, snapshot, trades
+from . import dashboard, ops, snapshot
 from .config import write_text
 from .fundamentals import context as fcontext
 from .jsonsafe import dumps
 from .market import Market
 from .model import inputs
 from .paths import REPORTS
+from .portfolios import trades
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
                     "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
@@ -81,7 +82,7 @@ def _write(path, data: dict) -> None:
 
 
 def _portfolios() -> list[dict]:
-    from . import performance
+    from .portfolios import performance
 
     trades.ensure_migrated()
     return performance.summary(Market.load())

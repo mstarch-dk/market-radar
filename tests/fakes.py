@@ -123,7 +123,7 @@ def statements(ticker: str) -> dict[str, pd.DataFrame]:
 
 def fake_yf(monkeypatch, **kw) -> FakeYf:
     """Install a FakeYf wherever the radar reaches yfinance (net.yf(), and ingest's direct yf.download)."""
-    from radar import ingest
+    from radar.sources import ingest
 
     fake = FakeYf(**kw)
     monkeypatch.setattr(net, "install_yfinance", lambda: None)

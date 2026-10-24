@@ -110,7 +110,7 @@ def merge(old: pd.DataFrame, new: pd.DataFrame, fetched: date, assumed_lag: dict
 
 
 def _currencies() -> dict[str, str]:
-    from .. import valuation
+    from ..sources import valuation
 
     now = valuation.latest(valuation.load_stocks())
     if now.empty or "financial_currency" not in now:
@@ -119,7 +119,7 @@ def _currencies() -> dict[str, str]:
 
 
 def _earnings_dates() -> dict[str, pd.Timestamp]:
-    from .. import valuation
+    from ..sources import valuation
 
     now = valuation.latest(valuation.load_stocks())
     if now.empty or "earnings_date" not in now:

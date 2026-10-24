@@ -7,10 +7,10 @@ from datetime import date
 
 import pandas as pd
 
-from .config import universe_config
-from .paths import HOLDINGS_FILE, TRANSACTIONS_FILE
-from .userstore import CASH_TYPES
-from .values import whole
+from ..config import universe_config
+from ..paths import HOLDINGS_FILE, TRANSACTIONS_FILE
+from ..userstore import CASH_TYPES
+from ..values import whole
 
 HOLDING_COLS = ["symbol", "status", "quantity", "avg_price", "first_trade", "last_sell_date", "last_sell_price"]
 
@@ -102,7 +102,7 @@ def ensure_migrated() -> None:
     The positions are rebuilt from the stored transactions and compared with the old holdings.csv; any
     difference undoes the migration and keeps the CSVs in use (radar doctor reports it). On success the CSVs
     are renamed to *.migrated.csv, never deleted."""
-    from . import userstore
+    from .. import userstore
 
     if not _legacy_files() or userstore.meta_get("legacy_csv"):
         return
@@ -134,7 +134,7 @@ def ensure_migrated() -> None:
 
 def _store_frame(portfolios: list[int] | None = None, types=("BUY", "SELL")) -> pd.DataFrame:
     """Stored rows as a frame (`portfolios`: ids, None = every portfolio; `types`: None = every type)."""
-    from . import userstore
+    from .. import userstore
 
     cols = TX_COLS + (["amount", "currency"] if types is None else [])
     tx = pd.DataFrame(userstore.transactions(portfolios=portfolios, types=types), columns=cols + ["id", "source"])
@@ -145,7 +145,7 @@ def _store_frame(portfolios: list[int] | None = None, types=("BUY", "SELL")) -> 
 
 
 def _legacy_mode() -> bool:
-    from . import userstore
+    from .. import userstore
 
     m = userstore.meta_get("legacy_csv") or {}
     return m.get("status") == "failed" and _legacy_files()
@@ -153,7 +153,7 @@ def _legacy_mode() -> bool:
 
 def _selection(portfolios: list[int] | None) -> list[int]:
     """None means yours: the real portfolios that aren't archived (virtual ones only when chosen)."""
-    from . import userstore
+    from .. import userstore
 
     return userstore.portfolio_ids() if portfolios is None else list(portfolios)
 
@@ -180,7 +180,7 @@ def holdings(portfolios: list[int] | None = None) -> pd.DataFrame:
     `watchlist:` in universe.yaml, and the edits made in the web app (userstore) on top. An add puts a symbol on
     the watchlist (a sold one too), a remove takes a watchlist symbol off. Holdings are never changed by the
     overlay."""
-    from . import userstore
+    from .. import userstore
 
     ensure_migrated()
     if _legacy_mode():
@@ -205,7 +205,7 @@ def holdings(portfolios: list[int] | None = None) -> pd.DataFrame:
 
 
 def portfolio_symbols() -> set[str]:
-    from . import userstore
+    from .. import userstore
 
     if _legacy_mode():
         return set()

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import money, net, ops
-from .config import write_csv
-from .paths import CACHE
+from .. import money, net, ops
+from ..config import write_csv
+from ..paths import CACHE
 
 # CAD: for the P/E of US listings that report in it (valuation.price_in); Yahoo has no CNY/DKK quote
 FX_DKK = {"DKK": None, "USD": "USDDKK=X", "EUR": "EURDKK=X", "GBP": "GBPDKK=X", money.PENCE: "GBPDKK=X",

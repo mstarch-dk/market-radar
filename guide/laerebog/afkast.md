@@ -122,7 +122,7 @@ De samme vinduer (21, 63, 126 og 252 rækker) bruges på [Afkast over tid](/retu
 
 ### Annualisering kun med mindst ét år
 
-På [Afkast over tid](/returns) (`performance.py`) vises det tidsvægtede afkast både samlet og pr. år, men det årlige tal kræver mindst 365 kalenderdage:
+På [Afkast over tid](/returns) (`portfolios/performance.py`) vises det tidsvægtede afkast både samlet og pr. år, men det årlige tal kræver mindst 365 kalenderdage:
 
 $$
 R_{\text{p.a.}} = (1 + R_{\text{total}})^{365/d} - 1, \qquad d \ge 365

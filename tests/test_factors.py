@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import factors
 from radar.config_schema import Factors
+from radar.sources import factors
 
 # the layout of a French file: notes, a monthly block, a second monthly block with a title, an annual block
 FRENCH = """This file was created using the 202608 CRSP database.

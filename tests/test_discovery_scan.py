@@ -11,10 +11,11 @@ from fastapi.testclient import TestClient
 import world
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import api, coverage, fxrates, ingest, paths, sourcelog, universe
+from radar import api, coverage, paths, sourcelog, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
 from radar.discovery import scan, sources
+from radar.sources import fxrates, ingest
 
 CFG = discovery_config() | {"markets": {
     "nordic": {"label": "Nordic", "kind": "stock"},
@@ -81,7 +82,7 @@ def test_discovery_stays_out_of_the_daily_radar(tmp_data, monkeypatch):
 
 
 def test_prices_refused_by_yahoo_are_asked_for_again(tmp_data, monkeypatch):
-    from radar import ingest
+    from radar.sources import ingest
 
     tickers = [f"T{i}" for i in range(10)]
     calls = []

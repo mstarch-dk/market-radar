@@ -63,7 +63,7 @@ At sammenligne en fond med sin egen fortid besvarer et andet spørgsmål: er det
 
 ### P/E mod sektoren
 
-Radaren beregner for hver aktie i det ugentlige snapshot (`valuation.py`, `signals/valuation.py`):
+Radaren beregner for hver aktie i det ugentlige snapshot (`sources/valuation.py`, `signals/valuation.py`):
 
 $$
 \text{pe\_vs\_sector} = \frac{\text{pe\_fy1}}{\text{median af pe\_fy1 i samme sektor og peergruppe}}

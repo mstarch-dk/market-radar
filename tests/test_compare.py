@@ -6,7 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 import world
-from radar import cli, ingest, profile
+from radar import cli, profile
+from radar.sources import ingest
 
 
 @pytest.fixture
@@ -57,7 +58,7 @@ def test_cli_single_ticker_output_is_unchanged_and_several_write_a_file(env, tmp
 
 
 def test_pe_basis_is_explicit_and_acwi_has_no_self_regression_noise(env, monkeypatch):
-    from radar import external
+    from radar.sources import external
     raw = {"fetched": "2026-10-13T00:00:00", "info": {"quoteType": "EQUITY", "currency": "USD"},
            "eps_trend": {}, "eps_revisions": {}, "growth_estimates": {}}
     monkeypatch.setattr(external, "detail", lambda *a, **k: (raw, "ok"))

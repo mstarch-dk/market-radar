@@ -1,9 +1,10 @@
 """`radar sim …`: simulations on your own trades and hindsight baskets, into virtual portfolios."""
 import typer
 
-from .. import trades, universe
+from .. import universe
 from ..market import Market
 from ..model import panels as mp
+from ..portfolios import trades
 from .common import fmt_num, fmt_pct, job, portfolio_ids, to_json
 from .root import app
 

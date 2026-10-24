@@ -13,12 +13,13 @@ from typing import TYPE_CHECKING, TypedDict
 import numpy as np
 import pandas as pd
 
-from . import fxrates, money, tracked
-from .signals.risk import annualised_vol, deepest_drawdown
-from .userstore import TRADE_TYPES
+from .. import money
+from ..signals.risk import annualised_vol, deepest_drawdown
+from ..sources import fxrates, tracked
+from ..userstore import TRADE_TYPES
 
 if TYPE_CHECKING:
-    from .market import Market
+    from ..market import Market
 
 EXTERNAL = {"DEPOSIT": 1.0, "WITHDRAW": -1.0}
 INCOME = {"DIVIDEND": 1.0, "INTEREST": 1.0, "FEE": -1.0}
@@ -468,7 +469,7 @@ def reset() -> None:
 
 def portfolio_book(p: dict, market: Market) -> Book | None:
     """The book (daily DKK value, flows) of one portfolio from the store, with its dividend policy."""
-    from . import userstore
+    from .. import userstore
 
     return book(userstore.transactions(portfolios=[p["id"]]), market, p["dividends"])
 
@@ -487,7 +488,7 @@ def _identity(p: dict) -> dict:
 
 def portfolio_performance(pid: int, market: Market, start=None, end=None) -> dict | None:
     """One portfolio's value, TWR/MWR and the same for ACWI (None if there is no such portfolio)."""
-    from . import userstore
+    from .. import userstore
 
     p = userstore.get_portfolio(pid)
     if not p:
@@ -513,7 +514,7 @@ def _empty() -> dict:
 def compare(market: Market, ids: list[int] | None = None, tags: list[str] | None = None, start=None) -> dict:
     """Portfolios (by id) and tag groups (each pooled into one line) side by side from a common start (the
     latest first day among them, or `start`), every index rebased to 100 there, with ACWI as the yardstick."""
-    from . import userstore
+    from .. import userstore
 
     def run() -> dict:
         lines: list[tuple[dict, Book | None]] = []
@@ -557,7 +558,7 @@ SUMMARY_PERIODS = ("1m", "3m", "ytd", "1y")
 def summary(market: Market) -> list[dict]:
     """Your real portfolios' returns for summary.json (the skills read it): per portfolio its tax kind, tags,
     funding, value and time-weighted returns over 1m/3m/YTD/1y and since its start, each next to ACWI's."""
-    from . import userstore
+    from .. import userstore
 
     out = []
     for p in userstore.portfolios(include_archived=False):

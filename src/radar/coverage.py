@@ -11,9 +11,10 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import paths, sourcelog, trades
+from . import paths, sourcelog
 from .config import POSITIVE_LIST_FILE
 from .paths import CACHE
+from .portfolios import trades
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
 NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
@@ -243,7 +244,7 @@ def discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
 
 def valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
     """The valuation snapshots, the market's valuation (CAPE, ERP), euro-area rates and the sentiment series."""
-    from . import external, sentiment, valuation
+    from .sources import external, sentiment, valuation
 
     rows = []
     st = valuation.load_stocks()
@@ -301,7 +302,7 @@ def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[
 def _factors_rows(ref: date, max_age: dict, log: dict) -> list[dict]:
     """The long histories: when they were fetched (the sources themselves lag months: French about two, JKP up to a
     year), and the last month in each."""
-    from . import factors
+    from .sources import factors
 
     d = factors.load()
     last = factors.asof(d)

@@ -14,11 +14,13 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import constituents, fees, propose, universe, userstore
+from radar import propose, universe, userstore
 from radar.config import settings
 from radar.config_schema import Propose
 from radar.market import Market
 from radar.model import artifacts
+from radar.portfolios import fees
+from radar.sources import constituents
 from world import IDX, N
 
 
@@ -55,8 +57,8 @@ def noisy_prices() -> pd.DataFrame:
 @pytest.fixture
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
-    from radar import ingest
     from radar.fundamentals import context as fcontext
+    from radar.sources import ingest
 
     monkeypatch.setattr(ingest, "load_prices", noisy_prices)
     fcontext.reset()
