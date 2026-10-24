@@ -7,6 +7,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 Status = Literal["ok", "stale", "missing"]
+Quadrant = Literal["Leading", "Weakening", "Lagging", "Improving", "n/a"]   # signals/rotation.py quadrant()
+RegimeLabel = Literal["Risk-on", "Risk-off", "Mixed"]                      # signals/regime.py overall()
 Num = float | None
 
 
@@ -440,7 +442,7 @@ class Peer(Strict):
 class Rotation(Strict):
     ticker: str
     name: str
-    quadrant: str
+    quadrant: Quadrant
     rs_ratio: Num = None
     rs_mom: Num = None
     rel_r3m: Num = None
@@ -453,7 +455,7 @@ class Peers(Section):
 
 
 class Regime(Strict):
-    label: str | None = None
+    label: RegimeLabel | None = None
     asof: str | None = None
     net: Num = None
 
@@ -545,7 +547,7 @@ class TickerSummary(Strict):
     r1m: Num = None
     r3m: Num = None
     score: Num = None
-    quadrant: str | None = None
+    quadrant: Quadrant | None = None
     spark: list[float]
     asof: str | None = None
     my_status: MyStatus | None = None
@@ -575,7 +577,7 @@ class Snapshot(Strict):
 
 
 class Overall(Strict):
-    label: str
+    label: RegimeLabel
     on: int
     off: int
     neutral: int
@@ -660,8 +662,8 @@ class RotationRow(FundValuation):
     name: str
     rank: int | None = None
     rank_change: int | None = None
-    quadrant: str
-    quadrant_local: str | None = None
+    quadrant: Quadrant
+    quadrant_local: Quadrant | None = None
     rel_r1m: Num = None
     rel_r3m: Num = None
     rel_r6m: Num = None
@@ -688,7 +690,7 @@ class RrgPoint(Strict):
 class RrgTrail(Strict):
     ticker: str
     name: str
-    quadrant: str
+    quadrant: Quadrant
     tail: list[RrgPoint]
 
 
@@ -833,7 +835,7 @@ class DiscoveryRow(StockValuation, FundValuation):
     new_high: bool | None = None
     trend_turn: bool | None = None
     rs_high: bool | None = None
-    quadrant: str | None = None
+    quadrant: Quadrant | None = None
     off_radar: bool
     check_data: bool | None = None
     stale: bool | None = None
@@ -1113,7 +1115,7 @@ class MyRow(StockValuation, FundValuation, StockFundamentals):
 class MeView(Strict):
     asof: str
     generated: str
-    regime: str | None = None
+    regime: RegimeLabel | None = None
     rows: list[MyRow]
 
 
@@ -1944,6 +1946,7 @@ class GuideTree(Strict):
     books: list[GuideBook]
     page_links: dict[str, str]
     glossary_links: dict[str, str]
+    settings: dict[str, str]          # settings.yaml's values by dotted key, for the glossary's {{settings:…}}
 
 
 class GuideHeading(Strict):

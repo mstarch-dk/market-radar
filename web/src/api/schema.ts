@@ -1948,7 +1948,7 @@ export interface components {
             /** Rs High */
             rs_high?: boolean | null;
             /** Quadrant */
-            quadrant?: string | null;
+            quadrant?: ("Leading" | "Weakening" | "Lagging" | "Improving" | "n/a") | null;
             /** Off Radar */
             off_radar: boolean;
             /** Check Data */
@@ -2493,6 +2493,10 @@ export interface components {
             glossary_links: {
                 [key: string]: string;
             };
+            /** Settings */
+            settings: {
+                [key: string]: string;
+            };
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2932,7 +2936,7 @@ export interface components {
             /** Generated */
             generated: string;
             /** Regime */
-            regime?: string | null;
+            regime?: ("Risk-on" | "Risk-off" | "Mixed") | null;
             /** Rows */
             rows: components["schemas"]["MyRow"][];
         };
@@ -3580,8 +3584,11 @@ export interface components {
         };
         /** Overall */
         Overall: {
-            /** Label */
-            label: string;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "Risk-on" | "Risk-off" | "Mixed";
             /** On */
             on: number;
             /** Off */
@@ -4283,7 +4290,7 @@ export interface components {
         /** Regime */
         Regime: {
             /** Label */
-            label?: string | null;
+            label?: ("Risk-on" | "Risk-off" | "Mixed") | null;
             /** Asof */
             asof?: string | null;
             /** Net */
@@ -4462,8 +4469,11 @@ export interface components {
             ticker: string;
             /** Name */
             name: string;
-            /** Quadrant */
-            quadrant: string;
+            /**
+             * Quadrant
+             * @enum {string}
+             */
+            quadrant: "Leading" | "Weakening" | "Lagging" | "Improving" | "n/a";
             /** Rs Ratio */
             rs_ratio?: number | null;
             /** Rs Mom */
@@ -4509,10 +4519,13 @@ export interface components {
             rank?: number | null;
             /** Rank Change */
             rank_change?: number | null;
-            /** Quadrant */
-            quadrant: string;
+            /**
+             * Quadrant
+             * @enum {string}
+             */
+            quadrant: "Leading" | "Weakening" | "Lagging" | "Improving" | "n/a";
             /** Quadrant Local */
-            quadrant_local?: string | null;
+            quadrant_local?: ("Leading" | "Weakening" | "Lagging" | "Improving" | "n/a") | null;
             /** Rel R1M */
             rel_r1m?: number | null;
             /** Rel R3M */
@@ -4584,8 +4597,11 @@ export interface components {
             ticker: string;
             /** Name */
             name: string;
-            /** Quadrant */
-            quadrant: string;
+            /**
+             * Quadrant
+             * @enum {string}
+             */
+            quadrant: "Leading" | "Weakening" | "Lagging" | "Improving" | "n/a";
             /** Tail */
             tail: components["schemas"]["RrgPoint"][];
         };
@@ -4885,7 +4901,7 @@ export interface components {
             /** Score */
             score?: number | null;
             /** Quadrant */
-            quadrant?: string | null;
+            quadrant?: ("Leading" | "Weakening" | "Lagging" | "Improving" | "n/a") | null;
             /** Spark */
             spark: number[];
             /** Asof */

@@ -1,8 +1,8 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { ApiError, type Outdated } from "../api/client";
+import { ApiError, type Outdated, type Quadrant as QuadrantName, type RegimeLabel } from "../api/client";
 import { date, pct, tone, type Maybe } from "../lib/format";
-import { QUAD_KIND } from "./quadrants";
+import { QUAD_KIND, REGIME_KIND } from "./quadrants";
 import { Badge } from "./ui";
 import { UpdatePanel } from "./UpdatePanel";
 import { Welcome } from "../pages/Welcome";
@@ -16,9 +16,9 @@ export function Pct({ v, digits = 1 }: { v: Maybe; digits?: number }) {
 }
 
 
-export function Quadrant({ q }: { q: string | null | undefined }) {
+export function Quadrant({ q }: { q: QuadrantName | null | undefined }) {
   if (!q || q === "n/a") return <span className="muted">n/a</span>;
-  return <Badge kind={QUAD_KIND[q] ?? ""}>{q}</Badge>;
+  return <Badge kind={QUAD_KIND[q]}>{q}</Badge>;
 }
 
 export function RankChange({ v }: { v: number | null | undefined }) {
@@ -40,8 +40,8 @@ export function Signal({ s }: { s: string }) {
   return <Badge kind={STATUS_KIND[s] ?? ""}>{s}</Badge>;
 }
 
-export function regimeKind(label: string | null | undefined): string {
-  return label === "Risk-on" ? "pos" : label === "Risk-off" ? "neg" : "warn";
+export function regimeKind(label: RegimeLabel | null | undefined): string {
+  return label ? REGIME_KIND[label] : "warn";
 }
 
 /** What a changed input is called in the "readings are behind" note (dashboard.inputs in Python). */
