@@ -167,7 +167,7 @@ change to the model and to its schema version.
 - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
-- `snapshot.py`: rank history for "new" and "Δ rank".
+- `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
 - `home.py`: the data folder's status, setup, moving in and layout migrations (see *Where data lives*).
 - `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
   a restore verifies, backs up first and swaps part by part.
