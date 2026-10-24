@@ -41,8 +41,9 @@ the module the callers read it from.
   default. Code reads values through `config.typed()` (the model; `propose.cfg()` is its `propose` section);
   `config.settings()` is the file as written, for what hashes it (`propose.rule_hash`, of the raw values, so a
   stored hash doesn't move when the model writes 10000 as 10000.0) and the pure readings that take a section as a
-  dict (`fundamentals/context.py`, `signals/gauges.py`). Tests change settings with
-  `conftest.with_settings(monkeypatch, backtest={...})`, which both views read; never by editing the dict
+  dict (`fundamentals/context.py`, `signals/gauges.py`). Not yet everywhere: the profile's sections read the file
+  as written (`ProfileInputs.cfg`), so a misspelt key there fails at runtime, not in mypy. Tests change settings
+  with `conftest.with_settings(monkeypatch, backtest={...})`, which both views read; never by editing the dict
   `settings()` returns, which `typed()` doesn't see.
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
@@ -136,6 +137,12 @@ change to the model and to its schema version.
   market-wide reading as data, without side effects.
 - `mine.py`: the holdings, watchlist and sold table (DKK return vs a shadow ACWI position, flags, stop levels).
 - `profile.py`: one ticker's full profile and several side by side with ACWI (`radar info`, `/compare`).
+  `load_inputs` reads everything a profile needs from outside (prices, the Yahoo detail, your holdings, config,
+  the regime and leaders, analyst history, valuation, the quality card) into a `ProfileInputs`; each section
+  (`section_identity`, `section_price`, … `section_peers`, `context_notes`) is a pure function of it, testable
+  from hand-made inputs, and `build` only loads, calls them in order and checks the result. A new section reads
+  what it needs through a new `ProfileInputs` field, not inside the section. (The risk section still goes
+  through `risk_section`, which reads the risk settings, the benchmark's currency and FRED itself.)
 - `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown but
   don't vote.

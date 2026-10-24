@@ -166,3 +166,55 @@ def test_a_profile_the_app_cant_show_fails_naming_the_field():
     with pytest.raises(ValueError, match="the profile of X doesn't match api_models.Profile: generated"):
         profile.checked({"symbol": "X"})
 
+
+# ---- the sections, each a pure function of hand-made inputs (no world installed, nothing stubbed)
+
+def _inputs(ticker="S1", prices=None, raw=None, holdings=(), **over) -> profile.ProfileInputs:
+    from radar import config, trades
+
+    prices = world.prices() if prices is None else prices
+    market = profile.Market(prices, ingest.wide(prices), ingest.wide(prices, "high"), ingest.wide(prices, "low"),
+                            ingest.wide(prices, "volume"))
+    fields = dict(ticker=ticker, market=market, bench="ACWI", cfg=config.settings(), raw=raw,
+                  raw_status="ok" if raw else "missing",
+                  holdings=pd.DataFrame(list(holdings), columns=trades.HOLDING_COLS), etf=None, etfs=[],
+                  region="us", sectors=None, name=f"{ticker} name", currency="USD", is_tracked=True,
+                  stock_groups={}, group_labels={}, leaders=pd.DataFrame(), analyst_history=pd.DataFrame(),
+                  regime={"label": None, "asof": None}, rotation_window=63, rotation_tail=10)
+    return profile.ProfileInputs(**(fields | over))
+
+
+def test_price_section_and_notes_for_a_stale_ticker_without_a_dkk_rate():
+    old = world.bars("OLD", 50 * 1.001 ** np.arange(world.N - 10))           # stopped trading two weeks ago
+    old["date"] = world.IDX[:-10]
+    inp = _inputs("OLD", pd.concat([world.prices(), old], ignore_index=True), currency="SEK", sector_etf="LEAD")
+    p = profile.section_price(inp)
+    assert p["status"] == "stale" and p["asof"] == world.IDX[-11]
+    assert p["returns"]["r1m"] == pytest.approx(1.001 ** 21 - 1)               # up to its own last bar
+    assert p["returns_dkk"] is None and p["sector_etf"] == "LEAD" and p["vs_sector"]["r1m"] is not None
+    assert p["last"] == pytest.approx(50 * 1.001 ** (world.N - 11)) and len(p["recent"]) == 20
+    notes = profile.context_notes(inp)
+    assert notes[0] == "Yahoo fundamentals and estimates: no data"
+    assert "No DKK rate for currency SEK: DKK returns not shown" in notes
+    assert notes[-1].startswith(f"Last price is from {world.IDX[-11].date()}, 14 days before")
+
+
+def test_quality_section_says_missing_without_statements_and_skips_funds():
+    assert profile.section_quality(_inputs(raw={"fetched": "2026-01-02", "info": {"quoteType": "ETF"}})) is None
+    missing = profile.section_quality(_inputs())
+    assert missing["status"] == "missing" and "No financial statements" in missing["notes"][0]
+    card = {"fund_source": "edgar", "period_end": "2026-06-30", "quality": 80.0, "value": 40.0}
+    q = profile.section_quality(_inputs(quality=card))
+    assert q["status"] == "ok" and q["source"] == "SEC EDGAR" and q["asof"] == "2026-06-30" and q["quality"] == 80.0
+
+
+def test_etf_section_overlap_is_only_what_you_hold():
+    raw = json.loads((FIXTURES / "yahoo_iuit.json").read_text(encoding="utf-8"))
+    raw["fund"]["top_holdings"][0]["symbol"] = "S1"
+    assert profile.section_etf(_inputs("FUND")) is None                        # not a fund: no look-through
+    holding = ("S1", "holding", 10, 100.0, "2026-01-02", None, None)
+    held = profile.section_etf(_inputs("S2", raw=raw, holdings=[holding]))
+    assert held["status"] == "ok" and held["asof"] == raw["fetched"][:10] and held["overlap"] == ["S1"]
+    watched = profile.section_etf(_inputs("S2", raw=raw, holdings=[("S1", "watch", None, None, None, None, None)]))
+    assert watched["overlap"] == [] and watched["expense_ratio"] == pytest.approx(0.0015)
+
