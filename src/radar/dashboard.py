@@ -17,7 +17,7 @@ from .fundamentals import store as fstore
 from .ingest import load_fred, load_prices, wide
 from .jsonsafe import clean as _clean
 from .model.inputs import DASHBOARD_FILE as FILE_NAME
-from .model.inputs import effective_votes, regime_now  # noqa: F401 (regime_now re-exported)
+from .model.inputs import effective_votes
 from .paths import FRED_FILE, PRICES_FILE, REPORTS
 from .signals import gauges as gz
 from .signals import momentum, regime, rotation

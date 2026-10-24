@@ -23,6 +23,7 @@ from .. import locks, net, sourcelog
 from ..config import typed
 from ..config_schema import YahooFundamentals
 from ..paths import CACHE
+from ..signals import periods
 from . import schedule, store
 from .items import ITEMS
 
@@ -95,7 +96,7 @@ def merge(old: pd.DataFrame, new: pd.DataFrame, fetched: date, assumed_lag: dict
         return new
     fetched = pd.Timestamp(fetched)
     first = set(new["ticker"]) - set(old["ticker"])
-    latest = store.as_known(old) if not old.empty else old
+    latest = periods.as_known(old) if not old.empty else old
     key = ["ticker", "item", "fp", "end"]
     if not latest.empty:
         m = new.merge(latest[key + ["value"]], on=key, how="left", suffixes=("", "_old"))
@@ -172,7 +173,7 @@ def update_yahoo(stocks: list[str], today: date | None = None, force: bool = Fal
             if not fresh.empty:
                 store.save(pd.concat([old, fresh], ignore_index=True), store.YAHOO_FILE)
             added = len(fresh)
-    rows += [{"ticker": t, "fetched": today, "ok": True, "last_end": store.latest_end(df), "n": len(df), "error": None}
+    rows += [{"ticker": t, "fetched": today, "ok": True, "last_end": periods.latest_end(df), "n": len(df), "error": None}
              for t, df in frames.items()]
     rows += [{"ticker": t, "fetched": today, "ok": False, "last_end": None, "n": 0, "error": e} for t, e in errors.items()]
     schedule.save_log(LOG_FILE, log, rows)

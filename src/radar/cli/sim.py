@@ -2,6 +2,8 @@
 import typer
 
 from .. import trades, universe
+from ..market import Market
+from ..model import panels as mp
 from .common import fmt_num, fmt_pct, job, portfolio_ids, to_json
 from .root import app
 
@@ -27,7 +29,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
     the Returns page can show them) and reports.json/sim-exits.json with every exit and what it saved or cost."""
     from pathlib import Path
 
-    from .. import profile, userstore
+    from .. import userstore
     from ..backtest import exits
 
     trades.ensure_migrated()
@@ -36,7 +38,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
         raise SystemExit("--variant must be overlay, rules or both")
     ids = portfolio_ids(names, None) if names else userstore.compared_ids()
     with job("sim") as log:
-        market = profile.Market.load()
+        market = Market.load()
         gap = universe.history_gap(market.closes)
         if gap:
             have, need = gap
@@ -118,11 +120,10 @@ def sim_picks_candidates(asof: str = typer.Option(..., "--asof", help="1M, 3M, 6
     (sectors are today's). For picking a hindsight basket (`radar sim picks`)."""
     from pathlib import Path
 
-    from .. import profile
     from ..backtest import picks
 
     try:
-        rep = picks.candidates(profile.Market.load(), asof, blind, views, top, model_cutoff, fund=fund)
+        rep = picks.candidates(Market.load(), asof, blind, views, top, model_cutoff, fund=fund)
     except ValueError as e:
         raise SystemExit(str(e))
     text = to_json(rep, indent=1, ensure_ascii=False)
@@ -168,13 +169,12 @@ def sim_picks(asof: str = typer.Option(None, "--asof", help="1M, 3M, 6M, 1Y, tod
     import json
     from pathlib import Path
 
-    from .. import profile
-    from ..backtest import picks, study
+    from ..backtest import picks
 
     trades.ensure_migrated()
     with job("sim") as log:
-        market = profile.Market.load()
-        p = study.panels(market)
+        market = Market.load()
+        p = mp.panels(market)
         try:
             if rerun:
                 hs = picks.find(rerun)

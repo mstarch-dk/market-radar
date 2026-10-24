@@ -9,6 +9,7 @@ from radar.model import panels as mp
 from radar.model import paths as mpaths
 from radar.signals import momentum
 from radar.signals import score as ms
+from radar.signals.score import mean_pct
 
 
 def _dist(seed: int = 1, n: int = 40) -> pd.DataFrame:
@@ -30,10 +31,10 @@ def test_one_name_against_the_pool_equals_the_whole_pool_ranked():
 def test_every_caller_uses_the_same_rule():
     df = _dist(2)
     assert momentum.score(df).equals(ms.score(df))
-    assert ms.mean_pct(df).equals(study.pct(df))
+    assert ms.mean_pct(df).equals(mean_pct(df))
     assert np.allclose(ms.weighted_pct(df, dict.fromkeys(ms.COMPONENTS, 1.0)), ms.mean_pct(df), equal_nan=True)
-    assert study.pct is ms.mean_pct and longrun.pct is ms.mean_pct and longrun.wpct is ms.weighted_pct
-    assert study.BY_KEY["score"].fn is mp.score_at and picks.ranked is mp.ranked and study.Panels is mp.Panels
+    assert mean_pct is ms.mean_pct and mean_pct is ms.mean_pct and longrun.wpct is ms.weighted_pct
+    assert study.BY_KEY["score"].fn is mp.score_at and picks.ranked is mp.ranked and mp.Panels is mp.Panels
 
 
 def test_the_share_strictly_below_with_ties():

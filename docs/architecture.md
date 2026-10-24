@@ -26,9 +26,10 @@ and the app never runs a study: the kernel (`model/`) imports neither; the studi
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
 `abtest`, `propose/`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
 
-A helper both sides need goes down a layer and keeps its old name as a re-export (e.g. `Market` in `market.py`,
-also `profile.Market`; the regime votes and level universe in `model/inputs.py`). A test that stubs one patches
-the module the callers read it from.
+A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
+`model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
+that only imported it (`tests/test_layers.py` holds this; the package facades `propose`, `api`, `api_models` and
+`cli` are the exceptions). So there is one place to patch a name: the module the callers read it from.
 
 ## Config
 - `config/universe.yaml`: everything tracked (ETF groups, stock lists, macro series, CFTC/OECD sources, the

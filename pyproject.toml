@@ -105,7 +105,7 @@ line-length = 120
 src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C90"]
 ignore = [
     "B008",    # typer.Option / FastAPI Query defaults are calls by design
     "B905",    # zip() without strict=: the lengths are equal by construction where it is used
@@ -114,6 +114,11 @@ ignore = [
     "SIM108",  # ternaries only where they read better
     "SIM401",  # `x[k] if k in x else None` on DataFrames: .get isn't obviously the same
 ]
+
+# A complexity budget: no function grows past this (ruff's McCabe count). The few above it carry `noqa: C901`
+# with why; that list only shrinks.
+[tool.ruff.lint.mccabe]
+max-complexity = 30
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 140   # 120 is the aim (isort wraps there); a line may run over when splitting it reads worse

@@ -61,6 +61,7 @@ def long_prior(tilt: str, horizon: int, trend: str | None, c: Propose | None = N
             _PRIORS[key] = None
         else:
             st = (main.get("by_trend") or {}).get(trend) if trend else None
+            # zero: an unknown period count doesn't pass the minimum
             use: dict = st if st is not None and (st.get("eff_n") or 0) >= pc.min_trend_eff_n else main
             _PRIORS[key] = {
                 "mean": use["mean"], "se": use["se"], "t": use["t"], "eff_n": use["eff_n"],
@@ -128,7 +129,7 @@ def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, 
         return out
     allr = kept.all or artifacts.Summary()
     reg = kept.by_regime.get(str(regime)) if regime else None
-    if reg is not None and (reg.dates or 0) >= c.min_regime_dates:
+    if reg is not None and (reg.dates or 0) >= c.min_regime_dates:   # zero: unknown dates don't pass the minimum
         use, out["basis"] = reg, f"regime {regime} ({reg.dates} dates)"
     else:
         use, out["basis"] = allr, f"all dates ({allr.dates})"

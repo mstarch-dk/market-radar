@@ -87,6 +87,14 @@
   `longrun.cfg`, `valuation.screen_codes`), its download (`factors.fetch`, `external.cot_fetch`,
   `constituents.spy_holdings`) or the settings file (`config.load_settings`, through `conftest.with_settings`).
   `TEST_PRIVATE_ALLOWED` in `test_layers.py` is empty and only shrinks.
+- No name is read through a module that only imported it (`study.panels` for `model.panels.panels`): read it from
+  the defining module, so there is one place to patch it. The package facades (`propose`, `api`, `api_models`,
+  `cli`) are the deliberate exceptions (`FACADES` in `test_layers.py`).
+- `tests/test_guard.py` holds the project's rules as code besides the offline guard: data files go through the
+  atomic writers, JSON files through `jsonsafe`, settings are read through `config.typed()` (`settings()[…]` only
+  in `SETTINGS_DICT_ALLOWED`, which only shrinks), and in the readings (`signals/`, `fundamentals/`, `propose/`,
+  `performance.py`) no `x or 0` or `.fillna(0)` turns a missing value into a known-looking 0 unless a `# zero: …`
+  comment on the line (or the one above) says why zero is right.
 - In-memory caches: each module that keeps one has a public `reset()` (`api`, `dashboard`, `performance`,
   `fundamentals.context`, `valuation`, `tickers`, `market_views`; also `net.reset()`). `conftest.reset_caches()`
   empties them before and after every test and in `tmp_data`; a test that needs a fresh read mid-way calls the
@@ -107,7 +115,8 @@
   functions included (`check_untyped_defs`). Every `market` parameter is annotated `Market` (import it under
   `TYPE_CHECKING`, as the modules do). Still loose: pandas is `Any`, so a wrong column name passes, and
   transaction rows and the propose settings travel as plain dicts. Next rung: `disallow_incomplete_defs`, package
-  by package. `uv run pytest -q --cov`: coverage with a floor (`[tool.coverage.report] fail_under`):
+  by package. Ruff also keeps a complexity budget (`[tool.ruff.lint.mccabe] max-complexity`): a function above it
+  carries `noqa: C901` with why, and that list only shrinks. `uv run pytest -q --cov`: coverage with a floor (`[tool.coverage.report] fail_under`):
   raise it when coverage rises, never lower it to let a change in.
 
 ## The command line

@@ -8,6 +8,7 @@ from radar import factors
 from radar.backtest import longrun
 from radar.config_schema import Longrun
 from radar.model import artifacts, prior
+from radar.model import prior as mprior
 
 
 def _months(n: int) -> pd.DatetimeIndex:
@@ -49,7 +50,7 @@ def test_windows_follow_the_production_lookbacks():
 def test_a_missing_month_leaves_the_window_missing():
     r = pd.DataFrame({"a": [0.01] * 14}, index=_months(14))
     r.iloc[5, 0] = np.nan
-    assert longrun.window(r, 6).iloc[5:11, 0].isna().all()
+    assert mprior.window(r, 6).iloc[5:11, 0].isna().all()
 
 
 @pytest.mark.slow

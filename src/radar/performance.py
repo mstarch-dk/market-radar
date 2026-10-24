@@ -48,7 +48,7 @@ def trade_cash_dkk(row: dict, fx: pd.Series | None) -> float | None:
     rate = trade_fx(row, fx)
     if rate is None:
         return None
-    gross, fee = float(row["quantity"]) * float(row["price"]), float(row.get("fee") or 0)
+    gross, fee = float(row["quantity"]) * float(row["price"]), float(row.get("fee") or 0)   # zero: no fee charged
     return -(gross + fee) * rate if row["type"] == "BUY" else (gross - fee) * rate
 
 
@@ -70,7 +70,7 @@ def cash_moves(rows: list[dict], market: Market, dividends: str = "reinvested") 
     fx_cache: dict[str, pd.Series | None] = {}
     out: list[dict] = []
     problems: list[CashProblem] = []
-    for r in sorted(rows, key=lambda r: (str(r["date"])[:10], r.get("id") or 0)):
+    for r in sorted(rows, key=lambda r: (str(r["date"])[:10], r.get("id") or 0)):   # zero: unsaved rows sort first
         t, day = r["type"], pd.Timestamp(str(r["date"])[:10])
         if t in EXTERNAL:
             out.append({"date": day, "cash": EXTERNAL[t] * float(r["amount"]), "external": True, "row": r})
@@ -165,7 +165,7 @@ def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Boo
         factor = (closes[sym] / rpx).dropna() if dividends != "cash" and px is not None and rpx is not None else None
         units = pd.Series(0.0, index=idx)
         qty = u = 0.0
-        for r in sorted(lots, key=lambda r: (str(r["date"])[:10], r.get("id") or 0)):
+        for r in sorted(lots, key=lambda r: (str(r["date"])[:10], r.get("id") or 0)):   # zero: unsaved rows sort first
             i = _session(idx, pd.Timestamp(str(r["date"])[:10]))
             if i is None:
                 late += 1
@@ -191,7 +191,7 @@ def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Boo
             continue
         val = units * px.reindex(idx) * fx.reindex(idx)
         unknown |= held & val.isna()
-        holdings = holdings + val.fillna(0.0)
+        holdings = holdings + val.fillna(0.0)   # zero: those days are marked in `unknown`, never shown as a value
     if late:
         notes.append(f"{late} row(s) after the last price date are not counted yet")
 
@@ -581,6 +581,7 @@ def summary(market: Market) -> list[dict]:
 
 def sim_rows(rows: list[dict]) -> list[dict]:
     """Rows a simulation built, as the book reads them: a fee left out is none charged, cash rows are in DKK."""
+    # zero: a simulation leaves the fee out when it charged none
     return [dict(r, fee=r.get("fee") or 0.0, currency="DKK" if r["type"] not in ("BUY", "SELL") else None) for r in rows]
 
 

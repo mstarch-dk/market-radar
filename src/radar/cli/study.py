@@ -3,6 +3,7 @@ from datetime import date
 
 import typer
 
+from ..market import Market
 from ..model import artifacts as a
 from .common import fmt_num, fmt_pct, job, to_json
 from .root import app
@@ -37,14 +38,13 @@ def study_score(horizons: str = typer.Option("1,3,6,12", help="Forward horizons 
     (reports/score-study-<signal>.json)."""
     from pathlib import Path
 
-    from .. import profile
     from ..backtest import study
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
         with job("study") as log:
-            rep = study.run(profile.Market.load(), hs, keys, n, exits_months, seasoned, since, not no_regime, log,
+            rep = study.run(Market.load(), hs, keys, n, exits_months, seasoned, since, not no_regime, log,
                             signal=signal)
             checked = study.write(rep)
     except ValueError as e:
@@ -225,14 +225,13 @@ def study_exits(horizons: str = typer.Option("3,6", help="Horizons in months (fr
     and risk (max drawdown, volatility, worst 20 sessions, the 10 % worst outcome), in-sample and in the holdout,
     with a verdict per variant. Slow (10-20 minutes). Writes reports/exit-study.json."""
 
-    from .. import profile
     from ..backtest import exit_rules
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if variants == "all" else [v.strip() for v in variants.split(",") if v.strip()]
         with job("study") as log:
-            rep = exit_rules.exit_variants(profile.Market.load(), n, hs, keys, since, not no_reentry, log)
+            rep = exit_rules.exit_variants(Market.load(), n, hs, keys, since, not no_reentry, log)
             checked = exit_rules.write_exits(rep)
     except ValueError as e:
         raise SystemExit(f"Not studied: {e}")
@@ -289,14 +288,13 @@ def study_redeploy(horizons: str = typer.Option("6,12", help="Horizons in months
     reports/redeploy-study.json."""
     from pathlib import Path
 
-    from .. import profile
     from ..backtest import redeploy
 
     try:
         hs = tuple(int(x) for x in horizons.split(","))
         keys = None if arms == "all" else [v.strip() for v in arms.split(",") if v.strip()]
         with job("study") as log:
-            rep = redeploy.redeploy_study(profile.Market.load(), n, hs, buffer, cooldown, max_per_sector, max_per_group,
+            rep = redeploy.redeploy_study(Market.load(), n, hs, buffer, cooldown, max_per_sector, max_per_group,
                                           not no_trend, since, keys, log)
             checked = redeploy.write_redeploy(rep)
     except ValueError as e:
@@ -352,12 +350,11 @@ def study_propose(tilts: str = typer.Option("momentum,value,mix", help="Tilts to
     proposal's modelled excess and one of its drawdown lenses. Value and mix: US stocks only (SEC EDGAR). Writes
     reports/propose-study.json."""
 
-    from .. import profile
     from ..backtest import propose_study as ps
 
     try:
         with job("study") as log:
-            rep = ps.run(profile.Market.load(), [t.strip() for t in tilts.split(",") if t.strip()],
+            rep = ps.run(Market.load(), [t.strip() for t in tilts.split(",") if t.strip()],
                          [int(x) for x in ns.split(",")] if ns else None,
                          [int(x) for x in horizons.split(",")] if horizons else None, since, not no_regime, log)
             checked = ps.write(rep)

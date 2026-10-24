@@ -33,7 +33,7 @@ router = APIRouter()
 def get_regime() -> dict:
     """The regime of the last `radar run`, voted with your current choice of indicator groups."""
     view = reading("regime")
-    view["overall"], view["indicators"] = dashboard.regime_now(dashboard_or_503())   # Regime(overall, indicators)
+    view["overall"], view["indicators"] = inputs.regime_now(dashboard_or_503())   # Regime(overall, indicators)
     return view | {"votes": dashboard.vote_options()}
 
 

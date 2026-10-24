@@ -9,6 +9,7 @@ from conftest import with_settings
 from radar import propose
 from radar.backtest import propose_study as ps
 from radar.backtest import study
+from radar.model import panels as mp
 from test_propose import market  # noqa: F401 - the shared fixture
 
 
@@ -34,7 +35,7 @@ def test_picks_know_nothing_after_their_day(market, monkeypatch):  # noqa: F811
     d = next(x for x in first["dates"] if x["picks"].get("momentum", {}).get("2"))
     day = study.pd.Timestamp(d["date"])
     market.closes.loc[market.closes.index > day] *= 3.0
-    again = _run(market, monkeypatch, p=study.panels(market))
+    again = _run(market, monkeypatch, p=mp.panels(market))
     same = next(x for x in again["dates"] if x["date"] == d["date"])
     assert same["picks"] == d["picks"]
 

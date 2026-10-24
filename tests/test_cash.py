@@ -7,7 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, ingest, performance, profile, report, trades, userstore
+from radar import api, dashboard, importers, ingest, performance, report, trades, userstore
+from radar.market import Market
 from world import IDX
 
 DAY, LATER = IDX[100].date().isoformat(), IDX[150].date().isoformat()
@@ -101,7 +102,7 @@ def test_the_trade_rate_is_yahoos_unless_given(client):
     r = _post(client, symbol="S2", date=DAY, type="BUY", quantity=1, price=100, fx_rate=7.0, portfolio_id=sim)
     assert r.status_code == 200
     rows = userstore.transactions(portfolios=[sim])
-    bal, _ = performance.cash_balance(rows, profile.Market.load())
+    bal, _ = performance.cash_balance(rows, Market.load())
     assert bal.iloc[-1] == pytest.approx(1000 - 700)                                     # 100 USD at 7.0, not 6.5
 
 

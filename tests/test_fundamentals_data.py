@@ -10,8 +10,9 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, serve, statements
-from radar import sourcelog, tracked, userstore
+from radar import net, sourcelog, tracked, userstore
 from radar.fundamentals import edgar, schedule, store, yahoo
+from radar.signals import periods
 
 FIX = Path(__file__).parent / "fixtures"
 TODAY = date(2026, 10, 16)
@@ -43,34 +44,34 @@ def facts(**tags) -> dict:
 # ---------------- EDGAR ----------------
 
 def test_apple_ttm_is_built_from_the_year_to_date(aapl):
-    rev = store.ttm(aapl, "revenue")
+    rev = periods.ttm(aapl, "revenue")
     assert (rev.value, rev.end, rev.basis) == (466_823_000_000, pd.Timestamp("2026-06-27"), "ytd")
-    cfo = store.ttm(aapl, "cfo")         # 10-Q cash flows are year to date only
+    cfo = periods.ttm(aapl, "cfo")         # 10-Q cash flows are year to date only
     assert (cfo.value, cfo.basis) == (146_724_000_000, "ytd")
-    assert store.ttm(aapl, "capex").value == 10_041_000_000
-    fy = store.annual(aapl, "revenue")
+    assert periods.ttm(aapl, "capex").value == 10_041_000_000
+    fy = periods.annual(aapl, "revenue")
     assert fy[pd.Timestamp("2025-09-27")] == 416_161_000_000
 
 
 def test_a_value_counts_only_from_the_day_after_its_filing(aapl):
-    before = store.ttm(aapl, "revenue", known_by=date(2026, 7, 31))   # the Q3 10-Q was filed 31 Jul
+    before = periods.ttm(aapl, "revenue", known_by=date(2026, 7, 31))   # the Q3 10-Q was filed 31 Jul
     assert before.end == pd.Timestamp("2026-03-28") and before.basis == "ytd"
-    after = store.ttm(aapl, "revenue", known_by=date(2026, 8, 1))
+    after = periods.ttm(aapl, "revenue", known_by=date(2026, 8, 1))
     assert after.end == pd.Timestamp("2026-06-27")
-    assert store.instant(aapl, "total_assets", known_by=date(2026, 7, 31)).end == pd.Timestamp("2026-03-28")
+    assert periods.instant(aapl, "total_assets", known_by=date(2026, 7, 31)).end == pd.Timestamp("2026-03-28")
 
 
 def test_the_recipe_that_finds_most_parts_wins(aapl):
-    cash = store.instant(aapl, "cash")      # Apple reports marketable securities, not short-term investments
+    cash = periods.instant(aapl, "cash")      # Apple reports marketable securities, not short-term investments
     assert cash.tag == "CashAndCashEquivalentsAtCarryingValue+MarketableSecuritiesCurrent"
     assert cash.value == 62_399_000_000
-    assert store.instant(aapl, "debt_current").tag == "LongTermDebtCurrent+ShortTermBorrowings"
+    assert periods.instant(aapl, "debt_current").tag == "LongTermDebtCurrent+ShortTermBorrowings"
 
 
 def test_a_share_count_is_the_latest_period_not_a_sum(aapl):
-    sh = store.ttm(aapl, "diluted_shares")
+    sh = periods.ttm(aapl, "diluted_shares")
     assert sh.basis == "latest" and 14e9 < sh.value < 15.5e9
-    assert store.instant(aapl, "shares").tag == "dei:EntityCommonStockSharesOutstanding"
+    assert periods.instant(aapl, "shares").tag == "dei:EntityCommonStockSharesOutstanding"
 
 
 def test_a_restatement_is_kept_and_used_from_its_filing_day():
@@ -78,8 +79,8 @@ def test_a_restatement_is_kept_and_used_from_its_filing_day():
                          ("2024-01-01", "2024-12-31", 90.0, "2025-08-01", "10-K")])   # restated in a 10-K/A
     df = edgar.parse_companyfacts(js, "X", TODAY)
     assert len(df) == 2
-    assert store.ttm(df, "revenue", known_by=date(2025, 7, 1)).value == 100
-    assert store.ttm(df, "revenue").value == 90
+    assert periods.ttm(df, "revenue", known_by=date(2025, 7, 1)).value == 100
+    assert periods.ttm(df, "revenue").value == 90
 
 
 def test_a_comparative_filed_again_keeps_its_first_filing_date():
@@ -95,7 +96,7 @@ def test_tags_are_tried_per_period_in_order():
                RevenueFromContractWithCustomerExcludingAssessedTax=[
                    ("2018-01-01", "2018-12-31", 60.0, "2019-02-10", "10-K")])
     df = edgar.parse_companyfacts(js, "X", date(2020, 1, 1))
-    fy = store.annual(df, "revenue")
+    fy = periods.annual(df, "revenue")
     assert fy.tolist() == [50.0, 60.0]       # ASC 606 tag preferred where both report the year
     assert set(df["tag"]) == {"SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax"}
 
@@ -105,7 +106,7 @@ def test_no_ttm_from_mismatched_pieces():
     js = facts(Revenues=[("2025-01-01", "2025-12-31", 400.0, "2026-02-10", "10-K"),
                          ("2026-01-01", "2026-09-30", 330.0, "2026-10-30")])
     df = edgar.parse_companyfacts(js, "X", date(2026, 11, 15))
-    v = store.ttm(df, "revenue")
+    v = periods.ttm(df, "revenue")
     assert (v.value, v.basis, v.end) == (400.0, "fy", pd.Timestamp("2025-12-31"))
 
 
@@ -114,9 +115,9 @@ def test_ytd_ttm_and_53_week_years():
                          ("2024-01-01", "2025-01-05", 371.0, "2025-02-10", "10-K"),     # a 53-week year
                          ("2025-01-06", "2025-10-05", 300.0, "2025-10-30")])
     df = edgar.parse_companyfacts(js, "X", date(2025, 12, 1))
-    v = store.ttm(df, "revenue")
+    v = periods.ttm(df, "revenue")
     assert (v.value, v.basis) == (371 + 300 - 270, "ytd")
-    assert store.kind("2024-01-01", "2025-01-05") == "FY" and store.kind("2025-01-01", "2025-02-28") is None
+    assert periods.kind("2024-01-01", "2025-01-05") == "FY" and periods.kind("2025-01-01", "2025-02-28") is None
 
 
 def test_an_ifrs_filer_is_left_to_yahoo():
@@ -144,16 +145,16 @@ def _yahoo(ticker: str, fetched=TODAY, old=None) -> pd.DataFrame:
 def test_yahoo_quarters_sum_to_the_ttm_and_agree_with_edgar(aapl):
     y = _yahoo("AAPL")
     for item in ("revenue", "operating_income", "cfo", "capex"):
-        a, b = store.ttm(aapl, item), store.ttm(y, item)
+        a, b = periods.ttm(aapl, item), periods.ttm(y, item)
         assert b.basis == "4q" and b.value == a.value, item
-    assert store.ttm(y, "capex").value > 0          # Yahoo's negative cash out is stored as an amount
-    assert store.instant(y, "cash").value == store.instant(aapl, "cash").value
+    assert periods.ttm(y, "capex").value > 0          # Yahoo's negative cash out is stored as an amount
+    assert periods.instant(y, "cash").value == periods.instant(aapl, "cash").value
 
 
 def test_a_half_year_reporter_uses_yahoos_trailing_column():
     y = _yahoo("RR.L")
-    v = store.ttm(y, "revenue")
-    assert v.basis == "yahoo_ttm" and v.value > store.annual(y, "revenue").iloc[-1] * 0.8
+    v = periods.ttm(y, "revenue")
+    assert v.basis == "yahoo_ttm" and v.value > periods.annual(y, "revenue").iloc[-1] * 0.8
 
 
 def test_yahoo_values_are_dated_when_first_seen():
@@ -209,7 +210,7 @@ def test_edgar_update_stores_and_keeps_more_than_a_shorter_answer(us, monkeypatc
     def facts_for(url):
         return Resp(json=aapl_js) if "0000320193" in url else Resp(404)
     calls = serve(monkeypatch, {"company_tickers": Resp(json=TICKERS), "companyfacts": facts_for})
-    monkeypatch.setattr(edgar.net, "get", _capture_headers(edgar.net.get, seen))
+    monkeypatch.setattr(net, "get", _capture_headers(net.get, seen))
     msg = edgar.update_edgar(STOCKS, CONTACT, today=TODAY)
     assert "1 of 2 due companies stored" in msg and "without us-gaap" in msg
     assert seen["User-Agent"].endswith("someone@example.com")

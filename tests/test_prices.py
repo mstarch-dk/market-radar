@@ -6,6 +6,7 @@ import pytest
 
 from conftest import with_settings
 from radar import dashboard, fxrates, ingest, paths, tracked, universe
+from radar.market import Market
 from radar.mine import vs_shadow
 from radar.signals.score import score_vs
 
@@ -169,7 +170,7 @@ def test_a_rebased_history_is_downloaded_again_and_kept_on_one_basis(price_store
     install({"A": _hist("A", list(range(100, 120))), "B": _hist("B", list(range(50, 70)))})
     ingest.update_prices(["A", "B"])
     ancient = _hist("A", [90.0], start="2020-01-02")              # stored back when history_years was longer
-    pd.concat([ancient, ingest.load_prices()]).to_parquet(ingest.PRICES_FILE, index=False)
+    pd.concat([ancient, ingest.load_prices()]).to_parquet(paths.PRICES_FILE, index=False)
     # A paid a dividend: Yahoo now reports every earlier adjusted close 2% lower
     install({"A": _hist("A", list(range(100, 121)), factor=0.98), "B": _hist("B", list(range(50, 71)))})
     res = ingest.update_prices(["A", "B"])
@@ -199,7 +200,7 @@ def test_a_deeper_start_downloads_a_shallow_history_again_once(price_store):
     res = ingest.update_prices(["A", "B"], start=deep)
     a = ingest.load_prices().query("ticker == 'A'")
     assert res["deepened"] == 2 and a["date"].min() == pd.Timestamp(deep) and not a.duplicated("date").any()
-    assert json.loads((ingest.CACHE / ingest.FROM_FILE).read_text())["B"] == deep.isoformat()
+    assert json.loads((paths.CACHE / ingest.FROM_FILE).read_text())["B"] == deep.isoformat()
     res = ingest.update_prices(["A", "B"], start=deep)                 # remembered: not again, B neither
     assert res["deepened"] == 0 and calls[-1][1] > deep
     # a dividend re-bases A: the full download goes back to the deep start, not history_years
@@ -271,7 +272,7 @@ def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch)
     monkeypatch.setattr(tracked, "benchmark", lambda: "ACWI")
     monkeypatch.setattr(universe, "all_price_tickers", lambda **kw: ["ACWI", "RHM.DE"])
     monkeypatch.setattr(ingest, "update_prices", lambda t, **kw: calls.append((t, kw)))
-    monkeypatch.setattr(profile.Market, "load", classmethod(lambda cls: market))
+    monkeypatch.setattr(Market, "load", classmethod(lambda cls: market))
     profile.ensure_prices("RHM.DE", market)
     assert calls == []                                           # tracked: the daily update brings it
     profile.ensure_prices("RHM.DE", market, refresh=True)
@@ -295,7 +296,7 @@ def test_a_full_download_that_starts_late_keeps_the_older_bars_and_tries_again(p
     a = ingest.load_prices()
     assert a["date"].min() == stored_first and not a.duplicated("date").any()
     assert res["short"] == {"A": "2026-05-25"}
-    assert json.loads((ingest.CACHE / ingest.FROM_FILE).read_text())["A"] != "2024-10-01"   # not marked done
+    assert json.loads((paths.CACHE / ingest.FROM_FILE).read_text())["A"] != "2024-10-01"   # not marked done
     calls.clear()
     ingest.update_prices(["A"], start=date(2024, 10, 1), today=TODAY)
     assert calls[0] == (["A"], date(2024, 10, 1))                      # so the next run asks again
@@ -317,7 +318,7 @@ def test_older_bars_on_another_basis_are_rescaled_at_the_seam(price_store):
 def test_a_legacy_store_keeps_the_tickers_yahoo_did_not_return(price_store):
     install, calls = price_store
     legacy = pd.concat([_hist("A", [10.0] * 20), _hist("B", [20.0] * 20)]).drop(columns="raw_close")
-    legacy.to_parquet(ingest.PRICES_FILE, index=False)                 # stored before raw closes were kept
+    legacy.to_parquet(paths.PRICES_FILE, index=False)                 # stored before raw closes were kept
     install({"A": _hist("A", [10.0] * 21)})
     ingest.update_prices(["A", "B"], today=TODAY)
     p = ingest.load_prices()

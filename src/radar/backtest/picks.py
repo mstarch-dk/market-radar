@@ -19,7 +19,7 @@ from ..model import panels as mp
 from ..model.select import capped
 from ..model.stats import cross_section
 from ..paths import REPORTS
-from ..simulate import basket_rows  # noqa: F401 (re-exported)
+from ..simulate import basket_rows
 from ..userstore import viewstore
 from . import exits as ex
 from . import study

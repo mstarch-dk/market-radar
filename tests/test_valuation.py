@@ -10,7 +10,7 @@ import pytest
 
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import coverage, external, sentiment, sourcelog, valuation
+from radar import config, coverage, external, sentiment, sourcelog, valuation
 from radar.discovery import scan, sources
 from radar.external import parse_ecb
 from radar.signals import regime
@@ -432,7 +432,7 @@ def test_a_normal_run_stores_todays_snapshot_and_counts_what_it_got(monkeypatch,
 def test_an_exchange_with_too_few_names_raises_and_keeps_the_last_snapshot(monkeypatch, stocks_world):
     stocks_world["XB"] = [quote("CCC")]
     old = snap("2026-10-05", ["OLD"])
-    valuation.write_parquet(old, valuation.STOCKS_FILE, index=False)
+    config.write_parquet(old, valuation.STOCKS_FILE, index=False)
     before = valuation.STOCKS_FILE.read_bytes()
     yf = fake_yf(monkeypatch)
     with pytest.raises(ValueError, match=r"XB 1 < 2"):
@@ -441,7 +441,7 @@ def test_an_exchange_with_too_few_names_raises_and_keeps_the_last_snapshot(monke
 
 
 def test_not_due_is_up_to_date_without_asking_anyone(monkeypatch, stocks_world):
-    valuation.write_parquet(snap("2026-10-14", ["AAA"]), valuation.STOCKS_FILE, index=False)
+    config.write_parquet(snap("2026-10-14", ["AAA"]), valuation.STOCKS_FILE, index=False)
 
     def asked(*a, **kw):
         raise AssertionError("nothing should be asked")
@@ -453,7 +453,7 @@ def test_not_due_is_up_to_date_without_asking_anyone(monkeypatch, stocks_world):
 
 
 def test_a_forced_run_in_the_same_week_says_how_many_it_carried(monkeypatch, stocks_world):
-    valuation.write_parquet(snap("2026-10-14", ["AAA", "GONE"]), valuation.STOCKS_FILE, index=False)
+    config.write_parquet(snap("2026-10-14", ["AAA", "GONE"]), valuation.STOCKS_FILE, index=False)
     fake_yf(monkeypatch, info={"LOOK": {"quoteType": "EQUITY", "currency": "USD", "currentPrice": 50.0,
                                         "forwardEps": 2.5}})
     msg = valuation.update_stocks(TRACKED, force=True, today=date(2026, 10, 16))
@@ -470,10 +470,10 @@ MAX_AGE = {"valuation_stocks": 10, "valuation_etfs": 10}
 def test_coverage_rows_read_the_stored_snapshots():
     stocks = pd.concat([snap("2026-10-05", ["AAA", "BBB"]),
                         snap("2026-10-12", ["AAA", "BBB", "CCC"], pe=[20.0, None, 15.0])])
-    valuation.write_parquet(stocks, valuation.STOCKS_FILE, index=False)
+    config.write_parquet(stocks, valuation.STOCKS_FILE, index=False)
     etfs = pd.DataFrame({"date": pd.Timestamp("2026-10-01"), "ticker": ["ACWI", "XLK", "XLE"],
                          "pe": [20.0, 30.0, None]}).reindex(columns=valuation.ETF_COLS)
-    valuation.write_parquet(etfs, valuation.ETFS_FILE, index=False)
+    config.write_parquet(etfs, valuation.ETFS_FILE, index=False)
     rows = {r["key"]: r for r in coverage.valuation_rows(date(2026, 10, 16), MAX_AGE, {}, ["AAA", "BBB", "ZZZ"])}
     st = rows["valuation_stocks"]
     assert (st["status"], st["age_days"], st["asof"]) == ("ok", 4, "2026-10-12")

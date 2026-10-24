@@ -4,7 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, fees, ingest, performance, profile, simulate, userstore
+from radar import api, dashboard, fees, ingest, performance, simulate, userstore
+from radar.market import Market
 from world import IDX, N
 
 FX = 6.5
@@ -16,7 +17,7 @@ END = N - 1
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     performance.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 class BuyAndHold:

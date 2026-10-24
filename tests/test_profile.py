@@ -8,6 +8,7 @@ import pytest
 import world
 from conftest import FIXTURES
 from radar import api_models, external, ingest, profile
+from radar.market import Market
 
 
 @pytest.fixture
@@ -97,7 +98,7 @@ def test_unknown_ticker(env):
 def test_refresh_asks_for_a_tracked_tickers_missing_sessions(env, monkeypatch):
     seen = []
     monkeypatch.setattr(profile, "ensure_prices", lambda t, m=None, refresh=False: seen.append(refresh) or m)
-    profile.load_inputs("S1", profile.Market.load(), refresh=True)
+    profile.load_inputs("S1", Market.load(), refresh=True)
     assert seen == [True]                     # `radar info --refresh` and the app's refresh button alike
 
 
@@ -111,7 +112,7 @@ def test_legacy_info_keeps_the_old_keys(env):
 
 
 def test_series(env):
-    m = profile.Market.load()
+    m = Market.load()
     s = profile.series("S1", m, days=100)
     api_models.Series.model_validate(s)
     assert len(s["dates"]) == len(s["close"]) == len(s["rsi"]) == 100
@@ -129,13 +130,13 @@ def test_missing_yahoo_bars_are_not_shown_as_sessions(env):
     assert gap not in dates and dates[0] == world.IDX[-1].date().isoformat()
     assert p["price"]["change_1d"] == pytest.approx(1.001 ** 2 - 1)   # vs the last real close, two days back
     assert p["price"]["recent"][0]["change"] == pytest.approx(1.001 ** 2 - 1)
-    s = profile.series("GAP.CO", profile.Market.load(), days=30)
+    s = profile.series("GAP.CO", Market.load(), days=30)
     assert gap not in s["dates"] and len(s["dates"]) == 30
 
 
 def test_card_and_chart_agree(env):
     p = profile.build("S3")
-    s = profile.series("S3", profile.Market.load(), days=60)
+    s = profile.series("S3", Market.load(), days=60)
     for key, w in (("1W", "r1w"), ("1M", "r1m"), ("3M", "r3m"), ("YTD", "ytd")):
         if p["price"]["returns"][w] is not None:
             assert s["ranges"][key]["ret"] == pytest.approx(p["price"]["returns"][w]), key
@@ -180,7 +181,7 @@ def _inputs(ticker="S1", prices=None, raw=None, holdings=(), **over) -> profile.
     from radar import config, trades
 
     prices = world.prices() if prices is None else prices
-    market = profile.Market(prices, ingest.wide(prices), ingest.wide(prices, "high"), ingest.wide(prices, "low"),
+    market = Market(prices, ingest.wide(prices), ingest.wide(prices, "high"), ingest.wide(prices, "low"),
                             ingest.wide(prices, "volume"))
     fields = dict(ticker=ticker, market=market, bench="ACWI", cfg=config.settings(), raw=raw,
                   raw_status="ok" if raw else "missing",

@@ -24,21 +24,41 @@ def picks_sha(doc: dict) -> str:
     return hashlib.sha256(json.dumps(doc, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def metrics(values: dict[str, float], ctx: draft.Ctx, cov: pd.DataFrame, R: pd.DataFrame, horizon: int, drift: float | None,
+def net_drift(drift: float | None, cost_pct: float | None) -> float | None:
+    """The modelled drift after the round-trip cost; unknown when either is (an unknown cost is not a free trade)."""
+    return None if drift is None or cost_pct is None else drift - cost_pct
+
+
+def cost_share(parts: list[tuple[float | None, float]], amount: float) -> float | None:
+    """The cost of several buys as a share of `amount`: each (round-trip share, DKK); unknown when any part is."""
+    known = [(share, dkk) for share, dkk in parts if share is not None]
+    if amount <= 0 or len(known) < len(parts):
+        return None
+    return sum(share * dkk for share, dkk in known) / amount
+
+
+def _mean_known(shares: list[float | None]) -> float | None:
+    """The mean cost share, unknown when any share is."""
+    known = [x for x in shares if x is not None]
+    return float(np.mean(known)) if known and len(known) == len(shares) else None
+
+
+def alternative_metrics(values: dict[str, float], ctx: draft.Ctx, cov: pd.DataFrame, R: pd.DataFrame, horizon: int, drift: float | None,
             cost_pct: float | None, c: Propose, before: dict[str, float] | None = None, draws: int | None = None) -> dict:
     """One alternative on the common metrics: risk alone and in the portfolio, the bootstrap, costs, the drift."""
     bench = tracked.benchmark()
     cc = c.model_copy(update={"bootstrap": c.bootstrap.model_copy(update={"draws": draws or c.bootstrap.draws})})
-    rp = riskmodel.series(values, R, bench)
+    rp = riskmodel.weekly_returns(values, R, bench)
     weeks = round(horizon * rules.WEEKS_PER_MONTH)
-    boot = riskmodel.bootstrap(rp, R[bench], weeks, None if drift is None else drift - (cost_pct or 0.0), cc) \
+    boot = riskmodel.bootstrap(rp, R[bench], weeks, net_drift(drift, cost_pct), cc) \
         if rp is not None and bench in R else {"note": "no weekly returns"}
     after = dict(before or {})
     for t, v in values.items():
         after[t] = after.get(t, 0.0) + v
-    return {"risk": riskmodel.risk(values, cov, bench), "after": riskmodel.risk(after, cov, bench) if before is not None else None,
+    return {"risk": riskmodel.ex_ante_risk(values, cov, bench),
+            "after": riskmodel.ex_ante_risk(after, cov, bench) if before is not None else None,
             "bootstrap": boot, "cost_pct": cost_pct, "drift_gross": drift,
-            "drift_net": None if drift is None else drift - (cost_pct or 0.0),
+            "drift_net": net_drift(drift, cost_pct),
             "realised_dd_1y": riskmodel.realised_dd(rp, 52), "realised_dd_3y": riskmodel.realised_dd(rp, 156)}
 
 
@@ -89,9 +109,9 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
         if t not in market.closes.columns:
             raise ValueError(f"{t}: no prices in the radar (not a tracked ticker)")
     frame = scored.reindex(tickers).combine_first(raw.reindex(tickers))
-    frame = exposure.annotate(frame, exposure.info(tickers, ctx.prices))
+    frame = exposure.annotate(frame, exposure.ticker_meta(tickers, ctx.prices))
     picks_list = [{"ticker": t} for t in tickers]
-    sz = basket.size(amount, picks_list, frame, ctx.prices, ctx.sf, weighting, c)
+    sz = basket.size_picks(amount, picks_list, frame, ctx.prices, ctx.sf, weighting, c)
     fl_doc = doc.get("filler")
     fl = basket.filler(sz["leftover_dkk"], ctx.portfolio["kind"], ctx.prices, ctx.sf, bool(fl_doc) or m.etf, c)
     vals = draft.values_of(ctx.holdings)
@@ -102,7 +122,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     for t, v in new.items():
         after[t] = after.get(t, 0.0) + v
     every = list(dict.fromkeys([*after, *tickers, bench, *(scored.index[:60])]))
-    meta = exposure.info(every, ctx.prices)
+    meta = exposure.ticker_meta(every, ctx.prices)
     weeks = c.history_weeks
     R = ctx.prices.weekly(every + [f for f in typed().risk.factors if f in market.closes], weeks)
     cov = riskmodel.shrunk_cov(R.reindex(columns=[t for t in every if t in R]), c.shrink, c.min_weeks)
@@ -112,6 +132,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     _, passed = basket.select(frame.assign(composite=np.arange(n, 0, -1)), n, amount, base, c, "conviction", max_position)
     rule = m.rule_basket
     swaps = [t for t in tickers if rule and t not in rule]
+    # zero: a budget that couldn't be sized fails the minimum ticket
     cons = [{"check": "min ticket", "ok": all((r["budget_dkk"] or 0) >= c.min_ticket_dkk - 1 for r in sz["rows"]),
              "detail": f"{c.min_ticket_dkk:,.0f} DKK per name"},
             {"check": "sized", "ok": not sz["flags"], "detail": "; ".join(sz["flags"]) or "every pick has whole shares"},
@@ -132,7 +153,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     cost_pct = sz["roundtrip_pct"]
     hv = sv.get(horizon) or drift.study_view(drift.load_study(), tilt, n, horizon, ctx.regime, c, ctx.trend)
     draws = 1000 if light else None
-    prop = metrics(new, ctx, cov, R, horizon, hv["drift_gross"], cost_pct, c, vals, draws)
+    prop = alternative_metrics(new, ctx, cov, R, horizon, hv["drift_gross"], cost_pct, c, vals, draws)
     st = riskmodel.stress(new, ctx.prices, bench, c)
     kept = (hv.get("kept") or {}).get("all") or {}
     lenses: dict[str, Any] = {"study": {"median": kept.get("dd_median"), "p10": kept.get("dd_p10"), "dates": kept.get("dates")},
@@ -148,7 +169,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     alts = alternatives(ctx, scored, raw, tickers, amount, n, tilt, mode, weighting, max_position, horizon, cov, R,
                         vals, meta, c) if not light else {}
     decision = decide(prop, hv, dd, tolerance, c)
-    pmeta = exposure.info(list(new), ctx.prices)
+    pmeta = exposure.ticker_meta(list(new), ctx.prices)
     # the rule study tests K+V on US stocks only (SEC EDGAR); outside the US only the factor-level prior speaks
     untested = sorted(t for t in tickers if c.tilts[tilt].qv > 0
                       and pmeta["region"].get(t, "us") != "us")
@@ -172,7 +193,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
         "exposure": {"before": exposure.exposures(vals, meta, ctx.acwi), "after": exposure.exposures(after, meta, ctx.acwi),
                      "basket": exposure.exposures(new, meta, ctx.acwi)},
         "factors": factors(new, R, market),
-        "risk": {"basket": prop["risk"], "before": riskmodel.risk(vals, cov, bench) if vals else None, "after": prop["after"]},
+        "risk": {"basket": prop["risk"], "before": riskmodel.ex_ante_risk(vals, cov, bench) if vals else None, "after": prop["after"]},
         "model": {"horizon": horizon, "study": sv, "drift_gross": hv["drift_gross"], "cost_pct": cost_pct,
                   "drift_net": prop["drift_net"], "bootstrap": prop["bootstrap"],
                   "realised_dd_1y": prop["realised_dd_1y"], "realised_dd_3y": prop["realised_dd_3y"]},
@@ -193,7 +214,7 @@ def factors(values: dict[str, float], R: pd.DataFrame, market: Market) -> dict |
     from ..signals import risk as rk
 
     bench = tracked.benchmark()
-    rp = riskmodel.series(values, R, bench)
+    rp = riskmodel.weekly_returns(values, R, bench)
     if rp is None or bench not in R:
         return None
     tilts = {f: R[f] for f in typed().risk.factors if f in R}
@@ -238,7 +259,7 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
                             c.shrink, c.min_weeks)
         else:
             R2, cv = R, cov
-        mt = metrics(values, ctx, cv, R2, horizon, drift, cost, c, vals, draws)
+        mt = alternative_metrics(values, ctx, cv, R2, horizon, drift, cost, c, vals, draws)
         return {"label": label, "tests": tests, "values": values, **mt, **(extra or {})}
 
     a0_cost = _cost_one(ctx.prices, ctx.sf, c.etf_filler.ticker, amount)
@@ -261,7 +282,7 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
     for k in range(1, basket.n_for(amount, c) + 1):
         ch, _, szk = draft.rule_basket(ctx, scored, amount, k, mode, max_position, weighting)
         v = {r["ticker"]: r["value_dkk"] for r in szk["rows"] if r["value_dkk"]}
-        rk_ = riskmodel.risk(v, cov if all(t in cov.index for t in v) else riskmodel.shrunk_cov(
+        rk_ = riskmodel.ex_ante_risk(v, cov if all(t in cov.index for t in v) else riskmodel.shrunk_cov(
             pd.concat([R, ctx.prices.weekly([t for t in v if t not in R], c.history_weeks)], axis=1),
             c.shrink, c.min_weeks), bench)
         kv = drift.study_view(study, tilt, k, horizon, ctx.regime, c, ctx.trend)
@@ -276,8 +297,8 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
     tot = sum(stocks.values())
     if tot > 0:
         top = {t: amount * v / tot for t, v in stocks.items()}
-        costs = [(_cost_one(ctx.prices, ctx.sf, t, a) or 0) * a for t, a in top.items()]
-        out["A4"] = rec("Top up current holdings pro rata", top, None, sum(costs) / amount,
+        cost = cost_share([(_cost_one(ctx.prices, ctx.sf, t, a), a) for t, a in top.items()], amount)
+        out["A4"] = rec("Top up current holdings pro rata", top, None, cost,
                         "no new names, no new research (no study drift: n/a)",
                         {"tickets_below_min": sum(a < c.min_ticket_dkk for a in top.values())})
     else:
@@ -291,7 +312,7 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
     for t in tickers:
         a5[etf_of[t]] = a5.get(etf_of[t], 0.0) + amount / len(tickers)
     out["A5"] = rec("Sector ETFs with the basket's sector mix", a5, None,
-                    float(np.mean([_cost_one(ctx.prices, ctx.sf, t, v) or 0 for t, v in a5.items()])),
+                    _mean_known([_cost_one(ctx.prices, ctx.sf, t, v) for t, v in a5.items()]),
                     "whether picking stocks adds anything beyond the exposure (US/EU sector ETFs as proxies: buy "
                     "UCITS equivalents)", {"map": etf_of})
     out["A6"] = randoms(scored, tickers, amount, n, ctx, cov, R, vals, c)
@@ -314,11 +335,11 @@ def randoms(scored: pd.DataFrame, tickers: list[str], amount: float, n: int, ctx
         ch, _ = basket.select(order, n, amount, base, c)
         if len(ch) < n:
             continue
-        r = riskmodel.risk({x["ticker"]: amount / n for x in ch}, cov, bench)
+        r = riskmodel.ex_ante_risk({x["ticker"]: amount / n for x in ch}, cov, bench)
         for k in stats:
             if r[k] is not None:
                 stats[k].append(r[k])
-    me = riskmodel.risk({t: amount / n for t in tickers}, cov, bench)
+    me = riskmodel.ex_ante_risk({t: amount / n for t in tickers}, cov, bench)
     out = {"label": "Random baskets of the same size and caps", "tests": "where the proposal sits among chance",
            "draws": len(stats["vol_ann"]), "seed": c.bootstrap.seed}
     for k, v in stats.items():

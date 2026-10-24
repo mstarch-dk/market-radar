@@ -4,11 +4,24 @@ a note, never 0. The method: guide/laerebog/portefoeljeforslag.md (*Sådan gør 
 them: guide/brugervejledning/claude-code.md (*/propose-portfolio*).
 
 The package, in the order they build on each other: `rules`, `pricing`, `exposure`, `basket`, `riskmodel`,
-`drift`, `draft`, `evaluation`, `store`. Every public name is re-exported here: callers use `propose.<name>`."""
+`drift`, `draft`, `evaluation`, `store`. Every public name is re-exported here (`__all__`): callers use `propose.<name>`."""
 from __future__ import annotations
 
-from .basket import Base, budgets, corr_to, filler, gates, half_spread, n_for, pool, score, select, size, terms_for  # noqa: F401
-from .draft import (  # noqa: F401
+from .basket import (
+    Base,
+    budgets,
+    corr_to,
+    filler,
+    gates,
+    half_spread,
+    n_for,
+    pool,
+    proposal_score,
+    select,
+    size_picks,
+    terms_for,
+)
+from .draft import (
     Ctx,
     ask_account,
     ask_flag,
@@ -20,12 +33,23 @@ from .draft import (  # noqa: F401
     rule_basket,
     values_of,
 )
-from .drift import haircut, load_study, long_prior, shrink, study_view  # noqa: F401
-from .evaluation import adv_dkk, alternatives, decide, evaluate, factors, metrics, picks_sha, randoms  # noqa: F401
-from .exposure import DIMS, annotate, book, exposures, info, look_through  # noqa: F401
-from .pricing import Prices  # noqa: F401
-from .riskmodel import bootstrap, realised_dd, risk, series, shrunk_cov, stress  # noqa: F401
-from .rules import (  # noqa: F401
+from .drift import haircut, load_study, long_prior, shrink, study_view
+from .evaluation import (
+    adv_dkk,
+    alternative_metrics,
+    alternatives,
+    cost_share,
+    decide,
+    evaluate,
+    factors,
+    net_drift,
+    picks_sha,
+    randoms,
+)
+from .exposure import DIMS, annotate, exposures, holdings_book, look_through, ticker_meta
+from .pricing import Prices
+from .riskmodel import bootstrap, ex_ante_risk, realised_dd, shrunk_cov, stress, weekly_returns
+from .rules import (
     MEMOS,
     MODES,
     PROPOSALS,
@@ -38,4 +62,16 @@ from .rules import (  # noqa: F401
     rule_settings,
     slug,
 )
-from .store import check, evaluation_file, keep_evaluation, proposals, review, save_evaluation, save_picks, shadow  # noqa: F401
+from .store import check_exits, evaluation_file, keep_evaluation, proposals, review, save_evaluation, save_picks, shadow
+
+__all__ = [
+    "DIMS", "MEMOS", "MODES", "PROPOSALS", "RULE_KEYS", "TILTS", "WEEKS_PER_MONTH", "WEIGHTINGS", "adv_dkk",
+    "alternative_metrics", "alternatives", "annotate", "ask_account", "ask_flag", "Base", "bootstrap", "budgets",
+    "candidates", "cfg", "check_exits", "context", "corr_to", "cost_share", "Ctx", "decide", "default_exit", "evaluate",
+    "evaluation_file", "ex_ante_risk", "exposures", "factors", "filler", "gates", "haircut", "half_spread",
+    "holdings_base", "holdings_book", "keep_evaluation", "load_study", "long_prior", "look_through", "n_for", "net_drift",
+    "picks_sha", "pool", "Prices", "proposal_score", "proposals", "randoms", "ranked_pool", "realised_dd", "review",
+    "rule_basket", "rule_hash", "rule_settings", "save_evaluation", "save_picks", "select", "shadow", "shrink",
+    "shrunk_cov", "size_picks", "slug", "stress", "study_view", "terms_for", "ticker_meta", "values_of",
+    "weekly_returns",
+]

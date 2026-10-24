@@ -1,6 +1,7 @@
 """`radar abtest …`: the forward A/B test of kvalitet+værdi against momentum."""
 import typer
 
+from ..market import Market
 from .common import fmt_num, fmt_pct, job, to_json
 from .root import app
 
@@ -18,11 +19,11 @@ def abtest_start(capital: float = typer.Option(None, help="DKK per basket (defau
                  score: str = typer.Option(None, help="The value basket ranks on qv (kvalitet + værdi) or value")):
     """Start the test: three virtual portfolios tagged ab-qvm, each with this month's picks, bought at the next
     session. After that, the first report of each month records new picks; `radar run` keeps them up to date."""
-    from .. import abtest, profile
+    from .. import abtest
 
     try:
         with job("abtest") as log:
-            res = abtest.create(profile.Market.load(), capital, n, max_per_sector, score)
+            res = abtest.create(Market.load(), capital, n, max_per_sector, score)
             log(f"Started: picks recorded for {res['recorded']}; {len(res['runs'])} portfolios"
                 + (f" ({'; '.join(res['notes'])})" if res["notes"] else ""))
     except ValueError as e:
@@ -33,10 +34,10 @@ def abtest_start(capital: float = typer.Option(None, help="DKK per basket (defau
 @abtest_app.command("refresh")
 def abtest_refresh():
     """Record this month's picks if due and replay the three portfolios now (each report does it too)."""
-    from .. import abtest, profile
+    from .. import abtest
 
     with job("abtest") as log:
-        res = abtest.refresh(profile.Market.load(), log=log)
+        res = abtest.refresh(Market.load(), log=log)
     if not res["runs"] and res["recorded"] is None and not abtest.portfolios():
         typer.echo("No A/B test is running: radar abtest start")
 
@@ -46,9 +47,9 @@ def abtest_status(as_json: bool = typer.Option(False, "--json", help="As JSON (f
     """Where the test stands: each basket's return against ACWI since its first purchase, the correlation of
     their weekly returns, the latest picks and when the next are due."""
 
-    from .. import abtest, profile
+    from .. import abtest
 
-    v = abtest.view(profile.Market.load())
+    v = abtest.view(Market.load())
     if as_json:
         typer.echo(to_json(v, indent=1, ensure_ascii=False))
         return

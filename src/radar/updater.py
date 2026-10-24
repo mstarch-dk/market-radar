@@ -27,6 +27,7 @@ from . import (
 )
 from .config import typed
 from .fundamentals import edgar, yahoo
+from .market import Market
 from .paths import CACHE
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
@@ -150,13 +151,13 @@ def _build_report(log: Log) -> dict:
 def _abtest(log: Log) -> None:
     """The forward A/B test, when one is running: this month's picks (once a month) and the replayed portfolios.
     A failure is logged and never stops the report."""
-    from . import abtest, profile
+    from . import abtest
 
     if not abtest.portfolios():
         return
     try:
         with ops.context(source="abtest"):
-            m = profile.Market.load()
+            m = Market.load()
             abtest.refresh(m, log=log)
             from . import report
 

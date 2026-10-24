@@ -265,3 +265,46 @@ def test_two_processes_logging_sources_keep_each_others_entries(tmp_path):
     assert [p.wait(120) for p in procs] == [0, 0]
     log = json.loads((tmp_path / "cache" / "sources.json").read_text(encoding="utf-8"))
     assert len(log) == 80
+
+
+# Modules still indexing settings() directly instead of config.typed(): pure readings that take a section as a dict,
+# and the proposal rule's hash, which must hash the raw values. It only shrinks.
+SETTINGS_DICT_ALLOWED = frozenset({"fundamentals/context.py", "signals/gauges.py", "propose/rules.py"})
+
+
+def test_settings_are_read_through_the_model():
+    """`settings()["key"]` fails at runtime on a misspelt key; `typed().key` fails in mypy. Read values through
+    config.typed(); settings() is for what hashes the file as written (SETTINGS_DICT_ALLOWED)."""
+    import re
+    from pathlib import Path
+
+    import radar
+    root = Path(radar.__file__).parent
+    found = {f.relative_to(root).as_posix() for f in root.rglob("*.py")
+             if f.name != "config.py" and re.search(r"\bsettings\(\)\s*\[", f.read_text(encoding="utf-8"))}
+    assert not found - SETTINGS_DICT_ALLOWED, f"read these through config.typed(): {sorted(found - SETTINGS_DICT_ALLOWED)}"
+    gone = SETTINGS_DICT_ALLOWED - found
+    assert not gone, f"no longer index settings(), take them off SETTINGS_DICT_ALLOWED: {sorted(gone)}"
+
+
+def test_a_missing_value_is_never_quietly_zero():
+    """In the readings (signals/, fundamentals/, propose/, performance.py) `x or 0` and `.fillna(0)` turn a value
+    that is missing into one that looks known, against the rule that missing shows as missing. Where zero is
+    really right (a fee not charged, a sum over nothing, a minimum an unknown can't pass), say why with a
+    `# zero: …` comment on the line or the one above it."""
+    import re
+    from pathlib import Path
+
+    import radar
+    root = Path(radar.__file__).parent
+    files = [*(root / "signals").rglob("*.py"), *(root / "fundamentals").rglob("*.py"), *(root / "propose").rglob("*.py"),
+             root / "performance.py"]
+    pattern = re.compile(r"\bor 0(\.0)?\b|\.fillna\(0")
+    bad = []
+    for f in files:
+        lines = f.read_text(encoding="utf-8").splitlines()
+        for i, line in enumerate(lines):
+            code = line.split("#", 1)[0]
+            if pattern.search(code) and "# zero:" not in line and not (i and "# zero:" in lines[i - 1]):
+                bad.append(f"{f.relative_to(root).as_posix()}:{i + 1}: {line.strip()}")
+    assert not bad, "a missing value would read as 0 (keep it None, or say why zero is right):\n" + "\n".join(bad)

@@ -19,6 +19,7 @@ import pytest
 
 from radar import constituents, external, ingest, net, sentiment, valuation
 from radar.discovery import sources
+from radar.signals import periods
 
 pytestmark = pytest.mark.network
 TODAY = date.today()
@@ -100,10 +101,10 @@ def test_ishares_index_holdings(key):
 def test_edgar_company_facts():
     """SEC's company facts still parse to a recent TTM. Sent with the radar's plain User-Agent (no contact: the
     test data folder has none); a 403 here means SEC now wants the contact for this endpoint too."""
-    from radar.fundamentals import edgar, store
+    from radar.fundamentals import edgar
 
     df = edgar.parse_companyfacts(_get(edgar.FACTS_URL.format(cik=320193)).json(), "AAPL", TODAY)
-    rev = store.ttm(df, "revenue")
+    rev = periods.ttm(df, "revenue")
     assert rev is not None and rev.basis in ("fy", "ytd")
     _recent(rev.end, 200, "EDGAR AAPL revenue")
 
@@ -116,7 +117,7 @@ def test_yahoo_statements():
     df = yahoo.merge(store.empty(), yahoo.parse_statements(raw["blocks"], "AAPL", "USD", TODAY), TODAY,
                      {"quarterly": 45, "annual": 75})
     for item in ("revenue", "operating_income", "cfo", "capex"):
-        v = store.ttm(df, item)
+        v = periods.ttm(df, item)
         assert v is not None and v.basis == "4q", item
         _recent(v.end, 200, f"Yahoo AAPL {item}")
 

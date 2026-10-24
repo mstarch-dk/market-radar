@@ -9,18 +9,20 @@ import pytest
 
 from conftest import with_settings
 from radar.backtest import exit_rules, redeploy, study
+from radar.model import panels as mp
+from radar.model import stats as mstats
 from radar.signals import momentum
 
 DAYS = 520
 IDX = pd.bdate_range("2020-01-01", periods=DAYS)
 
 
-def panels(closes: pd.DataFrame) -> study.Panels:
+def panels(closes: pd.DataFrame) -> mp.Panels:
     tickers = list(closes.columns)
     half = len(tickers) // 2
     group = pd.Series(["us"] * half + ["europe"] * (len(tickers) - half), index=tickers)
     sector = pd.Series([("Tech", "Energy", "Health")[i % 3] for i in range(len(tickers))], index=tickers)
-    return study.Panels(closes, closes * 6.5, momentum.metrics_panel(closes, tickers, 200),
+    return mp.Panels(closes, closes * 6.5, momentum.metrics_panel(closes, tickers, 200),
                         np.log(closes).diff().rolling(63, min_periods=32).std() * math.sqrt(252), group, sector,
                         closes.index, pd.Series(100 * 1.0003 ** np.arange(DAYS) * 6.5, index=closes.index))
 
@@ -62,11 +64,11 @@ def test_noise_has_no_ic(cfg):
 
 def test_cross_section_by_hand():
     x = pd.Series(np.arange(50.0), index=[f"T{i}" for i in range(50)])
-    cs = study.cross_section(x, x * 0.01, 5, 20)
+    cs = mstats.cross_section(x, x * 0.01, 5, 20)
     assert cs["ic"] == pytest.approx(1.0) and cs["n"] == 50
     assert cs["top"] == ["T49", "T48", "T47", "T46", "T45"]
     assert cs["q"] == pytest.approx([(np.mean(range(q * 10, q * 10 + 10)) - 24.5) * 0.01 for q in range(5)])
-    assert study.cross_section(x.iloc[:10], x.iloc[:10], 5, 20) is None
+    assert mstats.cross_section(x.iloc[:10], x.iloc[:10], 5, 20) is None
 
 
 def test_newey_west_by_hand():
@@ -74,10 +76,10 @@ def test_newey_west_by_hand():
     e = np.array(v) - np.mean(v)
     n = len(v)
     s0 = e @ e / n
-    assert study.nw_t(v, 0) == pytest.approx(np.mean(v) / math.sqrt(s0 / n))
+    assert mstats.nw_t(v, 0) == pytest.approx(np.mean(v) / math.sqrt(s0 / n))
     s1 = s0 + 2 * 0.5 * (e[1:] @ e[:-1]) / n
-    assert study.nw_t(v, 1) == pytest.approx(np.mean(v) / math.sqrt(s1 / n))
-    assert study.nw_t([0.1, None], 0) is None
+    assert mstats.nw_t(v, 1) == pytest.approx(np.mean(v) / math.sqrt(s1 / n))
+    assert mstats.nw_t([0.1, None], 0) is None
 
 
 def test_nothing_after_the_horizon_is_read(cfg):
@@ -111,8 +113,8 @@ def test_holdout_split_and_verdicts(cfg):
 
 def test_formation_dates_skip_the_unfinished_month():
     s = pd.bdate_range("2024-01-01", "2024-03-13")
-    assert study.formation_dates(s) == [pd.Timestamp("2024-01-31"), pd.Timestamp("2024-02-29")]
-    assert study.fill_session(s, pd.Timestamp("2024-01-31"), "next") == s.get_loc(pd.Timestamp("2024-02-01"))
+    assert mp.formation_dates(s) == [pd.Timestamp("2024-01-31"), pd.Timestamp("2024-02-29")]
+    assert mp.fill_session(s, pd.Timestamp("2024-01-31"), "next") == s.get_loc(pd.Timestamp("2024-02-01"))
 
 
 def test_unknown_variants_and_horizons_are_refused(cfg):
@@ -155,7 +157,7 @@ def test_risk_adjusted_by_hand():
     rf = pd.Series(0.0001, index=idx.index[:1])                       # carried forward
     bench = pd.Series(1.0005 ** np.arange(len(idx)), index=idx.index)
     dd = float((idx / idx.cummax() - 1).min())
-    out = study.risk_adjusted(idx, dd, bench, rf)
+    out = mstats.risk_adjusted(idx, dd, bench, rf)
     ex = r - 0.0001
     assert out["sharpe"] == pytest.approx(ex.mean() / r.std(ddof=1) * math.sqrt(252))
     assert out["sortino"] == pytest.approx(ex.mean() / math.sqrt((np.minimum(ex, 0) ** 2).mean()) * math.sqrt(252))
@@ -164,7 +166,7 @@ def test_risk_adjusted_by_hand():
     assert out["ir"] == pytest.approx(act.mean() * 252 / out["te"])
     assert out["ann_ret"] == pytest.approx(idx.iloc[-1] ** (252 / len(r)) - 1)
     assert out["calmar"] == pytest.approx(out["ann_ret"] / -dd)
-    bare = study.risk_adjusted(idx, dd, None, None)
+    bare = mstats.risk_adjusted(idx, dd, None, None)
     assert bare["sharpe"] is None and bare["ir"] is None and bare["ann_ret"] is not None
 
 
@@ -176,8 +178,8 @@ def test_the_risk_free_rate_is_the_ecb_deposit_rate():
         def fred(self):
             return self.f
     f = pd.DataFrame({"ECBDFR": [2.52]}, index=[pd.Timestamp("2022-01-03")])
-    assert study.daily_rf(M(f)).iloc[0] == pytest.approx(1.0252 ** (1 / 252) - 1)
-    assert study.daily_rf(M(pd.DataFrame({"DGS3MO": [5.0]}))) is None
+    assert mstats.daily_rf(M(f)).iloc[0] == pytest.approx(1.0252 ** (1 / 252) - 1)
+    assert mstats.daily_rf(M(pd.DataFrame({"DGS3MO": [5.0]}))) is None
 
 
 def test_the_picker_takes_the_best_name_it_may():

@@ -20,7 +20,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   (capped at `backtest.max_years`), so your trades can be valued and the rule replayed from the day you bought. A
   shallower stored history is downloaded again in full, once (`data/prices_from.json`).
 - `ingest.wide()` forward-fills up to 5 sessions, which is right for return windows. Anything shown as a session uses
-  the ticker's own bars (`profile.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last
+  the ticker's own bars (`market.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last
   price, day change, recent bars and the chart.
 - Holding-vs-benchmark comparisons are total returns in DKK against a shadow ACWI position with identical cash flows.
 - DKK rates (`fxrates.fx_to_dkk`): Yahoo's `xxxDKK=X` pairs (`FX_DKK`), forward-filled over gaps; GBp uses `GBPDKK=X`

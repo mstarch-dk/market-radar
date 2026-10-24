@@ -56,17 +56,17 @@ def test_no_data_path_is_built_from_the_install_folder():
 
 
 def test_configure_reaches_module_constants(tmp_path):
-    from radar import external, ingest
+    from radar import external
 
     paths.configure(paths.Locations(home=tmp_path / "h", imports=tmp_path / "h" / "imports", userdata=tmp_path / "h",
                                     history=tmp_path / "h" / "history", cache=tmp_path / "c",
                                     reports=tmp_path / "c" / "reports"))
-    assert tmp_path / "c" / "prices.parquet" == ingest.PRICES_FILE
+    assert tmp_path / "c" / "prices.parquet" == paths.PRICES_FILE
     assert tmp_path / "h" / "history" / "analyst.parquet" == external.ANALYST_FILE
     df = pd.DataFrame({"a": [1, 2]})
-    df.to_parquet(ingest.PRICES_FILE.parent.mkdir(parents=True) or ingest.PRICES_FILE)    # pandas takes a Lazy
-    assert pd.read_parquet(ingest.PRICES_FILE)["a"].tolist() == [1, 2]
-    assert Path(ingest.PRICES_FILE).exists() and str(ingest.PRICES_FILE).endswith("prices.parquet")
+    df.to_parquet(paths.PRICES_FILE.parent.mkdir(parents=True) or paths.PRICES_FILE)    # pandas takes a Lazy
+    assert pd.read_parquet(paths.PRICES_FILE)["a"].tolist() == [1, 2]
+    assert Path(paths.PRICES_FILE).exists() and str(paths.PRICES_FILE).endswith("prices.parquet")
 
 
 def test_legacy_layout_is_the_install_folder():

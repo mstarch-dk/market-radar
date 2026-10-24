@@ -22,6 +22,7 @@ from .. import guard, locks, net, sourcelog
 from ..config import typed, write_csv
 from ..config_schema import Edgar
 from ..paths import CACHE
+from ..signals import periods
 from . import schedule, store
 from .items import ITEMS
 
@@ -257,7 +258,7 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
                 errors[t] = f"the answer has less than what is stored ({why}): kept the stored values"
                 continue
             keep = pd.concat([keep[keep["ticker"] != t], df], ignore_index=True)
-            rows.append({"ticker": t, "fetched": today, "ok": True, "last_end": store.latest_end(df), "n": len(df),
+            rows.append({"ticker": t, "fetched": today, "ok": True, "last_end": periods.latest_end(df), "n": len(df),
                          "error": None})
         if len(keep) != len(old) or results:
             store.save(keep, store.EDGAR_FILE)
