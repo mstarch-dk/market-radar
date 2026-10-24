@@ -19,7 +19,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
   `web/src/api/client.ts` writes the URLs and query parameters by hand, so a renamed route or parameter still
   compiles and only fails at runtime.
 - Errors have one shape, `{"detail": {"message", "issues"}}` (issues: `{field, level, message}`; empty when there
-  is one message), from one set of handlers in `api.py`. The domain raises `errors.NotFound` (404), `Conflict` (409)
+  is one message), from one set of handlers in `api/app.py`. The domain raises `errors.NotFound` (404), `Conflict` (409)
   or `Invalid` (422, with its issues); an `HTTPException` and a request that doesn't fit its model come out the same
   way. `client.ts` reads only this shape.
 - TypeScript is pinned to 5.9: version 7's native compiler lacks the API `openapi-typescript` needs.

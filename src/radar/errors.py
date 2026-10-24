@@ -1,6 +1,6 @@
 """What the domain raises when a request can't be done as asked: something missing, a clash with what is stored,
 or input that isn't valid (with the issues, field by field). The API answers each with its HTTP status and one
-shape, `{"detail": {"message", "issues"}}` (api.py, one handler); the CLI prints the message. They are
+shape, `{"detail": {"message", "issues"}}` (api/app.py, one handler); the CLI prints the message. They are
 ValueErrors, so code that catches ValueError keeps working."""
 from __future__ import annotations
 

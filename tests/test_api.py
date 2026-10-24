@@ -153,7 +153,7 @@ def test_old_dashboard_is_flagged_stale(built, monkeypatch):
         @classmethod
         def today(cls):
             return dt.date.today() + dt.timedelta(days=30)
-    monkeypatch.setattr(api, "date", Later)
+    monkeypatch.setattr(api.common, "date", Later)                   # where the readings' age is taken
     r = built.get("/api/momentum").json()
     assert r["age_days"] >= 30 and r["stale"] is True
 

@@ -115,7 +115,7 @@ async function get<T>(url: string, method = "GET", body?: BodyInit, contentType?
     let detail = r.statusText;
     let issues: Issue[] = [];
     try {
-      // every error is {"detail": {"message", "issues"}} (api.py, one handler)
+      // every error is {"detail": {"message", "issues"}} (api/app.py, one handler)
       const body = (await r.json()) as { detail?: { message?: string; issues?: Issue[] } };
       detail = body.detail?.message || detail;
       issues = body.detail?.issues ?? [];

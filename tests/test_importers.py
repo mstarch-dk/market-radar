@@ -139,7 +139,7 @@ def test_mapping_can_be_overridden(client):
 
 
 def test_saxo_symbols_are_translated(client, monkeypatch):
-    monkeypatch.setattr(api, "has_prices", lambda s: s == "S4")
+    monkeypatch.setattr(api.state, "has_prices", lambda s: s == "S4")   # what the preview asks
     body = (f"Trade Date,B/S,Instrument Symbol,Instrument,Amount,Price,Trade ID\n"
             f"{D1:%d-%m-%Y},Bought,S4:xnas,S Four,2,{P1:.2f},T-1\n").encode()
     pv = _preview(client, body)
