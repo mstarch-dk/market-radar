@@ -206,12 +206,13 @@ def test_data_files_are_written_through_the_atomic_helpers():
     from pathlib import Path
 
     import radar
-    allowed = {"backup.py", "export.py", "paths.py", "config.py", "api.py", "home.py"}   # files in src/radar
+    allowed = {"backup.py", "export.py", "paths.py", "config.py", "home.py"}   # files in src/radar
     raw = re.compile(r"\.(to_csv|to_parquet|write_text|write_bytes)\(")
     bad = []
     for f in Path(radar.__file__).parent.rglob("*.py"):
         rel = f.relative_to(Path(radar.__file__).parent)
-        if (len(rel.parts) == 1 and f.name in allowed) or rel.parts[0] == "cli":   # cli/: --out files you name
+        # cli/: --out files you name; api/refresh.py: the uploaded export's temporary copy
+        if (len(rel.parts) == 1 and f.name in allowed) or rel.parts[0] == "cli" or rel.as_posix() == "api/refresh.py":
             continue
         for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
             if raw.search(line) and "tmp" not in line.split("(")[0]:

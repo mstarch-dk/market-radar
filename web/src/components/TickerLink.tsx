@@ -38,7 +38,7 @@ function Card({ symbol, t }: { symbol: string; t?: TickerSummary }) {
         <span>1m <b className={tone(t.r1m)}>{pct(t.r1m)}</b></span>
         <span>3m <b className={tone(t.r3m)}>{pct(t.r3m)}</b></span>
         {t.score != null && <span>score <b>{num(t.score, 0)}</b></span>}
-        {t.quadrant && <Badge kind={QUAD_KIND[t.quadrant] ?? ""}>{t.quadrant}</Badge>}
+        {t.quadrant && <Badge kind={QUAD_KIND[t.quadrant]}>{t.quadrant}</Badge>}
       </div>
       <div className="tcard-foot">
         <WatchButton symbol={symbol} status={t.my_status} compact />

@@ -7,6 +7,10 @@ a source has no answer.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from functools import cached_property
+from typing import Any
+
 import pandas as pd
 
 from . import dashboard, external, fxrates, ingest, mine, money, positive_list, tracked, trades, universe
@@ -148,94 +152,147 @@ def quality_card(ticker: str, market: Market) -> dict | None:
 
 # ---------------- the profile ----------------
 
-def build(ticker: str, market: Market | None = None, refresh: bool = False, anonymous: bool = False) -> dict:
-    """The full profile of `ticker` (a Yahoo symbol). Raises TickerNotFound without price data. `anonymous`
-    builds it as if you held nothing: no status or position, stops anchored on the recent high instead of
-    your entry, and no overlap with your holdings, so nothing personal can be read from it."""
-    cfg = settings()
-    market = ensure_prices(ticker, market)
-    closes = market.closes
-    bench = tracked.benchmark()
-    close = closes[ticker].dropna()
-    own = market.bars(ticker)
-    last_date = own.index[-1]
-    b = closes[bench].dropna()
-    notes: list[str] = []
+@dataclass
+class ProfileInputs:
+    """Everything a profile reads from outside (prices, the Yahoo detail, your holdings, config, the dashboard's
+    regime and leaders, stored analyst history, valuation and statements), loaded once by `load_inputs`. The
+    sections below are pure functions of it; the properties are views of these fields that several sections share."""
+    ticker: str
+    market: Market
+    bench: str
+    cfg: dict                                     # settings.yaml as written
+    raw: dict | None                              # the cached Yahoo detail (external.detail); None without one
+    raw_status: str
+    holdings: pd.DataFrame                        # your holdings and watchlist; empty when built anonymously
+    etf: tracked.Instrument | None                # the tracked ETF this ticker is (or is the UCITS share class of)
+    etfs: list[tracked.Instrument]
+    region: str
+    sectors: pd.DataFrame | None                  # universe.sectors, read for a stock only
+    name: str | None
+    currency: str | None
+    is_tracked: bool
+    stock_groups: dict[str, list[str]]
+    group_labels: dict[str, str]
+    leaders: pd.DataFrame                         # momentum and scores of every tracked stock (Market.leaders)
+    analyst_history: pd.DataFrame                 # this ticker's stored analyst rows
+    regime: dict
+    rotation_window: int
+    rotation_tail: int
+    on_positive_list: str | None = None
+    sector_etf: str | None = None
+    valuation: dict | None = None                 # the weekly valuation snapshot (_valuation_snapshot)
+    quality: dict | None = None                   # the quality card, read for a stock only
+    peer_names: dict[str, str] = field(default_factory=dict)
 
+    @property
+    def info(self) -> dict:
+        return (self.raw or {}).get("info") or {}
+
+    @property
+    def detail_asof(self) -> str | None:
+        return self.raw["fetched"][:10] if self.raw else None
+
+    @property
+    def is_fund(self) -> bool:
+        return self.info.get("quoteType") in ("ETF", "MUTUALFUND")
+
+    @cached_property
+    def look(self) -> dict | None:
+        """The fund's look-through, None for anything but a fund."""
+        return external.parse_fund((self.raw or {}).get("fund") or {}, self.info) if self.is_fund else None
+
+    @property
+    def sector(self) -> str | None:
+        sec, look = self.sectors, self.look
+        sector = self.info.get("sector") or (sec.loc[self.ticker, "sector"] if sec is not None else "") or None
+        if look and look["sector_weights"] and look["sector_weights"][0]["weight"] >= 0.5:
+            sector = look["sector_weights"][0]["sector"]       # a sector fund: compare it with that sector
+        return sector
+
+    @property
+    def industry(self) -> str | None:
+        sec = self.sectors
+        return self.info.get("industry") or (sec.loc[self.ticker, "industry"] if sec is not None else "") or None
+
+    @cached_property
+    def close(self) -> pd.Series:
+        return self.market.closes[self.ticker].dropna()
+
+    @cached_property
+    def own(self) -> pd.DataFrame:
+        return self.market.bars(self.ticker)
+
+    @cached_property
+    def bench_close(self) -> pd.Series:
+        return self.market.closes[self.bench].dropna()
+
+    @property
+    def last_date(self) -> pd.Timestamp:
+        return self.own.index[-1]
+
+    @cached_property
+    def fx(self) -> pd.Series | None:
+        return fxrates.fx_to_dkk(self.market.closes, self.currency)
+
+    @property
+    def mine(self) -> pd.DataFrame:
+        return self.holdings[self.holdings["symbol"] == self.ticker]
+
+    @property
+    def status(self) -> str | None:
+        mine = self.mine
+        return mine.iloc[0]["status"] if len(mine) else None
+
+
+def load_inputs(ticker: str, market: Market | None = None, refresh: bool = False,
+                anonymous: bool = False) -> ProfileInputs:
+    """Read everything the profile of `ticker` needs, prices first (TickerNotFound without them). `refresh` asks
+    Yahoo for a fresh detail; `anonymous` leaves your holdings out (see build)."""
+    cfg = settings()
+    market = ensure_prices(ticker, market, refresh=refresh)   # refresh: a tracked ticker's missing sessions too
     raw, raw_status = external.detail(ticker, cfg.get("profile", {}).get("max_age_hours", 24), refresh)
     info = (raw or {}).get("info") or {}
-    if raw_status != OK:
-        notes.append("Yahoo fundamentals and estimates: " + ("no data" if raw is None else
-                     f"couldn't refresh, showing data from {raw['fetched'][:10]}"))
-    for block, when in ((raw or {}).get("kept") or {}).items():
-        notes.append(f"Yahoo {block.replace('_', ' ')}: couldn't refresh, showing data from {when[:10]}")
-    detail_asof = raw["fetched"][:10] if raw else None
+    etfs = tracked.etfs()
+    etf = next((e for e in etfs if ticker in (e.ticker, e.ucits)), None)
+    hist = external.load_analyst()
+    rc = typed().rotation
+    inp = ProfileInputs(
+        ticker=ticker, market=market, bench=tracked.benchmark(), cfg=cfg, raw=raw, raw_status=raw_status,
+        holdings=trades.holdings() if not anonymous else pd.DataFrame(columns=trades.HOLDING_COLS),
+        etf=etf, etfs=etfs, region=etf.region.lower() if etf else region_for(ticker),
+        sectors=universe.sectors([ticker]) if info.get("quoteType", "EQUITY") == "EQUITY" else None,
+        name=info.get("longName") or info.get("shortName") or universe.names([ticker])[ticker],
+        currency=info.get("currency") or fxrates.currencies([ticker])[ticker],
+        is_tracked=ticker in set(universe.all_price_tickers(offline=True)),
+        stock_groups=tracked.stock_groups(offline=True), group_labels=tracked.stock_group_labels(),
+        leaders=market.leaders(), analyst_history=hist[hist["ticker"] == ticker] if not hist.empty else hist,
+        regime=inputs.current_regime(dashboard.load()), rotation_window=rc.window, rotation_tail=rc.tail,
+        on_positive_list=positive_list.flag(etf.isin, market.positive_list()) if etf else None,
+        valuation=_valuation_snapshot(ticker))
+    # what depends on who the ticker is: its sector ETF, its peers' names and (a stock) its quality card
+    if not etf:
+        # a fund is compared with the US sector ETF of its dominant sector (the deepest, cleanest sector series)
+        inp.sector_etf = sector_etf("us" if inp.look else inp.region, inp.sector, inp.industry)
+    if inp.industry:
+        same = _same_industry(inp)
+        inp.peer_names = universe.names(list(same["ticker"].head(12))) if not same.empty else {}
+    if not inp.is_fund and not etf:
+        inp.quality = quality_card(ticker, market)
+    return inp
 
-    is_fund = info.get("quoteType") in ("ETF", "MUTUALFUND")
-    look = external.parse_fund((raw or {}).get("fund") or {}, info) if is_fund else None
 
-    # --- identity
-    h = trades.holdings() if not anonymous else pd.DataFrame(columns=trades.HOLDING_COLS)
-    mine = h[h["symbol"] == ticker]
-    status = mine.iloc[0]["status"] if len(mine) else None
-    etf_cfg = next((e for e in tracked.etfs() if ticker in (e.ticker, e.ucits)), None)
-    region = etf_cfg.region.lower() if etf_cfg else region_for(ticker)
-    sec = universe.sectors([ticker]) if info.get("quoteType", "EQUITY") == "EQUITY" else None
-    sector = info.get("sector") or (sec.loc[ticker, "sector"] if sec is not None else "") or None
-    industry = info.get("industry") or (sec.loc[ticker, "industry"] if sec is not None else "") or None
-    if look and look["sector_weights"] and look["sector_weights"][0]["weight"] >= 0.5:
-        sector = look["sector_weights"][0]["sector"]       # a sector fund: compare it with that sector
-    currency = info.get("currency") or fxrates.currencies([ticker])[ticker]
-    is_tracked = ticker in set(universe.all_price_tickers(offline=True))
-    groups = tracked.stock_groups(offline=True)
-    isin = etf_cfg.isin if etf_cfg else None
-    identity = _section(OK, "Yahoo Finance, config", detail_asof,
-        symbol=ticker, name=info.get("longName") or info.get("shortName") or universe.names([ticker])[ticker],
-        quote_type=info.get("quoteType") or ("ETF" if etf_cfg else None), currency=currency,
-        exchange=info.get("fullExchangeName") or info.get("exchange"), country=info.get("country"),
-        sector=sector, industry=industry, website=info.get("website"),
-        summary=info.get("longBusinessSummary"), employees=info.get("fullTimeEmployees"),
-        region=region, tracked=is_tracked,
-        stock_group=next((g for g, ts in groups.items() if ticker in ts), None),
-        etf_group=etf_cfg.group if etf_cfg else None, ucits=etf_cfg.ucits if etf_cfg else None,
-        isin=isin, positive_list=positive_list.flag(isin, market.positive_list()) if etf_cfg else None,
-        my_status=status,
-        my_position=clean(mine.iloc[0][["quantity", "avg_price", "first_trade"]].to_dict()) if status == "holding" else None)
-    if not is_tracked:
-        notes.append("Not tracked by the radar: prices are fetched on lookup, not in the daily update")
+def _age(inp: ProfileInputs) -> int:
+    """Days between the ticker's last bar and the benchmark's last close."""
+    return (pd.Timestamp(inp.bench_close.index[-1]) - inp.last_date).days
 
-    # --- price development
-    fx = fxrates.fx_to_dkk(closes, currency)
-    local = _windows(close, last_date)
-    dkk = _windows((close * fx.reindex(close.index).ffill()).dropna(), last_date) if fx is not None else None
-    if fx is None:
-        notes.append(f"No DKK rate for currency {currency}: DKK returns not shown")
-    vs_acwi = _diff(local, _windows(b, last_date))
-    # a fund is compared with the US sector ETF of its dominant sector (the deepest, cleanest sector series)
-    setf = sector_etf("us" if look else region, sector, industry) if not etf_cfg else None
-    vs_sector = (_diff(local, _windows(closes[setf], last_date))
-                 if setf and setf in closes and closes[setf].notna().any() else None)
-    year = close.iloc[-252:]
-    recent = own.iloc[-21:]
-    age = (pd.Timestamp(b.index[-1]) - last_date).days
-    price = _section(OK if age <= cfg["coverage"]["max_age"]["prices"] else STALE, "Yahoo Finance (adjusted closes)",
-        last_date,
-        last=float(own["close"].iloc[-1]), traded_last=float(own["raw_close"].iloc[-1]),
-        change_1d=_ret(own["close"], 1), currency=currency,
-        returns=local, returns_dkk=dkk, vs_acwi=vs_acwi, sector_etf=setf, vs_sector=vs_sector,
-        high_52w=float(year.max()), low_52w=float(year.min()),
-        from_high=float(close.iloc[-1] / year.max() - 1), from_low=float(close.iloc[-1] / year.min() - 1),
-        recent=[{"date": d, "close": float(r.close), "change": float(r.close / recent["close"].iloc[i - 1] - 1),
-                 "volume": None if pd.isna(r.volume) else float(r.volume)}
-                for i, (d, r) in enumerate(recent.iterrows()) if i > 0][::-1])
-    if price["status"] == STALE:
-        notes.append(f"Last price is from {last_date.date()}, {age} days before the benchmark's last close")
 
-    # --- momentum: score within the region, as on the dashboard
-    mc = cfg["momentum"]
-    m = momentum.metrics(closes, market.volumes, [ticker], mc["min_history_days"]).iloc[0].to_dict()
-    lead = market.leaders()
-    in_group = lead[(lead["ticker"] == ticker) & (lead["region"] == region)]
+def _scored(inp: ProfileInputs) -> tuple[dict, Any, int | None, str, pd.DataFrame]:
+    """The momentum metrics and the score within the region, as on the dashboard: the rank in its stock group,
+    or a percentile against the region's group for a ticker that isn't a member. Also the basis and the pool."""
+    m = momentum.metrics(inp.market.closes, inp.market.volumes, [inp.ticker],
+                         inp.cfg["momentum"]["min_history_days"]).iloc[0].to_dict()
+    lead, region = inp.leaders, inp.region
+    in_group = lead[(lead["ticker"] == inp.ticker) & (lead["region"] == region)]
     pool = lead[lead["region"] == region] if region in set(lead["region"]) else lead[lead["region"] == "us"]
     if not in_group.empty:
         r = in_group.iloc[0]
@@ -243,20 +300,89 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
     else:
         score, rank = score_vs(pool, pd.Series(m)), None
         basis = f"percentile against the {pool['region'].iloc[0] if len(pool) else region} stock group (not a member)"
-    mom = _section(OK, "radar (prices)", last_date, **{k: v for k, v in m.items() if k != "ticker"},
-                   score=score, rank=rank, group_size=int(len(pool)), score_basis=basis,
-                   gauges=gz.gauges({"score": score, "from_high": m.get("from_high"), "vol_surge": m.get("vol_surge")}),
-                   region_label=tracked.stock_group_labels().get(pool["region"].iloc[0]) if len(pool) else None)
+    return m, score, rank, basis, pool
 
-    # --- technicals
-    oc = own["close"].dropna()                         # same bars as the chart, so card and chart agree
+
+def _analyst_history(inp: ProfileInputs) -> pd.DataFrame:
+    """The stored analyst history (tracked names) plus today's fetch, in the radar's price units."""
+    hist, info, raw = inp.analyst_history, inp.info, inp.raw
+    today_row = external.parse_analyst(info) if info else None
+    if today_row and raw:
+        hist = pd.concat([hist, pd.DataFrame([today_row | {"ticker": inp.ticker,
+                                                           "fetched": pd.Timestamp(raw["fetched"][:10])}])],
+                         ignore_index=True)
+        for col in ("current_price", "target_mean", "target_median", "target_high", "target_low", "n_analysts", "rec_mean"):
+            hist[col] = pd.to_numeric(hist[col], errors="coerce")
+        hist = hist.drop_duplicates(["ticker", "fetched"], keep="last")
+    return hist
+
+
+def _same_industry(inp: ProfileInputs) -> pd.DataFrame:
+    """The tracked stocks in the ticker's industry, strongest score first."""
+    lead = inp.leaders
+    return lead[(lead["industry"] == inp.industry) & (lead["ticker"] != inp.ticker)].sort_values("score", ascending=False)
+
+
+def section_identity(inp: ProfileInputs) -> dict:
+    info, etf, mine, status = inp.info, inp.etf, inp.mine, inp.status
+    return _section(OK, "Yahoo Finance, config", inp.detail_asof,
+        symbol=inp.ticker, name=inp.name,
+        quote_type=info.get("quoteType") or ("ETF" if etf else None), currency=inp.currency,
+        exchange=info.get("fullExchangeName") or info.get("exchange"), country=info.get("country"),
+        sector=inp.sector, industry=inp.industry, website=info.get("website"),
+        summary=info.get("longBusinessSummary"), employees=info.get("fullTimeEmployees"),
+        region=inp.region, tracked=inp.is_tracked,
+        stock_group=next((g for g, ts in inp.stock_groups.items() if inp.ticker in ts), None),
+        etf_group=etf.group if etf else None, ucits=etf.ucits if etf else None,
+        isin=etf.isin if etf else None, positive_list=inp.on_positive_list,
+        my_status=status,
+        my_position=clean(mine.iloc[0][["quantity", "avg_price", "first_trade"]].to_dict()) if status == "holding" else None)
+
+
+def section_price(inp: ProfileInputs) -> dict:
+    """Price development: returns in the quote currency and DKK, against ACWI and the sector ETF, the 52-week
+    range and the last month's sessions."""
+    closes, close, own, last_date, fx, setf = (inp.market.closes, inp.close, inp.own, inp.last_date, inp.fx,
+                                               inp.sector_etf)
+    local = _windows(close, last_date)
+    dkk = _windows((close * fx.reindex(close.index).ffill()).dropna(), last_date) if fx is not None else None
+    vs_acwi = _diff(local, _windows(inp.bench_close, last_date))
+    vs_sector = (_diff(local, _windows(closes[setf], last_date))
+                 if setf and setf in closes and closes[setf].notna().any() else None)
+    year = close.iloc[-252:]
+    recent = own.iloc[-21:]
+    return _section(OK if _age(inp) <= inp.cfg["coverage"]["max_age"]["prices"] else STALE,
+        "Yahoo Finance (adjusted closes)", last_date,
+        last=float(own["close"].iloc[-1]), traded_last=float(own["raw_close"].iloc[-1]),
+        change_1d=_ret(own["close"], 1), currency=inp.currency,
+        returns=local, returns_dkk=dkk, vs_acwi=vs_acwi, sector_etf=setf, vs_sector=vs_sector,
+        high_52w=float(year.max()), low_52w=float(year.min()),
+        from_high=float(close.iloc[-1] / year.max() - 1), from_low=float(close.iloc[-1] / year.min() - 1),
+        recent=[{"date": d, "close": float(r.close), "change": float(r.close / recent["close"].iloc[i - 1] - 1),
+                 "volume": None if pd.isna(r.volume) else float(r.volume)}
+                for i, (d, r) in enumerate(recent.iterrows()) if i > 0][::-1])
+
+
+def section_momentum(inp: ProfileInputs) -> dict:
+    """Momentum: score within the region, as on the dashboard."""
+    m, score, rank, basis, pool = _scored(inp)
+    return _section(OK, "radar (prices)", inp.last_date, **{k: v for k, v in m.items() if k != "ticker"},
+                    score=score, rank=rank, group_size=int(len(pool)), score_basis=basis,
+                    gauges=gz.gauges({"score": score, "from_high": m.get("from_high"), "vol_surge": m.get("vol_surge")}),
+                    region_label=inp.group_labels.get(pool["region"].iloc[0]) if len(pool) else None)
+
+
+def section_technicals(inp: ProfileInputs) -> dict:
+    market, ticker, close = inp.market, inp.ticker, inp.close
+    oc = inp.own["close"].dropna()                     # same bars as the chart, so card and chart agree
     ma = technicals.macd(oc).iloc[-1]
     bb = technicals.bollinger(oc).iloc[-1]
     rsi = technicals.rsi(oc).iloc[-1]
-    atr = (levels.atr(market.highs[ticker], market.lows[ticker], closes[ticker], cfg["stops"]["atr_days"]).dropna()
+    atr = (levels.atr(market.highs[ticker], market.lows[ticker], market.closes[ticker],
+                      inp.cfg["stops"]["atr_days"]).dropna()
            if ticker in market.highs else pd.Series(dtype=float))
-    beta, corr = technicals.beta_corr(close, b)
-    tech = _section(OK, "radar (prices)", last_date,
+    beta, corr = technicals.beta_corr(close, inp.bench_close)
+    return _section(OK, "radar (prices)", inp.last_date,
         rsi14=rsi, rsi_state=None if pd.isna(rsi) else "overbought" if rsi >= 70 else "oversold" if rsi <= 30 else "neutral",
         macd=ma["macd"], macd_signal=ma["signal"], macd_hist=ma["hist"],
         macd_state=None if pd.isna(ma["hist"]) else "bullish" if ma["hist"] > 0 else "bearish",
@@ -269,102 +395,144 @@ def build(ticker: str, market: Market | None = None, refresh: bool = False, anon
                           "macd_atr": ma["hist"] / atr.iloc[-1] if not atr.empty and atr.iloc[-1] else None,
                           "atr_pct": atr.iloc[-1] / close.iloc[-1] if not atr.empty else None, "beta": beta}))
 
-    # --- analyst: stored history (tracked names) plus today's fetch, in the radar's price units
-    hist = external.load_analyst()
-    hist = hist[hist["ticker"] == ticker] if not hist.empty else hist
-    today_row = external.parse_analyst(info) if info else None
-    if today_row and raw:
-        hist = pd.concat([hist, pd.DataFrame([today_row | {"ticker": ticker,
-                                                           "fetched": pd.Timestamp(raw["fetched"][:10])}])],
-                         ignore_index=True)
-        for col in ("current_price", "target_mean", "target_median", "target_high", "target_low", "n_analysts", "rec_mean"):
-            hist[col] = pd.to_numeric(hist[col], errors="coerce")
-        hist = hist.drop_duplicates(["ticker", "fetched"], keep="last")
-    view = levels.analyst_view(hist, ticker, close, max_age_days=cfg["coverage"]["max_age"]["analyst"]) if not hist.empty else None
-    recs = external.parse_recommendations((raw or {}).get("recommendations") or [])
-    eps = external.parse_eps_trend(*((raw or {}).get(k) or {} for k in ("eps_trend", "eps_revisions", "growth_estimates")))
-    cal = external.parse_calendar((raw or {}).get("calendar") or {})
-    has_analyst = bool(view and view.get("target_mean")) or bool(recs) or bool(eps)
-    analyst = _section(raw_status if has_analyst else MISSING, "Yahoo Finance", detail_asof,
-                       **(view or {}), recommendations=recs, eps=eps, calendar=cal,
-                       gauges=gz.gauges({"upside": (view or {}).get("upside"),
-                                         "target_change": (view or {}).get("target_change")}))
 
-    # --- stop / take-profit levels (the same rule as for holdings)
+def section_analyst(inp: ProfileInputs) -> dict:
+    """Analyst targets, recommendations, EPS estimates and the earnings calendar."""
+    raw = inp.raw or {}
+    hist = _analyst_history(inp)
+    view = (levels.analyst_view(hist, inp.ticker, inp.close, max_age_days=inp.cfg["coverage"]["max_age"]["analyst"])
+            if not hist.empty else None)
+    recs = external.parse_recommendations(raw.get("recommendations") or [])
+    eps = external.parse_eps_trend(*(raw.get(k) or {} for k in ("eps_trend", "eps_revisions", "growth_estimates")))
+    cal = external.parse_calendar(raw.get("calendar") or {})
+    has_analyst = bool(view and view.get("target_mean")) or bool(recs) or bool(eps)
+    return _section(inp.raw_status if has_analyst else MISSING, "Yahoo Finance", inp.detail_asof,
+                    **(view or {}), recommendations=recs, eps=eps, calendar=cal,
+                    gauges=gz.gauges({"upside": (view or {}).get("upside"),
+                                      "target_change": (view or {}).get("target_change")}))
+
+
+def section_levels(inp: ProfileInputs) -> dict:
+    """Stop / take-profit levels: the same rule as for holdings, anchored on your entry when you hold it."""
+    m, score, *_ = _scored(inp)
+    cfg, market = inp.cfg, inp.market
     row = m | {"score": None if score is None or pd.isna(score) else score}
-    regime = inputs.current_regime(dashboard.load())
-    lv = levels.for_ticker(ticker, closes, market.highs, market.lows, row,
-                           mine.iloc[0]["first_trade"] if status == "holding" else None, regime["label"], hist,
+    lv = levels.for_ticker(inp.ticker, market.closes, market.highs, market.lows, row,
+                           inp.mine.iloc[0]["first_trade"] if inp.status == "holding" else None, inp.regime["label"],
+                           _analyst_history(inp),
                            cfg["stops"] | {"analyst_max_age_days": cfg["coverage"]["max_age"]["analyst"]})
     if lv:
         lv.pop("analyst", None)
-    lvl = _section(OK if lv else MISSING, "radar (prices, analyst targets)", last_date,
-                   **(lv or {}), regime=regime["label"],
-                   gauges=gz.gauges({"stop_dist": (lv or {}).get("stop_pct"), "tp_dist": (lv or {}).get("tp_pct")}))
+    return _section(OK if lv else MISSING, "radar (prices, analyst targets)", inp.last_date,
+                    **(lv or {}), regime=inp.regime["label"],
+                    gauges=gz.gauges({"stop_dist": (lv or {}).get("stop_pct"), "tp_dist": (lv or {}).get("tp_pct")}))
 
-    # --- risk: weekly DKK returns vs ACWI, factor tilts, and the position size the rule stop allows
-    risk_sec = risk_section(ticker, market, close, fx, setf, (lv or {}).get("stop_pct"), last_date)
 
-    # --- fundamentals
-    fund = external.parse_fundamentals(info)          # all keys, None where Yahoo has nothing
-    if fund.get("market_cap") and not money.is_pence(currency) and fx is not None:
+def section_risk(inp: ProfileInputs, stop_pct) -> dict:
+    """Weekly DKK returns vs ACWI, factor tilts, and the position size the rule stop (`stop_pct`) allows."""
+    return risk_section(inp.ticker, inp.market, inp.close, inp.fx, inp.sector_etf, stop_pct, inp.last_date)
+
+
+def section_fundamentals(inp: ProfileInputs) -> dict:
+    fund = external.parse_fundamentals(inp.info)      # all keys, None where Yahoo has nothing
+    fx = inp.fx
+    if fund.get("market_cap") and not money.is_pence(inp.currency) and fx is not None:
         fund["market_cap_dkk"] = fund["market_cap"] * float(fx.iloc[-1])
     has_fund = any(v is not None for k, v in fund.items() if k not in ("notes", "currency", "financial_currency"))
-    fundamentals = _section(raw_status if has_fund else MISSING,
-                            "Yahoo Finance", detail_asof, **fund, beta_radar=beta, snapshot=_valuation_snapshot(ticker))
+    beta, _ = technicals.beta_corr(inp.close, inp.bench_close)
+    return _section(inp.raw_status if has_fund else MISSING,
+                    "Yahoo Finance", inp.detail_asof, **fund, beta_radar=beta, snapshot=inp.valuation)
 
-    # --- kvalitetsscore and værdiscore (stored statements)
-    quality = None
-    if not is_fund and not etf_cfg:
-        card = quality_card(ticker, market)
-        quality = (_section(OK, "SEC EDGAR" if card["fund_source"] == "edgar" else "Yahoo statements",
-                            card["period_end"], **card) if card else
-                   _section(MISSING, "statements", None, notes=[
-                       "No financial statements stored for this stock: the radar fetches them for the stocks it "
-                       "tracks (its lists, your holdings and watchlist), a few each update."]))
 
-    # --- ETF look-through
-    etf = None
-    if look is not None:
-        f = look
-        held = set(h.loc[h["status"] == "holding", "symbol"]) if not h.empty else set()
-        f["overlap"] = [x["symbol"] for x in f["top_holdings"] if x.get("symbol") in held]
-        etf = _section(raw_status if f["top_holdings"] or f["expense_ratio"] else MISSING, "Yahoo Finance", detail_asof, **f)
+def section_quality(inp: ProfileInputs) -> dict | None:
+    """Kvalitetsscore and værdiscore from the stored statements; None for a fund."""
+    if inp.is_fund or inp.etf:
+        return None
+    card = inp.quality
+    return (_section(OK, "SEC EDGAR" if card["fund_source"] == "edgar" else "Yahoo statements",
+                     card["period_end"], **card) if card else
+            _section(MISSING, "statements", None, notes=[
+                "No financial statements stored for this stock: the radar fetches them for the stocks it "
+                "tracks (its lists, your holdings and watchlist), a few each update."]))
 
-    # --- peers and sector rotation
+
+def section_etf(inp: ProfileInputs) -> dict | None:
+    """A fund's look-through, with the top holdings you hold yourself; None for anything but a fund."""
+    if inp.look is None:
+        return None
+    h = inp.holdings
+    held = set(h.loc[h["status"] == "holding", "symbol"]) if not h.empty else set()
+    f = inp.look | {"overlap": [x["symbol"] for x in inp.look["top_holdings"] if x.get("symbol") in held]}
+    return _section(inp.raw_status if f["top_holdings"] or f["expense_ratio"] else MISSING, "Yahoo Finance",
+                    inp.detail_asof, **f)
+
+
+def section_peers(inp: ProfileInputs) -> dict:
+    """Peers in the same industry and the sector ETF's (or the ETF's own) place in the rotation."""
+    closes, industry = inp.market.closes, inp.industry
     peers = []
     if industry:
-        same = lead[(lead["industry"] == industry) & (lead["ticker"] != ticker)].sort_values("score", ascending=False)
-        names = universe.names(list(same["ticker"].head(12))) if not same.empty else {}
+        same, names = _same_industry(inp), inp.peer_names
         peers = [{"ticker": r.ticker, "name": names.get(r.ticker, r.ticker), "region": r.region, "score": r.score,
                   "r3m": r.r3m, "r6m": r.r6m, "trend_ok": r.trend_ok, "from_high": r.from_high}
                  for r in same.head(12).itertuples()]
     rot = None
-    target = setf or (ticker if etf_cfg else None)
+    target = inp.sector_etf or (inp.ticker if inp.etf else None)
     if target and target in closes:
-        inst = next((e for e in tracked.etfs() if e.ticker == target), None) or tracked.Instrument(
-            target, target, "sector", region)
-        t = rotation.relative_table(closes, bench, [inst], typed().rotation.window, typed().rotation.tail)
+        inst = next((e for e in inp.etfs if e.ticker == target), None) or tracked.Instrument(
+            target, target, "sector", inp.region)
+        t = rotation.relative_table(closes, inp.bench, [inst], inp.rotation_window, inp.rotation_tail)
         if not t.empty:
             r = t.iloc[0]
             rot = {"ticker": target, "name": inst.name, "quadrant": r["quadrant"], "rs_ratio": r["rs_ratio"],
                    "rs_mom": r["rs_mom"], "rel_r3m": r["rel_r3m"]}
-    peer_sec = _section(OK if peers or rot else MISSING, "radar (prices, Yahoo sectors)", last_date,
-                        industry=industry, peers=peers, rotation=rot)
+    return _section(OK if peers or rot else MISSING, "radar (prices, Yahoo sectors)", inp.last_date,
+                    industry=industry, peers=peers, rotation=rot)
 
-    for s in (fund, etf or {}):
+
+def context_notes(inp: ProfileInputs) -> list[str]:
+    """What a reader should know about the data behind the profile: a Yahoo detail that couldn't be refreshed,
+    an untracked ticker, a missing DKK rate, a stale last price. The sections' own notes follow these."""
+    raw, notes = inp.raw, []
+    if inp.raw_status != OK:
+        notes.append("Yahoo fundamentals and estimates: " + ("no data" if raw is None else
+                     f"couldn't refresh, showing data from {raw['fetched'][:10]}"))
+    for block, when in ((raw or {}).get("kept") or {}).items():
+        notes.append(f"Yahoo {block.replace('_', ' ')}: couldn't refresh, showing data from {when[:10]}")
+    if not inp.is_tracked:
+        notes.append("Not tracked by the radar: prices are fetched on lookup, not in the daily update")
+    if inp.fx is None:
+        notes.append(f"No DKK rate for currency {inp.currency}: DKK returns not shown")
+    age = _age(inp)
+    if not age <= inp.cfg["coverage"]["max_age"]["prices"]:
+        notes.append(f"Last price is from {inp.last_date.date()}, {age} days before the benchmark's last close")
+    return notes
+
+
+def build(ticker: str, market: Market | None = None, refresh: bool = False, anonymous: bool = False) -> dict:
+    """The full profile of `ticker` (a Yahoo symbol). Raises TickerNotFound without price data. `anonymous`
+    builds it as if you held nothing: no status or position, stops anchored on the recent high instead of
+    your entry, and no overlap with your holdings, so nothing personal can be read from it."""
+    inp = load_inputs(ticker, market, refresh, anonymous)
+    identity, price, mom, tech = section_identity(inp), section_price(inp), section_momentum(inp), section_technicals(inp)
+    analyst, lvl = section_analyst(inp), section_levels(inp)
+    risk_sec = section_risk(inp, lvl.get("stop_pct"))
+    fundamentals, quality, etf, peers = (section_fundamentals(inp), section_quality(inp), section_etf(inp),
+                                         section_peers(inp))
+    notes = context_notes(inp)
+    for s in (fundamentals, etf or {}):
         notes += s.get("notes") or []
     watchouts = gz.watchouts({k: v for sec in (tech, mom, lvl, analyst) for k, v in sec["gauges"].items()},
-                             skip=set() if status == "holding" else {"stop_dist", "tp_dist"})
+                             skip=set() if inp.status == "holding" else {"stop_dist", "tp_dist"})
     out = {"symbol": ticker, "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
            "identity": identity, "price": price, "momentum": mom, "technicals": tech, "levels": lvl, "risk": risk_sec,
-           "analyst": analyst, "fundamentals": fundamentals, "quality": quality, "etf": etf, "peers": peer_sec,
-           "context": {"regime": regime, "notes": notes, "errors": (raw or {}).get("errors") or {},
+           "analyst": analyst, "fundamentals": fundamentals, "quality": quality, "etf": etf, "peers": peers,
+           "context": {"regime": inp.regime, "notes": notes, "errors": (inp.raw or {}).get("errors") or {},
                        "watchouts": watchouts}}
     if not anonymous:   # your market views are personal, like your positions
         from . import market_views
 
-        out["views"] = market_views.align_profile(identity, closes)
+        out["views"] = market_views.align_profile(identity, inp.market.closes)
     return checked(clean(out))
 
 

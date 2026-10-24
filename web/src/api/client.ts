@@ -9,6 +9,8 @@ export type AppContext = S["AppContext"];
 export type Windows = S["Windows"];
 export type SectionMeta = Pick<S["Price"], "status" | "source" | "asof">;
 export type RegimeView = S["RegimeView"];
+export type Quadrant = S["Rotation"]["quadrant"];
+export type RegimeLabel = S["Overall"]["label"];
 export type Outdated = S["Outdated"];
 export type RotationView = S["RotationView"];
 export type RotationGroup = S["RotationGroup"];
@@ -113,13 +115,10 @@ async function get<T>(url: string, method = "GET", body?: BodyInit, contentType?
     let detail = r.statusText;
     let issues: Issue[] = [];
     try {
-      const body = (await r.json()) as { detail?: unknown };
-      if (typeof body.detail === "string") detail = body.detail;
-      else if (body.detail && typeof body.detail === "object" && "message" in body.detail) {
-        const d = body.detail as { message: string; issues?: Issue[] };
-        detail = d.message;
-        issues = d.issues ?? [];
-      }
+      // every error is {"detail": {"message", "issues"}} (api/app.py, one handler)
+      const body = (await r.json()) as { detail?: { message?: string; issues?: Issue[] } };
+      detail = body.detail?.message || detail;
+      issues = body.detail?.issues ?? [];
     } catch {
       /* not JSON */
     }

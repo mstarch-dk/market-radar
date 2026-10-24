@@ -2,12 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { RrgTrail } from "../api/client";
 import { date, pct, tone } from "../lib/format";
+import { QUAD_COLOR } from "./quadrants";
 import { tickerPath } from "./TickerLink";
 
 const W = 640, H = 460, M = { l: 44, r: 16, t: 16, b: 40 };
-const QUAD_COLOR: Record<string, string> = {
-  Leading: "var(--pos)", Weakening: "var(--warn)", Lagging: "var(--neg)", Improving: "var(--accent)", "n/a": "var(--muted)",
-};
 
 export type RrgExtra = { rel_r1m?: number | null; rel_r3m?: number | null };
 

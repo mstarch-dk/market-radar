@@ -6,7 +6,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, api_models, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
+features         abtest, api_models/, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
                  tickers, updater
 kernel           model/
 domain           backup, export, fees, guide, home, importers/, market, market_views, notebook, performance,
@@ -41,8 +41,9 @@ the module the callers read it from.
   default. Code reads values through `config.typed()` (the model; `propose.cfg()` is its `propose` section);
   `config.settings()` is the file as written, for what hashes it (`propose.rule_hash`, of the raw values, so a
   stored hash doesn't move when the model writes 10000 as 10000.0) and the pure readings that take a section as a
-  dict (`fundamentals/context.py`, `signals/gauges.py`). Tests change settings with
-  `conftest.with_settings(monkeypatch, backtest={...})`, which both views read; never by editing the dict
+  dict (`fundamentals/context.py`, `signals/gauges.py`). Not yet everywhere: the profile's sections read the file
+  as written (`ProfileInputs.cfg`), so a misspelt key there fails at runtime, not in mypy. Tests change settings
+  with `conftest.with_settings(monkeypatch, backtest={...})`, which both views read; never by editing the dict
   `settings()` returns, which `typed()` doesn't see.
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
@@ -96,7 +97,7 @@ the whole price store (about 30 s), saves the rank snapshots and the weekly scor
 test. It is a separate pass on purpose, not computed per request; what depends on the user's own edits is applied
 live by the API instead (the holdings table, the regime re-vote, coverage).
 
-- Before anything is written, each section is checked against the `api_models.py` view the API serves it with
+- Before anything is written, each section is checked against the `api_models` view the API serves it with
   (extra fields are an error), so a shape the app can't show fails the build, not a page. Ticker profiles are
   checked the same way.
 - `dashboard.json` carries `build: {format, inputs}`: a format number (bump it when a section is added or changed)
@@ -118,7 +119,13 @@ change to the model and to its schema version.
 ## `src/radar/`
 
 ### Interfaces
-- `api.py` + `api_models.py`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md).
+- `api/` + `api_models/`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md). `api/app.py`
+  builds the app (lifespan, error handlers, the data-home gate and error-recording middlewares, the web app) from
+  one `APIRouter` per page area (`setup`, `ticker`, `readings`, `operations`, `views`, `discover`, `holdings`,
+  `refresh`, `transactions`, `portfolios`, `docs`, `imports`), included in a fixed order so the OpenAPI schema
+  doesn't move; `api/state.py` holds the price store, its re-entrant lock (`ensure`, `has_prices`) and the data
+  home's gate; `api/common.py` what several routers share. `api_models/` has one module per area of the app
+  (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs), all re-exported by the package.
 - `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
   the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
   the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
@@ -130,6 +137,12 @@ change to the model and to its schema version.
   market-wide reading as data, without side effects.
 - `mine.py`: the holdings, watchlist and sold table (DKK return vs a shadow ACWI position, flags, stop levels).
 - `profile.py`: one ticker's full profile and several side by side with ACWI (`radar info`, `/compare`).
+  `load_inputs` reads everything a profile needs from outside (prices, the Yahoo detail, your holdings, config,
+  the regime and leaders, analyst history, valuation, the quality card) into a `ProfileInputs`; each section
+  (`section_identity`, `section_price`, … `section_peers`, `context_notes`) is a pure function of it, testable
+  from hand-made inputs, and `build` only loads, calls them in order and checks the result. A new section reads
+  what it needs through a new `ProfileInputs` field, not inside the section. (The risk section still goes
+  through `risk_section`, which reads the risk settings, the benchmark's currency and FRED itself.)
 - `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown but
   don't vote.

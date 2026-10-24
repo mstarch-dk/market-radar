@@ -174,7 +174,7 @@ def test_views_api_round_trip(env):
     r = c.post("/api/views", json={"statement": " ", "indicators": []})
     assert r.status_code == 422
     r = c.post("/api/views", json={"statement": "x", "indicators": [{"indicator": "nope", "expect": "up"}]})
-    assert r.status_code == 422 and "Unknown indicator" in r.json()["detail"]
+    assert r.status_code == 422 and "Unknown indicator" in r.json()["detail"]["message"]
     r = c.post("/api/views", json={"statement": "Gold shines", "conviction": 2,
                                    "exposures": [{"kind": "ticker", "key": "S2", "effect": 1}]})
     assert r.status_code == 200 and len(r.json()["views"]) == 2
@@ -184,6 +184,9 @@ def test_views_api_round_trip(env):
     gone = c.delete(f"/api/views/{vid}").json()
     assert c.post("/api/views/restore", json=gone).status_code == 200
     assert c.post("/api/views/restore", json=gone).status_code == 409
+    gone = c.delete(f"/api/views/{vid}").json()
+    r = c.post("/api/views/restore", json=gone | {"conviction": 9})          # restored rows are checked too
+    assert r.status_code == 422 and r.json()["detail"]["message"].startswith("Conviction")
 
 
 def test_a_views_import_that_fails_part_way_keeps_the_old_views(tmp_data, monkeypatch):

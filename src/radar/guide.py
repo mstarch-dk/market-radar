@@ -64,7 +64,23 @@ def tree() -> dict:
                              for p in b["parts"]]} for b in m["books"]],
         "page_links": m.get("page_links") or {},
         "glossary_links": m.get("glossary_links") or {},
+        "settings": settings_text(),
     }
+
+
+def settings_text() -> dict[str, str]:
+    """Every setting that is a value (or a list of values) by its dotted key, as plain text: what the app's hover
+    help quotes with `{{settings:…}}` (web/src/lib/glossary.ts), so it never states a stale threshold."""
+    out: dict[str, str] = {}
+
+    def walk(v, key: str) -> None:
+        if isinstance(v, dict):
+            for k, x in v.items():
+                walk(x, f"{key}.{k}" if key else str(k))
+        elif v is not None and not (isinstance(v, list) and any(isinstance(x, (dict, list)) for x in v)):
+            out[key] = _fmt(v, "raw")
+    walk(settings(), "")
+    return out
 
 
 # ---------------- text ----------------

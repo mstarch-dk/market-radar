@@ -141,12 +141,7 @@ def paths(as_json: bool = typer.Option(False, "--json", help="As JSON (for the s
     out = {k: st[k] for k in ("state", "source", "app_version", "home", "cache", "pointer", "read_only", "warning")}
     if st["state"] != "unset":
         loc = p.locations()
-        out["folders"] = {"data": str(loc.home), "database": str(loc.userdata / homes.DB_NAME),
-                          "notes": str(loc.home / "notes"), "briefs": str(loc.home / "briefs"),
-                          "research": str(loc.home / "research"), "journal": str(loc.home / "journal"),
-                          "exports": str(loc.home / "exports"), "imports": str(loc.imports),
-                          "history": str(loc.history), "backups": str(loc.userdata / "backups"),
-                          "cache": str(loc.cache), "reports": str(loc.reports)}
+        out["folders"] = {key: str(d) for key, _label, d, _tier in p.folders(loc)}
     else:
         out["found"] = st["found"]
     if as_json:

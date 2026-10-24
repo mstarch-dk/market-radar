@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 import pandas as pd
 
 from . import fxrates, money, trades, universe, userstore
+from .errors import Invalid
 from .values import whole
 
 if TYPE_CHECKING:
@@ -191,6 +192,16 @@ def _cash_issues(rows: list[dict], market: Market, p: dict | None, candidate: di
                           "deposit first.") if virtual else
                    _issue(WARNING, "amount", msg + " Is a deposit missing?"))
     return out
+
+
+def checked(row: dict, market: Market, confirm: bool, exclude_id: int | None = None) -> list[dict]:
+    """The row's issues when it may be saved: errors always block, warnings only until confirmed. Invalid (with
+    the issues) otherwise. The app's save and `radar portfolio add` both go through it."""
+    issues = validate(row, market, exclude_id=exclude_id)
+    errors = [i for i in issues if i["level"] == "error"]
+    if errors or (issues and not confirm):
+        raise Invalid(errors[0]["message"] if errors else "Please confirm the warnings.", issues)
+    return issues
 
 
 def target_portfolio(row: dict) -> tuple[int | None, str | None]:

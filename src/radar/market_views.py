@@ -10,6 +10,7 @@ import pandas as pd
 
 from . import external, ingest, tracked, universe
 from .config import load_yaml
+from .errors import Invalid
 from .signals import views as sv
 from .userstore import viewstore
 
@@ -25,6 +26,21 @@ HORIZONS = ["3m", "6m", "12m", "3y"]
 @cache
 def config() -> dict:
     return load_yaml("views.yaml")
+
+
+def validate(view: dict) -> dict:
+    """A view as it can be stored: a statement (trimmed), conviction 1-5 and only known indicators; Invalid
+    naming the first problem. The app's add, edit and restore all go through it."""
+    v = dict(view, statement=(view.get("statement") or "").strip())
+    if not v["statement"]:
+        raise Invalid("A view needs a statement.")
+    if not 1 <= int(v.get("conviction") or 0) <= 5:
+        raise Invalid("Conviction is 1 (a hunch) to 5 (very sure).")
+    known = set(config()["indicators"])
+    bad = [i["indicator"] for i in v.get("indicators") or [] if i["indicator"] not in known]
+    if bad:
+        raise Invalid(f"Unknown indicator: {', '.join(bad)}.")
+    return v
 
 
 def templates() -> list[dict]:

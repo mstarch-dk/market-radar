@@ -148,7 +148,7 @@ def test_cooldown_can_be_cleared_from_the_app(client):
 def test_server_errors_are_recorded_but_not_user_errors(client, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("kaput")
-    monkeypatch.setattr(api.ops, "jobs", boom)
+    monkeypatch.setattr(ops, "jobs", boom)
     c = TestClient(api.app, raise_server_exceptions=False)
     assert c.get("/api/ops/jobs").status_code == 500
     assert client.get("/api/ops/jobs/99").status_code == 404
