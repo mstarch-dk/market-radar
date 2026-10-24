@@ -209,7 +209,9 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   a host paused after repeated 429s (shared by the CLI and the server). One honest User-Agent; no proxies or
   identity rotation.
 - `ops.py`: the operations log in `ops.db` (requests, events, jobs, host state). A failed write never breaks the
-  work; nothing here feeds a market reading.
+  work; nothing here feeds a market reading. Timestamps are UTC with their offset (`ops.timestamp`), so they
+  compare as text across a change of the clocks; `ops.local` turns one into local time for showing and daily
+  grouping, and a day's budget runs from `ops.local_midnight()`.
 - `sourcelog.py`: the update log `sources.json`; a failure keeps the last success.
 - `guard.py`, `locks.py`, `jsonsafe.py`: see *Writing files*.
 - `manifest.py`: the data folder's `market-radar.json` (format, the versions that opened it, its log) and the

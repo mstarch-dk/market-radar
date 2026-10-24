@@ -194,10 +194,10 @@ def _note_budget(host: str, lim: dict) -> None:
     budget = lim.get("budget")
     if not budget:
         return
-    today = ops.now().date().isoformat()
+    start = ops.local_midnight()                # a day's budget runs from local midnight
+    today = start.date().isoformat()
     if _budget_warned.get(lim["pattern"]) == today:
         return
-    start = ops.now().replace(hour=0, minute=0, second=0, microsecond=0)
     n = _count(host, start)
     if n is not None and n > budget:
         _budget_warned[lim["pattern"]] = today

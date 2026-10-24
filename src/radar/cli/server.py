@@ -27,14 +27,15 @@ def ops_summary(days: int = typer.Option(7, help="Look back this many days"),
     the operations log (ops.db in the cache folder)."""
     from .. import net, ops
 
+    _when = lambda t: ops.local(t).strftime("%Y-%m-%d %H:%M") if t else "–"   # stored in UTC, shown in local time
     s = ops.summary(days, net.limits)
     lu = s["last_update"]
     typer.echo(f"Last {days} days. Requests in 24 h: {s['requests_24h']:,} ({s['errors_24h']:,} failed); "
                f"error events in 24 h: {s['error_events_24h']}.")
-    typer.echo("Last update: " + (f"{lu['status']} ({lu['kind']}, started {lu['started'][:16].replace('T', ' ')})"
+    typer.echo("Last update: " + (f"{lu['status']} ({lu['kind']}, started {_when(lu['started'])})"
                                   if lu else "none recorded"))
     for c in s["cooldowns"]:
-        typer.echo(f"PAUSED {c['host']} until {c['until'][:16].replace('T', ' ')}: {c['reason']}")
+        typer.echo(f"PAUSED {c['host']} until {_when(c['until'])}: {c['reason']}")
     for h in s["over_budget"]:
         typer.echo(f"OVER BUDGET {h} (today)")
     if not s["rows"]:
@@ -52,7 +53,7 @@ def ops_summary(days: int = typer.Option(7, help="Look back this many days"),
         if not evs:
             typer.echo("No error events.")
         for e in evs:
-            typer.echo(f"{e['ts'][:16].replace('T', ' ')} [{e['kind']}] {e['source'] or '–'}: {e['message'][:120]}")
+            typer.echo(f"{_when(e['ts'])} [{e['kind']}] {e['source'] or '–'}: {e['message'][:120]}")
 
 
 @app.command()

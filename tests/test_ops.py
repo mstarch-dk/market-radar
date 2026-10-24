@@ -1,6 +1,8 @@
 """The operations log (ops.db): recording, housekeeping, the summary, jobs, and the Operations endpoints."""
+import sqlite3
 import threading
-from datetime import datetime, timedelta
+from contextlib import closing
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +22,21 @@ def test_summary_per_host_and_source_with_percentiles():
     assert row["source"] == "fred" and row["requests"] == 6 and row["errors"] == 1 and row["error_pct"] == 16.7
     assert row["p50_ms"] == 25 and row["p95_ms"] > 500 and row["last_error"] == "HTTP 503"
     assert sum(row["daily"]) == 6 and len(row["daily"]) == 7 and s["requests_24h"] == 6 and s["errors_24h"] == 1
+
+
+def test_timestamps_are_utc_and_old_local_ones_are_converted():
+    assert ops.timestamp(datetime(2026, 1, 15, 11, tzinfo=UTC)) == "2026-01-15T11:00:00.000+00:00"
+    assert ops.timestamp(datetime(2026, 1, 15, 12)) == datetime(2026, 1, 15, 12).astimezone(UTC).isoformat(
+        timespec="milliseconds")                                        # naive is local time
+    ops.record_request("a.org", "/", "GET", 200, True, 1)
+    ops.set_cooldown("a.org", datetime(2026, 7, 1, 9), "429s", 1)
+    with closing(sqlite3.connect(ops.DB)) as con, con:                 # as an older version wrote them
+        con.execute("UPDATE requests SET ts = '2026-01-15T12:00:00.000'")
+        con.execute("UPDATE host_state SET cooldown_until = '2026-07-01T09:00:00.000', updated = '2026-07-01T08:45:00.000'")
+        con.execute(f"PRAGMA user_version = {len(ops.MIGRATIONS) - 1}")
+    assert ops.requests()[0]["ts"] == ops.timestamp(datetime(2026, 1, 15, 12))          # winter offset
+    assert ops.host_state("a.org")["cooldown_until"] == ops.timestamp(datetime(2026, 7, 1, 9))   # summer offset
+    assert ops.local(ops.timestamp(datetime(2026, 7, 1, 9))).replace(tzinfo=None) == datetime(2026, 7, 1, 9)
 
 
 def test_an_empty_log_says_so():

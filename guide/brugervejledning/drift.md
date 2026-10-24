@@ -96,7 +96,7 @@ Pausen ophører af sig selv. Vil du ikke vente, kan du klikke *Resume now*. Gør
 
 ### Blødt dagsbudget
 
-Et websted kan have et dagsbudget, fx Yahoo. Går radaren over budgettet, bliver det en advarsel på siden (rødt i *Today / budget* og i feltet *Paused sites*) og en hændelse af typen *throttle*. Det blokerer aldrig noget. Et overskredet budget er et tegn på, at noget bruger usædvanligt mange opslag.
+Et websted kan have et dagsbudget, fx Yahoo. Går radaren over budgettet, bliver det en advarsel på siden (rødt i *Today / budget* og i feltet *Paused sites*) og en hændelse af typen *throttle*. Det blokerer aldrig noget. Et overskredet budget er et tegn på, at noget bruger usædvanligt mange opslag. Dagen regnes fra midnat i din lokale tid.
 
 > **Bemærk:** Radaren sender én ærlig identifikation (User-Agent) og bruger hverken proxyer eller skiftende identiteter for at komme uden om grænser.
 
@@ -114,6 +114,6 @@ uv run radar ops --errors     # også de seneste 20 fejlhændelser
 
 ## Loggens størrelse
 
-Driftsloggen ligger i `ops.db` i cache-mappen (se [Dine data, backup og opdatering](brugervejledning/dine-data#cache-mappen)). Sletter du cache-mappen, starter loggen forfra. Forespørgsler gemmes i {{settings:ops.keep_requests_days}} dage, hændelser og job i {{settings:ops.keep_events_days}} dage; ældre rækker ryddes op efter hvert job og når appen starter.
+Driftsloggen ligger i `ops.db` i cache-mappen (se [Dine data, backup og opdatering](brugervejledning/dine-data#cache-mappen)). Sletter du cache-mappen, starter loggen forfra. Tidspunkterne gemmes i UTC og vises i din lokale tid, så pauser og vinduer passer, også når uret stilles om. Forespørgsler gemmes i {{settings:ops.keep_requests_days}} dage, hændelser og job i {{settings:ops.keep_events_days}} dage; ældre rækker ryddes op efter hvert job og når appen starter.
 
 Filen kan slettes når som helst, mens appen ikke kører. Intet i den indgår i en markedsaflæsning, og radaren opretter en ny tom log. Du mister kun historikken på denne side og eventuelle aktive pauser.
