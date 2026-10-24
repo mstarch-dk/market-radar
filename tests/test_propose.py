@@ -383,6 +383,9 @@ def test_candidates_draft_and_evaluate(market, ask):
     ev = propose.evaluate(market, doc, offline=True)
     assert ev["decision"]["verdict"] == "A0" and "no evidence" in ev["decision"]["why"]   # no rule study yet
     assert ev["model"]["drift_net"] is None
+    saved = propose.save_evaluation(Path(f).name, ev | {"unknown": float("nan")})   # NaN would be invalid JSON
+    strict = json.loads(Path(saved).read_text(encoding="utf-8"), parse_constant=lambda c: pytest.fail(c))
+    assert strict["unknown"] is None
     assert {"A0", "A1", "A2-value", "A2-mix", "A3", "A4", "A5", "A6"} <= set(ev["alternatives"])
     shared = {"risk", "bootstrap", "cost_pct", "drift_net", "realised_dd_1y"}
     assert all(shared <= set(ev["alternatives"][k]) for k in ("A0", "A1", "A4", "A5"))

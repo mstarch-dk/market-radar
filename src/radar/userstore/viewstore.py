@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from contextlib import closing
 
+from ..jsonsafe import dumps
 from . import backup, connect, exists, timestamp
 
 VIEW_FIELDS = ("statement", "conviction", "horizon", "rationale", "falsifier", "template", "status")
@@ -100,7 +101,7 @@ def views_version() -> str:
 
 
 def export_views_json() -> str:
-    return json.dumps([{k: v for k, v in x.items() if k != "id"} for x in views()], indent=1, ensure_ascii=False)
+    return dumps([{k: v for k, v in x.items() if k != "id"} for x in views()], indent=1, ensure_ascii=False)
 
 
 def import_views_json(text: str) -> int:

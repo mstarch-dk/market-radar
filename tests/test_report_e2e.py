@@ -81,6 +81,8 @@ def test_momentum_and_snapshot_comparison(summary):
     assert summary["momentum_top10"]["europe"][0]["ticker"] == "E1"
     assert summary["momentum_new_entrants"]["us"] == ["S1", "S3", "S4", "S5", "S6"]   # S2 was already there
     assert summary["momentum_dropped_out"] == {"us": ["OLD"], "europe": []}          # no europe snapshot: nothing new
+    asof = IDX[-1].date()                                                             # the data's date, not today's
+    assert snapshot.path("momentum", asof).exists() and snapshot.path("rotation", asof).exists()
 
 
 def test_holding_return_against_the_shadow_benchmark(summary):

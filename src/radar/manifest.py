@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import ROOT, write_text
+from .jsonsafe import dumps
 
 MANIFEST = "market-radar.json"
 
@@ -43,7 +44,7 @@ def read_manifest(home: Path) -> dict | None:
 def write_manifest(home: Path, m: dict) -> None:
     """Write the data home's market-radar.json."""
     f = Path(home) / MANIFEST
-    write_text(f, json.dumps(m, indent=1, ensure_ascii=False))
+    write_text(f, dumps(m, indent=1, ensure_ascii=False))
 
 
 def add_log(m: dict, event: str, **kw) -> dict:

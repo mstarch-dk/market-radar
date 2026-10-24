@@ -107,12 +107,12 @@ def with_fundamentals(rows: list[dict], fctx: fcontext.Context) -> list[dict]:
 
 
 def quality_section(fctx: fcontext.Context, groups: dict[str, list[str]], labels: dict[str, str],
-                    lead: pd.DataFrame, cfg: dict) -> tuple[dict, pd.DataFrame]:
+                    lead: pd.DataFrame, cfg: dict, asof: date) -> tuple[dict, pd.DataFrame]:
     """The Quality & value page: every scored stock per region with ranks by K+V, kvalitet and værdi, the names
     new in (or gone from) the K+V top N since the last snapshot, and how many stocks have statements. Also the
     rank table for the snapshot."""
     top_n = cfg["fundamentals"]["top_n"]
-    prev_d, prev = snapshot.previous("qv", cfg["snapshot_min_gap_days"])
+    prev_d, prev = snapshot.previous("qv", cfg["snapshot_min_gap_days"], asof)
     mom = dict(zip(lead["ticker"], lead["score"])) if not lead.empty else {}
     table = fctx.table()
     names = universe.names(sorted(table["ticker"])) if not table.empty else {}
@@ -244,7 +244,7 @@ def compute() -> Computed:
     insts = tracked.etfs()
     rc = cfg["rotation"]
     rot = rotation.relative_table(closes, bench, insts, rc["window"], rc["tail"])
-    prev_d, prev = snapshot.previous("rotation", cfg["snapshot_min_gap_days"])
+    prev_d, prev = snapshot.previous("rotation", cfg["snapshot_min_gap_days"], asof)
     prev_rank = dict(zip(prev["ticker"], prev["rank"])) if prev is not None else {}
     rot["rank_change"] = [prev_rank[t] - r if t in prev_rank else None for t, r in zip(rot["ticker"], rot["rank"])]
     pl = positive_list.load()
@@ -284,9 +284,9 @@ def compute() -> Computed:
 
     # --- kvalitetsscore and værdiscore (stored statements; no network)
     fctx = fcontext.Context(closes, raw_closes, universe.tracked_stocks(), asof)
-    quality, quality_snap = quality_section(fctx, groups, labels, lead, cfg)
+    quality, quality_snap = quality_section(fctx, groups, labels, lead, cfg, asof)
 
-    mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"])
+    mprev_d, mprev = snapshot.previous("momentum", cfg["snapshot_min_gap_days"], asof)
     top_n = mc["top_n"]
     regions = []
     for region, df in lead.groupby("region"):

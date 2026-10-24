@@ -15,6 +15,7 @@ import pandas as pd
 
 from .. import fxrates, ingest, net, ops, positive_list, sourcelog, tracked
 from ..config import discovery_config, settings, write_csv, write_parquet, write_text
+from ..jsonsafe import dumps
 from ..paths import CACHE, HISTORY, REPORTS
 from ..signals import discovery as sig
 from . import sources
@@ -290,9 +291,11 @@ def build_report(radar_tickers: set[str], fx: dict[str, float] | None = None) ->
             "thresholds": {"size_large_dkk": cfg["size_dkk"]["large"], "size_mid_dkk": cfg["size_dkk"]["mid"],
                            "liquidity_floor_dkk": cfg["liquidity_floor_dkk"]}}
     REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_text(REPORT_FILE, json.dumps(data, separators=(",", ":"), allow_nan=False))
-    SNAPSHOTS.mkdir(parents=True, exist_ok=True)
-    write_parquet(df[["ticker", "market", "score"]], SNAPSHOTS / f"{date.today().isoformat()}.parquet", index=False)
+    write_text(REPORT_FILE, dumps(data, separators=(",", ":")))
+    snap = SNAPSHOTS / f"{data['asof']}.parquet"   # by the data's date; a scan of unchanged data adds nothing
+    if not snap.exists():
+        SNAPSHOTS.mkdir(parents=True, exist_ok=True)
+        write_parquet(df[["ticker", "market", "score"]], snap, index=False)
     return {"asof": data["asof"], "names": len(df), "scored": int(df["score"].notna().sum())}
 
 

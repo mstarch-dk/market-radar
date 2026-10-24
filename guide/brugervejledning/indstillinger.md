@@ -25,7 +25,7 @@ Procenter skrives i filen som brøker: 0.05 betyder 5 %.
 |---|---|---|
 | `history_years` | {{settings:history_years}} | År med kurshistorik, der mindst hentes (mere, hvis din første handel kræver det; se `backtest`) |
 | `constituents_max_age_days` | {{settings:constituents_max_age_days}} | Dage før listen over S&P 500-aktier hentes igen |
-| `snapshot_min_gap_days` | {{settings:snapshot_min_gap_days}} | Mindste alder på det snapshot, rangændringer ("Δ rank", "new") sammenlignes med |
+| `snapshot_min_gap_days` | {{settings:snapshot_min_gap_days}} | Mindste alder på det snapshot, rangændringer ("Δ rank", "new") sammenlignes med, regnet fra datoen for dataene |
 
 Kurser fra før historikkens start findes ikke i radaren, så porteføljerækker fra før kan ikke værdisættes på deres dato. Se [Afkast over tid](brugervejledning/afkast).
 

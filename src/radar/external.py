@@ -15,7 +15,7 @@ import pandas as pd
 
 from . import guard, net
 from .config import universe_config, write_parquet, write_text
-from .jsonsafe import clean
+from .jsonsafe import clean, dumps
 from .paths import CACHE, HISTORY
 
 COT_FILE = CACHE / "cot.parquet"
@@ -452,7 +452,7 @@ def detail(ticker: str, max_age_hours: float = 24, refresh: bool = False) -> tup
             raw["fund"] = cached["fund"]
             raw["kept"]["fund"] = cached.get("kept", {}).get("fund") or cached["fetched"]
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    write_text(path, json.dumps(raw, indent=1))
+    write_text(path, dumps(raw, indent=1))
     return raw, "ok"
 
 

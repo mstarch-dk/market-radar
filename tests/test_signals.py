@@ -132,6 +132,22 @@ def test_dollar_uses_the_same_3_month_window_as_the_other_rows():
     assert _by_name(inds)["US dollar"]["value"] == "+10.0% over 3m"      # 63 bars back, like _chg
 
 
+def test_hy_spreads_need_3_months_before_they_are_judged_against_their_6m_average():
+    closes = _closes()
+    idx = pd.bdate_range("2026-01-01", periods=10)
+    few = pd.DataFrame({"BAMLH0A0HYM2": np.linspace(4, 3, 10), "BAMLHE00EHYIOAS": np.linspace(4, 3, 10)}, index=idx)
+    rows = _by_name(regime.indicators(closes, few, "ACWI", {"us": ["S1"]}, {"us": "US"}, MACRO, CFG)[0])
+    for name in ("Credit", "Euro credit"):
+        assert rows[name]["status"] == regime.NA and rows[name]["note"] == regime.SHORT, name
+    assert rows["Euro credit"]["group"] == "credit_eu" and rows["Credit"]["group"] is None
+
+
+def test_breadth_without_a_month_of_history_shows_no_change():
+    closes = _closes(215)                       # 16 sessions with a 200-day average: no 1-month change yet
+    row = _by_name(regime.indicators(closes, pd.DataFrame(), "ACWI", {"us": ["S1"]}, {"us": "US"}, MACRO, CFG)[0])
+    assert "over 1 month" not in row["Breadth – US"]["note"]
+
+
 def test_breadth_row_uses_the_200_day_average():
     closes = _closes()
     n = len(closes)

@@ -11,6 +11,7 @@ import pandas as pd
 from .. import fees, tracked, trades, userstore
 from ..config import typed, write_text
 from ..jsonsafe import clean as _clean
+from ..jsonsafe import dumps
 from ..model import artifacts
 from ..model import paths as mpaths
 from ..model.stats import mean as _mean
@@ -33,7 +34,7 @@ def save_picks(doc: dict) -> str:
     while f.exists():                              # a frozen proposal is never overwritten
         k += 1
         f = rules.PROPOSALS / f"{stem}-{k}.json"
-    write_text(f, json.dumps(doc, indent=1, ensure_ascii=False, default=str))
+    write_text(f, dumps(doc, indent=1, ensure_ascii=False))
     return str(f)
 
 
@@ -54,7 +55,7 @@ def keep_evaluation(picks_file: str, ev: dict) -> str | None:
 def save_evaluation(fname: str, ev: dict) -> str:
     rules.PROPOSALS.mkdir(parents=True, exist_ok=True)
     f = evaluation_file(fname)
-    write_text(f, json.dumps(ev, indent=1, ensure_ascii=False, default=str))
+    write_text(f, dumps(ev, indent=1, ensure_ascii=False))
     return str(f)
 
 

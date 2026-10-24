@@ -68,7 +68,7 @@ Den graderede skala er nyttig, fordi den viser **hvor tæt** en indikator er på
 | Shiller CAPE (US) | percentil højst {{settings:regime.cape_cheap_pct}} | percentil mindst {{settings:regime.cape_rich_pct}} |
 | Implicit risikopræmie (Damodaran) | percentil mindst {{settings:regime.erp_high_pct}} | percentil højst {{settings:regime.erp_low_pct}} |
 
-Tærsklerne på 3 % for kreditspænd og dollar ligger fast i koden; de øvrige står i `config/settings.yaml`.
+Tærsklerne på 3 % for kreditspænd og dollar ligger fast i koden; de øvrige står i `config/settings.yaml`. Kreditspænd og dollar stemmer først, når der er mere end 63 observationer (cirka 3 måneder); før det står rækken som *n/a*.
 
 Nogle indikatorer kan **kun stemme risk-off**, fordi de advarer om stress, men ikke i sig selv er et tegn på styrke:
 

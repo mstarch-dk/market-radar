@@ -85,7 +85,8 @@ Nothing the user owns lives in the install folder (`config.ROOT` holds app files
   shorter span, not markedly fewer rows); otherwise the step fails and keeps its cache.
 - `locks.py` gives one writer at a time across threads and processes: a second update, scan or report build is
   refused with `locks.Busy`, not queued.
-- JSON is written by `jsonsafe.py` only, which can't write NaN.
+- JSON files are written with `jsonsafe.dumps` only, which can't write NaN (`tests/test_guard.py` fails on a
+  `json.dumps` passed to a writer). Plain `json.dumps` is left for hashes and database values.
 
 ## The report's build
 `radar report` (also the last step of `radar run`) builds `dashboard.json` and `summary.json` in one pass over
@@ -166,7 +167,7 @@ change to the model and to its schema version.
 - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
-- `snapshot.py`: rank history for "new" and "Δ rank".
+- `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
 - `home.py`: the data folder's status, setup, moving in and layout migrations (see *Where data lives*).
 - `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
   a restore verifies, backs up first and swaps part by part.

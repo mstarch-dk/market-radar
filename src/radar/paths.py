@@ -109,13 +109,13 @@ def remembers() -> bool:
 
 
 def write_pointer(home: Path, cache: Path | None = None) -> Path:
-    import json
+    from .jsonsafe import dumps
 
     f = pointer_file()
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f.name + ".tmp")
-    tmp.write_text(json.dumps({"home": str(Path(home).expanduser().resolve()),
-                               "cache": str(Path(cache).expanduser().resolve()) if cache else None}, indent=1),
+    tmp.write_text(dumps({"home": str(Path(home).expanduser().resolve()),
+                          "cache": str(Path(cache).expanduser().resolve()) if cache else None}, indent=1),
                    encoding="utf-8")
     tmp.replace(f)
     return f
