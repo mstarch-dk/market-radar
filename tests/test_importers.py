@@ -173,6 +173,23 @@ def _generic(prices: list[str]) -> bytes:
     return "\n".join(rows).encode()
 
 
+def test_the_preview_checks_an_unknown_symbol_inside_the_price_lock(client, monkeypatch):
+    import threading
+
+    from radar import profile
+
+    def unknown(symbol, market=None, refresh=False):
+        raise profile.TickerNotFound(f"{symbol}: not on Yahoo")
+
+    monkeypatch.setattr(profile, "ensure_prices", unknown)
+    body = _generic(["12,50"]).replace(b";S4;", b";ZZZQ;")
+    got: dict = {}
+    t = threading.Thread(target=lambda: got.update(pv=_preview(client, body)), daemon=True)
+    t.start()
+    t.join(10)                         # the route holds the lock and has_prices takes it again: re-entrant
+    assert "pv" in got, "the import preview deadlocked on the price lock"
+
+
 def test_a_generic_file_reads_its_numbers_by_the_columns_convention():
     df = importers.read_table(_generic(["1.234", "12,50"]))
     rows, _ = importers.normalize(df, importers.map_columns(list(df.columns), importers.GENERIC))

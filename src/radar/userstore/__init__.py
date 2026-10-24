@@ -15,6 +15,7 @@ from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
+from ..errors import Conflict
 from ..jsonsafe import dumps
 from ..paths import USERDATA
 from . import backups
@@ -348,7 +349,7 @@ def _write_tags(con, pid: int, tags) -> None:
     con.executemany("INSERT INTO portfolio_tags (portfolio_id, tag) VALUES (?, ?)", [(pid, t) for t in clean])
 
 
-class NameTaken(ValueError):
+class NameTaken(Conflict):
     """Another portfolio already has that name."""
 
 
@@ -492,7 +493,7 @@ def delete_portfolio(pid: int) -> dict | None:
     if not p:
         return None
     if p["mode"] == "real" and p["n_tx"]:
-        raise ValueError(f"{p['name']} has {p['n_tx']} transactions: move them first, or archive it")
+        raise Conflict(f"{p['name']} has {p['n_tx']} transactions: move them first, or archive it")
     if p["n_tx"]:
         backup(f"before-delete-portfolio-{pid}")
     with closing(connect()) as con, con:
@@ -714,7 +715,7 @@ def undo_import(import_id: int) -> int:
     with closing(connect()) as con:
         imp = con.execute("SELECT rows_replaced, backup, at FROM imports WHERE id = ?", (import_id,)).fetchone()
     if imp and imp["rows_replaced"]:
-        raise ValueError(f"This import replaced {imp['rows_replaced']} earlier rows, which undoing it can't bring "
+        raise Conflict(f"This import replaced {imp['rows_replaced']} earlier rows, which undoing it can't bring "
                          f"back. Restore the copy taken just before it instead: {imp['backup'] or 'see backups/'} "
                          "(in backups/ in the data folder; the newest copies are kept), or import the earlier file "
                          "again.")

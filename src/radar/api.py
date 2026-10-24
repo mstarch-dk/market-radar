@@ -4,6 +4,7 @@ Binds to 127.0.0.1 only; there is no authentication."""
 from __future__ import annotations
 
 import datetime as dt
+import http
 import tempfile
 import threading
 from contextlib import asynccontextmanager
@@ -12,11 +13,14 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import (
     dashboard,
+    errors,
     home,
     importers,
     manifest,
@@ -154,6 +158,38 @@ async def _lifespan(_app):
 
 
 app = FastAPI(title="Market Radar", version=manifest.app_version(), lifespan=_lifespan)
+
+
+# ---------------- errors: one shape, {"detail": {"message", "issues"}} ----------------
+
+def _error(status: int, message: str, issues: list | None = None, **extra) -> JSONResponse:
+    return JSONResponse({"detail": {"message": message, "issues": issues or [], **extra}}, status)
+
+
+@app.exception_handler(errors.RadarError)
+async def _radar_error(_request: Request, e: errors.RadarError) -> JSONResponse:
+    """The domain's errors (errors.py): NotFound 404, Conflict 409, Invalid 422 with its issues."""
+    return _error(e.status, e.message, e.issues)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(_request: Request, e: StarletteHTTPException) -> JSONResponse:
+    d = e.detail
+    if isinstance(d, dict):
+        resp = _error(e.status_code, str(d.get("message", "")), d.get("issues"))
+    else:
+        resp = _error(e.status_code, str(d) if d else http.HTTPStatus(e.status_code).phrase)
+    resp.headers.update(e.headers or {})
+    return resp
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request: Request, e: RequestValidationError) -> JSONResponse:
+    """A request that doesn't fit its model: the first problem as the message, every one as an issue."""
+    issues = [{"field": ".".join(str(x) for x in err["loc"] if x != "body"), "level": "error", "message": err["msg"]}
+              for err in e.errors()]
+    first = issues[0] if issues else {"field": "", "message": "invalid request"}
+    return _error(422, f"{first['field']}: {first['message']}" if first["field"] else first["message"], issues)
 # The price store and its lock: one download, reload or read of it at a time. Re-entrant, so a route that holds it
 # can call market(), ensure() or has_prices() (they take it too) without deadlocking.
 _lock = threading.RLock()
@@ -180,7 +216,7 @@ def ensure(symbol: str, missing: str = "404", refresh: bool = False) -> bool:
         except profile.TickerNotFound as e:
             if missing == "ignore":
                 return False
-            raise HTTPException(404, str(e)) from e
+            raise errors.NotFound(str(e)) from e
 
 
 def _drop_prices() -> None:
@@ -232,9 +268,9 @@ async def _data_home(request: Request, call_next):
     if path.startswith("/api/") and not path.startswith(SETUP_FREE):
         state, why = _gate if _gate is not None else _open_home()
         if state in ("unset", "missing"):
-            return JSONResponse({"detail": {"setup": state, "message": "Choose where your data is first."}}, 409)
+            return _error(409, "Choose where your data is first.", setup=state)
         if why and request.method not in READS:
-            return JSONResponse({"detail": {"read_only": why, "message": why}}, 409)
+            return _error(409, why, read_only=why)
     return await call_next(request)
 
 
@@ -982,8 +1018,8 @@ def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
         data.pop("fee_schedule")
     try:
         return _portfolio_or_404(userstore.save_portfolio(data, pid))
-    except userstore.NameTaken as e:
-        raise HTTPException(409, _sentence(e)) from e
+    except errors.RadarError:
+        raise
     except (ValueError, sqlite3.IntegrityError) as e:       # the store's rules (kind, mode, a simulation stays virtual)
         raise HTTPException(422, _sentence(e)) from e
 
@@ -1016,10 +1052,7 @@ def delete_portfolio(pid: int) -> dict:
     """Delete a virtual portfolio with its rows (a backup is taken first), or an empty real one. A real one
     with trades is 409: move them, or archive it."""
     _portfolio_or_404(pid)
-    try:
-        return _found(userstore.delete_portfolio(pid), f"No portfolio {pid}.")
-    except ValueError as e:
-        raise HTTPException(409, str(e)) from e
+    return _found(userstore.delete_portfolio(pid), f"No portfolio {pid}.")
 
 
 @app.get("/api/portfolios/fee-presets", response_model=list[FeePreset])
@@ -1261,10 +1294,7 @@ def undo_import(import_id: int) -> int:
     """Remove every trade an import added (a backup of the database is taken first)."""
     if not any(i["id"] == import_id for i in userstore.imports()):
         raise HTTPException(404, f"No import {import_id}.")
-    try:
-        return userstore.undo_import(import_id)
-    except ValueError as e:
-        raise HTTPException(409, str(e)) from e
+    return userstore.undo_import(import_id)
 
 
 if WEB_DIST.exists():

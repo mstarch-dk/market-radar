@@ -96,7 +96,7 @@ layers = [
     "backup : export : fees : guide : home : importers : market : market_views : notebook : performance : portfolio : simulate : snapshot : trades : universe : userstore",
     "constituents : discovery : external : factors : fundamentals : fxrates : ingest : positive_list : sentiment : tracked : updates : valuation",
     "signals",
-    "config : config_schema : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",
+    "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",
 ]
 
 # The linter (CI runs `uv run ruff check`). Lint only, no formatter: the code keeps its own layout.

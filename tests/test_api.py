@@ -36,23 +36,19 @@ def test_profile_and_series(client):
 
 def test_unknown_ticker_is_404(client):
     r = client.get("/api/ticker/NOPE")
-    assert r.status_code == 404 and "NOPE" in r.json()["detail"]
+    assert r.status_code == 404 and "NOPE" in r.json()["detail"]["message"]
     assert client.get("/api/ticker/NOPE/series").status_code == 404
 
 
-def test_a_route_holding_the_price_lock_can_ensure_prices(client):
-    import threading
-
-    done = threading.Event()
-
-    def nested():
-        with api._lock:                                   # as get_profile holds it
-            api.has_prices("S1")                          # takes it again: re-entrant, no deadlock
-            api.market()
-        done.set()
-
-    threading.Thread(target=nested, daemon=True).start()
-    assert done.wait(10)
+def test_every_error_has_one_shape(client):
+    for r, status in ((client.get("/api/ticker/NOPE"), 404),                        # the domain's NotFound
+                      (client.get("/api/ops/jobs/999999"), 404),                     # an HTTPException
+                      (client.get("/api/ops/jobs", params={"limit": 0}), 422),      # a request off its model
+                      (client.get("/api/no-such-route"), 404)):
+        d = r.json()["detail"]
+        assert r.status_code == status and set(d) >= {"message", "issues"} and d["message"], r.json()
+    bad = client.get("/api/ops/jobs", params={"limit": 0}).json()["detail"]
+    assert bad["message"].startswith("query.limit:") and bad["issues"][0]["field"] == "query.limit"
 
 
 def test_context_lists_holdings_and_watchlist(client):
@@ -84,7 +80,7 @@ DASHBOARD = ["regime", "rotation", "momentum", "quality", "positioning", "covera
 @pytest.mark.parametrize("view", DASHBOARD)
 def test_dashboard_views_need_a_report_first(client, view):
     r = client.get(f"/api/{view}")
-    assert r.status_code == 503 and "radar run" in r.json()["detail"]
+    assert r.status_code == 503 and "radar run" in r.json()["detail"]["message"]
 
 
 def test_dashboard_views(built):
@@ -119,7 +115,7 @@ def test_the_quality_view_wants_a_new_report_after_an_upgrade(built, monkeypatch
     d.pop("quality")
     monkeypatch.setattr(dashboard, "load", lambda: d)
     r = built.get("/api/quality")
-    assert r.status_code == 503 and "older version" in r.json()["detail"]
+    assert r.status_code == 503 and "older version" in r.json()["detail"]["message"]
 
 
 def test_me_is_live(built):
@@ -145,7 +141,7 @@ def test_watchlist_add_and_remove(client):
 
 def test_watchlist_rejects_holdings_and_unknown_symbols(client):
     r = client.delete("/api/watchlist/S1")
-    assert r.status_code == 409 and "holding" in r.json()["detail"]
+    assert r.status_code == 409 and "holding" in r.json()["detail"]["message"]
     assert client.put("/api/watchlist/S1").json()["my_status"] == "holding"     # adding a holding changes nothing
     assert client.put("/api/watchlist/NOPE").status_code == 404
 

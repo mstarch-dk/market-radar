@@ -69,7 +69,7 @@ def test_update_refused_while_running(client, monkeypatch):
     client.post("/api/update")
     r = client.post("/api/update")
     gate.set()
-    assert r.status_code == 409 and "already running" in r.json()["detail"]
+    assert r.status_code == 409 and "already running" in r.json()["detail"]["message"]
 
 
 def test_import_from_the_app(client, tmp_data):
@@ -84,7 +84,7 @@ def test_import_rejects_other_files_and_keeps_the_previous_import(client, tmp_da
     before = (tmp_data / "holdings.csv").read_text(encoding="utf-8")
     assert client.post("/api/import", content=b"").status_code == 400
     r = client.post("/api/import", content=b"Date,Open,Close\n2026-01-01,1,2\n")
-    assert r.status_code == 400 and "Yahoo Finance portfolio export" in r.json()["detail"]
+    assert r.status_code == 400 and "Yahoo Finance portfolio export" in r.json()["detail"]["message"]
     assert (tmp_data / "holdings.csv").read_text(encoding="utf-8") == before
 
 
