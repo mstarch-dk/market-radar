@@ -16,6 +16,7 @@ from ..model.panels import Panels, fill_session, formation_dates, panels, score_
 from ..model.stats import (
     daily_rf,
     nw_t,
+    split_holdout,
 )
 from ..model.stats import mean as _mean
 from . import exit_rules, study
@@ -232,8 +233,7 @@ def redeploy_study(market: Market, n_top: int = 15, horizons=REDEPLOY_HORIZONS, 
                 continue
             flat.append({"date": r["date"], "hold": r["_by"]["hold"][h], **{k: r["_by"].get(k, {}).get(h) for k in arm_keys},
                          **{f"{k}_exits": r.get(f"{k}_exits", 0) for k in arm_keys}})
-        split = {"all": flat, "in_sample": [x for x in flat if holdout is None or x["date"] < holdout],
-                 "holdout": [x for x in flat if holdout is not None and x["date"] >= holdout]}
+        split = split_holdout(flat, holdout)
         results[str(h)] = {}
         for k in arm_keys:
             parts = {part: exit_rules.summarize_exits(xs, k, lag) for part, xs in split.items()}

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from conftest import with_settings
 from radar import cli, userstore
 from test_propose import ask, market  # noqa: F401 - the shared fixtures
 
@@ -44,7 +45,7 @@ def test_a_proposal_from_draft_to_check(market, ask, tmp_path):  # noqa: F811
     assert run_json("propose", "check", "--json") is not None
 
 
-def test_study_propose(market):  # noqa: F811
-    market.cfg["propose"]["require_trend_from"] = 2                  # the small world has few uptrends
+def test_study_propose(market, monkeypatch):  # noqa: F811
+    with_settings(monkeypatch, base=market.cfg, propose={"require_trend_from": 2})   # the small world has few uptrends
     out = run("study", "propose", "--tilts", "momentum", "--ns", "2", "--horizons", "1", "--no-regime")
     assert "propose-study.json" in out

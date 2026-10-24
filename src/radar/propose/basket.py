@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from .. import fees, fxrates, money, positive_list
+from ..config_schema import Propose
 from ..values import num
 from . import exposure, pricing, rules
 
@@ -56,25 +57,25 @@ def pool(market: Market, prices: pricing.Prices, p=None, day=None, fund_table: p
     return df
 
 
-def gates(df: pd.DataFrame, tilt: str, ticket: float, c: dict | None = None, day=None) -> tuple[pd.DataFrame, dict]:
+def gates(df: pd.DataFrame, tilt: str, ticket: float, c: Propose | None = None, day=None) -> tuple[pd.DataFrame, dict]:
     """The names a proposal may consider, and the rest by reason (each name under its first failing gate)."""
     c = c or rules.cfg()
-    g, w = c["gates"], c["tilts"][tilt]
+    g, w = c.gates, c.tilts[tilt]
     day = pd.Timestamp(day if day is not None else df.attrs.get("day", pd.Timestamp.today()))
     tests = []
-    if w.get("momentum", 0) > 0:
+    if w.momentum > 0:
         tests.append(("no momentum score", df["score"].isna()))
-    if w.get("qv", 0) > 0:
+    if w.qv > 0:
         tests.append(("no K+V (kvalitet + værdi)", df["qv"].isna()))
     tests += [("no DKK rate", ~df["dkk"].eq(True)),
-              ("stale price", (day - pd.to_datetime(df["last_bar"])).dt.days > g["max_stale_days"]),
+              ("stale price", (day - pd.to_datetime(df["last_bar"])).dt.days > g.max_stale_days),
               ("no price history", df["history"].isna()),
-              ("short history", df["history"] < g["min_history_weeks"] * 5),
+              ("short history", df["history"] < g.min_history_weeks * 5),
               ("no volume data", df["adv_dkk"].isna()),
-              ("thin trading", df["adv_dkk"] < g["min_adv_dkk"]),
+              ("thin trading", df["adv_dkk"] < g.min_adv_dkk),
               ("no price", df["price_dkk"].isna()),
               ("share price above the ticket", df["price_dkk"] > ticket)]
-    if w.get("momentum", 0) >= c["require_trend_from"]:
+    if w.momentum >= c.require_trend_from:
         tests.append(("not in an uptrend", ~df["trend_ok"].eq(True)))
     left = pd.Series(True, index=df.index)
     out: dict[str, list[str]] = {}
@@ -90,23 +91,23 @@ def _pctl(s: pd.Series) -> pd.Series:
     return s.rank(pct=True) * 100
 
 
-def score(df: pd.DataFrame, tilt: str, c: dict | None = None, corr: pd.Series | None = None) -> pd.DataFrame:
+def score(df: pd.DataFrame, tilt: str, c: Propose | None = None, corr: pd.Series | None = None) -> pd.DataFrame:
     """The proposal score on the gated pool, best first, with its parts."""
     c = c or rules.cfg()
-    w, pen = c["tilts"][tilt], c["penalties"]
+    w, pen = c.tilts[tilt], c.penalties
     df = df.copy()
     parts, tot = [], 0.0
     for key, col in (("momentum", "score"), ("qv", "qv")):
-        if w.get(key, 0) > 0:
+        if getattr(w, key) > 0:
             df[f"c_{key}"] = _pctl(df[col])
-            parts.append(w[key] * df[f"c_{key}"])
-            tot += w[key]
+            parts.append(getattr(w, key) * df[f"c_{key}"])
+            tot += getattr(w, key)
     base = sum(parts) / tot if tot else pd.Series(np.nan, index=df.index)
-    df["pen_vol"] = (pen["vol"] * df["vol"].rank(pct=True)).fillna(pen["vol"])     # unknown volatility: the most
+    df["pen_vol"] = (pen.vol * df["vol"].rank(pct=True)).fillna(pen.vol)     # unknown volatility: the most
     hi = df["r1m"].quantile(0.9) if df["r1m"].notna().any() else np.inf
-    df["pen_stretch"] = np.where(df["r1m"] >= hi, pen["stretch"], 0.0)
+    df["pen_stretch"] = np.where(df["r1m"] >= hi, pen.stretch, 0.0)
     df["corr_book"] = corr.reindex(df.index) if corr is not None else np.nan
-    pc = pen["corr"] * df["corr_book"].clip(lower=0)
+    pc = pen.corr * df["corr_book"].clip(lower=0)
     df["pen_corr"] = pc.fillna(pc.median() if pc.notna().any() else 0.0)   # unknown: the pool's median, not "unrelated"
     df["composite"] = base - df["pen_vol"] - df["pen_stretch"] - df["pen_corr"]
     df = df[df["composite"].notna()]
@@ -141,7 +142,7 @@ class Base:
         return {d: {k: w * ex["total_dkk"] for k, w in ex["weights"][d].items()} for d in exposure.DIMS}
 
 
-def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | None = None, mode: str = "conviction",
+def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: Propose | None = None, mode: str = "conviction",
            max_position: float | None = None, min_weeks: int = 26) -> tuple[list[dict], dict]:
     """Greedy by proposal score under the caps; returns the picks and, for names passed over, why."""
     c = c or rules.cfg()
@@ -157,7 +158,7 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
     if mode == "fill-gaps" and base.acwi:
         sw = {k: v / book_total for k, v in held["sector"].items()} if book_total > 0 else {}
         deficit = df["sector"].map(lambda s: max(0.0, base.acwi["sector"].get(s, 0.0) - sw.get(s, 0.0)))
-        df["bonus"] = (deficit / 0.10).clip(upper=1.0) * c["fill_gaps_bonus"]
+        df["bonus"] = (deficit / 0.10).clip(upper=1.0) * c.fill_gaps_bonus
         df["composite"] = df["composite"] + df["bonus"]
         df = df.assign(_t=df.index).sort_values(["composite", "_t"], ascending=[False, True]).drop(columns="_t")
     whole_total = sum(v for v in base.whole.values() if v) + amount
@@ -172,8 +173,8 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
         if len(picked) >= n:
             break
         why = None
-        if per_sector.get(r["sector"], 0) >= c["max_per_sector"]:
-            why = f"already {c['max_per_sector']} new names in {r['sector']}"
+        if per_sector.get(r["sector"], 0) >= c.max_per_sector:
+            why = f"already {c.max_per_sector} new names in {r['sector']}"
         if why is None and base.acwi:
             for d in exposure.DIMS:
                 k = r[d]
@@ -181,14 +182,15 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
                 if before <= 0:
                     continue                       # a bucket's first name: one ticket isn't a pile-up
                 act = (before + ticket) / total_after - base.acwi[d].get(k, 0.0)
-                if act > c["caps"][d]:
-                    why = f"{d} {k} would be {act:+.0%} vs ACWI (cap {c['caps'][d]:+.0%})"
+                cap = getattr(c.caps, d)
+                if act > cap:
+                    why = f"{d} {k} would be {act:+.0%} vs ACWI (cap {cap:+.0%})"
                     break
         if why is None and t in corr.index:
             for o in [x["ticker"] for x in picked] + book_names:
                 v = corr.at[t, o] if o in corr.columns else np.nan
-                if pd.notna(v) and o != t and v > c["max_corr"]:
-                    why = f"correlation {v:.2f} with {o} (cap {c['max_corr']})"
+                if pd.notna(v) and o != t and v > c.max_corr:
+                    why = f"correlation {v:.2f} with {o} (cap {c.max_corr})"
                     break
         if why is None and max_position:
             share = (base.whole.get(t, 0.0) + ticket) / whole_total
@@ -205,18 +207,18 @@ def select(scored: pd.DataFrame, n: int, amount: float, base: Base, c: dict | No
     return picked, passed
 
 
-def n_for(amount: float, c: dict | None = None, n: int | None = None) -> int:
+def n_for(amount: float, c: Propose | None = None, n: int | None = None) -> int:
     c = c or rules.cfg()
-    most = max(1, int(amount // c["min_ticket_dkk"]))
-    return max(1, min(n or most, most, c["max_names"]))
+    most = max(1, int(amount // c.min_ticket_dkk))
+    return max(1, min(n or most, most, c.max_names))
 
 
-def half_spread(adv: float | None, c: dict | None = None) -> float:
+def half_spread(adv: float | None, c: Propose | None = None) -> float:
     c = c or rules.cfg()
-    for b in sorted(c["spread_bps"], key=lambda x: -x["min_adv_dkk"]):
-        if adv is not None and not pd.isna(adv) and adv >= b["min_adv_dkk"]:
-            return money.bps(b["bps"])
-    return money.bps(max(b["bps"] for b in c["spread_bps"]))
+    for b in sorted(c.spread_bps, key=lambda x: -x.min_adv_dkk):
+        if adv is not None and not pd.isna(adv) and adv >= b.min_adv_dkk:
+            return money.bps(b.bps)
+    return money.bps(max(b.bps for b in c.spread_bps))
 
 
 def terms_for(prices: pricing.Prices, sf: fees.SimFees, t: str) -> fees.Terms:
@@ -253,12 +255,12 @@ def budgets(amount: float, vols: list[float | None], weighting: str, ticket: flo
 
 
 def size(amount: float, picks: list[dict], df: pd.DataFrame, prices: pricing.Prices, sf: fees.SimFees, weighting: str = "equal",
-         c: dict | None = None) -> dict:
+         c: Propose | None = None) -> dict:
     """Whole shares per pick within its budget, every cost counted; leftover cash stated."""
     c = c or rules.cfg()
     if weighting not in rules.WEIGHTINGS:
         raise ValueError(f"weighting is one of {', '.join(rules.WEIGHTINGS)}")
-    ticket = c["min_ticket_dkk"]
+    ticket = c.min_ticket_dkk
     vols = [num(df.at[x["ticker"], "vol"]) if x["ticker"] in df.index else None for x in picks]
     bud = budgets(amount, vols, weighting, ticket) if picks else []
     rows, flags = [], []
@@ -299,14 +301,14 @@ def size(amount: float, picks: list[dict], df: pd.DataFrame, prices: pricing.Pri
 
 
 def filler(leftover: float, kind: str, prices: pricing.Prices, sf: fees.SimFees, allowed: bool = True,
-           c: dict | None = None) -> dict | None:
+           c: Propose | None = None) -> dict | None:
     """The ETF filler for leftover cash (ACWI UCITS), or None when it isn't wanted or the leftover is too small."""
     c = c or rules.cfg()
-    f = c.get("etf_filler") or {}
-    if not allowed or not f or leftover < f.get("min_dkk", 0):
+    f = c.etf_filler
+    if not allowed or leftover < f.min_dkk:
         return None
-    flag = positive_list.flag(f.get("isin"), prices.market.positive_list())
-    out = {"ticker": f["ticker"], "name": f.get("name"), "isin": f.get("isin"), "model": f.get("model"),
+    flag = positive_list.flag(f.isin, prices.market.positive_list())
+    out: dict[str, Any] = {"ticker": f.ticker, "name": f.name, "isin": f.isin, "model": f.model,
            "positive_list": flag, "budget_dkk": leftover, "quantity": None, "value_dkk": None, "fee_dkk": None,
            "note": None}
     if kind == "ask" and flag == "no":
@@ -314,14 +316,14 @@ def filler(leftover: float, kind: str, prices: pricing.Prices, sf: fees.SimFees,
                                                  "leftover stays cash"}
     if kind == "ask" and flag == "?":
         out["note"] = "positive list unknown (no imports/positivliste.xlsx): check before buying on an aktiesparekonto"
-    px, rate = prices.last_px(f["ticker"]), prices.rate(f["ticker"])
+    px, rate = prices.last_px(f.ticker), prices.rate(f.ticker)
     if px is None or rate is None:
-        tm = sf.terms(f["ticker"], None, None, count=False)
+        tm = sf.terms(f.ticker, None, None, count=False)
         v = tm.value_for_budget(leftover)
         return out | {"value_dkk": v, "fee_dkk": leftover - v,
                       "note": (out["note"] + "; " if out["note"] else "") + f"its price isn't tracked: sized by value "
-                              f"at the flat fee, modelled with {f.get('model')}"}
-    tm = terms_for(prices, sf, f["ticker"])
+                              f"at the flat fee, modelled with {f.model}"}
+    tm = terms_for(prices, sf, f.ticker)
     qty = math.floor(tm.value_for_budget(leftover / rate) / px)
     if qty <= 0:
         return out | {"budget_dkk": 0.0, "note": "one unit costs more than the leftover"}

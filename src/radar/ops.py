@@ -17,7 +17,7 @@ import statistics
 import threading
 import traceback
 from contextlib import closing, contextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .config import typed
@@ -55,16 +55,35 @@ MIGRATIONS = [
      """CREATE TABLE host_state (
         host TEXT PRIMARY KEY, cooldown_until TEXT, reason TEXT, strikes INTEGER NOT NULL DEFAULT 0,
         updated TEXT NOT NULL)"""),
+    # timestamps in UTC with their offset (they were naive local time, which repeats an hour when the clocks go
+    # back and so shifted cooldowns and windows): SQLite's 'utc' reads the old value as local time, DST included
+    tuple(f"UPDATE {t} SET {c} = strftime('%Y-%m-%dT%H:%M:%f', {c}, 'utc') || '+00:00' "
+          f"WHERE {c} IS NOT NULL AND {c} NOT LIKE '%+00:00'"
+          for t, c in (("requests", "ts"), ("events", "ts"), ("jobs", "started"), ("jobs", "finished"),
+                       ("host_state", "cooldown_until"), ("host_state", "updated"))),
 ]
 
 
 def now() -> datetime:
-    return datetime.now()
+    """Now, in UTC (aware)."""
+    return datetime.now(UTC)
 
 
 def timestamp(t: datetime | None = None) -> str:
-    """`t` (default: now) as the log's ISO timestamp, to the millisecond."""
-    return (t or now()).isoformat(timespec="milliseconds")
+    """`t` (default: now) as the log's timestamp: ISO, UTC with its offset, to the millisecond. A naive `t` is local
+    time. Stored timestamps compare correctly as text, across a change of the clocks too."""
+    t = t or now()
+    return t.astimezone(UTC).isoformat(timespec="milliseconds")
+
+
+def local(ts: str) -> datetime:
+    """A stored timestamp as local time (aware), for showing and for grouping by the local day."""
+    return datetime.fromisoformat(ts).astimezone()
+
+
+def local_midnight() -> datetime:
+    """The start of today, local time (aware): a daily budget runs from here."""
+    return datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def _connect() -> sqlite3.Connection:
@@ -297,14 +316,14 @@ def summary(days: int = 7, hosts_cfg=None) -> dict:
     gives a host's limits (net.limits) for its daily budget."""
     t = now()
     since, day_ago = t - timedelta(days=days), t - timedelta(days=1)
-    today = t.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = local_midnight()
     rows = _read("SELECT host, source, ts, status, ok, duration_ms, error FROM requests WHERE ts >= ? ORDER BY ts",
                  (timestamp(since),))
     groups: dict[tuple[str, str | None], list[dict]] = {}
     for r in rows:
         groups.setdefault((r["host"], r["source"]), []).append(r)
     paused = {c["host"]: c for c in cooldowns()}
-    dates = [(since + timedelta(days=i + 1)).date().isoformat() for i in range(days)]
+    dates = [(today - timedelta(days=days - 1 - i)).date().isoformat() for i in range(days)]   # local days
     out_rows = []
     today_by_host: dict[str, int] = {}
     for r in rows:
@@ -316,7 +335,7 @@ def summary(days: int = 7, hosts_cfg=None) -> dict:
         last_err = errors[-1] if errors else None
         per_day = {d: 0 for d in dates}
         for r in rs:
-            d = r["ts"][:10]
+            d = local(r["ts"]).date().isoformat()
             if d in per_day:
                 per_day[d] += 1
         lim = hosts_cfg(host) if hosts_cfg else {}
