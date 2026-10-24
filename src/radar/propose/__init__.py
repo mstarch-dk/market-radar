@@ -34,7 +34,18 @@ from .draft import (
     values_of,
 )
 from .drift import haircut, load_study, long_prior, shrink, study_view
-from .evaluation import adv_dkk, alternative_metrics, alternatives, decide, evaluate, factors, picks_sha, randoms
+from .evaluation import (
+    adv_dkk,
+    alternative_metrics,
+    alternatives,
+    cost_share,
+    decide,
+    evaluate,
+    factors,
+    net_drift,
+    picks_sha,
+    randoms,
+)
 from .exposure import DIMS, annotate, exposures, holdings_book, look_through, ticker_meta
 from .pricing import Prices
 from .riskmodel import bootstrap, ex_ante_risk, realised_dd, shrunk_cov, stress, weekly_returns
@@ -56,9 +67,9 @@ from .store import check_exits, evaluation_file, keep_evaluation, proposals, rev
 __all__ = [
     "DIMS", "MEMOS", "MODES", "PROPOSALS", "RULE_KEYS", "TILTS", "WEEKS_PER_MONTH", "WEIGHTINGS", "adv_dkk",
     "alternative_metrics", "alternatives", "annotate", "ask_account", "ask_flag", "Base", "bootstrap", "budgets",
-    "candidates", "cfg", "check_exits", "context", "corr_to", "Ctx", "decide", "default_exit", "evaluate",
+    "candidates", "cfg", "check_exits", "context", "corr_to", "cost_share", "Ctx", "decide", "default_exit", "evaluate",
     "evaluation_file", "ex_ante_risk", "exposures", "factors", "filler", "gates", "haircut", "half_spread",
-    "holdings_base", "holdings_book", "keep_evaluation", "load_study", "long_prior", "look_through", "n_for",
+    "holdings_base", "holdings_book", "keep_evaluation", "load_study", "long_prior", "look_through", "n_for", "net_drift",
     "picks_sha", "pool", "Prices", "proposal_score", "proposals", "randoms", "ranked_pool", "realised_dd", "review",
     "rule_basket", "rule_hash", "rule_settings", "save_evaluation", "save_picks", "select", "shadow", "shrink",
     "shrunk_cov", "size_picks", "slug", "stress", "study_view", "terms_for", "ticker_meta", "values_of",

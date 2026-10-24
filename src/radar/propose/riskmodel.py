@@ -81,6 +81,7 @@ def weekly_returns(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.
     sub = R[cols]
     ok = sub.notna()
     ww = ok.mul(w, axis=1)
+    # zero: left out of the sum, and the weights re-normalised over the names with a return (ww)
     out = (sub.fillna(0).mul(w, axis=1).sum(axis=1) / ww.sum(axis=1)).where(ww.sum(axis=1) > 0.5 * w.sum())
     return out.dropna()
 

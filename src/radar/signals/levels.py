@@ -99,7 +99,7 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
         adjust("Strong momentum", step, f"score {score:.0f} with the 50d above a rising 200d: give the trend room")
     if row.get("above200") == False:  # noqa: E712 (NaN-safe, numpy bools)
         adjust("Trend broken", -step, f"price below its 200-day average ({row['sma200']:.2f})")
-    if not _true(row.get("above50")) and (row.get("r1m") or 0) < 0:
+    if not _true(row.get("above50")) and (row.get("r1m") or 0) < 0:   # zero: an unknown month is no fall
         adjust("Losing momentum", -step, f"below the 50-day average and down {row['r1m']:.1%} over 1 month")
     sma50 = row.get("sma50")
     ext = cfg.get("extended_vs_sma50")          # None: no tightening for being extended
@@ -113,6 +113,7 @@ def levels(row: dict, atr_value: float, anchor_value: float, regime_label: str |
         note("Macro regime", f"radar regime is {regime_label}")
 
     flags: list[str] = []
+    # zero: an unknown number of analysts doesn't pass the minimum
     a = analyst if analyst and analyst.get("target_mean") and (analyst.get("n_analysts") or 0) >= cfg["min_analysts"] else None
     if a:
         cons = f"consensus {a['rec_key'] or '?'}, {a['n_analysts']:.0f} analysts"

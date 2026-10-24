@@ -476,6 +476,13 @@ def test_parse_amount():
     assert parse_amount("1.5m") == 1_500_000 and parse_amount("12,5k") == 12_500
 
 
+def test_an_unknown_cost_is_unknown_not_free():
+    assert propose.net_drift(0.05, 0.01) == pytest.approx(0.04)
+    assert propose.net_drift(0.05, None) is None and propose.net_drift(None, 0.01) is None
+    assert propose.cost_share([(0.01, 6_000), (0.02, 4_000)], 10_000) == pytest.approx(0.014)
+    assert propose.cost_share([(0.01, 6_000), (None, 4_000)], 10_000) is None     # one name can't be priced
+
+
 def test_shrink_weights_by_precision():
     c = _pc(prior={"tau_annual": 0.0})
     prior = {"mean": 0.01, "se": 0.01}

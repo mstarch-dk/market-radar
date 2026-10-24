@@ -88,6 +88,7 @@ def dps_by_year(adj: pd.Series, raw: pd.Series, min_share: float = 0.0005) -> di
         return {}
     f = df["adj"] / df["raw"]
     step = 1 - f.shift(1) / f
+    # zero: a session without an adjustment step paid nothing
     d = (df["raw"].shift(1) * step).where(step > min_share, 0.0).fillna(0.0)
     years = d.groupby(d.index.year).sum()
     first, last = df.index.min(), df.index.max()
@@ -95,7 +96,7 @@ def dps_by_year(adj: pd.Series, raw: pd.Series, min_share: float = 0.0005) -> di
     return {int(y): float(years[y]) for y in full}
 
 
-def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float | None,
+def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float | None,  # noqa: C901 (one block per metric; to split)
             price_on=None, dps: dict[int, float] | None = None, known_by=None) -> dict:
     """One stock's metrics. `price_on(day)` gives the share price in the reporting currency on a day (for the
     value metrics' own history), `mcap` today's market value in the reporting currency. Returns {"values": what
@@ -131,9 +132,10 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
                          "EV left out")
         elif all(_v(x) is None for x in debt_parts):
             notes.append("no debt line in any report: counted as no debt")
+    # zero: debt is known here (a line is reported, or none ever was); the part not reported is none
     debt_c = _v(debt_parts[0]) or 0.0
     cash_v = _v(cash)
-    other = sum(_v(bal(i)) or 0.0 for i in ("minority", "preferred"))
+    other = sum(_v(bal(i)) or 0.0 for i in ("minority", "preferred"))   # zero: most filers have neither
 
     vals: dict[str, float | None] = {m: None for m in ALL_METRICS}
     nd_rank: float | None = None   # what nd_ebitda ranks by: net cash ties as best, debt without EBITDA as worst
@@ -178,6 +180,7 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
             if a0 is not None and (assets.end - a0.end).days <= 430:
                 a0_v, c0, l0 = _v(a0), _v(bal("cash", on=ago)), _v(bal("current_liabilities", on=ago))
                 if a0_v is not None and c0 is not None and l0 is not None:
+                    # zero: current debt not reported a year ago is none (as for today's capital)
                     ic0 = a0_v - c0 - (l0 - (_v(bal("debt_current", on=ago)) or 0.0))
             ic_avg = (ic + ic0) / 2 if ic0 is not None and ic0 > 0 else ic
             p, t = _v(pretax), _v(tax)
@@ -199,6 +202,7 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
         rev_y = rev_y.dropna()
         if len(rev_y) >= cfg["min_fy_points"]:
             vals["rev_stability"], vals["rev_cagr"] = _trend(rev_y)
+        # zero: without D&A, EBITDA is taken as EBIT, a floor: leverage on it reads worse, never better
         ebitda = ebit_v + (_v(dna) or 0.0) if ebit_v is not None else None
         vals["ebitda"] = ebitda
         if debt is not None and cash_v is not None and ebitda is not None:
@@ -280,6 +284,7 @@ def _shy(ttm, mcap: float) -> float | None:
     d, b, i = ttm("dividends_paid"), ttm("buybacks"), ttm("issuance")
     if d is None and b is None and i is None:
         return None
+    # zero: one part is reported (checked above); a part not reported is none paid or issued
     return ((_v(d) or 0.0) + (_v(b) or 0.0) - (_v(i) or 0.0)) / mcap
 
 
