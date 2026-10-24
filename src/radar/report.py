@@ -106,13 +106,13 @@ def build() -> dict:
     out = REPORTS / dashboard.FILE_NAME
     _write(out, d)
     _write(REPORTS / "summary.json", summary(d, c.me, _portfolios()))
-    # snapshots after comparing with the previous ones
-    today = date.today()
-    snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), today)
-    snapshot.save("momentum", c.leaders, today)
+    # snapshots after comparing with the previous ones, under the data's date
+    asof = date.fromisoformat(d["asof"])
+    snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), asof)
+    snapshot.save("momentum", c.leaders, asof)
     if not c.quality.empty:
-        snapshot.save("qv", c.quality, today)
-    fcontext.save_week(c.fctx, today)
+        snapshot.save("qv", c.quality, asof)
+    fcontext.save_week(c.fctx, date.today())
     try:
         add_abtest()
     except Exception as e:  # noqa: BLE001 - the digest is extra; the report itself is written
