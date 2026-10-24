@@ -15,8 +15,20 @@ import pytest
 import world
 from conftest import with_settings
 from radar import constituents, fees, profile, propose, universe, userstore
+from radar.config import settings
+from radar.config_schema import Propose
 from radar.model import artifacts
 from world import IDX, N
+
+
+def _pc(**changes) -> Propose:
+    """The propose settings in force (the test world's, once `market` set them) as the model, `changes` merged in
+    section by section."""
+    def merge(base, new):
+        if isinstance(base, dict) and isinstance(new, dict):
+            return {**base, **{k: merge(base.get(k), v) for k, v in new.items()}}
+        return new
+    return Propose.model_validate(merge(copy.deepcopy(settings()["propose"]), changes))
 
 FIX = Path(__file__).parent / "fixtures"
 SECTORS = {"S1": "Technology", "S2": "Technology", "S3": "Healthcare", "S4": "Energy", "S5": "Industrials",
@@ -118,11 +130,11 @@ def test_each_exclusion_is_listed_and_missing_qv_is_never_zero(market):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
     df.loc["E3", "qv"] = np.nan
-    kept, out = propose.gates(df, "value", 10_000, market.cfg["propose"])
+    kept, out = propose.gates(df, "value", 10_000, _pc())
     assert "E3" in out["no K+V (kvalitet + værdi)"] and "E3" not in kept.index
     listed = {t for v in out.values() for t in v}
     assert listed | set(kept.index) == set(df.index) and not listed & set(kept.index)
-    sc = propose.score(propose.annotate(kept, propose.info(list(kept.index), pr)), "value", market.cfg["propose"])
+    sc = propose.score(propose.annotate(kept, propose.info(list(kept.index), pr)), "value", _pc())
     assert sc["composite"].notna().all() and "E3" not in sc.index
 
 
@@ -130,8 +142,7 @@ def test_momentum_tilt_needs_an_uptrend_and_ranks_by_momentum(market):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
     df.loc["S2", "trend_ok"] = False
-    c = copy.deepcopy(market.cfg["propose"])
-    c["penalties"] = {"vol": 0, "stretch": 0, "corr": 0}
+    c = _pc(penalties={"vol": 0, "stretch": 0, "corr": 0})
     kept, out = propose.gates(df, "momentum", 10_000, c)
     assert "S2" in out["not in an uptrend"]
     sc = propose.score(kept, "momentum", c)
@@ -140,13 +151,13 @@ def test_momentum_tilt_needs_an_uptrend_and_ranks_by_momentum(market):
 
 def test_an_unknown_correlation_is_not_scored_as_unrelated(market):
     pr = propose.Prices(market)
-    kept, _ = propose.gates(propose.pool(market, pr), "momentum", 10_000, market.cfg["propose"])
-    c = copy.deepcopy(market.cfg["propose"])
+    kept, _ = propose.gates(propose.pool(market, pr), "momentum", 10_000, _pc())
+    c = _pc()
     corr = pd.Series(0.6, index=kept.index)
     unknown = kept.index[0]
     corr[unknown] = np.nan                                       # too few shared weeks with the portfolio
     sc = propose.score(kept, "momentum", c, corr)
-    assert sc.loc[unknown, "pen_corr"] == pytest.approx(c["penalties"]["corr"] * 0.6)   # the pool's median
+    assert sc.loc[unknown, "pen_corr"] == pytest.approx(c.penalties.corr * 0.6)   # the pool's median
     assert np.isnan(sc.loc[unknown, "corr_book"])                # shown as unknown, not as 0
     none = propose.score(kept, "momentum", c, pd.Series(np.nan, index=kept.index))      # no book to compare with
     assert (none["pen_corr"] == 0).all()
@@ -156,7 +167,7 @@ def test_unknown_history_has_its_own_reason(market):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
     df.loc["S2", "history"] = np.nan
-    _, out = propose.gates(df, "momentum", 10_000, market.cfg["propose"])
+    _, out = propose.gates(df, "momentum", 10_000, _pc())
     assert "S2" in out["no price history"] and "S2" not in out.get("short history", [])
 
 
@@ -164,14 +175,14 @@ def test_share_price_above_the_ticket_is_gated(market):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
     cheap = df["price_dkk"].min()
-    _, out = propose.gates(df, "momentum", cheap * 0.5, market.cfg["propose"])
+    _, out = propose.gates(df, "momentum", cheap * 0.5, _pc())
     assert out.get("share price above the ticket")
 
 
 # ---------------- sizing ----------------
 
 def test_n_follows_the_amount_and_the_cap():
-    c = {"min_ticket_dkk": 10_000, "max_names": 8}
+    c = _pc(min_ticket_dkk=10_000, max_names=8)
     assert propose.n_for(50_000, c) == 5 and propose.n_for(9_000, c) == 1 and propose.n_for(200_000, c) == 8
     assert propose.n_for(50_000, c, n=3) == 3 and propose.n_for(50_000, c, n=9) == 5
 
@@ -189,7 +200,7 @@ def test_size_stays_within_each_budget_with_fees_fx_and_spread(market, ask):
     sf = fees.SimFees.for_portfolio(userstore.get_portfolio(ask["id"]), 10)
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
-    sz = propose.size(30_000, [{"ticker": "S2"}, {"ticker": "S3"}], df, pr, sf, "equal", market.cfg["propose"])
+    sz = propose.size(30_000, [{"ticker": "S2"}, {"ticker": "S3"}], df, pr, sf, "equal", _pc())
     for r in sz["rows"]:
         assert float(r["quantity"]).is_integer() and r["cash_dkk"] <= r["budget_dkk"] + 1e-6
         tm = propose.terms_for(pr, sf, r["ticker"])
@@ -204,15 +215,14 @@ def test_size_stays_within_each_budget_with_fees_fx_and_spread(market, ask):
 def _scored(market, tilt="momentum"):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
-    kept, _ = propose.gates(df, tilt, 10_000, market.cfg["propose"])
+    kept, _ = propose.gates(df, tilt, 10_000, _pc())
     kept = propose.annotate(kept, propose.info(list(kept.index), pr))
-    return propose.score(kept, tilt, market.cfg["propose"]), pr
+    return propose.score(kept, tilt, _pc()), pr
 
 
 def test_sector_count_and_correlation_caps(market):
     sc, pr = _scored(market)
-    c = copy.deepcopy(market.cfg["propose"])
-    c["max_per_sector"] = 1
+    c = _pc(max_per_sector=1)
     R = pr.weekly(list(sc.index), 52)
     first = sc.index[0]
     R2 = R.assign(**{t: R[first] + 1e-6 for t in sc.index[1:2]})       # an exact twin of the best name
@@ -230,7 +240,7 @@ def test_active_caps_count_what_is_already_held(market):
     acwi = {"sector": {sec: 0.05}, "region": {"us": 0.6, "europe": 0.4}, "currency": {"USD": 1.0}}
     meta = pd.DataFrame({"sector": [sec], "region": ["us"], "currency": ["USD"]}, index=["HELD"])
     base = propose.Base({"HELD": 100_000}, meta, acwi, {}, pd.DataFrame())
-    c = copy.deepcopy(market.cfg["propose"])
+    c = _pc()
     picked, passed = propose.select(sc, 2, 20_000, base, c)
     assert top not in [p["ticker"] for p in picked] and "sector" in passed[top]
     empty = propose.Base({}, pd.DataFrame(columns=list(propose.DIMS)), acwi, {}, pd.DataFrame())
@@ -242,7 +252,7 @@ def test_position_limit_is_against_the_whole_book(market):
     sc, pr = _scored(market)
     top = sc.index[0]
     base = propose.Base({}, pd.DataFrame(columns=list(propose.DIMS)), None, {top: 50_000, "X": 50_000}, pd.DataFrame())
-    picked, passed = propose.select(sc, 2, 20_000, base, market.cfg["propose"], max_position=0.2)
+    picked, passed = propose.select(sc, 2, 20_000, base, _pc(), max_position=0.2)
     assert top not in [p["ticker"] for p in picked] and "whole book" in passed[top]
 
 
@@ -251,10 +261,9 @@ def test_fill_gaps_prefers_an_underweight_sector(market):
     low = sc[sc["sector"] != sc.iloc[0]["sector"]].iloc[-1]
     acwi = {"sector": {low["sector"]: 0.5}, "region": {}, "currency": {}}
     base = propose.Base({}, pd.DataFrame(columns=list(propose.DIMS)), acwi, {}, pd.DataFrame())
-    c = copy.deepcopy(market.cfg["propose"])
-    c["caps"] = {"sector": 9, "region": 9, "currency": 9}
-    conv, _ = propose.select(sc, 1, 10_000, base, c, "conviction")
-    gaps, _ = propose.select(sc, 1, 10_000, base, c | {"fill_gaps_bonus": 1000}, "fill-gaps")
+    caps = {"sector": 9, "region": 9, "currency": 9}
+    conv, _ = propose.select(sc, 1, 10_000, base, _pc(caps=caps), "conviction")
+    gaps, _ = propose.select(sc, 1, 10_000, base, _pc(caps=caps, fill_gaps_bonus=1000), "fill-gaps")
     assert conv[0]["sector"] != low["sector"]
     assert gaps[0]["sector"] == low["sector"]
 
@@ -265,13 +274,13 @@ def test_ask_filler_only_from_the_positive_list(market, monkeypatch):
     pr = propose.Prices(market)
     sf = fees.SimFees(10)
     monkeypatch.setattr(type(market), "positive_list", lambda self: {"XX0000000000"})
-    no = propose.filler(5_000, "ask", pr, sf, True, market.cfg["propose"])
+    no = propose.filler(5_000, "ask", pr, sf, True, _pc())
     assert no["positive_list"] == "no" and no["budget_dkk"] == 0 and "positive list" in no["note"]
-    monkeypatch.setattr(type(market), "positive_list", lambda self: {market.cfg["propose"]["etf_filler"]["isin"]})
-    yes = propose.filler(5_000, "ask", pr, sf, True, market.cfg["propose"])
+    monkeypatch.setattr(type(market), "positive_list", lambda self: {_pc().etf_filler.isin})
+    yes = propose.filler(5_000, "ask", pr, sf, True, _pc())
     assert yes["positive_list"] == "yes" and yes["value_dkk"] and yes["value_dkk"] < 5_000
-    assert propose.filler(100, "ask", pr, sf, True, market.cfg["propose"]) is None
-    assert propose.filler(5_000, "frie_midler", pr, sf, False, market.cfg["propose"]) is None
+    assert propose.filler(100, "ask", pr, sf, True, _pc()) is None
+    assert propose.filler(5_000, "frie_midler", pr, sf, False, _pc()) is None
 
 
 # ---------------- the model ----------------
@@ -280,7 +289,7 @@ def test_bootstrap_is_seeded_and_drawdowns_are_never_positive(market):
     pr = propose.Prices(market)
     R = pr.weekly(["S1", "S3", "ACWI"], 60)
     rp = propose.series({"S1": 1, "S3": 1}, R, "ACWI")
-    c = market.cfg["propose"]
+    c = _pc()
     a = propose.bootstrap(rp, R["ACWI"], 26, 0.02, c)
     b = propose.bootstrap(rp, R["ACWI"], 26, 0.02, c)
     assert a == b and a["max_dd"]["median"] <= 0 and a["max_dd"]["p10"] <= a["max_dd"]["median"]
@@ -293,9 +302,8 @@ def test_bootstrap_is_seeded_and_drawdowns_are_never_positive(market):
 
 def test_stress_window_without_prices_is_marked(market):
     pr = propose.Prices(market)
-    c = copy.deepcopy(market.cfg["propose"])
-    c["stress"] = [{"key": "old", "label": "Before the data", "start": "2001-01-02", "end": "2001-03-01"},
-                   {"key": "in", "label": "In the data", "start": IDX[100].date(), "end": IDX[150].date()}]
+    c = _pc(stress=[{"key": "old", "label": "Before the data", "start": "2001-01-02", "end": "2001-03-01"},
+                   {"key": "in", "label": "In the data", "start": IDX[100].date(), "end": IDX[150].date()}])
     old, inside = propose.stress({"S1": 10_000, "S3": 10_000}, pr, "ACWI", c)
     assert old["ret"] is None and old["coverage"] == 0 and "not replayed" in old["note"]
     assert inside["coverage"] == 1 and inside["max_dd"] <= 0 and inside["acwi_ret"] is not None
@@ -313,11 +321,11 @@ def test_shrunk_covariance_is_positive_semidefinite(market):
 
 
 def test_decision_rule(market):
-    c = market.cfg["propose"]
+    c = _pc()
     dd = {"bad_case": -0.2}
     hv = {"kept": {"holdout": {"gross_mean": 0.03}}}
     assert propose.decide({"drift_net": None}, hv, dd, None, c)["verdict"] == "A0"
-    assert propose.decide({"drift_net": c["min_edge"] / 2}, hv, dd, None, c)["verdict"] == "A0"
+    assert propose.decide({"drift_net": c.min_edge / 2}, hv, dd, None, c)["verdict"] == "A0"
     ok = propose.decide({"drift_net": 0.05}, hv, dd, 0.3, c)
     assert ok["verdict"] == "stocks" and ok["unchecked"] == []
     assert propose.decide({"drift_net": 0.05}, hv, dd, 0.1, c)["verdict"] == "A0"          # too deep a bad case
@@ -339,12 +347,12 @@ def _longrun(gauge: float) -> artifacts.Loaded:
 
 
 def test_study_view_haircut_regime_and_staleness(market):
-    c = market.cfg["propose"]
+    c = _pc()
     kept = {"all": {"dates": 40, "gross_mean": 0.10}, "holdout": {"gross_mean": 0.02},
             "by_regime": {"Risk-on": {"dates": 30, "gross_mean": 0.20}, "Mixed": {"dates": 3, "gross_mean": -0.5}}}
     results = {"mix": {"3": {"6": {"kept": kept}}, "5": {"6": {"kept": kept}}}}
     v = propose.study_view(_study(results), "mix", 4, 6, "Risk-on", c)
-    assert v["n_used"] == 3 and v["drift_gross"] == pytest.approx(0.20 * (1 - c["survivorship_haircut"]))
+    assert v["n_used"] == 3 and v["drift_gross"] == pytest.approx(0.20 * (1 - c.survivorship_haircut))
     assert v["kept"] == kept                                     # passed on as the study wrote it
     assert propose.study_view(_study(results), "mix", 5, 6, "Mixed", c)["drift_gross"] == pytest.approx(0.07)
     stale = propose.study_view(_study(results, "stale"), "mix", 5, 6, None, c)
@@ -356,7 +364,7 @@ def test_study_view_haircut_regime_and_staleness(market):
 
 
 def test_rule_hash_moves_with_the_rule_only(market):
-    c = copy.deepcopy(market.cfg["propose"])
+    c = copy.deepcopy(market.cfg["propose"])                         # the raw section: the hash is of its values
     h = propose.rule_hash(c)
     assert propose.rule_hash(c | {"acwi_drift_annual": 0.5}) == h
     assert propose.rule_hash(c | {"max_corr": 0.5}) != h
@@ -396,13 +404,12 @@ def test_candidates_draft_and_evaluate(market, ask):
     assert ev["exposure"]["before"]["weights"]["sector"] == {"Technology": pytest.approx(1)}   # S1 is held
 
 
-def test_too_many_swaps_fail_the_constraint(market, ask):
+def test_too_many_swaps_fail_the_constraint(market, ask, monkeypatch):
     d = _draft(market, ask)["draft_picks"]
     rule = set(d["meta"]["rule_basket"])
     others = [r for r in propose.candidates(market, "ASK", 30_000, "momentum", offline=True, top=20)["shortlist"]
               if r["ticker"] not in rule]
-    c = market.cfg["propose"]
-    c["max_swaps"] = 0
+    with_settings(monkeypatch, base=market.cfg, propose={"max_swaps": 0})
     d["picks"][0]["ticker"] = others[0]["ticker"]
     ev = propose.evaluate(market, d, offline=True, light=True)
     assert not next(x for x in ev["constraints"] if x["check"].startswith("swaps"))["ok"]
@@ -469,13 +476,13 @@ def test_parse_amount():
 
 
 def test_shrink_weights_by_precision():
-    c = {"prior": {"tau_annual": 0.0}}
+    c = _pc(prior={"tau_annual": 0.0})
     prior = {"mean": 0.01, "se": 0.01}
     s = propose.shrink(0.05, 0.01, prior, 12, c)
     assert s["w_short"] == pytest.approx(0.5) and s["drift"] == pytest.approx(0.03)
     s = propose.shrink(0.05, 0.03, prior, 12, c)                   # a noisier study counts for less
     assert s["w_short"] == pytest.approx(0.1) and s["drift"] == pytest.approx(0.014)
-    wide = propose.shrink(0.05, 0.01, prior, 12, {"prior": {"tau_annual": 0.02}})   # tau widens the prior
+    wide = propose.shrink(0.05, 0.01, prior, 12, _pc(prior={"tau_annual": 0.02}))   # tau widens the prior
     assert wide["w_short"] > 0.5
     assert propose.shrink(0.05, 0.01, None, 6, c)["drift"] == 0.05          # no prior: the study alone, said so
     assert propose.shrink(0.05, None, prior, 6, c)["drift"] == 0.01         # no standard error: the prior alone
@@ -485,23 +492,23 @@ def test_shrink_weights_by_precision():
 
 
 def test_haircut_from_the_gauge_is_never_smaller():
-    c = {"survivorship_haircut": 0.3, "haircut_from_gauge": True}
+    c = _pc(survivorship_haircut=0.3, haircut_from_gauge=True)
     assert propose.haircut(c, _longrun(0.55))["used"] == 0.55
     assert propose.haircut(c, _longrun(0.1))["used"] == 0.3
     assert propose.haircut(c, _longrun(1.4))["used"] == 0.3   # nonsense: ignored
     assert propose.haircut(c, None)["used"] == 0.3
-    assert propose.haircut(c | {"haircut_from_gauge": False}, _longrun(0.55))["used"] == 0.3
+    assert propose.haircut(_pc(survivorship_haircut=0.3, haircut_from_gauge=False), _longrun(0.55))["used"] == 0.3
     missing = propose.haircut(c, artifacts.Loaded("longrun-study", "missing", reason="no longrun-study yet"))
     assert missing["used"] == 0.3 and missing["gauge_note"] == "no longrun-study yet"     # configured, and why
 
 
 def test_study_view_shrinks_toward_the_prior(market, monkeypatch):
-    c = market.cfg["propose"] | {"prior": {"tau_annual": 0.0}}
+    c = _pc(prior={"tau_annual": 0.0})
     kept = {"all": {"dates": 40, "gross_mean": 0.10, "mean": 0.09, "t": 3.0}}
     rep = _study({"momentum": {"5": {"6": {"kept": kept}}}})
     monkeypatch.setattr(propose.drift, "long_prior", lambda tilt, h, trend, c=None: {"mean": 0.01, "se": 0.03})
     v = propose.study_view(rep, "momentum", 5, 6, None, c, "up")
-    short = 0.10 * (1 - c["survivorship_haircut"])
+    short = 0.10 * (1 - c.survivorship_haircut)
     assert v["drift_short"] == pytest.approx(short) and v["se_short"] == pytest.approx(0.03)
     assert v["w_short"] == pytest.approx(0.5) and v["drift_gross"] == pytest.approx((short + 0.01) / 2)
 

@@ -12,6 +12,7 @@ import pandas as pd
 
 from .. import constituents, fxrates, money, propose
 from ..config import typed
+from ..config_schema import Propose
 from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
@@ -76,7 +77,7 @@ def split(recs: list[dict], h: int, prefix: str, holdout) -> dict:
 class Paths:
     """Basket paths on the session calendar: kept and with the proposal's exits."""
 
-    def __init__(self, p: mp.Panels, sma_n: int, c: dict):
+    def __init__(self, p: mp.Panels, sma_n: int, c: Propose):
         self.p = p
         self.dkk = p.dkk.reindex(p.sessions).ffill(limit=5)
         self.close = p.closes.reindex(p.sessions).ffill(limit=5)
@@ -90,13 +91,13 @@ class Paths:
         """Names whose signal is below the exit level at month-end `day` (momentum score, or K+V for value)."""
         key = (day, tilt)
         if key not in self._sig:
-            w = self.c["tilts"][tilt]
-            if w.get("momentum", 0) >= w.get("qv", 0):
+            w = self.c.tilts[tilt]
+            if w.momentum >= w.qv:
                 s = mp.score_at(self.p, day)
-                self._sig[key] = s < self.c["exit"]["min_score"]
+                self._sig[key] = s < self.c.exit.min_score
             else:
                 s = self.p.fund.col(day, "qv") if self.p.fund is not None else pd.Series(dtype=float)
-                self._sig[key] = s < self.c["exit"]["min_qv"]
+                self._sig[key] = s < self.c.exit.min_qv
         return self._sig[key]
 
     def run(self, tickers: list[str], fi: int, H: int, tilt: str, cost: float) -> dict | None:
@@ -148,8 +149,8 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
     as known on D (SEC EDGAR's filing dates), so they are US stocks only and skipped when none are stored."""
     c = propose.cfg()
     bt = typed().backtest
-    ns = list(ns or c["study_ns"])
-    horizons = list(horizons or c["horizons"])
+    ns = list(ns or c.study_ns)
+    horizons = list(horizons or c.horizons)
     for h in horizons:
         if h not in study.HORIZONS:
             raise ValueError(f"horizons are months among {', '.join(map(str, study.HORIZONS))}")
@@ -160,14 +161,14 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
     holdout = pd.Timestamp(bt.study_holdout_from)
     min_names = bt.study_min_names
     p = p or mp.panels(market)
-    needs_fund = any(c["tilts"][t].get("qv", 0) > 0 for t in tilts)
+    needs_fund = any(c.tilts[t].qv > 0 for t in tilts)
     if needs_fund and p.fund is None:
         from .fund import FundPIT
 
         p.fund = FundPIT(market)
         if not p.fund.names:
             log("no SEC EDGAR statements stored: the value and mix tilts are skipped")
-            tilts = [t for t in tilts if c["tilts"][t].get("qv", 0) == 0]
+            tilts = [t for t in tilts if c.tilts[t].qv == 0]
     acwi = constituents.acwi_weights(offline=True)
     ccy = fxrates.currencies(list(p.closes.columns))
     meta = pd.DataFrame({"sector": p.sector.replace("", "?").fillna("?"), "region": p.group.fillna("?"),
@@ -175,7 +176,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
                                                 for t in p.closes.columns})}).reindex(p.closes.columns)
     W = p.dkk.resample("W-FRI").last().pct_change(fill_method=None)
     paths = Paths(p, typed().stops.trend_sma, c)
-    cost = money.bps(c["study_cost_bps"])
+    cost = money.bps(c.study_cost_bps)
     ctx = None
     if with_regime:
         from .pit import Context
@@ -208,10 +209,10 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
         rec = {"date": day.date().isoformat(), "fill": p.sessions[fi].date().isoformat(), "regime": rg, "picks": {}}
         y6 = study.forward(p, fi, study.HORIZONS[6])
         for tilt in tilts:
-            needs_qv = c["tilts"][tilt].get("qv", 0) > 0
+            needs_qv = c.tilts[tilt].qv > 0
             if needs_qv and not df0["qv"].notna().any():
                 continue
-            kept, _ = propose.gates(df0, tilt, c["min_ticket_dkk"], c, day)
+            kept, _ = propose.gates(df0, tilt, c.min_ticket_dkk, c, day)
             kept = propose.annotate(kept, meta)
             sc = propose.score(kept, tilt, c, None)
             if len(sc) < max(ns) * 2:
@@ -224,7 +225,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
                                 Wd.reindex(columns=list(sc.index[:80])))
             rec["picks"][tilt] = {}
             for n in ns:
-                chosen, _ = propose.select(sc, n, n * c["min_ticket_dkk"], base, c)
+                chosen, _ = propose.select(sc, n, n * c.min_ticket_dkk, base, c)
                 if len(chosen) < n:
                     short[tilt][n] += 1
                     continue
@@ -254,13 +255,13 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
     turnover = {t: {str(n): study.turnover(tops[t][n]) for n in ns} for t in tilts}
     return {
         "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "asof": p.sessions[-1].date().isoformat(),
-        "settings_hash": propose.rule_hash(c), "settings": {k: c.get(k) for k in propose.RULE_KEYS},
+        "settings_hash": propose.rule_hash(), "settings": propose.rule_settings(),
         "fill": fill, "holdout_from": holdout.date().isoformat() if holdout is not None else None,
-        "cost_bps": c["study_cost_bps"],
+        "cost_bps": c.study_cost_bps,
         "universe": {"tickers": int(len(p.closes.columns)), "first": dates_out[0]["date"],
                      "last": dates_out[-1]["date"], "dates": len(dates_out),
                      "fund_names": len(p.fund.names) if p.fund is not None else None},
-        "us_only": {t: c["tilts"][t].get("qv", 0) > 0 for t in tilts},
+        "us_only": {t: c.tilts[t].qv > 0 for t in tilts},
         "acwi_weights": "today's" if acwi else None,
         "results": results,
         "ic": {t: {"dates": len(v), "mean": _m([x["ic"] for x in v]), "t": study.nw_t([x["ic"] for x in v], 5)}

@@ -2,10 +2,10 @@
 the long-run prior."""
 from __future__ import annotations
 
-import json
 import math
 from typing import Any
 
+from ..config_schema import Propose
 from ..model import artifacts
 from ..model import prior as mprior
 from . import rules
@@ -16,20 +16,20 @@ def load_study() -> artifacts.Loaded:
     return artifacts.load("propose-study", rule_hash=rules.rule_hash())
 
 
-def haircut(c: dict | None = None, longrun: artifacts.Loaded | None = None) -> dict:
+def haircut(c: Propose | None = None, longrun: artifacts.Loaded | None = None) -> dict:
     """The survivorship haircut used: `survivorship_haircut`, or the long-run study's gauge when it implies more
     (`haircut_from_gauge`; never less than configured). Without a readable long-run study the configured one, with
     the reason."""
     c = c or rules.cfg()
-    conf = float(c["survivorship_haircut"])
+    conf = c.survivorship_haircut
     lr = longrun.report if longrun is not None else None
     g = ((lr.survivorship.implied_haircut if lr is not None and lr.survivorship else None)
-         if c.get("haircut_from_gauge") else None)
+         if c.haircut_from_gauge else None)
     if g is not None and 0 < g < 1 and g > conf:
         return {"used": float(g), "configured": conf, "gauge": float(g),
                 "basis": "the long-run study's survivorship gauge (larger than configured)"}
     out = {"used": conf, "configured": conf, "gauge": g, "basis": "configured"}
-    if c.get("haircut_from_gauge") and longrun is not None and longrun.report is None:
+    if c.haircut_from_gauge and longrun is not None and longrun.report is None:
         out["gauge_note"] = longrun.reason
     return out
 
@@ -37,35 +37,35 @@ def haircut(c: dict | None = None, longrun: artifacts.Loaded | None = None) -> d
 _PRIORS: dict = {}
 
 
-def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None) -> dict | None:
+def long_prior(tilt: str, horizon: int, trend: str | None, c: Propose | None = None) -> dict | None:
     """The tilt's long-run prior at this horizon (model/prior.tilt_prior in `prior.region`): in today's trend
     when that split has `prior.min_trend_eff_n` independent periods, else over all dates. Cached per factors file."""
     from .. import factors
 
     c = c or rules.cfg()
-    pc = c.get("prior") or {}
-    tw = (c.get("tilts") or {}).get(tilt)
-    if not pc or not tw:
+    pc = c.prior
+    tw = c.tilts.get(tilt)
+    if not tw:
         return None
     f = factors.FACTORS_FILE
     stamp = f.stat().st_mtime if f.exists() else None
-    key = (tilt, horizon, trend, stamp, json.dumps(pc, sort_keys=True, default=str), json.dumps(tw, sort_keys=True))
+    key = (tilt, horizon, trend, stamp, pc.model_dump_json(), tw.model_dump_json())
     if key not in _PRIORS:
         data = factors.load()
-        w = mprior.prior_weights(tw, pc.get("components") or {}, pc.get("qv") or {})
-        regions = [pc.get("region", "developed"), *(pc.get("report_regions") or [])]
-        res = {r: mprior.tilt_prior(w, horizon, r, data, pc.get("since"), int(pc.get("trend_months", 10)))
+        w = mprior.prior_weights(tw.model_dump(), pc.components, pc.qv)
+        regions = [pc.region, *pc.report_regions]
+        res = {r: mprior.tilt_prior(w, horizon, r, data, pc.since, pc.trend_months)
                for r in regions}
         main = res[regions[0]]
         if main is None:
             _PRIORS[key] = None
         else:
             st = (main.get("by_trend") or {}).get(trend) if trend else None
-            use: dict = st if st is not None and (st.get("eff_n") or 0) >= float(pc.get("min_trend_eff_n", 20)) else main
+            use: dict = st if st is not None and (st.get("eff_n") or 0) >= pc.min_trend_eff_n else main
             _PRIORS[key] = {
                 "mean": use["mean"], "se": use["se"], "t": use["t"], "eff_n": use["eff_n"],
                 "basis": f"{regions[0]}, {trend}trend ({use['eff_n']:g} periods)" if use is st
-                         else f"{regions[0]}, all dates since {pc.get('since')} ({use['eff_n']:g} periods)",
+                         else f"{regions[0]}, all dates since {pc.since} ({use['eff_n']:g} periods)",
                 "region": regions[0], "trend": trend if use is st else None, "weights": w,
                 "components": main.get("components"),
                 "regions": {r: None if v is None else {"mean": v["mean"], "t": v["t"], "eff_n": v["eff_n"]}
@@ -73,7 +73,7 @@ def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None
     return _PRIORS[key]
 
 
-def shrink(short: float | None, se_short: float | None, prior: dict | None, horizon: int, c: dict) -> dict:
+def shrink(short: float | None, se_short: float | None, prior: dict | None, horizon: int, c: Propose) -> dict:
     """Precision-weighted mean of the rule study's excess and the long-run prior (a normal-normal Bayesian update):
     w = (1/se_s²) / (1/se_s² + 1/(se_p² + tau²)), tau = `prior.tau_annual` × √(H/12). Without a standard error for
     the study (too few dates, t of 0) the prior alone; without a prior, or one without a standard error, the study
@@ -84,7 +84,7 @@ def shrink(short: float | None, se_short: float | None, prior: dict | None, hori
         return {"drift": short, "w_short": 1.0, "note": "no long-run prior (run `radar update` for the JKP portfolios)"}
     if prior.get("se") is None:                    # its precision is unknown, not perfect
         return {"drift": short, "w_short": 1.0, "note": "the long-run prior has no standard error: the study alone"}
-    tau = float((c.get("prior") or {}).get("tau_annual", 0)) * math.sqrt(horizon / 12)
+    tau = c.prior.tau_annual * math.sqrt(horizon / 12)
     var_p = prior["se"] ** 2 + tau ** 2
     if not se_short:
         return {"drift": prior["mean"], "w_short": 0.0, "tau": tau, "note": "the study's excess has no standard error"}
@@ -95,7 +95,7 @@ def shrink(short: float | None, se_short: float | None, prior: dict | None, hori
 
 
 def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, regime: str | None,
-               c: dict | None = None, trend: str | None = None) -> dict:
+               c: Propose | None = None, trend: str | None = None) -> dict:
     """The rule study's figures for this tilt, the nearest basket size and the horizon, with the drift the model
     uses. The study's mean (the regime's own when it has enough dates, else all dates) is cut by the survivorship
     haircut when positive (`haircut`), then shrunk toward the tilt's long-run prior (`long_prior`, `shrink`): the
@@ -128,7 +128,7 @@ def study_view(study: artifacts.Loaded | None, tilt: str, n: int, horizon: int, 
         return out
     allr = kept.all or artifacts.Summary()
     reg = kept.by_regime.get(str(regime)) if regime else None
-    if reg is not None and (reg.dates or 0) >= c["min_regime_dates"]:
+    if reg is not None and (reg.dates or 0) >= c.min_regime_dates:
         use, out["basis"] = reg, f"regime {regime} ({reg.dates} dates)"
     else:
         use, out["basis"] = allr, f"all dates ({allr.dates})"

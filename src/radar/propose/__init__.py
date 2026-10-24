@@ -25,5 +25,17 @@ from .evaluation import adv_dkk, alternatives, decide, evaluate, factors, metric
 from .exposure import DIMS, annotate, book, exposures, info, look_through  # noqa: F401
 from .pricing import Prices  # noqa: F401
 from .riskmodel import bootstrap, realised_dd, risk, series, shrunk_cov, stress  # noqa: F401
-from .rules import MEMOS, MODES, PROPOSALS, RULE_KEYS, TILTS, WEEKS_PER_MONTH, WEIGHTINGS, cfg, rule_hash, slug  # noqa: F401
+from .rules import (  # noqa: F401
+    MEMOS,
+    MODES,
+    PROPOSALS,
+    RULE_KEYS,
+    TILTS,
+    WEEKS_PER_MONTH,
+    WEIGHTINGS,
+    cfg,
+    rule_hash,
+    rule_settings,
+    slug,
+)
 from .store import check, evaluation_file, keep_evaluation, proposals, review, save_evaluation, save_picks, shadow  # noqa: F401

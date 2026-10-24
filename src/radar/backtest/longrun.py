@@ -302,14 +302,14 @@ def priors(data: pd.DataFrame | None = None) -> dict:
     from ..propose import cfg as pcfg
 
     c = pcfg()
-    pc = c.get("prior") or {}
+    pc = c.prior
     data = factors.load() if data is None else data
     out = {}
-    for tilt, tw in (c.get("tilts") or {}).items():
-        w = prior_weights(tw, pc.get("components") or {}, pc.get("qv") or {})
-        out[tilt] = {str(h): {r: tilt_prior(w, int(h), r, data, pc.get("since"), int(pc.get("trend_months", 10)))
-                              for r in [pc.get("region", "developed"), *(pc.get("report_regions") or [])]}
-                     for h in c.get("horizons", [3, 6])}
+    for tilt, tw in c.tilts.items():
+        w = prior_weights(tw.model_dump(), pc.components, pc.qv)
+        out[tilt] = {str(h): {r: tilt_prior(w, int(h), r, data, pc.since, pc.trend_months)
+                              for r in [pc.region, *pc.report_regions]}
+                     for h in c.horizons}
     return out
 
 

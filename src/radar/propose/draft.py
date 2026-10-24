@@ -10,6 +10,7 @@ import pandas as pd
 
 from .. import constituents, fees, tracked, trades, universe, userstore
 from ..config import typed
+from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
 from ..model import inputs
 from . import basket, drift, exposure, pricing, riskmodel, rules
@@ -58,7 +59,7 @@ def context(market: Market, name: str, offline: bool = False) -> Ctx:
 def _trend(market: Market, months: int | None = None) -> str | None:
     """"up" when ACWI's last month-end close is at or above the mean of its last `months` month-ends, else
     "down" (the split the long-run prior uses); None without enough history."""
-    months = months or int((rules.cfg().get("prior") or {}).get("trend_months", 10))
+    months = months or rules.cfg().prior.trend_months
     try:
         s = market.closes[tracked.benchmark()].dropna()
     except (KeyError, AttributeError):
@@ -90,7 +91,7 @@ def ranked_pool(ctx: Ctx, tilt: str, ticket: float, p=None, raw: pd.DataFrame | 
     vals = values_of(ctx.holdings)
     R = ctx.prices.weekly(list(kept.index) + list(vals) + [tracked.benchmark()], 52)
     book_r = riskmodel.series(vals, R, tracked.benchmark()) if vals else None
-    corr = basket.corr_to(R.reindex(columns=list(kept.index)), book_r, c["min_weeks"]) if book_r is not None else None
+    corr = basket.corr_to(R.reindex(columns=list(kept.index)), book_r, c.min_weeks) if book_r is not None else None
     kept = exposure.annotate(kept, exposure.info(list(kept.index), ctx.prices))
     return basket.score(kept, tilt, c, corr), excluded, df
 
@@ -102,13 +103,13 @@ def rule_basket(ctx: Ctx, scored: pd.DataFrame, amount: float, n: int, mode: str
     return chosen, passed, basket.size(amount, chosen, scored, ctx.prices, ctx.sf, weighting)
 
 
-def default_exit(tilt: str, fill: str, horizon: int, c: dict | None = None) -> dict:
+def default_exit(tilt: str, fill: str, horizon: int, c: Propose | None = None) -> dict:
     """The standard exit criteria every pick gets (thesis checks are added by the skill)."""
     c = c or rules.cfg()
     st = typed().stops
-    w = c["tilts"][tilt]
-    sig = ({"metric": "score", "below": c["exit"]["min_score"]} if w.get("momentum", 0) >= w.get("qv", 0)
-           else {"metric": "qv", "below": c["exit"]["min_qv"]})
+    w = c.tilts[tilt]
+    sig = ({"metric": "score", "below": c.exit.min_score} if w.momentum >= w.qv
+           else {"metric": "qv", "below": c.exit.min_qv})
     review = (pd.Timestamp(fill) + pd.DateOffset(months=horizon)).date().isoformat()
     return {"review_level": {"rule": f"close below the {st.trend_sma}-day average", "sma": st.trend_sma,
                              "mode": st.mode, "action": st.action},
@@ -122,8 +123,8 @@ def candidates(market: Market, name: str, amount: float, tilt: str = "mix", mode
     c = rules.cfg()
     if tilt not in rules.TILTS:
         raise ValueError(f"tilt is one of {', '.join(rules.TILTS)}")
-    if amount < c["min_ticket_dkk"]:
-        raise ValueError(f"{amount:,.0f} DKK is less than one ticket ({c['min_ticket_dkk']:,} DKK): consider the "
+    if amount < c.min_ticket_dkk:
+        raise ValueError(f"{amount:,.0f} DKK is less than one ticket ({c.min_ticket_dkk:,.0f} DKK): consider the "
                          "ACWI ETF instead")
     ctx = context(market, name, offline)
     n = basket.n_for(amount, c, n)
@@ -150,7 +151,7 @@ def candidates(market: Market, name: str, amount: float, tilt: str = "mix", mode
     draft = {"type": "propose-picks", "meta": {"portfolio": name, "portfolio_id": ctx.portfolio["id"], "amount": amount,
                                                 "tilt": tilt, "mode": mode, "n": n, "horizon": horizon,
                                                 "weighting": weighting, "max_position": max_position, "etf": etf,
-                                                "date": today, "settings_hash": rules.rule_hash(c),
+                                                "date": today, "settings_hash": rules.rule_hash(),
                                                 "stops": typed().stops.model_dump(mode="json"),
                                                 "rule_basket": [x["ticker"] for x in chosen], "frozen_at": None},
              "picks": [{"ticker": x["ticker"], "why": None, "swapped_from": None, "swap_reason": None, "exit": ex}
@@ -184,7 +185,7 @@ def ask_flag(t: str) -> str | None:
 
 def ask_account(ctx: Ctx, amount: float) -> dict:
     c = rules.cfg()
-    cap, year = c.get("ask_deposit_cap"), c.get("ask_cap_year")
+    cap, year = c.ask_deposit_cap, c.ask_cap_year
     rows = trades.ledger([ctx.portfolio["id"]])
     dep = None
     if not rows.empty and "amount" in rows:
