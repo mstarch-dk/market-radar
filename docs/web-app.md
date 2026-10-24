@@ -10,7 +10,8 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Frontend work: run `pnpm -C web dev` (port 5173, proxies `/api` to 8780) next to `radar serve`.
 
 ## Contract
-- `src/radar/api_models.py` defines every response with `extra="forbid"`, so `profile.py`, `dashboard.py`, `mine.py`
+- `src/radar/api_models/` defines every response with `extra="forbid"` (one module per area, every model
+  re-exported by the package: `from radar.api_models import X`), so `profile.py`, `dashboard.py`, `mine.py`
   and the models can't drift silently (`report.build` checks every dashboard section against them before writing,
   `dashboard.check`, and `profile.build` its profile; `test_report_e2e` and `test_profile` hold both to it).
   `api_models` sits in the features layer, below the API, so the producers can import it.
