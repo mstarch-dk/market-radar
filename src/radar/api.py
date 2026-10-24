@@ -154,16 +154,40 @@ async def _lifespan(_app):
 
 
 app = FastAPI(title="Market Radar", version=manifest.app_version(), lifespan=_lifespan)
-_lock = threading.Lock()  # one price download / market reload at a time
+# The price store and its lock: one download, reload or read of it at a time. Re-entrant, so a route that holds it
+# can call market(), ensure() or has_prices() (they take it too) without deadlocking.
+_lock = threading.RLock()
 _market: profile.Market | None = None
 
 
 def market() -> profile.Market:
-    """The price store, reloaded when `radar update` has written a new one."""
+    """The price store, reloaded when `radar update` has written a new one (under the lock: one load at a time)."""
     global _market
-    if _market is None or _market.stale():
-        _market = profile.Market.load()
-    return _market
+    with _lock:
+        if _market is None or _market.stale():
+            _market = profile.Market.load()
+        return _market
+
+
+def ensure(symbol: str, missing: str = "404", refresh: bool = False) -> bool:
+    """Prices for `symbol` in the store (an untracked one is downloaded and the store swapped in). Unknown to
+    Yahoo: 404, or False with `missing="ignore"`."""
+    global _market
+    with _lock:
+        try:
+            _market = profile.ensure_prices(symbol, market(), refresh=refresh)
+            return True
+        except profile.TickerNotFound as e:
+            if missing == "ignore":
+                return False
+            raise HTTPException(404, str(e)) from e
+
+
+def _drop_prices() -> None:
+    """Load the price store again on next use (a restore replaced the data under it)."""
+    global _market
+    with _lock:
+        _market = None
 
 
 def _symbol(s: str) -> str:
@@ -319,8 +343,7 @@ def data_home_restore(body: RestoreIn) -> dict:
         res = backup.restore(Path(known[body.name]))
     except backup.BackupError as e:
         raise HTTPException(422, str(e)) from e
-    global _market
-    _market = None
+    _drop_prices()
     return res
 
 
@@ -391,26 +414,18 @@ async def _record_errors(request: Request, call_next):
 
 @app.get("/api/ticker/{symbol}", response_model=Profile)
 def get_profile(symbol: str, refresh: bool = False) -> dict:
-    global _market
     symbol = _symbol(symbol)
     with _lock:
-        try:
-            _market = profile.ensure_prices(symbol, market(), refresh=refresh)
-            return profile.build(symbol, _market, refresh=refresh)
-        except profile.TickerNotFound as e:
-            raise HTTPException(404, str(e)) from e
+        ensure(symbol, refresh=refresh)
+        return profile.build(symbol, market(), refresh=refresh)
 
 
 @app.get("/api/ticker/{symbol}/series", response_model=Series)
 def get_series(symbol: str, days: int = Query(756, ge=20, le=5000)) -> dict:
-    global _market
     symbol = _symbol(symbol)
     with _lock:
-        try:
-            _market = profile.ensure_prices(symbol, market())
-            return profile.series(symbol, _market, days)
-        except profile.TickerNotFound as e:
-            raise HTTPException(404, str(e)) from e
+        ensure(symbol)
+        return profile.series(symbol, market(), days)
 
 
 @app.get("/api/search", response_model=list[SearchHit])
@@ -737,13 +752,8 @@ def _status(symbol: str) -> str | None:
 @app.put("/api/watchlist/{symbol}", response_model=WatchState)
 def watch(symbol: str) -> dict:
     """Put a symbol on the watchlist; it joins the daily price and analyst updates. Unknown symbols are 404."""
-    global _market
     symbol = _symbol(symbol)
-    with _lock:
-        try:
-            _market = profile.ensure_prices(symbol, market())
-        except profile.TickerNotFound as e:
-            raise HTTPException(404, str(e)) from e
+    ensure(symbol)
     if _status(symbol) == "holding":
         return {"symbol": symbol, "my_status": "holding"}
     userstore.watch(symbol)
@@ -838,13 +848,9 @@ def _tx_row(body: TxIn) -> dict:
 
 
 def _validated(row: dict, exclude_id: int | None) -> list[dict]:
-    global _market
     with _lock:
         if row["symbol"]:
-            try:
-                _market = profile.ensure_prices(row["symbol"], market())
-            except profile.TickerNotFound:
-                pass                                               # validate() reports the unknown symbol
+            ensure(row["symbol"], missing="ignore")                # validate() reports the unknown symbol
         return portfolio.validate(row, market(), exclude_id=exclude_id)
 
 
@@ -887,8 +893,7 @@ def _fee_estimate(row: dict, pc: dict) -> dict | None:
     from . import fees
 
     def closes():
-        with _lock:
-            return market().closes
+        return market().closes
 
     return fees.for_trade(row, pc.get("currency"), row["fx_rate"] or pc.get("fx"), closes)
 
@@ -937,13 +942,9 @@ def get_positions(portfolio: list[int] | None = PortfolioQ, tag: list[str] | Non
 
 @app.get("/api/portfolio/price-check", response_model=PriceCheck)
 def get_price_check(symbol: str, date: str, price: float | None = None) -> dict:
-    global _market
     sym = _symbol(symbol)
     with _lock:
-        try:
-            _market = profile.ensure_prices(sym, market())
-        except profile.TickerNotFound as e:
-            raise HTTPException(404, str(e)) from e
+        ensure(sym)
         return portfolio.price_check(market(), sym, date, price)
 
 
@@ -1197,12 +1198,7 @@ def guide_chapter(book: str, slug: str) -> dict:
 
 def has_prices(symbol: str) -> bool:
     """Make sure prices exist for `symbol` (downloads an untracked one); False if Yahoo has none."""
-    global _market
-    try:
-        _market = profile.ensure_prices(symbol, market())
-        return True
-    except profile.TickerNotFound:
-        return False
+    return ensure(symbol, missing="ignore")
 
 
 def _preview(body: bytes, filename: str, preset: str | None, mapping: str | None, symbols: str | None,

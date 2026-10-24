@@ -40,6 +40,21 @@ def test_unknown_ticker_is_404(client):
     assert client.get("/api/ticker/NOPE/series").status_code == 404
 
 
+def test_a_route_holding_the_price_lock_can_ensure_prices(client):
+    import threading
+
+    done = threading.Event()
+
+    def nested():
+        with api._lock:                                   # as get_profile holds it
+            api.has_prices("S1")                          # takes it again: re-entrant, no deadlock
+            api.market()
+        done.set()
+
+    threading.Thread(target=nested, daemon=True).start()
+    assert done.wait(10)
+
+
 def test_context_lists_holdings_and_watchlist(client):
     c = client.get("/api/context").json()
     assert {(t["symbol"], t["status"]) for t in c["tickers"]} == {("S1", "holding"), ("E2", "watch")}
