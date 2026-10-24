@@ -37,10 +37,10 @@ export const GLOSSARY = {
   max_drawdown: "The largest fall from a high in the time-weighted index.",
   funding: "ledger: the portfolio has deposits/withdrawals, so its value includes cash and only deposits and withdrawals count as money in or out. implicit: no cash rows, so every buy counts as new money and every sale as money taken out.",
   same_flows: "ACWI with the same cash flows: what the same deposits and withdrawals (or buys and sells) would be worth had they gone into ACWI.",
-  stop: "Review level = the 200-day average (settings stops.mode: trend): a close below it is a reason to review the position, not a sell signal. With stops.mode: atr it is a trailing stop = highest close since entry − k × ATR(14).",
-  take_profit: "Off by default (settings stops.take_profit). When on: the lower of 2 × the stop width above the price and the analysts' mean target (needs at least 5 analysts).",
-  k: "Stop width multiplier. Starts at 3; each signal (momentum, trend, extension, regime, analysts) widens ▲ or tightens ▼ it.",
-  atr: "Average True Range (Wilder, 14 days by default: stops.atr_days in settings.yaml): the typical daily price range, used to size the stop.",
+  stop: "Review level = the {{settings:stops.trend_sma}}-day average (settings stops.mode: trend): a close below it is a reason to review the position, not a sell signal. With stops.mode: atr it is a trailing stop = highest close since entry − k × ATR({{settings:stops.atr_days}}).",
+  take_profit: "Off by default (settings stops.take_profit). When on: the lower of {{settings:stops.reward_risk}} × the stop width above the price and the analysts' mean target (needs at least {{settings:stops.min_analysts}} analysts).",
+  k: "Stop width multiplier. Starts at {{settings:stops.k_base}}; each signal (momentum, trend, extension, regime, analysts) widens ▲ or tightens ▼ it.",
+  atr: "Average True Range (Wilder, {{settings:stops.atr_days}} days: stops.atr_days in settings.yaml): the typical daily price range, used to size the stop.",
   flags: "Rule-based notes: trend intact, losing momentum, below 200d, turning up, near 52w high, RS line at 52w high (the price divided by ACWI, both in DKK, at a new 52-week high in the last 5 sessions), golden cross / death cross (the 50-day average crossed above / below the 200-day in the last 20 sessions), and stop/target alerts.",
   signal: "risk-on / risk-off rows vote in the regime; neutral rows inform only; n/a = no data; stale = data older than its limit, not counted.",
   cot_net: "Net position (long − short) as a percentage of open interest.",
@@ -122,5 +122,9 @@ export const GLOSSARY = {
   ops_kind: "source: a data source updated or failed. parse: it answered, but not in the expected shape (often a changed layout). api: a server error in the app. job: an update or scan stopped. throttle: a site paused, resumed or over budget. doctor: a health check.",
 } as const;
 
-export const glossary = (k: string | undefined): string | undefined =>
-  k && k in GLOSSARY ? GLOSSARY[k as GlossaryKey] : undefined;
+/** A term's hover text, with each `{{settings:…}}` filled in from settings.yaml's values (the guide tree serves them;
+ *  "–" until they have loaded). tests/test_guide.py checks every key exists. */
+export const glossary = (k: string | undefined, settings?: Record<string, string>): string | undefined =>
+  k && k in GLOSSARY
+    ? GLOSSARY[k as GlossaryKey].replace(/\{\{settings:([\w.]+)\}\}/g, (_, key: string) => settings?.[key] ?? "–")
+    : undefined;

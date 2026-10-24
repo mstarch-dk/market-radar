@@ -11,6 +11,7 @@ import pandas as pd
 
 from .. import external, tracked, userstore
 from ..config import typed
+from ..errors import Invalid
 from ..paths import REPORTS
 from ..signals import regime
 
@@ -31,6 +32,16 @@ def level_universe(etfs: set[str], analyst_hist: pd.DataFrame | None = None) -> 
 def level_etfs(cfg: dict) -> set[str]:
     """Sector/theme ETFs (and UCITS twins) that get stop levels; broad region funds don't."""
     return {t for i in tracked.etfs() if i.group != "regions" for t in (i.ticker, i.ucits) if t} | set(cfg.get("include") or [])
+
+
+def choose_votes(votes: dict[str, bool]) -> None:
+    """Store which switchable groups count in the regime vote (merged into your earlier choice); Invalid for a
+    group settings.yaml doesn't have."""
+    known = set(typed().regime.votes)
+    unknown = sorted(set(votes) - known)
+    if unknown:
+        raise Invalid(f"unknown group(s): {', '.join(unknown)}; known: {', '.join(sorted(known))}")
+    userstore.meta_set("regime_votes", (userstore.meta_get("regime_votes") or {}) | votes)
 
 
 def effective_votes() -> dict[str, bool]:

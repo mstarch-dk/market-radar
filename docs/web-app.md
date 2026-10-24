@@ -10,7 +10,8 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Frontend work: run `pnpm -C web dev` (port 5173, proxies `/api` to 8780) next to `radar serve`.
 
 ## Contract
-- `src/radar/api_models.py` defines every response with `extra="forbid"`, so `profile.py`, `dashboard.py`, `mine.py`
+- `src/radar/api_models/` defines every response with `extra="forbid"` (one module per area, every model
+  re-exported by the package: `from radar.api_models import X`), so `profile.py`, `dashboard.py`, `mine.py`
   and the models can't drift silently (`report.build` checks every dashboard section against them before writing,
   `dashboard.check`, and `profile.build` its profile; `test_report_e2e` and `test_profile` hold both to it).
   `api_models` sits in the features layer, below the API, so the producers can import it.
@@ -18,6 +19,10 @@ Python computes every number; the frontend only formats and draws. It is the rad
   `pnpm -C web build` then fails on any field the UI uses that no longer exists. Only the responses are checked:
   `web/src/api/client.ts` writes the URLs and query parameters by hand, so a renamed route or parameter still
   compiles and only fails at runtime.
+- Errors have one shape, `{"detail": {"message", "issues"}}` (issues: `{field, level, message}`; empty when there
+  is one message), from one set of handlers in `api/app.py`. The domain raises `errors.NotFound` (404), `Conflict` (409)
+  or `Invalid` (422, with its issues); an `HTTPException` and a request that doesn't fit its model come out the same
+  way. `client.ts` reads only this shape.
 - TypeScript is pinned to 5.9: version 7's native compiler lacks the API `openapi-typescript` needs.
 
 ## Endpoints

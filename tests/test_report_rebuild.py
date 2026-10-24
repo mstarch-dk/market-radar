@@ -72,7 +72,7 @@ def test_no_rebuild_while_an_update_runs_or_another_rebuild(client, monkeypatch)
     _touch(YAHOO_FILE)
     assert client.get("/api/regime").json()["outdated"] is None      # the update rebuilds them when it finishes
     r = client.post("/api/report")
-    assert r.status_code == 409 and "update is running" in r.json()["detail"]
+    assert r.status_code == 409 and "update is running" in r.json()["detail"]["message"]
     monkeypatch.setitem(updater.JOB.state, "status", "idle")
     monkeypatch.setitem(updater.REPORT_JOB.state, "status", "running")
     assert client.get("/api/regime").json()["outdated"]["rebuilding"] is True

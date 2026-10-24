@@ -61,7 +61,7 @@ def test_api_says_when_no_scan_has_run(tmp_data, monkeypatch):
     monkeypatch.setattr(scan, "discovery_config", lambda: CFG)
     client = TestClient(api.app)
     r = client.get("/api/discover")
-    assert r.status_code == 503 and "radar discover" in r.json()["detail"]
+    assert r.status_code == 503 and "radar discover" in r.json()["detail"]["message"]
     _seed(tmp_data)
     scan.build_report(set(universe.all_price_tickers(offline=True)))
     r = client.get("/api/discover")

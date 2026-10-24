@@ -22,6 +22,7 @@ import pandas as pd
 import yaml
 
 from .. import money, trades
+from ..errors import Unreadable
 
 FIELDS = ["date", "type", "symbol", "isin", "name", "quantity", "price", "fee", "currency", "account", "ext_ref",
           "cash_amount"]
@@ -562,7 +563,10 @@ def _yahoo_rows(path: str) -> YahooExport:
     a note per symbol for rows that were skipped (types other than BUY/SELL), and the buys/sells that can't be read
     (no purchase price or trade date: "SYMBOL (row n)"). Indices, futures, FX and cash rows are left out."""
     raw = pd.read_csv(path)
-    raw.columns = [c.strip() for c in raw.columns]
+    raw.columns = [c.strip().strip('"') for c in raw.columns]
+    if not {"Symbol", "Quantity"} <= set(raw.columns):
+        raise Unreadable("This doesn't look like a Yahoo Finance portfolio export: it needs the columns Symbol and "
+                         "Quantity (Yahoo: My Portfolio → Export).")
     raw["Quantity"] = pd.to_numeric(raw.get("Quantity"), errors="coerce")
     raw["Purchase Price"] = pd.to_numeric(raw.get("Purchase Price"), errors="coerce")
     raw["Commission"] = pd.to_numeric(raw.get("Commission"), errors="coerce")
@@ -608,8 +612,8 @@ def import_yahoo_csv(path: str) -> tuple[pd.DataFrame, dict[str, list[str]]]:
     exported symbols and the notes per symbol (skipped rows, price checks, replay warnings)."""
     from .. import portfolio, userstore
 
+    rows, watch, skipped, unreadable = _yahoo_rows(path)   # read (and check) everything before writing anything
     trades.ensure_migrated()
-    rows, watch, skipped, unreadable = _yahoo_rows(path)   # read everything before writing anything
     if unreadable:
         raise ValueError(f"{len(unreadable)} buy/sell rows can't be read: {'; '.join(unreadable[:8])}"
                          + (f" and {len(unreadable) - 8} more" if len(unreadable) > 8 else "")

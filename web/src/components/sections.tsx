@@ -12,6 +12,7 @@ import type { components } from "../api/schema";
 type RiskWindow = components["schemas"]["RiskWindow"];
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
 import { Badge, Card, KV, Signed } from "./ui";
+import { Quadrant } from "./cells";
 
 const yesNo = (v: boolean | null | undefined, yes: string, no: string) => (v === null || v === undefined ? "–" : v ? yes : no);
 
@@ -423,7 +424,7 @@ export function PeersCard({ p }: { p: Profile }) {
     <Card title="Sector & peers" meta={s}>
       {rot && (
         <KV rows={[
-          [<>{rot.name} (<TickerLink symbol={rot.ticker} />)</>, <Badge kind={q === "Leading" ? "pos" : q === "Lagging" ? "neg" : q === "Weakening" ? "warn" : "accent"}>{q}</Badge>,
+          [<>{rot.name} (<TickerLink symbol={rot.ticker} />)</>, <Quadrant q={q} />,
             { hint: `rel. 3m ${pct(rot.rel_r3m)}` }],
         ]} />
       )}

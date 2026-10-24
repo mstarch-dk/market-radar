@@ -74,6 +74,16 @@ def test_app_links_into_the_books_resolve():
             f"glossary_links {key}: no heading #{anchor}"
 
 
+def test_the_glossary_quotes_settings_that_exist():
+    glossary = (ROOT / "web" / "src" / "lib" / "glossary.ts").read_text(encoding="utf-8")
+    values = guide.settings_text()
+    used = re.findall(r"\{\{settings:([\w.]+)\}\}", glossary)
+    assert used, "the glossary quotes no settings"
+    for key in used:
+        assert key in values, f"glossary.ts: settings has no {key}"
+    assert values["stops.k_base"] == "3" and values["stops.trend_sma"] == "200"     # plain text, as the tip shows it
+
+
 def test_slugs_and_headings():
     assert guide.slug("Sådan gør radaren") == "sådan-gør-radaren"
     assert guide.slug("RS-Ratio og `RS-Momentum`") == "rs-ratio-og-rs-momentum"
