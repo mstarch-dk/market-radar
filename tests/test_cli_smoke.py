@@ -140,6 +140,10 @@ def test_import_yahoo(built, tmp_path):
     f.write_text("Symbol,Trade Date,Purchase Price,Quantity,Commission,Transaction Type\n"
                  f"S2,{IDX[60]:%Y%m%d},100,5,0,BUY\nE2,,,,,\n", encoding="utf-8")
     assert "Imported 1 holdings, 0 sold positions, 1 watchlist names." in run("import-yahoo", str(f))
+    other = tmp_path / "prices.csv"
+    other.write_text("Date,Open,Close\n2026-01-01,1,2\n", encoding="utf-8")
+    res = CliRunner().invoke(cli.app, ["import-yahoo", str(other)])      # checked like the app's import
+    assert res.exit_code != 0 and "Yahoo Finance portfolio export" in res.output
 
 
 def test_performance(built):

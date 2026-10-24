@@ -318,15 +318,10 @@ def _folders() -> list[dict]:
     from . import home as h
 
     loc = paths.locations()
-    rows = [("data", "Your data folder", loc.home, "personal"), ("notes", "Notes", loc.home / "notes", "personal"),
-            ("research", "Research", loc.home / "research", "personal"),
-            ("journal", "Journal", loc.home / "journal", "personal"),
-            ("briefs", "Briefs", loc.home / "briefs", "personal"),
-            ("exports", "Exports", loc.home / "exports", "personal"),
-            ("backups", "Backups", loc.userdata / "backups", "personal"),
-            ("history", "History", loc.history, "history"), ("cache", "Market data (cache)", loc.cache, "cache")]
+    shown = ("data", "notes", "research", "journal", "briefs", "exports", "backups", "history", "cache")
+    rows = {k: (k, label, d, tier) for k, label, d, tier in paths.folders(loc)}
     out = []
-    for key, label, d, tier in rows:
+    for key, label, d, tier in (rows[k] for k in shown):
         fs = h.files_under(d) if key != "data" else ([loc.userdata / h.DB_NAME] if (loc.userdata / h.DB_NAME).exists() else [])
         out.append({"key": key, "label": label, "path": str(d), "tier": tier, "files": len(fs),
                     "mb": round(sum(f.stat().st_size for f in fs) / 1e6, 1)})
@@ -534,11 +529,7 @@ def get_regime_votes() -> list[dict]:
 def put_regime_votes(body: VotesIn) -> list[dict]:
     """Which switchable indicator groups count in the regime vote (stored in userdata; the default is
     settings.yaml regime.votes). Takes effect at once here, and in summary.json from the next `radar report`."""
-    known = set(typed().regime.votes)
-    unknown = sorted(set(body.votes) - known)
-    if unknown:
-        raise HTTPException(422, f"unknown group(s): {', '.join(unknown)}; known: {', '.join(sorted(known))}")
-    userstore.meta_set("regime_votes", (userstore.meta_get("regime_votes") or {}) | body.votes)
+    inputs.choose_votes(body.votes)
     return dashboard.vote_options()
 
 
@@ -655,19 +646,9 @@ def _views_page() -> dict:
 
 
 def _view_body(body: ViewIn) -> dict:
-    v = body.model_dump()
-    v["statement"] = v["statement"].strip()
-    if not v["statement"]:
-        raise HTTPException(422, "A view needs a statement.")
-    if not 1 <= v["conviction"] <= 5:
-        raise HTTPException(422, "Conviction is 1 (a hunch) to 5 (very sure).")
     from . import market_views as mv
 
-    known = set(mv.config()["indicators"])
-    bad = [i["indicator"] for i in v["indicators"] if i["indicator"] not in known]
-    if bad:
-        raise HTTPException(422, f"Unknown indicator: {', '.join(bad)}.")
-    return v
+    return mv.validate(body.model_dump())
 
 
 @app.get("/api/views", response_model=ViewsPage)
@@ -703,7 +684,9 @@ def delete_view(view_id: int) -> dict:
 def restore_view(row: ViewRow) -> dict:
     if viewstore.get_view(row.id):
         raise HTTPException(409, "That view is already there.")
-    viewstore.restore_view(row.model_dump())
+    from . import market_views as mv
+
+    viewstore.restore_view(mv.validate(row.model_dump()))
     return _views_page()
 
 
@@ -854,17 +837,14 @@ async def import_portfolio(request: Request) -> dict:
         raise HTTPException(400, "The file is empty.")
     if len(body) > MAX_IMPORT_BYTES:
         raise HTTPException(413, "That file is too large for a portfolio export.")
-    header = body.decode("utf-8-sig", errors="replace").splitlines()[0]
-    cols = {c.strip().strip('"') for c in header.split(",")}
-    if not {"Symbol", "Quantity"} <= cols:
-        raise HTTPException(400, "This doesn't look like a Yahoo Finance portfolio export: it needs the columns "
-                                 "Symbol and Quantity (Yahoo: My Portfolio → Export).")
     # a temporary copy: the import rewrites holdings.csv / transactions.csv only once the file has been read
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "yahoo_portfolio.csv"
         path.write_bytes(body)
         try:
             df, warnings = importers.import_yahoo_csv(str(path))
+        except errors.RadarError:
+            raise
         except Exception as e:
             raise HTTPException(400, f"Couldn't read this Yahoo Finance export ({type(e).__name__}: {e}).") from e
     counts = df["status"].value_counts()
@@ -891,14 +871,12 @@ def _validated(row: dict, exclude_id: int | None) -> list[dict]:
 
 
 def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict]]:
-    """The row and its issues; 422 with the issues when it can't be saved (errors, or unconfirmed warnings)."""
+    """The row and its issues; 422 with the issues when it can't be saved (portfolio.checked)."""
     row = _tx_row(body)
-    issues = _validated(row, exclude_id)
-    errors = [i for i in issues if i["level"] == "error"]
-    if errors or (issues and not body.confirm):
-        raise HTTPException(422, {"message": errors[0]["message"] if errors else "Please confirm the warnings.",
-                                  "issues": issues})
-    return row, issues
+    with _lock:
+        if row["symbol"]:
+            ensure(row["symbol"], missing="ignore")                # validate() reports the unknown symbol
+        return row, portfolio.checked(row, market(), body.confirm, exclude_id)
 
 
 @app.get("/api/portfolio/transactions", response_model=list[TxRow])
@@ -1129,8 +1107,7 @@ def compare_portfolios(portfolio: list[int] | None = PortfolioQ, tag: list[str] 
     time-weighted index rebased to 100 there, with ACWI. Default: each of your real portfolios with rows."""
     from . import performance
 
-    ids = portfolio if (portfolio or tag) else [p["id"] for p in userstore.portfolios(include_archived=False)
-                                                 if p["mode"] == "real" and p["n_tx"]]
+    ids = portfolio if (portfolio or tag) else userstore.compared_ids()
     with _lock:
         return performance.compare(market(), ids, tag, start)
 

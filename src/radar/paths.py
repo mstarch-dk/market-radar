@@ -146,6 +146,24 @@ _current: Locations | None = None
 _source = "unset"
 
 
+def folders(loc: Locations | None = None) -> list[tuple[str, str, Path, str]]:
+    """Every place the app keeps something, as (key, label, path, tier): the Data page and `radar paths` list
+    these. `loc`: the current locations."""
+    loc = loc or locations()
+    return [("data", "Your data folder", loc.home, "personal"),
+            ("database", "Database", loc.userdata / "radar.db", "personal"),
+            ("notes", "Notes", loc.home / "notes", "personal"),
+            ("briefs", "Briefs", loc.home / "briefs", "personal"),
+            ("research", "Research", loc.home / "research", "personal"),
+            ("journal", "Journal", loc.home / "journal", "personal"),
+            ("exports", "Exports", loc.home / "exports", "personal"),
+            ("imports", "Imports", loc.imports, "personal"),
+            ("backups", "Backups", loc.userdata / "backups", "personal"),
+            ("history", "History", loc.history, "history"),
+            ("cache", "Market data (cache)", loc.cache, "cache"),
+            ("reports", "Reports", loc.reports, "cache")]
+
+
 def locations() -> Locations:
     global _current, _source
     if _current is None:

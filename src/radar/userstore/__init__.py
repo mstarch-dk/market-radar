@@ -405,6 +405,11 @@ def set_tags(pid: int, tags) -> list[str]:
         return [r["tag"] for r in con.execute("SELECT tag FROM portfolio_tags WHERE portfolio_id = ? ORDER BY tag", (pid,))]
 
 
+def compared_ids() -> list[int]:
+    """What a comparison shows when nothing is chosen: each of your active real portfolios that has rows."""
+    return [p["id"] for p in portfolios(include_archived=False) if p["mode"] == "real" and p["n_tx"]]
+
+
 def all_tags() -> list[dict]:
     """Every tag in use, with how many portfolios carry it."""
     if not exists():

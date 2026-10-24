@@ -9,7 +9,10 @@ from .root import app
 @app.command(name="import-yahoo")
 def import_yahoo(csv_path: str):
     """Import a Yahoo Finance portfolio CSV export as holdings/watchlist."""
-    df, warnings = importers.import_yahoo_csv(csv_path)
+    try:
+        df, warnings = importers.import_yahoo_csv(csv_path)
+    except ValueError as e:                                # not a Yahoo export, or rows that can't be read
+        raise SystemExit(str(e))
     counts = df["status"].value_counts()
     typer.echo(f"Imported {counts.get('holding', 0)} holdings, {counts.get('sold', 0)} sold positions, "
                f"{counts.get('watch', 0)} watchlist names.")
@@ -68,11 +71,17 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
         market = profile.ensure_prices(symbol)
     except profile.TickerNotFound as e:
         raise SystemExit(str(e))
-    issues = portfolio.validate(row, market)
+    from ..errors import Invalid
+
+    try:
+        issues = portfolio.checked(row, market, confirm=yes)
+    except Invalid as e:
+        issues = e.issues
     for i in issues:
         typer.echo(f"  {i['level'].upper()}: {i['message']}")
-    if any(i["level"] == "error" for i in issues) or (issues and not yes):
-        raise SystemExit("Not saved." + ("" if any(i["level"] == "error" for i in issues) else " Add --yes to save anyway."))
+    blocked = any(i["level"] == "error" for i in issues)
+    if blocked or (issues and not yes):
+        raise SystemExit("Not saved." + ("" if blocked else " Add --yes to save anyway."))
     tx_id = userstore.add_tx(row)
     eff = portfolio.effect(row, exclude_id=tx_id)
     saved = userstore.get_tx(tx_id) or {}
@@ -112,8 +121,7 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
     from .. import profile, userstore
 
     trades.ensure_migrated()
-    ids = portfolio_ids(names, None) if names else [p["id"] for p in userstore.portfolios(include_archived=False)
-                                                     if p["mode"] == "real" and p["n_tx"]]
+    ids = portfolio_ids(names, None) if names else userstore.compared_ids()
     res = perf.compare(profile.Market.load(), ids, tag, start)
     if as_json:
         typer.echo(to_json(res, indent=1))

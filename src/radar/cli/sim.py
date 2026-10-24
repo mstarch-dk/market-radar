@@ -34,8 +34,7 @@ def sim_exits(names: list[str] = typer.Argument(None, help="Real portfolios to r
     variants = exits.VARIANTS if variant == "both" else (variant,)
     if any(v not in exits.VARIANTS for v in variants):
         raise SystemExit("--variant must be overlay, rules or both")
-    ids = portfolio_ids(names, None) if names else [p["id"] for p in userstore.portfolios(include_archived=False)
-                                                     if p["mode"] == "real" and p["n_tx"]]
+    ids = portfolio_ids(names, None) if names else userstore.compared_ids()
     with job("sim") as log:
         market = profile.Market.load()
         gap = universe.history_gap(market.closes)

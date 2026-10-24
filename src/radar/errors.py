@@ -14,6 +14,11 @@ class RadarError(ValueError):
         self.issues = issues or []
 
 
+class Unreadable(RadarError):
+    """A file that can't be read as what it claims to be."""
+    status = 400
+
+
 class NotFound(RadarError):
     """What was asked for isn't there."""
     status = 404
