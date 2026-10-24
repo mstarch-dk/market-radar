@@ -219,6 +219,37 @@ def test_data_files_are_written_through_the_atomic_helpers():
     assert not bad, "write through config.write_*:\n" + "\n".join(bad)
 
 
+def test_json_files_are_written_through_jsonsafe():
+    """json.dumps writes NaN as `NaN` (not JSON: the browser can't parse it), and default=str turns an unexpected
+    type into a plausible string. A JSON file goes through jsonsafe.dumps; plain json.dumps stays for hashes,
+    database values and text that isn't written to a file here."""
+    import ast
+    from pathlib import Path
+
+    import radar
+    root = Path(radar.__file__).parent
+    writers = {"write_text", "write_bytes", "writestr", "write"}
+
+    def is_json(node, name):
+        return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == name
+                and isinstance(node.func.value, ast.Name) and node.func.value.id == "json")
+
+    bad = []
+    for f in root.rglob("*.py"):
+        if f.name == "jsonsafe.py":
+            continue
+        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+            if is_json(node, "dump"):
+                bad.append(f"{f.relative_to(root)}:{node.lineno}: json.dump")
+            func = getattr(node, "func", None)
+            name = getattr(func, "attr", None) or getattr(func, "id", None)
+            if isinstance(node, ast.Call) and name in writers:
+                for arg in node.args:
+                    if any(is_json(n, "dumps") for n in ast.walk(arg)):
+                        bad.append(f"{f.relative_to(root)}:{node.lineno}: {name}(json.dumps(…))")
+    assert not bad, "write JSON files with jsonsafe.dumps:\n" + "\n".join(bad)
+
+
 def test_two_processes_logging_sources_keep_each_others_entries(tmp_path):
     """sources.json is read, changed and written by the app and a terminal update alike."""
     import json

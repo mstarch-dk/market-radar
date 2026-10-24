@@ -85,7 +85,8 @@ Nothing the user owns lives in the install folder (`config.ROOT` holds app files
   shorter span, not markedly fewer rows); otherwise the step fails and keeps its cache.
 - `locks.py` gives one writer at a time across threads and processes: a second update, scan or report build is
   refused with `locks.Busy`, not queued.
-- JSON is written by `jsonsafe.py` only, which can't write NaN.
+- JSON files are written with `jsonsafe.dumps` only, which can't write NaN (`tests/test_guard.py` fails on a
+  `json.dumps` passed to a writer). Plain `json.dumps` is left for hashes and database values.
 
 ## The report's build
 `radar report` (also the last step of `radar run`) builds `dashboard.json` and `summary.json` in one pass over

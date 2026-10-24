@@ -23,6 +23,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import home, manifest, paths
+from .jsonsafe import dumps
 
 PREFIX = "market-radar-"
 KINDS = ("manual", "daily", "upgrade", "restore")
@@ -115,7 +116,7 @@ def create(reason: str = "manual", kind: str = "manual") -> Path:
         for name, p in _sources():
             files.append(_add(z, name, p))
         meta["files"] = files
-        z.writestr("backup.json", json.dumps(meta, indent=1, ensure_ascii=False))
+        z.writestr("backup.json", dumps(meta, indent=1, ensure_ascii=False))
     tmp.replace(out)
     _mirror_copy(out)
     prune()
