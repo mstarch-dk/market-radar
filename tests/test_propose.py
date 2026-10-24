@@ -138,6 +138,28 @@ def test_momentum_tilt_needs_an_uptrend_and_ranks_by_momentum(market):
     assert list(sc.index) == list(kept.sort_values("score", ascending=False).index)
 
 
+def test_an_unknown_correlation_is_not_scored_as_unrelated(market):
+    pr = propose.Prices(market)
+    kept, _ = propose.gates(propose.pool(market, pr), "momentum", 10_000, market.cfg["propose"])
+    c = copy.deepcopy(market.cfg["propose"])
+    corr = pd.Series(0.6, index=kept.index)
+    unknown = kept.index[0]
+    corr[unknown] = np.nan                                       # too few shared weeks with the portfolio
+    sc = propose.score(kept, "momentum", c, corr)
+    assert sc.loc[unknown, "pen_corr"] == pytest.approx(c["penalties"]["corr"] * 0.6)   # the pool's median
+    assert np.isnan(sc.loc[unknown, "corr_book"])                # shown as unknown, not as 0
+    none = propose.score(kept, "momentum", c, pd.Series(np.nan, index=kept.index))      # no book to compare with
+    assert (none["pen_corr"] == 0).all()
+
+
+def test_unknown_history_has_its_own_reason(market):
+    pr = propose.Prices(market)
+    df = propose.pool(market, pr)
+    df.loc["S2", "history"] = np.nan
+    _, out = propose.gates(df, "momentum", 10_000, market.cfg["propose"])
+    assert "S2" in out["no price history"] and "S2" not in out.get("short history", [])
+
+
 def test_share_price_above_the_ticket_is_gated(market):
     pr = propose.Prices(market)
     df = propose.pool(market, pr)
@@ -446,6 +468,8 @@ def test_shrink_weights_by_precision():
     assert propose.shrink(0.05, 0.01, None, 6, c)["drift"] == 0.05          # no prior: the study alone, said so
     assert propose.shrink(0.05, None, prior, 6, c)["drift"] == 0.01         # no standard error: the prior alone
     assert propose.shrink(None, 0.01, prior, 6, c)["drift"] is None
+    vague = propose.shrink(0.05, 0.01, {"mean": 0.0, "se": None}, 6, c)   # a prior of unknown precision isn't exact
+    assert vague["drift"] == 0.05 and vague["w_short"] == 1.0 and "standard error" in vague["note"]
 
 
 def test_haircut_from_the_gauge_is_never_smaller():

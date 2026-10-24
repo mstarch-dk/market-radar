@@ -83,6 +83,27 @@ def test_replay_reaches_targets_pays_fees_and_never_overdraws(market):
     assert strat.rows(market, None, None, 100000.0, _params(dates, targets)) == rows        # same rows again
 
 
+def test_a_holding_without_a_price_still_counts_in_the_value_rebalanced(market, monkeypatch):
+    bars = market.bars
+    monkeypatch.setattr(market, "bars", lambda t: bars(t)[:IDX[-55]] if t == "S1" else bars(t))   # S1's prices stop
+    dates = [IDX[-80], IDX[-40]]
+    targets = [{"S1": 0.5, "S2": 0.5}, {"S1": 0.5, "S2": 0.25, "S3": 0.25}]
+    strat = abtest.ScoreRebalance()
+    rows = strat.rows(market, None, None, 100000.0, _params(dates, targets, fee_bps=0))
+    day = IDX[-39]
+    second = {r.get("symbol"): r for r in rows if r["date"] == day.date().isoformat()}
+    assert "S1" not in second                                                                # left as it was
+    px = {t: bars(t)["raw_close"][:day].iloc[-1] for t in ("S2", "S3")}
+    s1 = next(r for r in rows if r.get("symbol") == "S1")
+    s1_value = s1["quantity"] * bars("S1")["raw_close"][:IDX[-55]].iloc[-1] * s1["fx_rate"]
+    s2_value = (next(r for r in rows if r.get("symbol") == "S2")["quantity"] - second["S2"]["quantity"]) \
+        * px["S2"] * second["S2"]["fx_rate"]
+    s3_value = second["S3"]["quantity"] * px["S3"] * second["S3"]["fx_rate"]
+    total = s1_value + s2_value + s3_value                         # all invested: no cash left idle
+    assert s3_value / total == pytest.approx(0.25, abs=0.01) and s2_value / total == pytest.approx(0.25, abs=0.01)
+    assert any("S1" in n and "last price" in n for n in strat.notes)
+
+
 def test_refresh_stores_runs_and_the_view(market):
     pid = simulate.new_sim_portfolio(abtest.KINDS["ab-qv"], "ab-qv", _params([IDX[-80]], [{"S1": 1.0}])
                                      | {"n": 1, "max_per_sector": 3, "value_score": "qv"}, tags=[abtest.TAG])

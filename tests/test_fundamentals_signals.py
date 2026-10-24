@@ -86,6 +86,23 @@ def test_missing_is_missing_never_zero(cfg):
     assert any("left out" in n for n in stale["notes"])
 
 
+def test_debt_missing_from_the_latest_balance_is_unknown_not_zero(cfg):
+    no_debt_b = {k: v for k, v in BASE_B.items() if not k.startswith("debt")}
+    no_interest = {k: v for k, v in BASE_Q.items() if k != "interest"}
+    old = [q - pd.DateOffset(years=2) for q in QUARTERS]          # debt reported two years ago, not since
+    renamed = store.normalize(pd.concat([yahoo(no_interest, no_debt_b),
+                                         yahoo({}, {"debt_noncurrent": 300.0}, quarters=old)]))
+    m = sf.metrics(renamed, ASOF, cfg, False, mcap=2000.0)
+    v = m["values"]
+    assert v["nd_ebitda"] is None and m["rank"]["nd_ebitda"] is None   # not "net cash: best"
+    assert v["interest_cover"] is None
+    assert v["ebit_ev"] is None and v["ev_ebit"] is None
+    assert any("debt" in n and "left out" in n for n in m["notes"])
+    never = sf.metrics(yahoo(no_interest, no_debt_b), ASOF, cfg, False, mcap=2000.0)   # no debt line, ever
+    assert never["rank"]["nd_ebitda"] == 1.0 and never["values"]["ebit_ev"] == pytest.approx(200 / 1900)
+    assert any("no debt" in n for n in never["notes"])
+
+
 def test_stability_metrics_over_fiscal_years(cfg):
     fy = {"revenue": [800, 880, 968, 1065, 1171], "gross_profit": [400, 440, 484, 532, 585],
           "operating_income": [100, 110, 120, 130, 140]}

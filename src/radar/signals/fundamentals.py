@@ -124,7 +124,13 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     if rev is None and latest is not None and (asof - latest).days > ttm_age:
         notes.append(f"latest report ends {latest:%d %b %Y}, more than {ttm_age} days ago: left out")
     debt_parts = [bal("debt_current"), bal("debt_noncurrent")]
-    debt = sum(_v(x) or 0.0 for x in debt_parts) if assets is not None else None
+    debt = _debt(facts, debt_parts) if assets is not None else None
+    if assets is not None:
+        if debt is None:
+            notes.append("debt reported before but not on the latest balance sheet: net debt, interest cover and "
+                         "EV left out")
+        elif all(_v(x) is None for x in debt_parts):
+            notes.append("no debt line in any report: counted as no debt")
     debt_c = _v(debt_parts[0]) or 0.0
     cash_v = _v(cash)
     other = sum(_v(bal(i)) or 0.0 for i in ("minority", "preferred"))
@@ -257,6 +263,19 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
             "basis": next((x.basis for x in (rev, ni) if x is not None), None)}
 
 
+DEBT = ("debt_current", "debt_noncurrent")
+
+
+def _debt(facts, parts: list[periods.Value | None]) -> float | None:
+    """Total debt from the balance lines found (`parts`). With none found it is 0 only when the company has never
+    reported a debt line (a debt-free company files none); one that has, but not on this balance sheet (a renamed
+    tag, a stale balance), has unknown debt: None, never 0."""
+    known = [x for x in (_v(p) for p in parts) if x is not None]
+    if known:
+        return sum(known)
+    return None if any(periods.instant(facts, i) is not None for i in DEBT) else 0.0
+
+
 def _shy(ttm, mcap: float) -> float | None:
     d, b, i = ttm("dividends_paid"), ttm("buybacks"), ttm("issuance")
     if d is None and b is None and i is None:
@@ -281,9 +300,9 @@ def _own_history(facts, item: str, ev_based: bool | None, now: float | None, pri
             continue
         mc = px * sh.value
         if ev_based:
-            d = sum(_v(periods.instant(facts, i, known_by, on=end)) or 0.0 for i in ("debt_current", "debt_noncurrent"))
+            d = _debt(facts, [periods.instant(facts, i, known_by, on=end) for i in DEBT])
             c = _v(periods.instant(facts, "cash", known_by, on=end))
-            if c is None:
+            if c is None or d is None:
                 continue
             ev = mc + d - c
             if ev <= 0:

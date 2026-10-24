@@ -76,13 +76,16 @@ def long_prior(tilt: str, horizon: int, trend: str | None, c: dict | None = None
 def shrink(short: float | None, se_short: float | None, prior: dict | None, horizon: int, c: dict) -> dict:
     """Precision-weighted mean of the rule study's excess and the long-run prior (a normal-normal Bayesian update):
     w = (1/se_s²) / (1/se_s² + 1/(se_p² + tau²)), tau = `prior.tau_annual` × √(H/12). Without a standard error for
-    the study (too few dates, t of 0) the prior alone; without a prior, the study alone."""
+    the study (too few dates, t of 0) the prior alone; without a prior, or one without a standard error, the study
+    alone."""
     if short is None:
         return {"drift": None, "w_short": None}
     if prior is None or prior.get("mean") is None:
         return {"drift": short, "w_short": 1.0, "note": "no long-run prior (run `radar update` for the JKP portfolios)"}
+    if prior.get("se") is None:                    # its precision is unknown, not perfect
+        return {"drift": short, "w_short": 1.0, "note": "the long-run prior has no standard error: the study alone"}
     tau = float((c.get("prior") or {}).get("tau_annual", 0)) * math.sqrt(horizon / 12)
-    var_p = (prior.get("se") or 0) ** 2 + tau ** 2
+    var_p = prior["se"] ** 2 + tau ** 2
     if not se_short:
         return {"drift": prior["mean"], "w_short": 0.0, "tau": tau, "note": "the study's excess has no standard error"}
     if var_p <= 0:

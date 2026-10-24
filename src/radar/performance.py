@@ -199,7 +199,9 @@ def book(rows: list[dict], market, dividends: str = "reinvested") -> Book | None
     if funding == "ledger":
         if problems:                              # the cash, and so the value, is unknown from then on
             missing += [p["message"] for p in problems]
-            unknown.iloc[min(_session(idx, p["date"]) or 0 for p in problems):] = True
+            sessions = [i for p in problems if (i := _session(idx, p["date"])) is not None]
+            if sessions:                          # one after the last close isn't counted yet, like its trade
+                unknown.iloc[min(sessions):] = True
         cash = cash_change.cumsum()
         inflow, outflow = ext_in, ext_out
     else:                                         # every buy is new money, every sale or income taken out
