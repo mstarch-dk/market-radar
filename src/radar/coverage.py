@@ -11,7 +11,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import sourcelog, trades
+from . import paths, sourcelog, trades
 from .config import POSITIVE_LIST_FILE
 from .paths import CACHE
 
@@ -198,7 +198,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
         counts = holdings["status"].value_counts()
         tx = trades.transactions()
         latest_tx = f"{len(tx)} transactions, latest {_d(tx['date'].max())}" if not tx.empty else ""
-        rows.append(_row("holdings", _mtime(userstore.USERDATA / userstore.DB_NAME), ref, None,
+        rows.append(_row("holdings", _mtime(paths.USERDATA / userstore.DB_NAME), ref, None,
                          f"{counts.get('holding', 0)} holdings, {counts.get('watch', 0)} watchlist, "
                          f"{counts.get('sold', 0)} sold", latest_tx, log, state=INFO))
     else:

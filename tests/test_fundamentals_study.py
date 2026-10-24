@@ -8,11 +8,12 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import profile, universe
+from radar import universe
 from radar.backtest import study
 from radar.backtest.fund import FundPIT
 from radar.fundamentals import context as fcontext
 from radar.fundamentals import store
+from radar.market import Market
 
 LAG = 40
 
@@ -37,7 +38,7 @@ def edgar(rows: pd.DataFrame | None = None) -> pd.DataFrame:
 def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     fcontext.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 def _day(facts: pd.DataFrame) -> pd.Timestamp:

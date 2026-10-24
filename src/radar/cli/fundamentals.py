@@ -2,6 +2,7 @@
 import typer
 
 from .. import sourcelog
+from ..signals import periods
 from .common import job, to_json
 from .root import app
 
@@ -59,7 +60,7 @@ def fundamentals_show(ticker: str, as_json: bool = typer.Option(False, "--json",
     the latest balance, the fiscal years stored and the source's name for each value."""
 
     from .. import fundamentals
-    from ..fundamentals import items, store
+    from ..fundamentals import items
 
     t = ticker.upper()
     f = fundamentals.facts(t)
@@ -67,18 +68,18 @@ def fundamentals_show(ticker: str, as_json: bool = typer.Option(False, "--json",
         raise SystemExit(f"No statements stored for {t}: is it tracked? Fetch them with `radar fundamentals update {t}`.")
     rows = []
     for it in items.ITEMS:
-        v = store.ttm(f, it.key) if it.flow else store.instant(f, it.key)
+        v = periods.ttm(f, it.key) if it.flow else periods.instant(f, it.key)
         rows.append({"item": it.key, "value": None if v is None else v.value,
                      "end": None if v is None else f"{v.end:%Y-%m-%d}", "basis": None if v is None else v.basis,
                      "tag": None if v is None else v.tag, "currency": None if v is None else v.currency,
-                     "fiscal_years": len(store.annual(f, it.key)), "_v": v})
+                     "fiscal_years": len(periods.annual(f, it.key)), "_v": v})
     src = f["source"].iloc[0]
     if as_json:
-        out = {"ticker": t, "source": src, "latest_end": f"{store.latest_end(f):%Y-%m-%d}",
+        out = {"ticker": t, "source": src, "latest_end": f"{periods.latest_end(f):%Y-%m-%d}",
                "items": [{k: v for k, v in r.items() if k != "_v"} for r in rows]}
         typer.echo(to_json(out, indent=1))
         return
-    typer.echo(f"{t}: {'SEC EDGAR' if src == 'edgar' else 'Yahoo'}; latest period {store.latest_end(f):%d %b %Y}")
+    typer.echo(f"{t}: {'SEC EDGAR' if src == 'edgar' else 'Yahoo'}; latest period {periods.latest_end(f):%d %b %Y}")
     typer.echo(f"  {'item':<20}{'value':>18}  {'period end':<11}{'basis':<10}{'years':>5}  tag")
     for r in rows:
         typer.echo(f"  {r['item']:<20}{_fmt_value(r['_v']):>18}  {r['end'] or '–':<11}{r['basis'] or '':<10}"
@@ -100,7 +101,7 @@ def fundamentals_check(tolerance: float = typer.Option(0.10, help="List differen
     for t in both:
         fe, fy = e[e["ticker"] == t], y[y["ticker"] == t]
         for item in ("revenue", "operating_income", "cfo"):
-            a, b = store.ttm(fe, item), store.ttm(fy, item)
+            a, b = periods.ttm(fe, item), periods.ttm(fy, item)
             if a is None or b is None or abs((a.end - b.end).days) > 20 or not b.value:
                 continue
             compared += 1

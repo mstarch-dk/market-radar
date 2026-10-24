@@ -1,6 +1,7 @@
 """`radar propose …`: fee-aware basket proposals for one of your portfolios, and their follow-up."""
 import typer
 
+from ..market import Market
 from .common import fmt_num, fmt_pct, to_json
 from .root import app
 
@@ -60,11 +61,10 @@ def propose_candidates(portfolio: str = typer.Option(..., "--portfolio", help="T
     """The gated, scored shortlist for adding AMOUNT to PORTFOLIO, the rule-only basket sized with the portfolio's
     fees, and a draft picks file (`draft_picks`) with the standard exit criteria."""
 
-    from .. import profile
     from .. import propose as pr
 
     try:
-        rep = pr.candidates(profile.Market.load(), portfolio, parse_amount(amount), tilt, mode, n, weighting,
+        rep = pr.candidates(Market.load(), portfolio, parse_amount(amount), tilt, mode, n, weighting,
                             max_position, not no_etf, horizon, top)
     except ValueError as e:
         raise SystemExit(f"No candidates: {e}")
@@ -118,14 +118,13 @@ def propose_evaluate(picks_file: str = typer.Argument(..., help="A frozen picks 
     return from the rule study, the alternatives A0-A6 and the decision rule. Saved next to the picks file as
     <name>-evaluation.json (review and check read it)."""
 
-    from .. import profile
     from .. import propose as pr
 
     doc = _load_picks(picks_file)
     if not (doc.get("meta") or {}).get("frozen_at"):
         raise SystemExit("Freeze the picks first: radar propose freeze FILE (the picks are fixed before the numbers)")
     try:
-        rep = pr.evaluate(profile.Market.load(), doc, max_position, tolerance, light=light)
+        rep = pr.evaluate(Market.load(), doc, max_position, tolerance, light=light)
     except ValueError as e:
         raise SystemExit(f"Not evaluated: {e}")
     pr.keep_evaluation(picks_file, rep)
@@ -156,11 +155,10 @@ def propose_shadow(picks_file: str = typer.Argument(..., help="A frozen picks fi
                                                                 "'<name> · rule')")):
     """Virtual copies of the portfolio plus the amount: the proposal, ACWI and the rule-only basket, bought at the
     latest close (tags proposal, proposal-<date>). Never a real portfolio."""
-    from .. import profile
     from .. import propose as pr
 
     try:
-        res = pr.shadow(profile.Market.load(), _load_picks(picks_file), name)
+        res = pr.shadow(Market.load(), _load_picks(picks_file), name)
     except ValueError as e:
         raise SystemExit(f"No shadow: {e}")
     typer.echo("Created: " + ", ".join(res["names"].values()))
@@ -172,10 +170,9 @@ def propose_review(as_json: bool = typer.Option(False, "--json", help="As JSON (
     """Every frozen proposal since its day: return vs ACWI and vs its rule basket, its drawdown against the
     modelled band, and what the trend exit would have done."""
 
-    from .. import profile
     from .. import propose as pr
 
-    rep = pr.review(profile.Market.load())
+    rep = pr.review(Market.load())
     if as_json:
         typer.echo(to_json(rep, indent=1, ensure_ascii=False))
         return
@@ -193,10 +190,9 @@ def propose_check(portfolio: str = typer.Option(None, "--portfolio", help="Only 
     """Each open proposal's exit criteria today (review level, signal exit, thesis checks, time stop, basket
     drawdown): Intact, Weakening or Triggered, with the evidence."""
 
-    from .. import profile
     from .. import propose as pr
 
-    rep = pr.check(profile.Market.load(), portfolio)
+    rep = pr.check(Market.load(), portfolio)
     if as_json:
         typer.echo(to_json(rep, indent=1, ensure_ascii=False))
         return

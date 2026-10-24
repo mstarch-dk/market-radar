@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .risk import TRADING_DAYS, deepest_drawdown, weekly  # noqa: F401 (TRADING_DAYS re-exported)
+from .risk import TRADING_DAYS, deepest_drawdown, weekly
 
 
 def rsi(close: pd.Series, n: int = 14) -> pd.Series:

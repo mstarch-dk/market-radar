@@ -14,9 +14,10 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import constituents, fees, profile, propose, universe, userstore
+from radar import constituents, fees, propose, universe, userstore
 from radar.config import settings
 from radar.config_schema import Propose
+from radar.market import Market
 from radar.model import artifacts
 from world import IDX, N
 
@@ -69,7 +70,7 @@ def market(tmp_data, monkeypatch):
     # ACWI's weights from the trimmed real file
     df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
     df.to_csv(tmp_data / "acwi_holdings.csv", index=False)
-    m = profile.Market.load()
+    m = Market.load()
     m.cfg = c
     return m
 

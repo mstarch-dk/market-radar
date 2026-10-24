@@ -8,8 +8,9 @@ import pandas as pd
 import pytest
 
 import world
-from radar import fees, performance, profile, simulate, userstore
+from radar import config, fees, paths, performance, simulate, userstore
 from radar.backtest import exit_rules, exits, pit, redeploy
+from radar.market import Market
 from radar.model import inputs as minputs
 from radar.signals import momentum, regime
 from radar.signals.score import score_vs
@@ -32,7 +33,7 @@ def market(tmp_data, monkeypatch):
     extra = world.install(tmp_data, monkeypatch)
     extra["CRASH"] = world.bars("CRASH", crash())
     performance.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 def context(market, *held):
@@ -82,7 +83,7 @@ def test_the_regime_reads_enough_rows_to_equal_the_full_history(market):
     d = IDX[280]
     full = market.closes.loc[:d]
     args = (world.fred().loc[:d], "ACWI", {k: g["tickers"] for k, g in world.UNIVERSE["stock_groups"].items()},
-            {"us": "US", "europe": "Europe"}, world.UNIVERSE["macro"]["yahoo"], pit.settings()["regime"])
+            {"us": "US", "europe": "Europe"}, world.UNIVERSE["macro"]["yahoo"], config.settings()["regime"])
     a, _ = regime.indicators(full, *args)
     b, _ = regime.indicators(full.iloc[-pit.REGIME_ROWS:], *args)
     assert [(i["name"], i["status"], i["value"]) for i in a] == [(i["name"], i["status"], i["value"]) for i in b]
@@ -104,7 +105,7 @@ def test_nothing_after_the_day_is_read(market, tmp_data, monkeypatch):
     future = crash()
     future[241:] *= 0.5
     extra["CRASH"] = world.bars("CRASH", future)
-    after = context(profile.Market.load(), "CRASH").levels("CRASH", d, float(crash()[:241].max()))
+    after = context(Market.load(), "CRASH").levels("CRASH", d, float(crash()[:241].max()))
     assert {k: before[k] for k in ("stop", "take_profit", "k")} == {k: after[k] for k in ("stop", "take_profit", "k")}
     assert before["context"] == after["context"]
 
@@ -334,7 +335,7 @@ def dip_market(tmp_data, monkeypatch):
     extra["CRASH"] = world.bars("CRASH", crash())
     extra["DIP"] = world.bars("DIP", dip())
     performance.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 def test_the_default_spec_is_the_rule_as_set(market):
@@ -520,4 +521,4 @@ def test_the_redeploy_study_runs_end_to_end(market, monkeypatch):
         for run in d["runs"].values():
             assert run["trades"] >= 3 and run["fees_pct"] > 0
     redeploy.write_redeploy(rep)
-    assert (exits.REPORTS / redeploy.REDEPLOY_REPORT_FILE).exists()
+    assert (paths.REPORTS / redeploy.REDEPLOY_REPORT_FILE).exists()

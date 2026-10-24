@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, dashboard, ingest, report
+from radar import api, api_models, dashboard, ingest, paths, report
 
 
 @pytest.fixture
@@ -191,7 +191,7 @@ def test_regime_vote_switches(client):
 
     import json
     out = report.build()
-    summary = json.loads((report.REPORTS / "summary.json").read_text(encoding="utf-8"))
+    summary = json.loads((paths.REPORTS / "summary.json").read_text(encoding="utf-8"))
     assert "valuation" in summary["regime"]["voting_groups"] and summary["regime"]["off"] == after["overall"]["off"]
     assert out["regime"] == after["overall"]["label"]
     assert client.put("/api/settings/regime-votes", json={"votes": {"crypto": True}}).status_code == 422

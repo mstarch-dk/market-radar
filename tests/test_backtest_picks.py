@@ -8,8 +8,10 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import performance, profile, userstore
+from radar import performance, userstore
 from radar.backtest import picks, study
+from radar.market import Market
+from radar.model import panels as mp
 from radar.userstore import viewstore
 from world import IDX, N
 
@@ -21,7 +23,7 @@ def market(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     performance.reset()
     with_settings(monkeypatch, backtest={"fill": "next", "fee_bps": 10, "random_baskets": 200})
-    return profile.Market.load()
+    return Market.load()
 
 
 def day(i=D):
@@ -47,7 +49,7 @@ def test_blind_hides_names_and_its_ids_resolve(market):
 
 
 def test_select_respects_caps_and_weights(market):
-    df = picks.ranked(study.panels(market), IDX[D])
+    df = picks.ranked(mp.panels(market), IDX[D])
     two_each = picks.select(df, 4, max_per_group=2)
     assert [p["ticker"] for p in two_each] == ["S1", "S2", "E1", "E2"]
     assert all(p["weight"] == pytest.approx(0.25) for p in two_each)
@@ -124,13 +126,13 @@ def test_picks_without_a_known_name_are_refused(market):
     with pytest.raises(ValueError):
         picks.run(market, day(), [{"ticker": "S1"}, {"ticker": "S1"}], "x")
     assert np.isclose(sum(p["weight"] for p in picks.resolve_picks([{"ticker": "S1"}, {"ticker": "S2"}],
-                                                             picks.ranked(study.panels(market), IDX[D]))), 1)
+                                                             picks.ranked(mp.panels(market), IDX[D]))), 1)
 
 
 def test_the_studys_score_equals_the_rules_score(market):
     from radar.backtest import pit
 
-    p = study.panels(market)
+    p = mp.panels(market)
     ctx = pit.Context.build(market, {"S3", "E2"})
     for i in (255, 270, N - 1):
         s = study.BY_KEY["score"].fn(p, IDX[i])

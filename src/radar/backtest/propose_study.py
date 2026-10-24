@@ -16,6 +16,7 @@ from ..config_schema import Propose
 from ..model import artifacts
 from ..model import panels as mp
 from ..model import paths as mpaths
+from ..model import stats as mstats
 from ..model.stats import path_stats, split_holdout
 from . import study
 
@@ -55,7 +56,7 @@ def summarize(recs: list[dict], h: int, prefix: str = "") -> dict | None:
     lag = max(h - 1, 0)
     out = {"dates": len(recs), "effective_n": round(len(recs) / h, 1),
            "mean": _m(ex), "gross_mean": _m([r[prefix + "excess_gross"] for r in recs]), "median": _q(ex, 50),
-           "p10": _q(ex, 10), "p90": _q(ex, 90), "t": study.nw_t(ex, lag), "hit": _m([float(x > 0) for x in ex]),
+           "p10": _q(ex, 10), "p90": _q(ex, 90), "t": mstats.nw_t(ex, lag), "hit": _m([float(x > 0) for x in ex]),
            "ret_mean": _m([r[prefix + "net"] for r in recs]), "acwi_mean": _m([r["acwi"] for r in recs]),
            "dd_median": _q([r[prefix + "max_dd"] for r in recs], 50),
            "dd_p10": _q([r[prefix + "max_dd"] for r in recs], 10),
@@ -216,7 +217,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
             if len(sc) < max(ns) * 2:
                 continue
             if y6 is not None:
-                cs = study.cross_section(sc["composite"], y6, 15, min(min_names, len(sc)))
+                cs = mstats.cross_section(sc["composite"], y6, 15, min(min_names, len(sc)))
                 if cs and cs.get("ic") is not None:
                     ics[tilt].append({"date": day, "ic": cs["ic"]})
             base = propose.Base({}, pd.DataFrame(columns=list(propose.DIMS)), acwi, {},
@@ -250,7 +251,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
     results = {t: {str(n): {str(h): {"kept": split(recs[t][n][h], h, "", holdout),
                                      "exits": split(recs[t][n][h], h, "x_", holdout)}
                             for h in horizons} for n in ns} for t in tilts}
-    turnover = {t: {str(n): study.turnover(tops[t][n]) for n in ns} for t in tilts}
+    turnover = {t: {str(n): mstats.turnover(tops[t][n]) for n in ns} for t in tilts}
     return {
         "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "asof": p.sessions[-1].date().isoformat(),
         "settings_hash": propose.rule_hash(), "settings": propose.rule_settings(),
@@ -262,7 +263,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
         "us_only": {t: c.tilts[t].qv > 0 for t in tilts},
         "acwi_weights": "today's" if acwi else None,
         "results": results,
-        "ic": {t: {"dates": len(v), "mean": _m([x["ic"] for x in v]), "t": study.nw_t([x["ic"] for x in v], 5)}
+        "ic": {t: {"dates": len(v), "mean": _m([x["ic"] for x in v]), "t": mstats.nw_t([x["ic"] for x in v], 5)}
                for t, v in ics.items()},
         "turnover": turnover,
         "annual_cost_if_repicked_monthly": {t: {n: (v * 12 * 2 * cost if v is not None else None) for n, v in d.items()}

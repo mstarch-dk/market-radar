@@ -17,6 +17,7 @@ from ..config import settings
 from ..paths import CACHE, HISTORY
 from ..signals import fundamentals as sf
 from ..signals import gauges as gz
+from ..signals import periods
 from . import CORE, store
 
 SCORES_FILE = HISTORY / "fundamentals" / "scores.parquet"     # weekly, like the valuation snapshot
@@ -54,8 +55,8 @@ class Context:
                  edgar: pd.DataFrame | None = None, yahoo: pd.DataFrame | None = None, pit: bool = False):
         cfg = self.cfg = _cfg()
         self.asof = pd.Timestamp(asof) if asof is not None else pd.Timestamp(closes.dropna(how="all").index[-1])
-        e = store.as_known(store.load_edgar() if edgar is None else edgar)     # resolved once for every ticker
-        y = store.as_known(store.load_yahoo() if yahoo is None else yahoo)
+        e = periods.as_known(store.load_edgar() if edgar is None else edgar)     # resolved once for every ticker
+        y = periods.as_known(store.load_yahoo() if yahoo is None else yahoo)
         by_e = {t: g for t, g in e.groupby("ticker")} if not e.empty else {}
         by_y = {t: g for t, g in y.groupby("ticker")} if not y.empty else {}
         self.groups = {t: g for g, ts in tracked.stock_groups(offline=True).items() for t in ts}
@@ -78,7 +79,7 @@ class Context:
             industry = sec.at[t, "industry"] if t in sec.index else ""
             financial = sf.is_financial(industry, fin_ind)
             notes: list[str] = []
-            v = store.View(facts, resolved=True)
+            v = periods.View(facts, resolved=True)
             px = self._price_fin(t, closes, raw, quote, fin, notes)
             mcap = self._mcap(v, px, s, closes, quote, fin, notes)
             dps = sf.dps_by_year(closes[t], raw[t]) if raw is not None and t in raw and t in closes else None
@@ -119,8 +120,8 @@ class Context:
     def _mcap(self, facts, px, snap_row, closes, quote, fin, notes) -> float | None:
         if px is None or px.empty:
             return None
-        sh = store.instant(facts, "shares")
-        dil = store.ttm(facts, "diluted_shares")
+        sh = periods.instant(facts, "shares")
+        dil = periods.ttm(facts, "diluted_shares")
         shares = sh.value if sh is not None else None
         lo, hi = self.cfg["shares_low"], self.cfg["shares_high"]
         if dil is not None and dil.value > 0 and (shares is None or not lo <= shares / dil.value <= hi):
@@ -192,9 +193,9 @@ class Context:
                          "pillar": pillar_of.get(m, "value")})
         facts = i["facts"]
         hist = []
-        rev = store.annual(facts, "revenue")
-        gp = store.annual(facts, "gross_profit")
-        cfo, capex = store.annual(facts, "cfo"), store.annual(facts, "capex")
+        rev = periods.annual(facts, "revenue")
+        gp = periods.annual(facts, "gross_profit")
+        cfo, capex = periods.annual(facts, "cfo"), periods.annual(facts, "capex")
         for end, r in rev.tail(self.cfg["stability_years"]).items():
             hist.append({"year": end.date().isoformat(), "revenue": float(r),
                          "gross_margin": float(gp[end] / r) if end in gp and r else None,

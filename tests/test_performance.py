@@ -6,9 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, fxrates, ingest, mine, performance, profile, report, userstore
+from radar import api, dashboard, fxrates, ingest, mine, performance, report, userstore
 from radar.api_models import Comparison, Performance
 from radar.config import settings
+from radar.market import Market
 from world import IDX, N
 
 FX = 6.5
@@ -28,7 +29,7 @@ def market(tmp_data, monkeypatch):
     div["raw_close"] = np.where(np.arange(N) < 200, 102.0, 100.0)   # dividend goes ex at bar 200
     extra["DIV"] = div
     performance.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 def _buy(sym, i, qty, price, **kw):

@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 import world
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import api, coverage, fxrates, ingest, sourcelog, universe
+from radar import api, coverage, fxrates, ingest, paths, sourcelog, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
 from radar.discovery import scan, sources
@@ -130,8 +130,8 @@ def _store_fx(days_ago: int, rates=RATES):
     d = pd.Timestamp(date.today() - timedelta(days=days_ago))
     df = pd.DataFrame([{"date": d, "ticker": t, "high": v, "low": v, "close": v, "raw_close": v, "volume": 0.0}
                        for t, v in rates.items()], columns=ingest.COLUMNS)
-    ingest.PRICES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(ingest.PRICES_FILE, index=False)
+    paths.PRICES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(paths.PRICES_FILE, index=False)
 
 
 def _yahoo_fx(rates):

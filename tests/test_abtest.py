@@ -7,7 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import abtest, api, profile, simulate, userstore
+from radar import abtest, api, simulate, userstore
+from radar.market import Market
 from world import IDX
 
 
@@ -17,7 +18,7 @@ def market(tmp_data, monkeypatch):
     from radar.fundamentals import context as fcontext
 
     fcontext.reset()
-    return profile.Market.load()
+    return Market.load()
 
 
 def test_refused_with_too_few_scored_stocks(market):

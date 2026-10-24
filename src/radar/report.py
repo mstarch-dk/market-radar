@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from typing import TYPE_CHECKING
 
 from . import dashboard, ops, snapshot, trades
 from .config import write_text
 from .fundamentals import context as fcontext
 from .jsonsafe import dumps
+from .market import Market
+from .model import inputs
 from .paths import REPORTS
-
-if TYPE_CHECKING:
-    from .market import Market
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
                     "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
@@ -83,22 +81,22 @@ def _write(path, data: dict) -> None:
 
 
 def _portfolios() -> list[dict]:
-    from . import performance, profile
+    from . import performance
 
     trades.ensure_migrated()
-    return performance.summary(profile.Market.load())
+    return performance.summary(Market.load())
 
 
 def add_abtest(market: Market | None = None) -> None:
     """Put the forward A/B test's digest into summary.json: after the report, and again after the test's refresh
     has replayed the month's picks."""
-    from . import abtest, profile
+    from . import abtest
 
     f = REPORTS / "summary.json"
     if not f.exists() or not abtest.portfolios():
         return
     s = json.loads(f.read_text(encoding="utf-8"))
-    s["abtest"] = abtest.summary(market or profile.Market.load())
+    s["abtest"] = abtest.summary(market or Market.load())
     _write(f, s)
 
 
@@ -107,7 +105,7 @@ def build() -> dict:
     d = c.data
     dashboard.check(d)                  # the shape the app reads, before anything is written
     REPORTS.mkdir(parents=True, exist_ok=True)
-    out = REPORTS / dashboard.FILE_NAME
+    out = REPORTS / inputs.DASHBOARD_FILE
     _write(out, d)
     _write(REPORTS / "summary.json", summary(d, c.me, _portfolios()))
     # snapshots after comparing with the previous ones, under the data's date

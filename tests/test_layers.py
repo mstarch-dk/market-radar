@@ -24,6 +24,9 @@ TESTS = ROOT / "tests"
 # Tranche 10 (a test that needs a stand-in or a helper of its own uses a public seam, docs/testing.md).
 TEST_PRIVATE_ALLOWED: frozenset[tuple[str, str, str]] = frozenset()
 
+# Packages whose __init__ is a deliberate facade: their names are read through the package.
+FACADES = frozenset({"radar.propose", "radar.api", "radar.api_models", "radar.cli"})
+
 @cache
 def _modules() -> dict[str, Path]:
     out = {}
@@ -126,6 +129,59 @@ def _scan_tests() -> set[tuple[str, str, str]]:
     return found
 
 
+@cache
+def _borrowed() -> dict[str, set[str]]:
+    """Per module, the names it binds at top level by importing them from another radar module (names it doesn't
+    also define)."""
+    out: dict[str, set[str]] = {}
+    for cur, path in _modules().items():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        defined, imported = set(), set()
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defined.add(node.name)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                defined |= {n.id for t in targets for n in ast.walk(t) if isinstance(n, ast.Name)}
+            for imp in [node, *(node.body if isinstance(node, ast.If) else [])]:   # TYPE_CHECKING blocks too
+                if isinstance(imp, ast.ImportFrom) and _owner(_base(cur, imp)) is not None:
+                    imported |= {a.asname or a.name for a in imp.names}
+        out[cur] = imported - defined
+    return out
+
+
+@cache
+def _reexport_reads() -> list[tuple[str, str, str]]:
+    """(file, module, name) for every name the source or the tests read through a module that only imported it."""
+    mods, borrowed = _modules(), _borrowed()
+    files = [(p, m) for m, p in mods.items()] + [(p, None) for p in sorted(TESTS.rglob("*.py"))]
+    found = set()
+    for path, cur in files:
+        where = path.relative_to(ROOT).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        aliases: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                base = _base(cur, node) if cur else node.module or ""
+                if _owner(base) is None:
+                    continue
+                for a in node.names:
+                    if f"{base}.{a.name}" in mods:
+                        aliases[a.asname or a.name] = f"{base}.{a.name}"
+                    elif base not in FACADES and a.name in borrowed.get(base, ()):
+                        found.add((where, base, a.name))
+            elif isinstance(node, ast.Import):
+                for a in node.names:
+                    if a.name in mods and a.asname:
+                        aliases[a.asname] = a.name
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in aliases
+                    and (m := aliases[node.value.id]) not in FACADES and m != cur
+                    and node.attr in borrowed.get(m, ())):
+                found.add((where, m, node.attr))
+    return sorted(found)
+
+
 def _cycles() -> list[list[str]]:
     """The strongly connected components with more than one module (Tarjan)."""
     deps, _ = _scan()
@@ -185,6 +241,13 @@ def test_no_test_reads_a_private_name():
     assert not new, "tests reading a private name:\n" + "\n".join(f"  {x}" for x in new)
     gone = sorted(TEST_PRIVATE_ALLOWED - found)
     assert not gone, "no longer used, take them off TEST_PRIVATE_ALLOWED:\n" + "\n".join(f"  {x}" for x in gone)
+
+
+def test_no_name_is_read_through_a_module_that_only_imported_it():
+    """Read a name from the module that defines it. A re-export gives it two import paths, and a test that patches
+    one misses the callers that read the other (the package facades in FACADES are the deliberate exceptions)."""
+    found = _reexport_reads()
+    assert not found, "read it from the defining module:\n" + "\n".join(f"  {f}: {m}.{n}" for f, m, n in found)
 
 
 def test_no_import_cycles():

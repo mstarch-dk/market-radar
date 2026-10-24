@@ -17,6 +17,7 @@ from .. import tracked
 from ..fundamentals import context as fcontext
 from ..fundamentals import store
 from ..signals import fundamentals as sf
+from ..signals import periods
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -76,13 +77,13 @@ class FundPIT:
 def _gross_profitability(v, day, cfg) -> float | None:
     """Novy-Marx: gross profit over the last twelve months divided by total assets (None when either is missing
     or stale)."""
-    gp = store.ttm(v, "gross_profit")
+    gp = periods.ttm(v, "gross_profit")
     if gp is None:
-        rev, cogs = store.ttm(v, "revenue"), store.ttm(v, "cost_of_revenue")
+        rev, cogs = periods.ttm(v, "revenue"), periods.ttm(v, "cost_of_revenue")
         if rev is None or cogs is None or rev.end != cogs.end:
             return None
-        gp = store.Value(rev.value - cogs.value, rev.end, rev.basis)
-    a = store.instant(v, "total_assets")
+        gp = periods.Value(rev.value - cogs.value, rev.end, rev.basis)
+    a = periods.instant(v, "total_assets")
     age = cfg["ttm_max_age_days"]
     if a is None or a.value <= 0 or (day - gp.end).days > age or (day - a.end).days > age:
         return None

@@ -2,6 +2,7 @@
 import typer
 
 from .. import importers, trades
+from ..market import Market
 from .common import one_portfolio, portfolio_ids, to_json
 from .root import app
 
@@ -118,11 +119,11 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
     side by side from a common start. Virtual portfolios and tag groups only when named."""
 
     from .. import performance as perf
-    from .. import profile, userstore
+    from .. import userstore
 
     trades.ensure_migrated()
     ids = portfolio_ids(names, None) if names else userstore.compared_ids()
-    res = perf.compare(profile.Market.load(), ids, tag, start)
+    res = perf.compare(Market.load(), ids, tag, start)
     if as_json:
         typer.echo(to_json(res, indent=1))
         return
@@ -251,10 +252,10 @@ def portfolios_fork(name: str, new_name: str, date: str = typer.Option(..., "--d
                     cash: float = typer.Option(0.0, "--cash", help="Extra cash (DKK) to put in the copy"),
                     tag: list[str] = typer.Option(None, "--tag", help="A tag for the copy (repeatable)")):
     """A virtual copy of a portfolio at a day's close, to A/B-test changes against the original from there on."""
-    from .. import profile, simulate
+    from .. import simulate
 
     try:
-        simulate.fork(one_portfolio(name)["id"], new_name, date, profile.Market.load(), cash, tag or [])
+        simulate.fork(one_portfolio(name)["id"], new_name, date, Market.load(), cash, tag or [])
     except ValueError as e:
         raise SystemExit(f"Not forked: {e}")
     typer.echo(f"Forked {name} into {new_name} (virtual). Compare: radar performance {name!r} {new_name!r} --start {date}")

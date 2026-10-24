@@ -22,7 +22,7 @@ import pytest
 
 from conftest import with_settings
 from fakes import Resp, fake_yf, never_shrank, serve, statements, stored
-from radar import external, ingest, sentiment, tracked, valuation
+from radar import external, ingest, paths, sentiment, tracked, valuation
 from radar.discovery import scan
 from radar.fundamentals import edgar, store, yahoo
 
@@ -102,7 +102,7 @@ class Source:
 
 
 class Fred(Source):
-    file = ingest.FRED_FILE
+    file = paths.FRED_FILE
     measure = {"key": None, "date": None}
     modes = ("error", "empty", "short", "html")
 
@@ -233,7 +233,7 @@ def _bars(t: str, start: str, end: str, close: float = 100.0, factor: float = 1.
 
 
 class Prices(Source):
-    file = ingest.PRICES_FILE
+    file = paths.PRICES_FILE
     measure = {"key": "ticker", "date": "date"}
 
     def _serve(self, mp, world):
@@ -360,9 +360,9 @@ def test_fred_rolling_window_is_merged_into_history(monkeypatch):
     got = ingest.load_fred()["BAML"].dropna()
     assert got.index.min() == first.index.min() and got.index.max() == pd.Timestamp("2026-10-21")
     assert len(got) == 405
-    assert ingest.FRED_ROLLING_FILE.exists()
+    assert paths.FRED_ROLLING_FILE.exists()
     # the cache alone is lost (a new cache folder): the history fills it in again
-    ingest.FRED_FILE.unlink()
+    paths.FRED_FILE.unlink()
     serve(monkeypatch, {"BAML": Resp(text=fred_csv("BAML", 400, end="2026-10-28"))})
     assert ingest.update_fred(["BAML"]) == []
     assert ingest.load_fred()["BAML"].dropna().index.min() == first.index.min()

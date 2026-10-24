@@ -11,6 +11,7 @@ from .. import (
     paths,
     profile,
 )
+from ..market import Market
 
 gate: tuple[str, str | None] | None = None      # (state, why read-only), from home.gate() at start
 
@@ -18,15 +19,15 @@ gate: tuple[str, str | None] | None = None      # (state, why read-only), from h
 # The price store and its lock: one download, reload or read of it at a time. Re-entrant, so a route that holds it
 # can call market(), ensure() or has_prices() (they take it too) without deadlocking.
 lock = threading.RLock()
-_market: profile.Market | None = None
+_market: Market | None = None
 
 
-def market() -> profile.Market:
+def market() -> Market:
     """The price store, reloaded when `radar update` has written a new one (under the lock: one load at a time)."""
     global _market
     with lock:
         if _market is None or _market.stale():
-            _market = profile.Market.load()
+            _market = Market.load()
         return _market
 
 

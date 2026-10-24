@@ -21,7 +21,7 @@ from .model import inputs
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
 from .signals.score import score_vs
-from .universe import REGION_SUFFIXES, region_for  # noqa: F401 (re-exported)
+from .universe import region_for
 
 OK, STALE, MISSING = "ok", "stale", "missing"
 WINDOWS = {"r1w": 5, "r1m": 21, "r3m": 63, "r6m": 126, "r1y": 252}

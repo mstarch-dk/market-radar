@@ -16,15 +16,12 @@ import pandas as pd
 from .. import performance, simulate, tracked
 from ..config import typed
 from ..model import artifacts
-from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within  # noqa: F401 (re-exported)
-from ..model.stats import (  # noqa: F401 (re-exported)
+from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within
+from ..model.stats import (
     QUANTILES,
     cross_section,
-    daily_rf,
     holdout_diff_t,
-    nw_t,  # noqa: F401 (re-exported)
-    path_stats,
-    risk_adjusted,
+    nw_t,
     split_holdout,
     summarize,
     turnover,
