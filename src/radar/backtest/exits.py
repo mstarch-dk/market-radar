@@ -647,7 +647,7 @@ def summary(rep: dict) -> dict:
             "pending": len(rep.get("pending") or []), "no_rule": rep.get("no_rule") or [], "counts": rep.get("counts")}
 
 
-def refresh(real_ids: list[int], market, variants=VARIANTS, start=None, end=None, fill: str | None = None,
+def refresh(real_ids: list[int], market: Market, variants=VARIANTS, start=None, end=None, fill: str | None = None,
             write: bool = True, spec: RuleSpec | None = None) -> dict:
     """Replay each real portfolio with each variant into its simulated portfolio (found again by parent and
     strategy, created the first time) and build the report; written to reports/sim-exits.json."""

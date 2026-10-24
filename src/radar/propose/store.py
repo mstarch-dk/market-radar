@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+from pydantic import ValidationError
 
 from .. import fees, tracked, trades, userstore
 from ..config import typed, write_text
+from ..config_schema import Stops
 from ..jsonsafe import clean as _clean
 from ..jsonsafe import dumps
 from ..model import artifacts
@@ -19,13 +22,14 @@ from ..signals.risk import deepest_drawdown
 from ..values import num
 from . import basket, draft, evaluation, picks_file, pricing, rules
 
+if TYPE_CHECKING:
+    from ..market import Market
+
 
 def save_picks(doc: dict) -> str:
     """Write a picks file into exports/proposals/ (frozen: stamped once)."""
-    doc = evaluation.picks_doc(doc)
-    m = doc["meta"]
-    if not m.get("portfolio") or not m.get("date"):
-        raise ValueError("the picks file needs meta.portfolio and meta.date")
+    picks_file.check(doc)
+    m = doc["meta"]                                # the raw dict: what is written, stamped once
     if not m.get("frozen_at"):
         m["frozen_at"] = pd.Timestamp.now().isoformat(timespec="seconds")
     rules.PROPOSALS.mkdir(parents=True, exist_ok=True)
@@ -69,8 +73,8 @@ def _band(fname: str) -> list[float] | None:
     return [dd["bad_case"], dd["expected"]] if dd.get("bad_case") is not None else None
 
 
-def proposals() -> list[tuple[str, dict]]:
-    """Every frozen picks file, oldest first."""
+def proposals() -> list[tuple[str, picks_file.PicksFile]]:
+    """Every frozen picks file, oldest first, checked."""
     if not rules.PROPOSALS.exists():
         return []
     out = []
@@ -84,16 +88,16 @@ def proposals() -> list[tuple[str, dict]]:
     return out
 
 
-def shadow(market, doc: dict, name: str) -> dict:
+def shadow(market: Market, doc: dict, name: str) -> dict:
     """Virtual copies of the portfolio at the latest close plus the amount: the proposal, ACWI (A0) and the rule
     basket (A1), tagged proposal and proposal-<date>. Never touches a real portfolio."""
     from .. import simulate
 
-    doc = evaluation.picks_doc(doc)
-    m = doc["meta"]
-    src = userstore.portfolio_by_name(m["portfolio"])
+    pf = picks_file.check(doc)
+    m = pf.meta
+    src = userstore.portfolio_by_name(m.portfolio)
     if not src:
-        raise ValueError(f"no portfolio called {m['portfolio']}")
+        raise ValueError(f"no portfolio called {m.portfolio}")
     names = {"proposal": name, "acwi": f"{name} · ACWI", "rule": f"{name} · rule"}
     for v in names.values():
         if userstore.portfolio_by_name(v):
@@ -101,10 +105,11 @@ def shadow(market, doc: dict, name: str) -> dict:
     prices = pricing.Prices(market)
     sf = fees.SimFees.for_portfolio(src, typed().backtest.fee_bps)
     day = pd.Timestamp(market.closes.index[-1])
-    tags = ["proposal", f"proposal-{m['date']}"]
-    amount = float(m["amount"])
-    rule = m.get("rule_basket") or []
-    arms = {"proposal": [x["ticker"] for x in doc["picks"]], "acwi": [tracked.benchmark()], "rule": rule}
+    when = m.date.isoformat()
+    tags = ["proposal", f"proposal-{when}"]
+    amount = m.amount
+    rule = m.rule_basket
+    arms = {"proposal": [x.ticker for x in pf.picks], "acwi": [tracked.benchmark()], "rule": rule}
     ids = {}
     for arm, ticks in arms.items():
         if not ticks:
@@ -122,10 +127,10 @@ def shadow(market, doc: dict, name: str) -> dict:
                 continue
             userstore.add_tx({"symbol": t, "date": day.date().isoformat(), "type": "BUY", "quantity": qty, "price": px,
                               "fee": tm.fee(qty * px), "fx_rate": rate, "portfolio_id": pid,
-                              "note": f"proposal {m['date']} ({arm})"}, source="fork")
+                              "note": f"proposal {when} ({arm})"}, source="fork")
         p = userstore.get_portfolio(pid) or {}
         userstore.save_portfolio({"params": (p.get("params") or {}) | {"proposal": {
-            "date": m["date"], "arm": arm, "tickers": ticks, "amount": amount, "picks_sha": evaluation.picks_sha(doc)}}}, pid)
+            "date": when, "arm": arm, "tickers": ticks, "amount": amount, "picks_sha": evaluation.picks_sha(doc)}}}, pid)
         ids[arm] = pid
     return {"ids": ids, "names": {k: names[k] for k in ids}, "tags": tags,
             "returns_link": f"/returns?pf={','.join(str(v) for v in ids.values())}&from={day.date().isoformat()}"}
@@ -165,23 +170,23 @@ def _basket_path(prices: pricing.Prices, tickers: list[str], start: pd.Timestamp
             "acwi": float(bi.iloc[-1] - 1) if bi is not None and len(bi) else None, "days": int(len(v) - 1)}
 
 
-def review(market) -> dict:
+def review(market: Market) -> dict:
     """How each frozen proposal did since its day, against ACWI, its rule basket and its own modelled range."""
     c = rules.cfg()
     prices = pricing.Prices(market)
     st = typed().stops
-    rows = []
+    rows: list[dict] = []
     for fname, d in proposals():
-        m = d["meta"]
-        start = pd.Timestamp(m["date"])
+        m = d.meta
+        when, start = m.date.isoformat(), pd.Timestamp(m.date)
         if start >= market.closes.index[-1]:
-            rows.append({"file": fname, "date": m["date"], "portfolio": m["portfolio"], "note": "no prices since yet"})
+            rows.append({"file": fname, "date": when, "portfolio": m.portfolio, "note": "no prices since yet"})
             continue
-        ticks = [x["ticker"] for x in d["picks"]]
+        ticks = [x.ticker for x in d.picks]
         mine = _basket_path(prices, ticks, start, st.trend_sma)
-        rule = _basket_path(prices, m.get("rule_basket") or [], start) if m.get("rule_basket") else {}
+        rule = _basket_path(prices, m.rule_basket, start) if m.rule_basket else {}
         band = _band(fname)
-        rows.append({"file": fname, "date": m["date"], "portfolio": m["portfolio"], "tilt": m.get("tilt"),
+        rows.append({"file": fname, "date": when, "portfolio": m.portfolio, "tilt": m.tilt,
                      "tickers": ticks, "days": mine.get("days"), "ret": mine.get("ret"), "acwi": mine.get("acwi"),
                      "excess": None if mine.get("ret") is None or mine.get("acwi") is None else mine["ret"] - mine["acwi"],
                      "rule_ret": rule.get("ret"), "judgment_vs_rule": None if not rule or mine.get("ret") is None
@@ -200,7 +205,16 @@ def review(market) -> dict:
                    f"{len(judged)} proposal(s) with a result: fewer than {c['review_min']} say nothing about the method yet"})
 
 
-def check(market, portfolio: str | None = None) -> dict:
+def _stops_changed(frozen: dict, now: Stops) -> bool:
+    """The stops frozen with a proposal differ from today's (compared as the settings model, so 80 is 80.0 and a
+    key added since with its default isn't a change; a frozen section that no longer fits the model is one)."""
+    try:
+        return Stops.model_validate(frozen) != now
+    except ValidationError:
+        return True
+
+
+def check(market: Market, portfolio: str | None = None) -> dict:
     """Each open proposal's exit criteria today: Intact, Weakening or Triggered, with the evidence."""
     from ..model import panels as mp
 
@@ -214,25 +228,26 @@ def check(market, portfolio: str | None = None) -> dict:
     today = pd.Timestamp(market.closes.index[-1])
     out = []
     for fname, d in proposals():
-        m = d["meta"]
-        if portfolio and m.get("portfolio") != portfolio:
+        m = d.meta
+        when = m.date.isoformat()
+        if portfolio and m.portfolio != portfolio:
             continue
         held = None
-        pf = userstore.portfolio_by_name(m["portfolio"])
+        pf = userstore.portfolio_by_name(m.portfolio)
         if pf:
             pos, _ = trades.positions(trades.transactions([pf["id"]]))
             held = set(pos[pos["status"] == "holding"]["symbol"]) if not pos.empty else set()
         older = []
-        if m.get("settings_hash") and m["settings_hash"] != rules.rule_hash():
+        if m.settings_hash and m.settings_hash != rules.rule_hash():
             older.append("the proposal rule's settings have changed since")
-        if m.get("stops") and m["stops"] != st:
+        if m.stops and _stops_changed(m.stops, st):
             older.append("settings.stops have changed since")
-        if exit_run and pd.Timestamp(exit_run) > pd.Timestamp(m.get("frozen_at") or m["date"]):
+        if exit_run and pd.Timestamp(exit_run) > pd.Timestamp(m.frozen_at or m.date):
             older.append("the exit study was re-run since")
         names = []
-        for x in d["picks"]:
-            t = x["ticker"]
-            ex = x.get("exit") or draft.default_exit(m.get("tilt", "mix"), m["date"], int(m.get("horizon", 6)))
+        for x in d.picks:
+            t = x.ticker
+            ex = x.exit.model_dump() if x.exit else draft.default_exit(m.tilt, when, m.horizon)
             items = []
             cl = market.closes[t].dropna() if t in market.closes else pd.Series(dtype=float)
             sma = int((ex.get("review_level") or {}).get("sma") or st.trend_sma)
@@ -269,12 +284,12 @@ def check(market, portfolio: str | None = None) -> dict:
             status = "Triggered" if "triggered" in stt else "Weakening" if "weakening" in stt else "Intact"
             names.append({"ticker": t, "held": None if held is None else t in held, "status": status, "items": items,
                           "days_to_time_stop": days})
-        start = pd.Timestamp(m["date"])
-        path = _basket_path(prices, [x["ticker"] for x in d["picks"]], start) if start < today else {}
+        start = pd.Timestamp(m.date)
+        path = _basket_path(prices, [x.ticker for x in d.picks], start) if start < today else {}
         band = _band(fname)
         drawdown = {"max_dd": path.get("max_dd"), "bad_case": band[0] if band else None,
                     "status": None if not band or path.get("max_dd") is None else
                     "Triggered" if path["max_dd"] < band[0] else "Intact"}
-        out.append({"file": fname, "date": m["date"], "portfolio": m["portfolio"], "older_rule": older,
+        out.append({"file": fname, "date": when, "portfolio": m.portfolio, "older_rule": older,
                     "names": names, "basket": drawdown})
     return _clean({"asof": today.date().isoformat(), "proposals": out})

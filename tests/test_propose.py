@@ -452,6 +452,15 @@ def test_older_rule_is_flagged(market, ask):
     assert "changed since" in propose.check(market)["proposals"][0]["older_rule"][0]
 
 
+def test_stops_frozen_today_are_not_a_change(market, ask):
+    d = _draft(market, ask)["draft_picks"]
+    same = Path(propose.save_picks(d)).name
+    d["meta"]["stops"] = d["meta"]["stops"] | {"trend_sma": 100}
+    moved = Path(propose.save_picks(d)).name
+    older = {x["file"]: x["older_rule"] for x in propose.check(market)["proposals"]}
+    assert older == {same: [], moved: ["settings.stops have changed since"]}
+
+
 def test_parse_amount():
     from radar.money import parse_amount
 
@@ -520,7 +529,12 @@ def _picks(**meta) -> dict:
 def test_the_picks_file_contract():
     from radar.propose import picks_file
 
-    assert picks_file.check(_picks())["picks"][0]["note"] == "mine"            # the skill's own fields stay
+    pf = picks_file.check(_picks())
+    assert pf.picks[0].model_extra == {"note": "mine"}                       # the skill's own fields stay
+    m = pf.meta                                                              # every field read has its default here
+    assert (m.tilt, m.mode, m.weighting, m.horizon, m.max_position, m.etf) == ("mix", "conviction", "equal", 6, None, True)
+    with pytest.raises(ValueError, match="isn't a picks file: meta.tilt"):
+        picks_file.check(_picks(tilt="growth"))
     bad = _picks()
     del bad["meta"]["date"]
     with pytest.raises(ValueError, match="isn't a picks file: meta.date"):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -13,14 +13,10 @@ from .. import fees, tracked
 from ..config import typed, universe_config
 from ..jsonsafe import clean as _clean
 from ..values import num
-from . import basket, draft, drift, exposure, pricing, riskmodel, rules
+from . import basket, draft, drift, exposure, picks_file, pricing, riskmodel, rules
 
-
-def picks_doc(doc: dict) -> dict:
-    """`doc` checked against the picks file's contract (picks_file.py)."""
-    from . import picks_file
-
-    return picks_file.check(doc)
+if TYPE_CHECKING:
+    from ..market import Market
 
 
 def picks_sha(doc: dict) -> str:
@@ -71,19 +67,17 @@ def _cost_one(prices: pricing.Prices, sf: fees.SimFees, t: str, amount: float, a
     return (2 * tm.fee(v) + 2 * v * hs) / v if v > 0 else None
 
 
-def evaluate(market, doc: dict, max_position: float | None = None, tolerance: float | None = None,
+def evaluate(market: Market, doc: dict, max_position: float | None = None, tolerance: float | None = None,
              offline: bool = False, light: bool = False) -> dict:
     """Everything the memo needs for a frozen picks file: sizing, constraints, exposures, risk, the drawdown three
     ways, the modelled return, the alternatives A0-A6 and the decision rule."""
     c = rules.cfg()
-    doc = picks_doc(doc)
-    m = doc.get("meta") or {}
-    name, amount = m.get("portfolio"), float(m.get("amount") or 0)
-    tilt, mode, horizon = m.get("tilt", "mix"), m.get("mode", "conviction"), int(m.get("horizon", 6))
-    weighting = m.get("weighting", "equal")
-    max_position = max_position if max_position is not None else m.get("max_position")
-    if not name or amount <= 0:
-        raise ValueError("the picks file needs meta.portfolio and meta.amount")
+    m = picks_file.check(doc).meta
+    name, amount = m.portfolio, m.amount
+    tilt, mode, horizon, weighting = m.tilt, m.mode, m.horizon, m.weighting
+    max_position = max_position if max_position is not None else m.max_position
+    if amount <= 0:
+        raise ValueError("the picks file needs a positive meta.amount")
     ctx = draft.context(market, name, offline)
     bench = tracked.benchmark()
     tickers = [x["ticker"] for x in doc["picks"]]
@@ -98,7 +92,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     picks_list = [{"ticker": t} for t in tickers]
     sz = basket.size(amount, picks_list, frame, ctx.prices, ctx.sf, weighting, c)
     fl_doc = doc.get("filler")
-    fl = basket.filler(sz["leftover_dkk"], ctx.portfolio["kind"], ctx.prices, ctx.sf, bool(fl_doc) or bool(m.get("etf", True)), c)
+    fl = basket.filler(sz["leftover_dkk"], ctx.portfolio["kind"], ctx.prices, ctx.sf, bool(fl_doc) or m.etf, c)
     vals = draft.values_of(ctx.holdings)
     new = {r["ticker"]: r["value_dkk"] for r in sz["rows"] if r["value_dkk"]}
     if fl and fl.get("value_dkk"):
@@ -115,7 +109,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     # constraints
     base = draft.holdings_base(ctx, tickers)
     _, passed = basket.select(frame.assign(composite=np.arange(n, 0, -1)), n, amount, base, c, "conviction", max_position)
-    rule = m.get("rule_basket") or []
+    rule = m.rule_basket
     swaps = [t for t in tickers if rule and t not in rule]
     cons = [{"check": "min ticket", "ok": all((r["budget_dkk"] or 0) >= c["min_ticket_dkk"] - 1 for r in sz["rows"]),
              "detail": f"{c['min_ticket_dkk']:,} DKK per name"},
@@ -166,7 +160,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     return _clean({
         "portfolio": {"id": ctx.portfolio["id"], "name": name, "kind": ctx.portfolio["kind"], "mode": ctx.portfolio["mode"]},
         "asof": pd.Timestamp(market.closes.index[-1]).date().isoformat(), "picks_sha": picks_sha(doc),
-        "meta": m, "regime": ctx.regime, "trend": ctx.trend, "notes": ctx.notes, "untested_kv": untested,
+        "meta": doc["meta"], "regime": ctx.regime, "trend": ctx.trend, "notes": ctx.notes, "untested_kv": untested,
         "picks": [{**x, **{k: v for k, v in (next(r for r in sz["rows"] if r["ticker"] == x["ticker"])).items()},
                    "sector": pmeta["sector"].get(x["ticker"]), "region": pmeta["region"].get(x["ticker"]),
                    "momentum_score": num(frame.at[x["ticker"], "score"]) if "score" in frame else None,
@@ -194,7 +188,7 @@ def evaluate(market, doc: dict, max_position: float | None = None, tolerance: fl
     })
 
 
-def factors(values: dict[str, float], R: pd.DataFrame, market) -> dict | None:
+def factors(values: dict[str, float], R: pd.DataFrame, market: Market) -> dict | None:
     from ..signals import risk as rk
 
     bench = tracked.benchmark()

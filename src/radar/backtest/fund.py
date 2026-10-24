@@ -8,6 +8,8 @@ group (survivorship); peers are the US names only, where the app pools every reg
 is skipped (Yahoo's figure is today's). Non-US stocks have no dated statements and are left out."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 
@@ -15,6 +17,9 @@ from .. import tracked
 from ..fundamentals import context as fcontext
 from ..fundamentals import store
 from ..signals import fundamentals as sf
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 GROUP = "us"
 RANKED = ("roic", "fcf_margin", "fcf_yield", "ebit_ev", "shareholder_yield", "ey_vs_history", "gm_stability",
@@ -24,7 +29,7 @@ RANKED = ("roic", "fcf_margin", "fcf_yield", "ebit_ev", "shareholder_yield", "ey
 class FundPIT:
     """Scores per formation date, each computed once (a day's table is cached)."""
 
-    def __init__(self, market, edgar: pd.DataFrame | None = None, tickers: list[str] | None = None):
+    def __init__(self, market: Market, edgar: pd.DataFrame | None = None, tickers: list[str] | None = None):
         e = store.load_edgar() if edgar is None else edgar
         us = set(tracked.stock_groups(offline=True).get(GROUP, []))
         names = sorted(set(tickers if tickers is not None else us) & set(e["ticker"].unique())) if not e.empty else []

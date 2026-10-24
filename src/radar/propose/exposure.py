@@ -2,7 +2,7 @@
 currency per name, and exposures against ACWI's own weights."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -10,8 +10,11 @@ from .. import money, tracked, trades, universe
 from ..config import universe_config
 from . import pricing, rules
 
+if TYPE_CHECKING:
+    from ..market import Market
 
-def book(market, prices: pricing.Prices, portfolio_ids: list[int]) -> pd.DataFrame:
+
+def book(market: Market, prices: pricing.Prices, portfolio_ids: list[int]) -> pd.DataFrame:
     """Holdings of these portfolios valued at the last close in DKK: symbol, quantity, price, rate, value_dkk
     (None when the price or rate is unknown)."""
     tx = trades.transactions(portfolio_ids)

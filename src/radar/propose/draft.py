@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .. import constituents, fees, tracked, trades, universe, userstore
-from ..config import settings, typed
+from ..config import typed
 from ..jsonsafe import clean as _clean
 from ..model import inputs
 from . import basket, drift, exposure, pricing, riskmodel, rules
@@ -33,7 +33,7 @@ class Ctx:
     trend: str | None = None       # ACWI above ("up") or below ("down") its prior.trend_months-month average
 
 
-def context(market, name: str, offline: bool = False) -> Ctx:
+def context(market: Market, name: str, offline: bool = False) -> Ctx:
     p = userstore.portfolio_by_name(name)
     if not p:
         known = ", ".join(x["name"] for x in userstore.portfolios(include_archived=False))
@@ -55,7 +55,7 @@ def context(market, name: str, offline: bool = False) -> Ctx:
     return Ctx(market, prices, p, held, whole, sf, acwi, inputs.current_regime()["label"], notes, _trend(market))
 
 
-def _trend(market, months: int | None = None) -> str | None:
+def _trend(market: Market, months: int | None = None) -> str | None:
     """"up" when ACWI's last month-end close is at or above the mean of its last `months` month-ends, else
     "down" (the split the long-run prior uses); None without enough history."""
     months = months or int((rules.cfg().get("prior") or {}).get("trend_months", 10))
@@ -115,7 +115,7 @@ def default_exit(tilt: str, fill: str, horizon: int, c: dict | None = None) -> d
             "signal": sig, "time_stop": review, "thesis": []}
 
 
-def candidates(market, name: str, amount: float, tilt: str = "mix", mode: str = "conviction", n: int | None = None,
+def candidates(market: Market, name: str, amount: float, tilt: str = "mix", mode: str = "conviction", n: int | None = None,
                weighting: str = "equal", max_position: float | None = None, etf: bool = True, horizon: int = 6,
                top: int = 40, offline: bool = False) -> dict:
     """The context, the gates, a scored shortlist and the rule-only basket as a draft picks file."""
@@ -150,7 +150,8 @@ def candidates(market, name: str, amount: float, tilt: str = "mix", mode: str = 
     draft = {"type": "propose-picks", "meta": {"portfolio": name, "portfolio_id": ctx.portfolio["id"], "amount": amount,
                                                 "tilt": tilt, "mode": mode, "n": n, "horizon": horizon,
                                                 "weighting": weighting, "max_position": max_position, "etf": etf,
-                                                "date": today, "settings_hash": rules.rule_hash(c), "stops": settings()["stops"],
+                                                "date": today, "settings_hash": rules.rule_hash(c),
+                                                "stops": typed().stops.model_dump(mode="json"),
                                                 "rule_basket": [x["ticker"] for x in chosen], "frozen_at": None},
              "picks": [{"ticker": x["ticker"], "why": None, "swapped_from": None, "swap_reason": None, "exit": ex}
                        for x in chosen],

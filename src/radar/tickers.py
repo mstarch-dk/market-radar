@@ -3,10 +3,15 @@ hover cards and ownership markers. Market numbers come from the price store and 
 cached until either changes. `my_status` is merged on every call so watchlist edits show at once."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from . import dashboard, tracked, trades, universe
 from .paths import CACHE
+
+if TYPE_CHECKING:
+    from .market import Market
 
 _cache: tuple[tuple, list[dict]] | None = None
 
@@ -28,7 +33,7 @@ def _ret(s: pd.Series, n: int) -> float | None:
     return float(s.iloc[-1] / s.iloc[-1 - n] - 1) if len(s) > n else None
 
 
-def _market_rows(market) -> list[dict]:
+def _market_rows(market: Market) -> list[dict]:
     closes = market.closes
     groups = tracked.stock_groups(offline=True)
     labels = tracked.stock_group_labels()
@@ -75,7 +80,7 @@ def _market_rows(market) -> list[dict]:
     return rows
 
 
-def summary(market) -> list[dict]:
+def summary(market: Market) -> list[dict]:
     """One row per tracked symbol; `market` is a profile.Market."""
     global _cache
     p = dashboard.path()

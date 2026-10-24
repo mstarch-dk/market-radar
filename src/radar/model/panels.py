@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
 import pandas as pd
@@ -14,6 +14,9 @@ from ..config import typed
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
 from ..signals.score import COMPONENTS, mean_pct
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 
 class Fundamentals(Protocol):
@@ -41,7 +44,7 @@ class Panels:
 
 
 
-def panels(market, tickers: list[str] | None = None) -> Panels:
+def panels(market: Market, tickers: list[str] | None = None) -> Panels:
     groups = tracked.stock_groups(offline=True)
     group: dict[str, str] = {}
     for g, ts in groups.items():

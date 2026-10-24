@@ -5,6 +5,8 @@ DKK. The method: guide/laerebog/portefoeljeforslag.md (*Sådan gør radaren*); t
 rule's settings (the hash in the report) makes the report stale: the proposal shows no drift until it is rerun."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 
@@ -15,6 +17,9 @@ from ..model import panels as mp
 from ..model import paths as mpaths
 from ..model.stats import path_stats
 from . import study
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 CAVEATS = [
     "Survivorship: today's universe (S&P 500 constituents and the curated lists), so names that left it are missing; "
@@ -133,7 +138,7 @@ class Paths:
                 prefix + "max_dd": p["max_dd"], prefix + "worst20": p["worst20"]}
 
 
-def run(market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_regime: bool = True,
+def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None, with_regime: bool = True,
         log=lambda *_: None, p: mp.Panels | None = None) -> dict:
     """The study: on each formation date D (the last session of a completed month), for each tilt and each basket
     size in `propose.study_ns`, the rule's gates, score and caps (against an empty portfolio, with today's ACWI

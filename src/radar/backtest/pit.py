@@ -45,7 +45,7 @@ class Context:
     _atr_by: dict = field(default_factory=dict, repr=False)   # (ticker, atr_days) -> ATR series for other windows
 
     @classmethod
-    def build(cls, market, held: set[str]) -> Context:
+    def build(cls, market: Market, held: set[str]) -> Context:
         cfg = settings()
         closes = market.closes
         mh = typed().momentum.min_history_days

@@ -4,6 +4,8 @@ holding, in-sample and in the holdout, with a pass/fail verdict; `radar study ex
 reports/exit-study.json."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 
@@ -19,6 +21,9 @@ from ..model.stats import (
 )
 from ..signals.risk import annualised_vol
 from . import study
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 
 def variant(key: str):
@@ -64,7 +69,7 @@ FIRST_CANDIDATE = 4           # variants from this index on are candidates for t
 MIXES = (0.75, 0.5)           # no exit rule: the basket at this weight, the rest in ACWI from the start (sizing)
 
 
-def path(rows: list[dict], market, start: pd.Timestamp, end: pd.Timestamp, bench: pd.Series | None = None,
+def path(rows: list[dict], market: Market, start: pd.Timestamp, end: pd.Timestamp, bench: pd.Series | None = None,
          rf: pd.Series | None = None) -> dict | None:
     """Return, max drawdown, volatility and worst 20-session return of a run's value from `start` to `end`, per DKK
     put in (the first day's buying fees included). None when the value at the end is unknown. With `rf` (a daily
@@ -144,7 +149,7 @@ def exit_verdict(parts: dict, months: int) -> dict:
     return {"label": "passes" if not why else "fails", "why": why, "cost_limit": limit}
 
 
-def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[str] | None = None, since=None,
+def exit_variants(market: Market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[str] | None = None, since=None,
                   reentry: bool = True, log=lambda *_: None, p: Panels | None = None) -> dict:
     """Each month-end's top-N basket (equal weights, fees) held against every variant of the exit rule over each
     horizon: return and risk (max drawdown, volatility, worst 20 sessions, the 10 % worst outcome), split in-sample
@@ -217,7 +222,7 @@ def exit_variants(market, n_top: int = 15, horizons=EXIT_HORIZONS, keys: list[st
         run_spec(spec, recs)
 
     def table(spec_keys):
-        out = {}
+        out: dict[str, dict[str, dict]] = {}
         for h in horizons:
             lag = max(h - 1, 0)
             flat = []

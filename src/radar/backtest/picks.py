@@ -6,7 +6,7 @@ How to use and read it: guide/brugervejledning/scoretest.md (*En kurv valgt på 
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,9 @@ from ..simulate import basket_rows  # noqa: F401 (re-exported)
 from ..userstore import viewstore
 from . import exits as ex
 from . import study
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 STRATEGIES = {"hold": "picks-hold", "exits": "picks-exits", "control": "picks-control"}
 REPORT_DIR = "sim-picks"
@@ -69,7 +72,7 @@ def _fill(sessions: pd.DatetimeIndex, day: pd.Timestamp) -> pd.Timestamp:
 ranked = mp.ranked
 
 
-def candidates(market, asof, blind: bool = False, views: bool = False, top: int | None = None,
+def candidates(market: Market, asof, blind: bool = False, views: bool = False, top: int | None = None,
                model_cutoff: str | None = None, p: mp.Panels | None = None, fund: bool = False) -> dict:
     """The stock universe ranked on D (mp.Panels, row D): score, its components, trend, volatility, close; nothing
     after D. `blind` replaces tickers and names with C001… by rank on D (so the same data gives the same ids), for
@@ -136,7 +139,7 @@ def _after_cutoff(day: pd.Timestamp, cutoff: str | None) -> bool | None:
     return bool(day > end)
 
 
-def _views_at(market, day: pd.Timestamp, tickers: list[str]) -> dict:
+def _views_at(market: Market, day: pd.Timestamp, tickers: list[str]) -> dict:
     """Your views created by `day`, aligned with prices up to `day` (personal); a view edited after `day` is flagged
     (`edited_after`), since its text may hold hindsight."""
     from .. import market_views as mv
@@ -265,7 +268,7 @@ def _ret(c: pd.DataFrame, t: str, f, e) -> float | None:
     return float(b / a - 1) if pd.notna(a) and pd.notna(b) and a > 0 else None
 
 
-def run(market, asof, picks: list[dict] | None, name: str, capital: float = 100_000.0, meta: dict | None = None,
+def run(market: Market, asof, picks: list[dict] | None, name: str, capital: float = 100_000.0, meta: dict | None = None,
         end=None, model_cutoff: str | None = None, tags=(), write: bool = True, p: mp.Panels | None = None) -> dict:
     """Simulate a basket picked on `asof` (picks by ticker or blind id; None = the score's own top N from `meta`)
     into three simulated portfolios, and build the report (reports/sim-picks/<slug>.json). One deposit and one buy
@@ -399,7 +402,7 @@ def find(name: str) -> list[dict]:
     return [h for h in baskets() if h["name"] == portfolio_name(name, "hold")]
 
 
-def rerun(market, hold: dict, p: mp.Panels | None = None) -> dict:
+def rerun(market: Market, hold: dict, p: mp.Panels | None = None) -> dict:
     """Run a stored basket again on the latest prices, with its own picks and settings."""
     prm = hold.get("params") or {}
     if not prm.get("picks"):

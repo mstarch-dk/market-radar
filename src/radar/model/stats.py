@@ -3,11 +3,15 @@ and its summary across dates, verdicts on variants, a value path's return and ri
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
 from ..signals.risk import TRADING_DAYS, deepest_drawdown, worst_window
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 QUANTILES = 5
 
@@ -142,7 +146,7 @@ def risk_adjusted(idx: pd.Series, max_dd: float, bench: pd.Series | None, rf: pd
     return out
 
 
-def daily_rf(market) -> pd.Series | None:
+def daily_rf(market: Market) -> pd.Series | None:
     """The ECB deposit rate (FRED ECBDFR, % a year) as a daily return: the krone follows the euro, so it is the
     nearest risk-free rate for DKK returns in the data. None without it (no FRED cache reads as an empty frame;
     a cache that can't be read is an error, not a missing rate)."""

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from typing import TYPE_CHECKING
 
 from . import dashboard, ops, snapshot, trades
 from .config import write_text
 from .fundamentals import context as fcontext
 from .jsonsafe import dumps
 from .paths import REPORTS
+
+if TYPE_CHECKING:
+    from .market import Market
 
 SUMMARY_ROTATION = ("ticker", "name", "quadrant", "rel_r1m", "rel_r3m", "rel_r6m", "rank", "rank_change",
                     "quadrant_local", "ucits", "ucits_name", "isin", "positive_list", "pe", "pe_vs_acwi", "pe_pct")
@@ -85,7 +89,7 @@ def _portfolios() -> list[dict]:
     return performance.summary(profile.Market.load())
 
 
-def add_abtest(market=None) -> None:
+def add_abtest(market: Market | None = None) -> None:
     """Put the forward A/B test's digest into summary.json: after the report, and again after the test's refresh
     has replayed the month's picks."""
     from . import abtest, profile
