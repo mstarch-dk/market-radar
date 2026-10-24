@@ -7,8 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, ingest, performance, report, trades, userstore
+from radar import api, dashboard, importers, report, userstore
 from radar.market import Market
+from radar.portfolios import performance, trades
+from radar.sources import ingest
 from world import IDX
 
 DAY, LATER = IDX[100].date().isoformat(), IDX[150].date().isoformat()
@@ -70,7 +72,7 @@ def test_a_virtual_portfolio_cannot_spend_money_it_does_not_have(client):
 
 
 def test_a_buy_without_a_dkk_rate_asks_for_its_rate(client, monkeypatch):
-    from radar import fxrates
+    from radar.sources import fxrates
     sim = _sim(client)
     _post(client, date=DAY, type="DEPOSIT", amount=100_000, portfolio_id=sim)
     monkeypatch.setattr(fxrates, "currencies", lambda syms: dict.fromkeys(syms))   # S2's currency unknown

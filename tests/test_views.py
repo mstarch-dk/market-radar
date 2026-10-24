@@ -7,8 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, ingest, market_views, profile, tracked, userstore
+from radar import api, api_models, market_views, profile, userstore
 from radar.signals import views as sv
+from radar.sources import ingest, tracked
 from radar.userstore import viewstore
 
 CFG = {"theme_corr": 0.5, "min_weeks": 26, "thresholds": {"aligned": 0.35}}

@@ -68,7 +68,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - Analyst targets are converted to the radar's price units by the ratio of our close to Yahoo's price on the fetch
   date. This handles GBp vs GBP and ADR ratios.
 
-## Valuation (`valuation.py`, `signals/valuation.py`)
+## Valuation (`sources/valuation.py`, `signals/valuation.py`)
 - **Stocks**: a weekly snapshot (one per ISO week; a re-run replaces it) of Yahoo's screener per exchange
   (`discovery.yaml` markets + `valuation.us`), plus one-by-one lookups for tracked names it misses (Asia). Every
   exchange must return its minimum count, or the step fails and the last snapshot stays.
@@ -98,7 +98,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   (his headline number, monthly since 2008), and the yield gap: 100 / FactSet's forward P/E − FRED `DFII10`.
   Percentiles exclude the latest point.
 
-## Sentiment (`sentiment.py`)
+## Sentiment (`sources/sentiment.py`)
 - CBOE: one JSON per trading day; a 403/404 day is skipped (holiday, not yet published) and, within
   `sentiment.putcall_retry_days`, asked again on later runs instead of staying a hole; a week of new weekdays with
   nothing raises. A failure part-way stores the days already fetched and raises `sourcelog.PartialFailure` (logged as
@@ -135,7 +135,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - One-year betas are noisy (XLE's 1y beta was −0.9 while its 3y beta is +0.45): compare windows and read the standard
   error before relying on either.
 
-## Your portfolios (`userstore/`, `universe.py`, `portfolio.py`, `importers/`)
+## Your portfolios (`userstore/`, `universe.py`, `portfolios/checks.py`, `importers/`)
 - Trades are the source of truth, in `radar.db` in the data folder (SQLite, versioned migrations, a copy in `backups/`
   before every import, undo, move and schema upgrade). Each row records its portfolio, its source (manual, yahoo,
   nordnet, fork, sim, …) and its import.
@@ -171,7 +171,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - yfinance requests are paced and recorded but retried by yfinance itself; our retry policy applies to plain HTTP
   only.
 
-## Returns over time (`performance.py`)
+## Returns over time (`portfolios/performance.py`)
 - Each portfolio is valued in DKK at every close of the benchmark's calendar (a row on a non-trading day counts on the
   next session). `reinvested` (default): adjusted closes, each lot's shares scaled by adjusted/traded close on its
   trade date (as the holdings table's shadow method, `mine.vs_shadow`); `cash`: traded closes plus DIVIDEND rows.
@@ -209,7 +209,7 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - The old `imports/holdings.csv` + `transactions.csv` move into the store once, automatically; if the rebuilt
   positions differ, the move is undone and the CSVs stay in use (`radar doctor` says so).
 
-## Long histories (`factors.py`, `backtest/longrun.py`)
+## Long histories (`sources/factors.py`, `backtest/longrun.py`)
 - **French**: each ZIP holds one CSV with several blocks; a block is a header line starting with "," followed by rows
   dated YYYYMM, titled by the text line above it. The configured block is matched on its title (`block`), else the
   first monthly block; annual blocks (YYYY) are skipped. Percent → decimals; -99.99 and -999 are missing (NaN), never

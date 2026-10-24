@@ -17,11 +17,11 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import guard, money, net
-from .config import discovery_config, typed, write_parquet
-from .config_schema import Valuation as ValuationSettings
-from .paths import CACHE, HISTORY
-from .values import num
+from .. import guard, money, net
+from ..config import discovery_config, typed, write_parquet
+from ..config_schema import Valuation as ValuationSettings
+from ..paths import CACHE, HISTORY
+from ..values import num
 
 STOCKS_FILE = HISTORY / "valuation" / "stocks.parquet"     # weekly snapshots: history
 ETFS_FILE = HISTORY / "valuation" / "etfs.parquet"
@@ -188,7 +188,7 @@ def store_snapshot(path, old: pd.DataFrame, new: pd.DataFrame, today: date | Non
 def update_stocks(stocks: list[str], force: bool = False, today: date | None = None) -> str:
     """The weekly stock snapshot: Yahoo's screener per exchange, then one-by-one lookups for the tracked `stocks`
     it missed. An exchange returning fewer names than expected raises (the last snapshot stays)."""
-    from .discovery import scan, sources
+    from ..discovery import scan, sources
 
     cfg = _cfg()
     due, old = snapshot_due(STOCKS_FILE, cfg.snapshot_days, today)
@@ -405,9 +405,9 @@ class Context:
     the cached lookups only (no network)."""
 
     def __init__(self, hist: pd.DataFrame | None = None, etf_hist: pd.DataFrame | None = None):
+        from ..discovery import scan
+        from ..signals import valuation as sv
         from . import tracked
-        from .discovery import scan
-        from .signals import valuation as sv
 
         cfg = _cfg()
         hist = load_stocks() if hist is None else hist
@@ -436,7 +436,7 @@ class Context:
 
     def stock(self, t: str, peers: str = "radar") -> dict:
         """The valuation fields of one stock (all None when it isn't in the snapshot)."""
-        from .signals import gauges as gz
+        from ..signals import gauges as gz
 
         r = self.now.loc[t] if t in self.now.index else None
         get = (lambda k: num(r[k]) if r is not None else None)
@@ -450,7 +450,7 @@ class Context:
         return out | {"val_gauges": {k: g for k, g in gauges.items() if g}}
 
     def fund(self, t: str) -> dict:
-        from .signals import gauges as gz
+        from ..signals import gauges as gz
 
         e = self.etf.get(t) or {}
         g = {"pe_vs_acwi": gz.gauge("pe_vs_acwi", e.get("pe_vs_acwi")), "pe_pct": gz.gauge("pe_pct", e.get("pe_pct"))}
@@ -459,8 +459,8 @@ class Context:
 
     def breadth(self) -> dict:
         """EPS-revision breadth per radar region and per Discover market, for each comparison window."""
+        from ..signals import valuation as sv
         from . import tracked
-        from .signals import valuation as sv
 
         labels = tracked.stock_group_labels()
         dmarkets = {k: m["label"] for k, m in discovery_config()["markets"].items()}
@@ -490,7 +490,7 @@ def reset() -> None:
 def context() -> Context:
     """A Context, rebuilt when a snapshot or the Discover universe changes (for the API)."""
     global _ctx
-    from .discovery import scan
+    from ..discovery import scan
 
     key = tuple(f.stat().st_mtime if f.exists() else 0 for f in (STOCKS_FILE, ETFS_FILE, scan.UNIVERSE_FILE))
     if _ctx is None or _ctx[0] != key:

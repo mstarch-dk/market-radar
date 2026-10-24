@@ -5,7 +5,8 @@ from datetime import date
 import pytest
 
 from conftest import FIXTURES
-from radar import external, paths
+from radar import paths
+from radar.sources import external
 
 
 def _raw(name):
@@ -98,7 +99,7 @@ def test_detail_cache_and_failure(tmp_path, monkeypatch):
 # ---------------- a partial answer keeps the cached blocks it lacks (hardening 1.8) ----------------
 
 def test_a_block_that_fails_keeps_its_cached_copy(tmp_data, monkeypatch):
-    from radar import external
+    from radar.sources import external
     full = {"symbol": "X", "fetched": "2026-10-10T10:00:00", "errors": {},
             "info": {"quoteType": "EQUITY", "longName": "X Corp"}, "recommendations": [{"period": "0m", "buy": 3}],
             "eps_trend": {"0y": {"current": 1.0}}, "eps_revisions": {}, "growth_estimates": {}, "calendar": {}}

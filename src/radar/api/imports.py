@@ -3,16 +3,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
-from .. import (
-    trades,
-    userstore,
-)
+from .. import userstore
 from ..api_models import (
     ImportCommitResult,
     ImportPreview,
     ImportRecord,
     Preset,
 )
+from ..portfolios import trades
 from . import state
 from .common import (
     MAX_IMPORT_BYTES,

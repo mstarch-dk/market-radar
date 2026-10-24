@@ -91,7 +91,7 @@ Shell handles i London i pence (GBp), men rapporterer i amerikanske dollar. Vest
 
 ### Snapshot hver uge
 
-Radaren tager et ugentligt snapshot af P/E og EPS-skøn for aktier (`valuation.py`). Et nyt snapshot tages, når det seneste er mindst {{settings:valuation.snapshot_days}} dage gammelt, og der gemmes ét pr. ISO-uge: kører du opdateringen igen i samme uge, erstatter det nye snapshot det gamle. Historikken bygger sig op uge for uge; radaren har ingen ældre data end sit eget første snapshot.
+Radaren tager et ugentligt snapshot af P/E og EPS-skøn for aktier (`sources/valuation.py`). Et nyt snapshot tages, når det seneste er mindst {{settings:valuation.snapshot_days}} dage gammelt, og der gemmes ét pr. ISO-uge: kører du opdateringen igen i samme uge, erstatter det nye snapshot det gamle. Historikken bygger sig op uge for uge; radaren har ingen ældre data end sit eget første snapshot.
 
 Kilden er Yahoos screener, børs for børs: Discovers markeder plus en liste af amerikanske børser. Hver børs skal returnere et minimum af navne; gør én af dem ikke det, fejler trinnet, og det seneste snapshot bliver stående. Aktier, som radaren følger (regionernes lister, dine beholdninger og din watchlist), men som screeneren ikke fanger, slås op én for én, højst {{settings:valuation.fallback_max}} pr. kørsel. Det gælder især asiatiske navne.
 

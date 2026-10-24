@@ -12,12 +12,13 @@ from datetime import date
 
 import pandas as pd
 
-from .. import fxrates, money, tracked, valuation
+from .. import money
 from ..config import settings
 from ..paths import CACHE, HISTORY
 from ..signals import fundamentals as sf
 from ..signals import gauges as gz
 from ..signals import periods
+from ..sources import fxrates, tracked, valuation
 from . import CORE, store
 
 SCORES_FILE = HISTORY / "fundamentals" / "scores.parquet"     # weekly, like the valuation snapshot

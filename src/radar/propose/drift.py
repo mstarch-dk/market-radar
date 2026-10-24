@@ -40,7 +40,7 @@ _PRIORS: dict = {}
 def long_prior(tilt: str, horizon: int, trend: str | None, c: Propose | None = None) -> dict | None:
     """The tilt's long-run prior at this horizon (model/prior.tilt_prior in `prior.region`): in today's trend
     when that split has `prior.min_trend_eff_n` independent periods, else over all dates. Cached per factors file."""
-    from .. import factors
+    from ..sources import factors
 
     c = c or rules.cfg()
     pc = c.prior

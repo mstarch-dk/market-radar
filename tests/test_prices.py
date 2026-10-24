@@ -5,10 +5,11 @@ import pandas as pd
 import pytest
 
 from conftest import with_settings
-from radar import dashboard, fxrates, ingest, paths, tracked, universe
+from radar import dashboard, paths, universe
 from radar.market import Market
 from radar.mine import vs_shadow
 from radar.signals.score import score_vs
+from radar.sources import fxrates, ingest, tracked
 
 
 def _bars(ticker, closes, start="2026-01-05"):
@@ -104,7 +105,7 @@ def test_quote_currencies_are_looked_up_once_and_a_failed_lookup_is_asked_again(
 
 
 def test_won_and_taiwan_dollar_cross_via_usd():
-    from radar import fxrates
+    from radar.sources import fxrates
     closes = pd.DataFrame({"USDDKK=X": [7.0, 6.8, np.nan], "USDKRW=X": [1400.0, np.nan, 1360.0],
                            "USDTWD=X": [32.0, 34.0, 34.0]}, index=pd.date_range("2025-01-01", periods=3))
     assert fxrates.fx_to_dkk(closes, "KRW").tolist() == pytest.approx([0.005, 6.8 / 1400, 0.005])   # ffilled

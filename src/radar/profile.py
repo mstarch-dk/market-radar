@@ -13,14 +13,16 @@ from typing import Any
 
 import pandas as pd
 
-from . import dashboard, external, fxrates, ingest, mine, money, positive_list, tracked, trades, universe
+from . import dashboard, mine, money, universe
 from .config import settings, typed, universe_config
 from .jsonsafe import clean
 from .market import Market
 from .model import inputs
+from .portfolios import trades
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
 from .signals.score import score_vs
+from .sources import external, fxrates, ingest, positive_list, tracked
 from .universe import region_for
 
 OK, STALE, MISSING = "ok", "stale", "missing"
@@ -119,7 +121,7 @@ def _valuation_snapshot(ticker: str) -> dict | None:
     """The weekly valuation snapshot for this ticker (valuation.py): P/E against its sector peers and EPS
     revisions for a stock, P/E against ACWI for a fund, plus its P/E over the stored weeks. None when the
     snapshot doesn't have it."""
-    from . import valuation
+    from .sources import valuation
 
     ctx = valuation.context()
     fund = ticker in ctx.etf

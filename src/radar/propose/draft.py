@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from .. import constituents, fees, tracked, trades, universe, userstore
+from .. import universe, userstore
 from ..config import typed
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
 from ..model import inputs
+from ..portfolios import fees, trades
+from ..sources import constituents, tracked
 from . import basket, drift, exposure, pricing, riskmodel, rules
 
 if TYPE_CHECKING:

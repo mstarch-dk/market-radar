@@ -8,10 +8,11 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import performance, userstore
+from radar import userstore
 from radar.backtest import picks, study
 from radar.market import Market
 from radar.model import panels as mp
+from radar.portfolios import performance
 from radar.userstore import viewstore
 from world import IDX, N
 

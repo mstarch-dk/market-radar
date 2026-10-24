@@ -3,13 +3,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import propose, tracked
+from radar import propose
 from radar.backtest import longrun, picks, study
 from radar.model import panels as mp
 from radar.model import paths as mpaths
 from radar.signals import momentum
 from radar.signals import score as ms
 from radar.signals.score import mean_pct
+from radar.sources import tracked
 
 
 def _dist(seed: int = 1, n: int = 40) -> pd.DataFrame:

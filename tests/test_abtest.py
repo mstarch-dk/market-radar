@@ -7,8 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import abtest, api, simulate, userstore
+from radar import abtest, api, userstore
 from radar.market import Market
+from radar.portfolios import simulate
 from world import IDX
 
 

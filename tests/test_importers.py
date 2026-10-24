@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, ingest, net, ops, userstore
+from radar import api, dashboard, importers, net, ops, userstore
+from radar.sources import ingest
 from world import IDX
 
 YAHOO_SEARCH = importers.yahoo_search   # before the fixture below stubs it

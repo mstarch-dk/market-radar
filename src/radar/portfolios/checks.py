@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 
 import pandas as pd
 
-from . import fxrates, money, trades, universe, userstore
-from .errors import Invalid
-from .values import whole
+from .. import money, universe, userstore
+from ..errors import Invalid
+from ..sources import fxrates
+from ..values import whole
+from . import trades
 
 if TYPE_CHECKING:
-    from .market import Market
+    from ..market import Market
 
 ERROR, WARNING = "error", "warning"
 
@@ -46,7 +48,7 @@ def price_check(market: Market, symbol: str, day, price: float | None = None) ->
     """The traded close on that day (to prefill a price) and, given a price, whether it looks plausible: about
     100× off is the classic pence/pound (GBp/GBP) or cents mix-up; far from the day's close is worth a second
     look. Prices are per share in the instrument's quote currency."""
-    from . import fxrates
+    from ..sources import fxrates
 
     day = pd.Timestamp(day)
     ccy = fxrates.currencies([symbol]).get(symbol) if symbol in market.closes.columns else None

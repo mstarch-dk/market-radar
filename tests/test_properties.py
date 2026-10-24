@@ -7,8 +7,9 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from radar import money, trades
+from radar import money
 from radar.model.stats import path_stats
+from radar.portfolios import trades
 from radar.signals.risk import deepest_drawdown, worst_window
 
 # value paths: positive levels, as a price or a portfolio's value is

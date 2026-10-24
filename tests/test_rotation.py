@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from radar.signals import rotation
-from radar.tracked import Instrument
+from radar.sources.tracked import Instrument
 
 N = 300
 IDX = pd.bdate_range("2025-08-01", periods=N)

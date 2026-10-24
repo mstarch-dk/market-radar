@@ -12,12 +12,14 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
-from .. import fxrates, money, performance, simulate, tracked, userstore
+from .. import money, userstore
 from ..config import typed, write_text
-from ..fees import SimFees, Terms
 from ..jsonsafe import dumps
 from ..model import paths as mpaths
 from ..paths import REPORTS
+from ..portfolios import performance, simulate
+from ..portfolios.fees import SimFees, Terms
+from ..sources import fxrates, tracked
 from .pit import Context
 
 if TYPE_CHECKING:

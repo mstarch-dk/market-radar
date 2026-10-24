@@ -74,7 +74,7 @@ London-noterede aktier handles ofte i *pence* (GBp eller GBX), ikke pund (GBP). 
 
 ### Justerede high, low og close
 
-Radaren henter daglige data fra Yahoo uden automatisk justering og laver justeringen selv i `ingest.py`:
+Radaren henter daglige data fra Yahoo uden automatisk justering og laver justeringen selv i `sources/ingest.py`:
 
 $$
 \text{faktor}_t = \frac{\text{Adj Close}_t}{\text{Close}_t}

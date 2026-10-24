@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING, Protocol
 import numpy as np
 import pandas as pd
 
-from .. import fxrates, tracked, universe
+from .. import universe
 from ..config import typed
 from ..signals import momentum
 from ..signals.risk import TRADING_DAYS
 from ..signals.score import COMPONENTS, mean_pct
+from ..sources import fxrates, tracked
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -63,7 +64,7 @@ def panels(market: Market, tickers: list[str] | None = None) -> Panels:
             fx_cache[k] = fxrates.fx_to_dkk(market.closes, k)
         fx = fx_cache[k]
         dkk[t] = c[t] * fx.reindex(c.index) if fx is not None else pd.Series(np.nan, index=c.index)
-    from .. import performance
+    from ..portfolios import performance
 
     sec = universe.sectors(stocks)["sector"].astype(str)
     return Panels(c, pd.DataFrame(dkk, index=c.index), m, vol, pd.Series(group).reindex(stocks), sec,

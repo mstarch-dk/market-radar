@@ -9,10 +9,9 @@ interfaces       api, cli
 features         abtest, api_models/, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
                  tickers, updater
 kernel           model/
-domain           backup, export, fees, guide, home, importers/, market, market_views, notebook, performance,
-                 portfolio, simulate, snapshot, trades, universe, userstore/
-data sources     constituents, discovery/, external, factors, fundamentals/, fxrates, ingest, positive_list,
-                 sentiment, tracked, updates, valuation
+domain           backup, export, guide, home, importers/, market, market_views, notebook, portfolios/, snapshot,
+                 universe, userstore/
+data sources     discovery/, fundamentals/, sources/, updates
 pure readings    signals/
 infrastructure   config, config_schema, guard, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
 ```
@@ -173,14 +172,15 @@ change to the model and to its schema version.
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
   symbol map, meta; market views in `viewstore.py`, backup copies in `backups.py`. It is the one place that decides which
   portfolios count, and holds the one list of row types. New stateful data gets a table here.
-- `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
-- `portfolio.py`: checks a row before it is saved (unknown symbol, future date, oversold, price vs the close,
-  negative cash) and moves between portfolios.
-- `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
-  flows, comparisons and cash.
-- `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
-  runs).
-- `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
+- `portfolios/`: your portfolios, from the transactions in `userstore/`.
+  - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
+  - `checks.py`: checks a row before it is saved (unknown symbol, future date, oversold, price vs the close,
+    negative cash) and moves between portfolios.
+  - `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
+    flows, comparisons and cash.
+  - `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
+    runs).
+  - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
@@ -194,20 +194,21 @@ change to the model and to its schema version.
 ### Data sources
 Each downloads, checks what it got, caches it and logs it in the source log; a source that parses to nothing
 fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
-- `ingest.py`: Yahoo prices and FRED series.
-- `external.py`: CFTC positioning, OECD leading indicators, FactSet Earnings Insight, analyst consensus, ECB yields
-  and Yahoo ticker detail.
-- `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
-- `sentiment.py`: CBOE put/call and the AAII survey.
+- `sources/`: one module per source or source family.
+  - `ingest.py`: Yahoo prices and FRED series.
+  - `external.py`: CFTC positioning, OECD leading indicators, FactSet Earnings Insight, analyst consensus, ECB
+    yields and Yahoo ticker detail.
+  - `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
+  - `sentiment.py`: CBOE put/call and the AAII survey.
+  - `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
+  - `constituents.py`: the S&P 500 and MSCI ACWI holdings.
+  - `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
+    sources.
+  - `fxrates.py`: each ticker's quote currency and the FX tickers that turn it into DKK.
+  - `positive_list.py`: SKAT's positive list.
 - `fundamentals/`: financial statements from SEC EDGAR (US, with filing dates) and Yahoo (every stock,
   append-only) in one long fact format (its period arithmetic is pure, in `signals/periods.py`); which tickers
   are due.
-- `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
-- `constituents.py`: the S&P 500 and MSCI ACWI holdings.
-- `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
-  sources.
-- `fxrates.py`: each ticker's quote currency and the FX tickers that turn it into DKK.
-- `positive_list.py`: SKAT's positive list.
 - `discovery/`: the separate wide scan for names the radar doesn't track. Nothing here feeds the regime, breadth
   or the momentum page.
 - `updates.py`: the opt-in daily check of the public repo's latest release.

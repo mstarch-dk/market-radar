@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from .. import tracked
 from ..fundamentals import context as fcontext
 from ..fundamentals import store
 from ..signals import fundamentals as sf
 from ..signals import periods
+from ..sources import tracked
 
 if TYPE_CHECKING:
     from ..market import Market

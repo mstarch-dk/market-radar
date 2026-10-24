@@ -4,7 +4,8 @@ from contextlib import closing
 
 import pandas as pd
 
-from radar import trades, userstore
+from radar import userstore
+from radar.portfolios import trades
 from radar.userstore import viewstore
 
 HEADER = "symbol,status,quantity,avg_price,first_trade,last_sell_date,last_sell_price\n"

@@ -11,7 +11,8 @@ import pandas as pd
 import pytest
 
 from conftest import FIXTURES
-from radar import constituents, external, ingest, net, paths, positive_list, tracked, universe
+from radar import net, paths, universe
+from radar.sources import constituents, external, ingest, positive_list, tracked
 
 # ---------------- FRED ----------------
 

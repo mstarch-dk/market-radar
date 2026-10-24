@@ -6,10 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, fxrates, ingest, mine, performance, report, userstore
+from radar import api, dashboard, mine, report, userstore
 from radar.api_models import Comparison, Performance
 from radar.config import settings
 from radar.market import Market
+from radar.portfolios import performance
+from radar.sources import fxrates, ingest
 from world import IDX, N
 
 FX = 6.5

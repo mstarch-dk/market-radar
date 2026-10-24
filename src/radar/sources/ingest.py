@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from . import guard, locks, net
-from .config import typed, write_parquet, write_text
-from .jsonsafe import dumps
-from .paths import CACHE, FRED_FILE, FRED_ROLLING_FILE, PRICES_FILE
+from .. import guard, locks, net
+from ..config import typed, write_parquet, write_text
+from ..jsonsafe import dumps
+from ..paths import CACHE, FRED_FILE, FRED_ROLLING_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
 COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]

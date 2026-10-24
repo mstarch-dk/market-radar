@@ -2,7 +2,8 @@
 import pandas as pd
 import pytest
 
-from radar import importers, trades
+from radar import importers
+from radar.portfolios import trades
 
 HEADER = ("Symbol,Current Price,Date,Time,Change,Open,High,Low,Volume,Trade Date,Purchase Price,Quantity,"
           "Commission,High Limit,Low Limit,Comment,Transaction Type")
@@ -89,9 +90,9 @@ def test_a_trade_in_the_future_refuses_the_import(imported):
 
 
 def test_a_price_far_off_the_close_is_noted(imported, monkeypatch):
-    from radar import portfolio
+    from radar.portfolios import checks
     monkeypatch.setattr(importers, "import_market", lambda: object())
-    monkeypatch.setattr(portfolio, "price_check", lambda m, sym, day, price: (
+    monkeypatch.setattr(checks, "price_check", lambda m, sym, day, price: (
         {"verdict": "x100", "message": "about 100× the close"} if sym == "BP.L" else {"verdict": "ok", "message": None}))
     _, notes = imported(_row("BP.L", 20260105, 45000, 10, "BUY"), _row("AAPL", 20250105, 100, 10, "BUY"))
     assert notes["BP.L"] == ["2026-01-05: about 100× the close"] and "AAPL" not in notes

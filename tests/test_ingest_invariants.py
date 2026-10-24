@@ -22,9 +22,10 @@ import pytest
 
 from conftest import with_settings
 from fakes import Resp, fake_yf, never_shrank, serve, statements, stored
-from radar import external, ingest, paths, sentiment, tracked, valuation
+from radar import paths
 from radar.discovery import scan
 from radar.fundamentals import edgar, store, yahoo
+from radar.sources import external, ingest, sentiment, tracked, valuation
 
 TODAY = date(2026, 10, 15)          # a Thursday
 MODES = ("error", "empty", "short", "missing")

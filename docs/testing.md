@@ -93,7 +93,7 @@
 - `tests/test_guard.py` holds the project's rules as code besides the offline guard: data files go through the
   atomic writers, JSON files through `jsonsafe`, settings are read through `config.typed()` (`settings()[…]` only
   in `SETTINGS_DICT_ALLOWED`, which only shrinks), and in the readings (`signals/`, `fundamentals/`, `propose/`,
-  `performance.py`) no `x or 0` or `.fillna(0)` turns a missing value into a known-looking 0 unless a `# zero: …`
+  `portfolios/performance.py`) no `x or 0` or `.fillna(0)` turns a missing value into a known-looking 0 unless a `# zero: …`
   comment on the line (or the one above) says why zero is right.
 - In-memory caches: each module that keeps one has a public `reset()` (`api`, `dashboard`, `performance`,
   `fundamentals.context`, `valuation`, `tickers`, `market_views`; also `net.reset()`). `conftest.reset_caches()`

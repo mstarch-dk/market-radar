@@ -5,9 +5,11 @@ import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
-from radar import cli, external, factors, ingest, locks, sentiment, sourcelog, trades, universe, updater, valuation
+from radar import cli, locks, sourcelog, universe, updater
 from radar.discovery import scan
 from radar.fundamentals import edgar, yahoo
+from radar.portfolios import trades
+from radar.sources import external, factors, ingest, sentiment, valuation
 
 
 @pytest.fixture
@@ -70,7 +72,8 @@ def test_a_failing_name_lookup_does_not_stop_the_other_sources(tmp_data, monkeyp
 
 
 def test_the_prices_step_says_which_tickers_are_late_short_or_missing(tmp_data, monkeypatch):
-    from radar import ops, tracked
+    from radar import ops
+    from radar.sources import tracked
 
     late = [f"L{i:02}" for i in range(14)]
     monkeypatch.setattr(universe, "all_price_tickers", lambda *a, **k: ["A"])

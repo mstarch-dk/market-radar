@@ -9,7 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, ingest, report, trades, universe, userstore
+from radar import api, dashboard, report, universe, userstore
+from radar.portfolios import trades
+from radar.sources import ingest
 from world import IDX
 
 
@@ -118,14 +120,14 @@ def test_a_real_portfolio_with_trades_is_archived_not_deleted(tmp_data):
 
 
 def test_moving_trades_is_checked_for_sales_left_without_their_buy(tmp_data):
-    from radar import portfolio
+    from radar.portfolios import checks
 
     userstore.add_tx(_tx("A", "2026-01-05", "BUY", 10, 10))                   # into Main
     userstore.add_tx(_tx("A", "2026-02-05", "SELL", 4, 12))
     main, ask = userstore.portfolio_by_name("Main")["id"], userstore.portfolio_by_name("ASK")["id"]
     sell_only = [t["id"] for t in userstore.transactions() if t["type"] == "SELL"]
-    assert "sold 4" in portfolio.check_move(main, ask, ids=sell_only)[0]       # the sale without its buy
-    assert portfolio.check_move(main, ask, symbols=["A"]) == []
+    assert "sold 4" in checks.check_move(main, ask, ids=sell_only)[0]       # the sale without its buy
+    assert checks.check_move(main, ask, symbols=["A"]) == []
     assert userstore.move_transactions(main, ask, symbols=["A"]) == 2
     assert {t["portfolio"] for t in userstore.transactions()} == {"ASK"}
 

@@ -1,8 +1,9 @@
 """Your portfolios and their transactions: the Yahoo import, `radar portfolio …`, returns over time, `radar portfolios …`."""
 import typer
 
-from .. import importers, trades
+from .. import importers
 from ..market import Market
+from ..portfolios import trades
 from .common import one_portfolio, portfolio_ids, to_json
 from .root import app
 
@@ -62,7 +63,8 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
     """Add one trade, checked the same way as in the app."""
     from datetime import date as _date
 
-    from .. import portfolio, profile, userstore
+    from .. import profile, userstore
+    from ..portfolios import checks
 
     trades.ensure_migrated()
     symbol = symbol.strip().upper()
@@ -75,7 +77,7 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
     from ..errors import Invalid
 
     try:
-        issues = portfolio.checked(row, market, confirm=yes)
+        issues = checks.checked(row, market, confirm=yes)
     except Invalid as e:
         issues = e.issues
     for i in issues:
@@ -84,7 +86,7 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
     if blocked or (issues and not yes):
         raise SystemExit("Not saved." + ("" if blocked else " Add --yes to save anyway."))
     tx_id = userstore.add_tx(row)
-    eff = portfolio.effect(row, exclude_id=tx_id)
+    eff = checks.effect(row, exclude_id=tx_id)
     saved = userstore.get_tx(tx_id) or {}
     typer.echo(f"Saved #{tx_id} in {saved.get('portfolio')}. {symbol}: {eff['before']['quantity']:g} → "
                f"{eff['after']['quantity']:g} shares.")
@@ -118,8 +120,8 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
     """Portfolio returns in DKK against ACWI: time-weighted (the investments) and money-weighted (your timing),
     side by side from a common start. Virtual portfolios and tag groups only when named."""
 
-    from .. import performance as perf
     from .. import userstore
+    from ..portfolios import performance as perf
 
     trades.ensure_migrated()
     ids = portfolio_ids(names, None) if names else userstore.compared_ids()
@@ -237,11 +239,12 @@ def portfolios_default(name: str):
 def portfolios_move(name: str, to: str = typer.Option(..., "--to", help="The portfolio to move to"),
                     symbol: list[str] = typer.Option(None, "--symbol", help="Only this ticker (repeatable)")):
     """Move trades to another portfolio (e.g. from Main to ASK). Refused if a sale would lose its buy."""
-    from .. import portfolio, userstore
+    from .. import userstore
+    from ..portfolios import checks
 
     src, dst = one_portfolio(name), one_portfolio(to)
     symbols = [s.strip().upper() for s in symbol] if symbol else None
-    problems = portfolio.check_move(src["id"], dst["id"], None, symbols)
+    problems = checks.check_move(src["id"], dst["id"], None, symbols)
     if problems:
         raise SystemExit("Not moved: " + "; ".join(problems[:5]))
     typer.echo(f"Moved {userstore.move_transactions(src['id'], dst['id'], None, symbols)} rows to {to}.")
@@ -252,7 +255,7 @@ def portfolios_fork(name: str, new_name: str, date: str = typer.Option(..., "--d
                     cash: float = typer.Option(0.0, "--cash", help="Extra cash (DKK) to put in the copy"),
                     tag: list[str] = typer.Option(None, "--tag", help="A tag for the copy (repeatable)")):
     """A virtual copy of a portfolio at a day's close, to A/B-test changes against the original from there on."""
-    from .. import simulate
+    from ..portfolios import simulate
 
     try:
         simulate.fork(one_portfolio(name)["id"], new_name, date, Market.load(), cash, tag or [])

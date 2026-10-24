@@ -5,16 +5,13 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException
 
-from .. import (
-    dashboard,
-    updater,
-    valuation,
-)
+from .. import dashboard, updater
 from ..api_models import (
     DiscoveryView,
     UpdateStatus,
 )
 from ..config import typed
+from ..sources import valuation
 
 router = APIRouter()
 

@@ -2,7 +2,8 @@
 derived with fees and per portfolio, import semantics (snapshot vs additive, duplicates, undo) and backups."""
 import pytest
 
-from radar import trades, userstore
+from radar import userstore
+from radar.portfolios import trades
 
 HEADER = "symbol,status,quantity,avg_price,first_trade,last_sell_date,last_sell_price\n"
 

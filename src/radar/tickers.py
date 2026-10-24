@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from . import dashboard, tracked, trades, universe
+from . import dashboard, universe
 from .paths import CACHE
+from .portfolios import trades
+from .sources import tracked
 
 if TYPE_CHECKING:
     from .market import Market

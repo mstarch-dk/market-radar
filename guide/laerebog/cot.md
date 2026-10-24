@@ -66,7 +66,7 @@ Det giver en asymmetri: fortsættelsen er mindre sandsynlig, end trenden antyder
 
 ### Kilde og markeder
 
-Radaren henter rapporterne fra CFTC's åbne API (`external.py`): TFF for finansielle futures og den disaggregerede rapport for råvarer. Kun rækker med **futures only** bruges, så to baser aldrig blandes. Markederne står i `config/universe.yaml` under `external.cot`:
+Radaren henter rapporterne fra CFTC's åbne API (`sources/external.py`): TFF for finansielle futures og den disaggregerede rapport for råvarer. Kun rækker med **futures only** bruges, så to baser aldrig blandes. Markederne står i `config/universe.yaml` under `external.cot`:
 
 | Rapport | Marked | Grupper |
 |---|---|---|

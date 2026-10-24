@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .. import fxrates, money
+from .. import money
+from ..sources import fxrates
 from ..values import num
 
 if TYPE_CHECKING:

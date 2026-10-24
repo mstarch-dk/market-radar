@@ -4,8 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, fees, ingest, performance, simulate, userstore
+from radar import api, dashboard, userstore
 from radar.market import Market
+from radar.portfolios import fees, performance, simulate
+from radar.sources import ingest
 from world import IDX, N
 
 FX = 6.5

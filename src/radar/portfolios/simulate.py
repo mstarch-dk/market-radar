@@ -10,19 +10,20 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
-from . import money, performance, trades, userstore
-from .config import typed
+from .. import money, userstore
+from ..config import typed
+from . import performance, trades
 from .fees import SimFees
 
 if TYPE_CHECKING:
-    from .market import Market
+    from ..market import Market
 
 SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
 
 
 def _close(market: Market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
     """The traded close on `day`, or the last one before it."""
-    from .portfolio import session_close
+    from .checks import session_close
 
     return session_close(market, sym, day)
 

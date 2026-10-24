@@ -9,8 +9,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from .. import fees, fxrates, money, positive_list
+from .. import money
 from ..config_schema import Propose
+from ..portfolios import fees
+from ..sources import fxrates, positive_list
 from ..values import num
 from . import exposure, pricing, rules
 

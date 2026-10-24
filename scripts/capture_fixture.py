@@ -17,7 +17,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-from radar import external, net, sentiment
+from radar import net
+from radar.sources import external, sentiment
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 TODAY = date.today()

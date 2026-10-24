@@ -5,10 +5,12 @@ from datetime import date
 
 import pandas as pd
 
-from . import fxrates, net, trades
+from . import net
 from .config import typed, write_csv
 from .paths import CACHE
-from .tracked import benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
+from .portfolios import trades
+from .sources import fxrates
+from .sources.tracked import benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
 
 # ---------- MSCI ACWI's own weights (iShares MSCI ACWI UCITS holdings) ----------
 

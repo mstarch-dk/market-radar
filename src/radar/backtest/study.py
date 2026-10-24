@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from .. import performance, simulate, tracked
 from ..config import typed
 from ..model import artifacts
 from ..model.panels import Panels, fill_session, formation_dates, panels, score_at, within
@@ -28,8 +27,10 @@ from ..model.stats import (
     variant_verdict,
 )
 from ..model.stats import mean as _mean
+from ..portfolios import performance, simulate
 from ..signals.score import COMPONENTS
 from ..signals.score import mean_pct as pct
+from ..sources import tracked
 
 if TYPE_CHECKING:
     from ..market import Market

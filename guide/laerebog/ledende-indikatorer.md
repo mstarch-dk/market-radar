@@ -60,7 +60,7 @@ Guidance er virksomhedernes egne udmeldinger om den forventede indtjening. Fordi
 
 ### OECD CLI
 
-Radaren henter de amplitudejusterede CLI-serier fra OECD's SDMX-API (`update_oecd_cli` i `src/radar/external.py`) for de områder, der står under `external.oecd_cli` i `config/universe.yaml`: G20, USA, *Europe big 4* (Tyskland, Frankrig, Italien og Storbritannien; OECD udgiver ikke længere CLI for euroområdet eller Danmark) og Kina.
+Radaren henter de amplitudejusterede CLI-serier fra OECD's SDMX-API (`update_oecd_cli` i `src/radar/sources/external.py`) for de områder, der står under `external.oecd_cli` i `config/universe.yaml`: G20, USA, *Europe big 4* (Tyskland, Frankrig, Italien og Storbritannien; OECD udgiver ikke længere CLI for euroområdet eller Danmark) og Kina.
 
 Funktionen `cli_table` beregner for hvert område:
 

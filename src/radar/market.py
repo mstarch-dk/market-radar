@@ -5,10 +5,11 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from . import ingest, positive_list, tracked, universe
+from . import universe
 from .config import typed
 from .paths import PRICES_FILE
 from .signals import momentum
+from .sources import ingest, positive_list, tracked
 
 
 @dataclass

@@ -3,12 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from .. import (
-    errors,
-    portfolio,
-    trades,
-    userstore,
-)
+from .. import errors, userstore
 from ..api_models import (
     AbStartIn,
     AbTest,
@@ -24,6 +19,7 @@ from ..api_models import (
     TagCount,
     TagsIn,
 )
+from ..portfolios import checks, trades
 from . import state
 from .common import (
     PortfolioQ,
@@ -90,7 +86,7 @@ def delete_portfolio(pid: int) -> dict:
 @router.get("/api/portfolios/fee-presets", response_model=list[FeePreset])
 def list_fee_presets() -> list[dict]:
     """Broker fee schedules copied from public price lists (dated): a starting point for a portfolio's own."""
-    from .. import fees
+    from ..portfolios import fees
 
     return fees.presets()
 
@@ -159,7 +155,7 @@ def compare_portfolios(portfolio: list[int] | None = PortfolioQ, tag: list[str] 
                        start: str | None = None) -> dict:
     """Portfolios and tag groups (each pooled into one line) side by side from a common start, every
     time-weighted index rebased to 100 there, with ACWI. Default: each of your real portfolios with rows."""
-    from .. import performance
+    from ..portfolios import performance
 
     ids = portfolio if (portfolio or tag) else userstore.compared_ids()
     with state.lock:
@@ -170,7 +166,7 @@ def compare_portfolios(portfolio: list[int] | None = PortfolioQ, tag: list[str] 
 def portfolio_performance(pid: int, start: str | None = None, end: str | None = None) -> dict:
     """One portfolio's value over time in DKK, its time- and money-weighted returns and ACWI's with the same
     cash flows. Gaps (a price or DKK rate missing) are None, never 0."""
-    from .. import performance
+    from ..portfolios import performance
 
     with state.lock:
         out = performance.portfolio_performance(pid, state.market(), start, end)
@@ -183,7 +179,7 @@ def portfolio_performance(pid: int, start: str | None = None, end: str | None = 
 def fork_portfolio(pid: int, body: ForkIn) -> dict:
     """A virtual copy of this portfolio as it stood at a day's close (one deposit, one buy per holding), to
     A/B-test changes against it from there on (compare with start = that day)."""
-    from .. import simulate
+    from ..portfolios import simulate
 
     portfolio_or_404(pid)
     name = body.name.strip()
@@ -206,7 +202,7 @@ def move_rows(pid: int, body: MoveIn) -> dict:
     if body.to == pid:
         raise HTTPException(422, "Choose another portfolio to move to.")
     symbols = [ticker_symbol(s) for s in body.symbols] if body.symbols else None
-    problems = portfolio.check_move(pid, body.to, body.ids, symbols)
+    problems = checks.check_move(pid, body.to, body.ids, symbols)
     if problems:
         raise HTTPException(422, {"message": "Not moved: " + problems[0],
                                   "issues": [{"level": "error", "field": "portfolio", "message": p} for p in problems]})

@@ -22,8 +22,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import home, manifest, paths, trades, userstore
+from . import home, manifest, paths, userstore
 from .jsonsafe import dumps
+from .portfolios import trades
 from .userstore import viewstore
 
 EXPORT_FORMAT = 1

@@ -10,9 +10,10 @@ import pandas as pd
 import pytest
 
 from fakes import Resp, fake_yf, serve, statements
-from radar import net, sourcelog, tracked, userstore
+from radar import net, sourcelog, userstore
 from radar.fundamentals import edgar, schedule, store, yahoo
 from radar.signals import periods
+from radar.sources import tracked
 
 FIX = Path(__file__).parent / "fixtures"
 TODAY = date(2026, 10, 16)

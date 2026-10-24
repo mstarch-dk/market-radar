@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from .. import performance, simulate, tracked, universe, userstore
+from .. import universe, userstore
 from ..config import typed, write_text
 from ..jsonsafe import clean as _clean
 from ..jsonsafe import dumps
@@ -19,7 +19,9 @@ from ..model import panels as mp
 from ..model.select import capped
 from ..model.stats import cross_section
 from ..paths import REPORTS
-from ..simulate import basket_rows
+from ..portfolios import performance, simulate
+from ..portfolios.simulate import basket_rows
+from ..sources import tracked
 from ..userstore import viewstore
 from . import exits as ex
 from . import study

@@ -82,7 +82,7 @@ For S&P 500 læser radaren FactSets ugentlige *Earnings Insight*: det forventede
 
 ### Analytikernes kursmål
 
-For dine beholdninger og din watchlist henter radaren Yahoos konsensus for kursmål, højst hver {{settings:analyst.max_age_days}}. dag, og gemmer historikken (`external.py`, `signals/levels.py`):
+For dine beholdninger og din watchlist henter radaren Yahoos konsensus for kursmål, højst hver {{settings:analyst.max_age_days}}. dag, og gemmer historikken (`sources/external.py`, `signals/levels.py`):
 
 - **Enheder**: Yahoos kursmål er angivet mod Yahoos egen kurs, som kan være i en anden enhed end radarens (pence mod pund, ADR-forhold). Radaren omregner med forholdet mellem sin egen lukkekurs og Yahoos kurs på hentedagen.
 - **Upside**: gennemsnitligt kursmål divideret med seneste kurs minus 1.

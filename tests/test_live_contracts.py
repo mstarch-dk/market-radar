@@ -17,9 +17,10 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from radar import constituents, external, ingest, net, sentiment, valuation
+from radar import net
 from radar.discovery import sources
 from radar.signals import periods
+from radar.sources import constituents, external, ingest, sentiment, valuation
 
 pytestmark = pytest.mark.network
 TODAY = date.today()

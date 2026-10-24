@@ -10,11 +10,12 @@ import pytest
 
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import config, coverage, external, sentiment, sourcelog, valuation
+from radar import config, coverage, sourcelog
 from radar.discovery import scan, sources
-from radar.external import parse_ecb
 from radar.signals import regime
 from radar.signals import valuation as sv
+from radar.sources import external, sentiment, valuation
+from radar.sources.external import parse_ecb
 
 FX = {"DKK": 1.0, "EUR": 7.46, "USD": 6.40, "GBP": 8.62}
 

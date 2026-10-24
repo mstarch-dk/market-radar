@@ -5,9 +5,9 @@ from __future__ import annotations
 import sys
 from datetime import date, datetime
 
-from . import trades
 from .config import POSITIVE_LIST_FILE, ROOT, settings
 from .paths import NOTES, PRICES_FILE, REPORTS
+from .portfolios import trades
 
 # the services `radar update` and the discovery scan read from (no API keys needed); any answer below 500 is "up"
 SERVICES = {
