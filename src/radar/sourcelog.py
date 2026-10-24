@@ -9,6 +9,7 @@ from datetime import datetime
 
 from . import locks, ops
 from .config import write_text
+from .jsonsafe import dumps
 from .paths import CACHE
 
 LOG_FILE = CACHE / "sources.json"
@@ -40,7 +41,7 @@ def record(source: str, ok: bool, detail: str | None = None, error: str | None =
             entry["last_success"] = now
         log[source] = entry
         CACHE.mkdir(parents=True, exist_ok=True)
-        write_text(f, json.dumps(log, indent=1))
+        write_text(f, dumps(log, indent=1))
     if ok:
         ops.event("info", "source", detail or "updated", source=source)
     else:

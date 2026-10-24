@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from . import home, manifest, paths, trades, userstore
+from .jsonsafe import dumps
 from .userstore import viewstore
 
 EXPORT_FORMAT = 1
@@ -81,9 +82,9 @@ def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str
     tx = userstore.export_transactions_csv(userstore.portfolio_ids(scope, include_archived=True))
     z.writestr(tx_name, ("﻿" + tx) if tx_name == TX else tx)
     z.writestr(WATCHLIST, userstore.export_watchlist_csv())
-    z.writestr(YAHOO_WATCH, json.dumps(userstore.meta_get("yahoo_watch", [])))
+    z.writestr(YAHOO_WATCH, dumps(userstore.meta_get("yahoo_watch", [])))
     z.writestr(VIEWS, viewstore.export_views_json())
-    z.writestr(VOTES, json.dumps(userstore.meta_get("regime_votes", {})))
+    z.writestr(VOTES, dumps(userstore.meta_get("regime_votes", {})))
 
 
 def universe_migrated() -> None:
@@ -129,7 +130,7 @@ def build() -> bytes:
             for p in home.files_under(root.now()):
                 z.write(p, f"{d}/{p.relative_to(root.now()).as_posix()}")
         z.writestr("EXPORT.md", README.format(created=created, version=manifest.app_version(), fmt=EXPORT_FORMAT))
-        z.writestr("export.json", json.dumps({"export_format": EXPORT_FORMAT, "created": created,
+        z.writestr("export.json", dumps({"export_format": EXPORT_FORMAT, "created": created,
                                               "app_version": manifest.app_version()}, indent=1))
     return buf.getvalue()
 

@@ -12,6 +12,7 @@ import yfinance as yf
 
 from . import guard, locks, net
 from .config import typed, write_parquet, write_text
+from .jsonsafe import dumps
 from .paths import CACHE, FRED_FILE, FRED_ROLLING_FILE, PRICES_FILE
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
@@ -92,7 +93,7 @@ def _load_from() -> dict[str, str]:
 
 def _save_from(d: dict[str, str]) -> None:
     f = CACHE / FROM_FILE
-    write_text(f, json.dumps(d, sort_keys=True))
+    write_text(f, dumps(d, sort_keys=True))
 
 
 def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None,

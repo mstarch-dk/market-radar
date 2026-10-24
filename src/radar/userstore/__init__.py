@@ -15,6 +15,7 @@ from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 
+from ..jsonsafe import dumps
 from ..paths import USERDATA
 from . import backups
 
@@ -526,7 +527,7 @@ def export_portfolios_json(scope: str = "real") -> str:
     """Portfolios with their kind, mode, tags and notes (the holdings bundle; real ones by default)."""
     keep = set(portfolio_ids(scope, include_archived=True))
     rows = [{k: p[k] for k in BUNDLE_PORTFOLIO_KEYS} for p in portfolios() if p["id"] in keep]
-    return json.dumps(rows, indent=1, ensure_ascii=False)
+    return dumps(rows, indent=1, ensure_ascii=False)
 
 
 def import_portfolios_json(text: str) -> int:

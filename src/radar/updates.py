@@ -12,6 +12,7 @@ from typing import Any
 
 from . import manifest, paths
 from .config import typed, write_text
+from .jsonsafe import dumps
 
 CHECK_FILE = paths.CACHE / "updates.json"
 EVERY = timedelta(days=1)
@@ -57,7 +58,7 @@ def status(check: bool = True) -> dict:
     if check and due:
         c = _fetch(out["repo"])
         CHECK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        write_text(CHECK_FILE, json.dumps(c, indent=1))
+        write_text(CHECK_FILE, dumps(c, indent=1))
     if c:
         out |= {k: c.get(k) for k in ("latest", "url", "published", "checked", "error")}
         out["newer"] = bool(out["latest"]) and manifest.version_tuple(out["latest"].lstrip("v")) > manifest.version_tuple(out["current"])
