@@ -6,8 +6,8 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, agenda, api_models/, backtest/, evidence, health, mine, profile, propose/, reporting/,
-                 updater, xray
+features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
+                 reporting/, updater, xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -23,7 +23,7 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `agenda`, `propose/`, `xray`, `evidence`) never imports `backtest/` and reads the studies' reports through
+`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`) never imports `backtest/` and reads the studies' reports through
 `model/artifacts.py`.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
@@ -169,6 +169,11 @@ for one.
   coverage, ex-ante risk with per-position shares (hidden below `risk.xray.min_coverage`), realised figures,
   concentration, stress and factor tilts. It only assembles `portfolios/exposure.py` and `riskmodel.py`, the code
   proposals use, and computes live: nothing written.
+- `attribution.py`: why a selection of portfolios beat or lagged ACWI over a period: Brinson–Fachler per day by
+  sector and region (local returns), the currency effect and cross term, linked to months and the period, the
+  reconciliation to *Returns* (trading and fees, benchmark proxies vs ACWI) and the factor regression. It assembles
+  `portfolios/performance.py` (`Book.positions`), `exposure.py`, `segments.py` and the math in
+  `model/attribution.py`; live, nothing written. No attribution under `attribution.min_months`.
 - `agenda.py`: the calendar of a selection: earnings and ex-dividend dates of held and watched stocks, open
   journal reviews and proposal time stops in a window, each with the reasons it is highlighted and a level
   (`calendar.highlight`). `resolve_earnings` is the one place a next earnings date is decided (the latest read of

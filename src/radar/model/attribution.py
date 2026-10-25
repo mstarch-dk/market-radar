@@ -105,6 +105,37 @@ def day_effects(rp_dkk: float, rb_dkk: float, local: pd.DataFrame, currency: pd.
             "rp": rp_dkk, "rb": rb_dkk}
 
 
+def brinson_panel(wp: pd.DataFrame, wb: pd.DataFrame, rp: pd.DataFrame, rb: pd.DataFrame) -> dict:
+    """`brinson_fachler` for many periods at once (rows: periods, columns: segments; the four frames on the same
+    rows and columns). Weights where a side doesn't hold a segment are 0; returns where it doesn't are NaN and are
+    filled as `brinson_fachler` fills them (the benchmark's total return; the segment's benchmark return). A period
+    whose weights don't sum to 1 on either side, or where a held segment has no return, is invalid: its effects are
+    NaN. Returns the three effect frames, each side's return per period (r_p, R_b) and `valid`."""
+    wp_, wb_ = wp.astype(float), wb.astype(float)
+    ok = ((wp_.sum(axis=1) - 1).abs() <= WEIGHT_TOL) & ((wb_.sum(axis=1) - 1).abs() <= WEIGHT_TOL)
+    ok &= ~((wb_ > 0) & rb.isna()).any(axis=1) & ~((wp_ > 0) & rp.isna()).any(axis=1)
+    big_rb = (wb_ * rb.fillna(0.0)).sum(axis=1)   # zero: only segments without benchmark weight are filled
+    rb_ = rb.astype(float).apply(lambda c: c.fillna(big_rb))
+    rp_ = rp.astype(float).fillna(rb_)
+    active_w = wp_ - wb_
+    out = {"allocation": active_w.mul(rb_.sub(big_rb, axis=0)), "selection": wb_ * (rp_ - rb_),
+           "interaction": active_w * (rp_ - rb_)}
+    out = {k: v.where(ok, axis=0) for k, v in out.items()}
+    return out | {"rp": (wp_ * rp_).sum(axis=1).where(ok), "rb": big_rb.where(ok), "valid": ok}
+
+
+def currency_panel(wp: pd.DataFrame, wb: pd.DataFrame, fx: pd.DataFrame) -> dict:
+    """`currency_effect` for many periods at once (rows: periods, columns: currencies). A period whose weights don't
+    sum to 1, or where a currency with weight has no return, is invalid (NaN). Returns the effect frame, F_b and
+    `valid`."""
+    wp_, wb_ = wp.astype(float), wb.astype(float)
+    ok = ((wp_.sum(axis=1) - 1).abs() <= WEIGHT_TOL) & ((wb_.sum(axis=1) - 1).abs() <= WEIGHT_TOL)
+    ok &= ~(((wp_ > 0) | (wb_ > 0)) & fx.isna()).any(axis=1)
+    f = fx.astype(float).fillna(0.0)   # zero: only currencies neither side holds that day, whose effect is 0
+    big_f = (wb_ * f).sum(axis=1)
+    return {"effect": ((wp_ - wb_) * f.sub(big_f, axis=0)).where(ok, axis=0), "fb": big_f.where(ok), "valid": ok}
+
+
 def carino_k(rp: float, rb: float) -> float:
     """Carino's factor for one period: (ln(1 + r_p) − ln(1 + r_b)) / (r_p − r_b), and its limit 1 / (1 + r) when the
     two returns are equal."""
@@ -149,7 +180,7 @@ def regression_frame(port: pd.Series, ff: pd.DataFrame, usd: pd.Series, rf: pd.S
     need = ["Mkt-RF", "RF", "SMB", "HML", "RMW", "CMA", "WML"]
     if missing := [c for c in need if c not in ff]:
         raise ValueError(f"the factor data lacks {', '.join(missing)}")
-    df = pd.concat({"port": port, "usd": usd, "rf": rf}, axis=1).join(ff[need], how="inner").dropna()
+    df = pd.concat({"port": port, "usd": usd, "rf": rf}, axis=1, sort=True).join(ff[need], how="inner").dropna()
     out = pd.DataFrame({"y": df["port"] - df["rf"],
                         "market": (1 + df["Mkt-RF"] + df["RF"]) * (1 + df["usd"]) - 1 - df["rf"]}, index=df.index)
     for c in FACTORS[1:]:

@@ -176,3 +176,27 @@ def test_regression_needs_the_minimum_weeks_and_says_how_far_t_is():
     assert len(at.regression_frame(gappy, ff, usd, rf)) == 59            # a missing week is left out, not 0
     with pytest.raises(ValueError, match="WML"):
         at.regression_frame(port, ff.drop(columns="WML"), usd, rf)
+
+
+def test_the_panels_equal_the_single_period_functions():
+    rng = np.random.default_rng(5)
+    days, segs = pd.bdate_range("2026-02-02", periods=20), ["A", "B", "C", "cash"]
+    wp = pd.DataFrame(rng.dirichlet(np.ones(4), 20), index=days, columns=segs)
+    wb = pd.DataFrame(rng.dirichlet(np.ones(3), 20), index=days, columns=segs[:3]).assign(cash=0.0)
+    rp = pd.DataFrame(rng.normal(0, 0.01, (20, 4)), index=days, columns=segs).assign(cash=0.0)
+    rb = pd.DataFrame(rng.normal(0, 0.01, (20, 4)), index=days, columns=segs).assign(cash=0.0)
+    rp.iloc[3, 1] = np.nan                                            # day 3: B held without a return
+    p = at.brinson_panel(wp, wb, rp, rb)
+    assert not p["valid"].iloc[3] and p["allocation"].iloc[3].isna().all()
+    for i in (0, 7, 19):
+        one = at.brinson_fachler(wp.iloc[i], wb.iloc[i], rp.iloc[i], rb.iloc[i])
+        for e in at.EFFECTS:
+            assert p[e].iloc[i].tolist() == pytest.approx(one[e].tolist(), abs=1e-15)
+        assert p["rp"].iloc[i] == pytest.approx(at.totals(one)["rp"])
+    fx = pd.DataFrame({"USD": rng.normal(0, 0.005, 20), "DKK": 0.0, "EUR": np.nan}, index=days)
+    wpc = pd.DataFrame({"USD": 0.7, "DKK": 0.3, "EUR": 0.0}, index=days)
+    wbc = pd.DataFrame({"USD": 0.6, "DKK": 0.4, "EUR": 0.0}, index=days)
+    c = at.currency_panel(wpc, wbc, fx)
+    one = at.currency_effect(wpc.iloc[4], wbc.iloc[4], fx.iloc[4])
+    assert c["valid"].all() and c["effect"].iloc[4].tolist() == pytest.approx(one["effect"].tolist())
+    assert not at.currency_panel(wpc.assign(EUR=0.1, DKK=0.2), wbc, fx)["valid"].any()   # EUR held, no rate
