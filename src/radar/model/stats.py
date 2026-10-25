@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from ..signals.risk import TRADING_DAYS, deepest_drawdown, worst_window
+from ..signals.risk import TRADING_DAYS, deepest_drawdown, ols, worst_window
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -35,6 +35,38 @@ def nw_t(values, lag: int) -> float | None:
     if s <= 0:
         return None
     return float(v.mean() / math.sqrt(s / n))
+
+
+def nw_lag(n: int) -> int:
+    """Newey and West's (1994) rule for the lag: ⌊4 (n/100)^(2/9)⌋ (4 from 100 observations, 5 from 273)."""
+    return int(math.floor(4 * (n / 100) ** (2 / 9))) if n > 0 else 0
+
+
+def ols_nw(y: np.ndarray, X: np.ndarray, lag: int) -> dict:
+    """Least squares with an intercept (coefficients and R² from `signals.risk.ols`) with Newey-West (Bartlett)
+    standard errors: (AᵀA)⁻¹ S (AᵀA)⁻¹, S = Σ_l w_l Σ_t e_t e_{t−l} a_t a_{t−l}ᵀ (both directions), w_l = 1 − l/(lag+1),
+    no small-sample correction (as `nw_t`, which it equals for an intercept alone). With lag 0 it is White's."""
+    fit = ols(y, X)
+    A = np.column_stack([np.ones(len(y)), X])
+    e = fit["resid"]
+    u = A * e[:, None]
+    s = u.T @ u
+    for k in range(1, min(lag, len(y) - 1) + 1):
+        g = u[k:].T @ u[:-k]
+        s += (1 - k / (lag + 1)) * (g + g.T)
+    inv = np.linalg.pinv(A.T @ A)
+    se = np.sqrt(np.clip(np.diag(inv @ s @ inv), 0, None))
+    t = np.divide(fit["coef"], se, out=np.full_like(fit["coef"], np.nan), where=se > 0)
+    return {"coef": fit["coef"], "se": se, "t": t, "r2": fit["r2"], "resid": e, "n": len(y), "lag": lag}
+
+
+def periods_to_t(t: float, n: int, target: float = 2.0) -> float | None:
+    """How many observations it would take for a t-statistic now at `t` from `n` observations to reach `target`, if
+    the estimate and its noise stayed as measured: t grows with √n, so n · (target / t)². None when t is 0 or
+    missing."""
+    if t is None or not np.isfinite(t) or t == 0:
+        return None
+    return float(n * (target / abs(t)) ** 2)
 
 
 def path_stats(level: pd.Series) -> dict:

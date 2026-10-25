@@ -1,6 +1,7 @@
 """Attribution of an active return vs a benchmark, as pure math: single-period Brinson–Fachler by segment, the
-currency effect in DKK, and Carino's linking of single periods into a longer one. Weights and returns in, effects
-out; no data is read here. The method: plans/F4-attribution.md, 4.3; the textbook's chapter on attribution.
+currency effect in DKK, and Carino's linking of single periods into a longer one; and the factor regression that
+asks whether what's left looks like skill. Weights and returns in, effects out; no data is read here. The method:
+plans/F4-attribution.md, 4.3 and 4.4; the textbook's chapter on attribution.
 
 Conventions. Each side's weights sum to 1 (cash and unclassified value are segments of their own). A segment the
 benchmark doesn't hold takes the benchmark's total return as its benchmark return unless the caller gives one: with
@@ -14,8 +15,13 @@ import math
 import numpy as np
 import pandas as pd
 
+from ..values import num
+from .stats import nw_lag, ols_nw, periods_to_t
+
 EFFECTS = ("allocation", "selection", "interaction")
 WEIGHT_TOL = 1e-9          # how far a side's weights may sum from 1 (float noise)
+FACTORS = ("market", "SMB", "HML", "RMW", "CMA", "WML")   # French's developed five factors and momentum
+WEEKS_PER_YEAR = 52
 
 
 def _weights(w: pd.Series, what: str) -> pd.Series:
@@ -130,3 +136,45 @@ def linking_error(linked_total: float, rp: pd.Series, rb: pd.Series) -> float:
     """|Σ linked effects − (R_p − R_b)|: how far the linked effects miss the compounded active return."""
     big = float(np.prod(1 + rp.to_numpy()) - 1) - float(np.prod(1 + rb.to_numpy()) - 1)
     return abs(linked_total - big)
+
+
+# ---------------- factor regression: skill or luck ----------------
+
+def regression_frame(port: pd.Series, ff: pd.DataFrame, usd: pd.Series, rf: pd.Series) -> pd.DataFrame:
+    """The weekly data for the factor regression, in DKK: y = the portfolio's return less the DKK risk-free rate;
+    market = French's developed market in DKK, (1 + Mkt-RF + RF)(1 + USD/DKK) − 1, less the same rate; SMB, HML, RMW,
+    CMA and WML as French gives them (long-short in USD, treated as currency-neutral: a self-financing position's
+    currency exposure is second order). `port`, `usd` (USD/DKK's return) and `rf` (DKK risk-free) are weekly
+    returns on the same W-FRI dates as `ff`. Only weeks where every input is known."""
+    need = ["Mkt-RF", "RF", "SMB", "HML", "RMW", "CMA", "WML"]
+    if missing := [c for c in need if c not in ff]:
+        raise ValueError(f"the factor data lacks {', '.join(missing)}")
+    df = pd.concat({"port": port, "usd": usd, "rf": rf}, axis=1).join(ff[need], how="inner").dropna()
+    out = pd.DataFrame({"y": df["port"] - df["rf"],
+                        "market": (1 + df["Mkt-RF"] + df["RF"]) * (1 + df["usd"]) - 1 - df["rf"]}, index=df.index)
+    for c in FACTORS[1:]:
+        out[c] = df[c]
+    return out
+
+
+def factor_regression(frame: pd.DataFrame, min_weeks: int, lag: int | None = None) -> dict | None:
+    """The portfolio's weekly excess return on the factors (a frame from `regression_frame`), with Newey-West t-stats
+    (lag `lag`, else the Newey-West rule for this many weeks). Alpha comes with its t and n always, and with the weeks
+    and months of data it would take to reach t = 2 at this alpha and noise (`periods_to_t`; 'reached' when |t| ≥ 2
+    already). None under `min_weeks` weeks: too short to say anything."""
+    n = len(frame)
+    if n < min_weeks or n <= len(FACTORS) + 1:
+        return None
+    lag = nw_lag(n) if lag is None else lag
+    fit = ols_nw(frame["y"].to_numpy(), frame[list(FACTORS)].to_numpy(), lag)
+    t_alpha = num(fit["t"][0])
+    weeks = periods_to_t(t_alpha, n) if t_alpha is not None else None
+    reached = t_alpha is not None and abs(t_alpha) >= 2
+    return {"n_weeks": n, "start": frame.index[0].date().isoformat(), "end": frame.index[-1].date().isoformat(),
+            "nw_lag": lag, "r2": num(fit["r2"]),
+            "alpha_ann": num(fit["coef"][0] * WEEKS_PER_YEAR), "alpha_t": t_alpha,
+            "alpha_se_ann": num(fit["se"][0] * WEEKS_PER_YEAR), "reached": reached,
+            "weeks_to_t2": None if reached or weeks is None else weeks,
+            "months_to_t2": None if reached or weeks is None else weeks * 12 / WEEKS_PER_YEAR,
+            "loadings": [{"factor": f, "beta": num(fit["coef"][i + 1]), "t": num(fit["t"][i + 1])}
+                         for i, f in enumerate(FACTORS)]}

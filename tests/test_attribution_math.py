@@ -1,11 +1,14 @@
 """Attribution math (model/attribution.py) against hand calculations: Brinson–Fachler adds up to the active return,
 a portfolio with the benchmark's weights has no allocation, the currency effect and the cross term close the DKK
-identity, and Carino's linking reproduces the compounded active return."""
+identity, and Carino's linking reproduces the compounded active return. The factor regression recovers a known
+loading, and its Newey-West statistics match the mean's."""
 import numpy as np
 import pandas as pd
 import pytest
 
 from radar.model import attribution as at
+from radar.model import stats
+from radar.signals.risk import ols
 
 
 def S(**kw):
@@ -111,3 +114,65 @@ def test_linked_daily_brinson_matches_the_period_active_return():
     assert at.linking_error(float(linked.sum()), rp, rb) < 1e-12
     with pytest.raises(ValueError, match="without a return"):
         at.carino_weights(rp.where(rp.index != days[3]), rb)
+
+
+# ---------------- factor regression ----------------
+
+def test_ols_nw_matches_the_means_nw_t_and_whites_at_lag_zero():
+    rng = np.random.default_rng(3)
+    e = rng.normal(0, 1, 300)
+    y = 0.2 + np.convolve(e, [1, 0.6], mode="same")                 # autocorrelated noise around a mean
+    for lag in (0, 3, 6):
+        fit = stats.ols_nw(y, np.empty((300, 0)), lag)
+        assert fit["t"][0] == pytest.approx(stats.nw_t(y, lag))     # an intercept alone: the mean's NW t
+    x = rng.normal(0, 1, 300)
+    fit = stats.ols_nw(y + 0.5 * x, x[:, None], 0)
+    A = np.column_stack([np.ones(300), x])
+    u = A * fit["resid"][:, None]
+    inv = np.linalg.inv(A.T @ A)
+    assert fit["se"] == pytest.approx(np.sqrt(np.diag(inv @ (u.T @ u) @ inv)))   # White's (HC0)
+    classical = ols(y, np.empty((300, 0)))["t"][0]
+    assert abs(stats.ols_nw(y, np.empty((300, 0)), 6)["t"][0]) < abs(classical)   # positive autocorrelation
+    assert (stats.nw_lag(100), stats.nw_lag(260), stats.nw_lag(0)) == (4, 4, 0)
+    assert stats.periods_to_t(1.0, 52) == pytest.approx(208) and stats.periods_to_t(0.0, 52) is None
+
+
+def _weeks(n, seed=11):
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range("2022-01-07", periods=n, freq="W-FRI")
+    ff = pd.DataFrame(rng.normal(0, 0.01, (n, 6)), index=idx, columns=["Mkt-RF", "SMB", "HML", "RMW", "CMA", "WML"])
+    ff["RF"] = 0.0008
+    usd = pd.Series(rng.normal(0, 0.005, n), index=idx)
+    rf = pd.Series(0.0005, index=idx)
+    return ff, usd, rf, rng
+
+
+def test_regression_recovers_a_known_loading():
+    ff, usd, rf, rng = _weeks(260)
+    mkt_dkk = (1 + ff["Mkt-RF"] + ff["RF"]) * (1 + usd) - 1 - rf
+    alpha = 0.001                                                    # 5.2 % a year
+    port = rf + alpha + 1.2 * mkt_dkk + 0.5 * ff["HML"] - 0.3 * ff["WML"] + rng.normal(0, 0.002, 260)
+    frame = at.regression_frame(port, ff, usd, rf)
+    r = at.factor_regression(frame, min_weeks=52)
+    load = {x["factor"]: x["beta"] for x in r["loadings"]}
+    assert load["market"] == pytest.approx(1.2, abs=0.03) and load["HML"] == pytest.approx(0.5, abs=0.05)
+    assert load["WML"] == pytest.approx(-0.3, abs=0.05) and abs(load["SMB"]) < 0.05
+    assert r["alpha_ann"] == pytest.approx(0.052, abs=0.015) and r["alpha_t"] > 2 and r["reached"]
+    assert r["months_to_t2"] is None and r["n_weeks"] == 260 and r["nw_lag"] == stats.nw_lag(260)
+
+
+def test_regression_needs_the_minimum_weeks_and_says_how_far_t_is():
+    ff, usd, rf, rng = _weeks(60)
+    port = rf + 0.0001 + 1.0 * ff["Mkt-RF"] + rng.normal(0, 0.01, 60)   # small alpha in a lot of noise
+    frame = at.regression_frame(port, ff, usd, rf)
+    assert at.factor_regression(frame, min_weeks=61) is None             # under the minimum: nothing
+    r = at.factor_regression(frame, min_weeks=52)
+    assert r["alpha_t"] is not None and r["n_weeks"] == 60               # alpha always with its t and n
+    if not r["reached"]:
+        assert r["weeks_to_t2"] == pytest.approx(60 * (2 / abs(r["alpha_t"])) ** 2)
+        assert r["months_to_t2"] == pytest.approx(r["weeks_to_t2"] * 12 / 52)
+    gappy = port.copy()
+    gappy.iloc[5] = np.nan
+    assert len(at.regression_frame(gappy, ff, usd, rf)) == 59            # a missing week is left out, not 0
+    with pytest.raises(ValueError, match="WML"):
+        at.regression_frame(port, ff.drop(columns="WML"), usd, rf)
