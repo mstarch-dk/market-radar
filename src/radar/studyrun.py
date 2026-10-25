@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -34,13 +35,29 @@ def commands() -> dict[str, str]:
     return out
 
 
+# A child in a process group of its own (GROUP, as Popen keywords), so it and everything it starts can be ended
+# together, and a cancel never reaches the server.
+GROUP: dict[str, Any]
+if sys.platform == "win32":
+    GROUP = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+else:
+    GROUP = {"start_new_session": True}
+
+
 def kill(proc: subprocess.Popen) -> None:
-    """End a child and everything it started. On Windows a virtual environment's python.exe is a launcher that runs
-    the real interpreter as its own child, so the whole tree goes (taskkill /T); elsewhere a terminate."""
+    """End a child started with GROUP and everything it started. On Windows a virtual environment's python.exe is a
+    launcher that runs the real interpreter as its own child, so the whole tree goes (taskkill /T); elsewhere its
+    process group. A child not in its own group is only terminated: its group could be ours."""
     if sys.platform == "win32":
         subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True, check=False)
-    else:
-        proc.terminate()
+        return
+    try:
+        if os.getpgid(proc.pid) == proc.pid:
+            os.killpg(proc.pid, signal.SIGTERM)
+            return
+    except ProcessLookupError:
+        return
+    proc.terminate()
 
 
 def argv(command: str) -> list[str]:
@@ -104,7 +121,6 @@ class StudyJob:
         loc = paths.locations()
         env = os.environ | {paths.ENV_HOME: str(loc.home), paths.ENV_CACHE: str(loc.cache),
                             "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
         status, error, last = "done", None, None
         self._log(f"uv run {command}")
         try:
@@ -112,7 +128,7 @@ class StudyJob:
             with self._lock:
                 self._proc = subprocess.Popen(self._launch(command), stdin=subprocess.DEVNULL,
                                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=env, text=True,
-                                              encoding="utf-8", errors="replace", creationflags=flags)
+                                              encoding="utf-8", errors="replace", **GROUP)
             assert self._proc.stderr is not None
             for raw in self._proc.stderr:        # the study's progress (cli/common.job writes it to stderr)
                 if line := raw.rstrip():

@@ -111,7 +111,7 @@ def test_cancel_ends_the_whole_process_tree(tmp_path):
     code = ("import subprocess, sys, time; "
             "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
             f"open(r'{pid_file}', 'w').write(str(p.pid)); time.sleep(60)")
-    proc = subprocess.Popen([sys.executable, "-c", code])
+    proc = subprocess.Popen([sys.executable, "-c", code], **studyrun.GROUP)
     for _ in range(200):
         if pid_file.exists() and pid_file.read_text():
             break
