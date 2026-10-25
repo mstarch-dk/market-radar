@@ -154,6 +154,20 @@ def test_performance(built):
     assert run_json("performance", "--json")
 
 
+def test_cli_xray(built):
+    """radar xray prints its tables, --json the XrayView; names, tags and scopes resolve as radar performance's."""
+    from radar import api_models
+
+    assert "Sector (top active weights" in run("xray")
+    v = api_models.XrayView.model_validate(run_json("xray", "--json"))
+    assert v.selection.names and v.classes
+    assert run_json("xray", v.selection.names[0], "--json")["selection"]["names"] == v.selection.names[:1]
+    assert run_json("xray", "--tag", "no-such-tag", "--json")["classes"] == []
+    assert run_json("xray", "--scope", "all", "--json")["selection"]["scope"] == "all"
+    assert "No portfolio called" in run("xray", "Nope", code=1)
+    assert "--scope must be one of" in run("xray", "--scope", "isk", code=1)
+
+
 def test_portfolios_lifecycle(built):
     assert "Added Try (virtual, other)" in run("portfolios", "add", "Try", "--virtual", "--tag", "x")
     assert "kind must be one of" in run("portfolios", "add", "Bad", "--kind", "isk", code=1)   # the store's rule

@@ -16,6 +16,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar info <TICKER>` / `uv run radar serve`: one ticker's profile as JSON / the local web app (the dashboard UI)
 - `uv run radar info <T1> <T2> … [--personal] [--out PATH]`: several tickers side by side with ACWI (personal data left out unless `--personal`)
 - `uv run radar portfolios list [--json]` / `uv run radar performance [NAME…] [--tag T]`: the portfolios (real ones are "yours"; virtual ones only when named) and their returns over time vs ACWI
+- `uv run radar xray [NAME…] [--tag T] [--scope real|virtual|all] [--json]`: the portfolio X-ray (exposure vs ACWI, where the risk sits, concentration, stress)
 - `uv run radar study score [--exits 6]`: the momentum score tested at every past month-end (IC, quintiles, holdout, variants, the exit rule); `uv run radar sim picks …`: a basket picked on a past day, simulated
 - `uv run radar propose candidates|freeze|evaluate|shadow|review|check …` / `uv run radar study propose`: a fee-aware basket proposal for one portfolio, tested against ACWI and the alternatives; the rule tested at every past month-end
 - `uv run radar paths [--json]` / `uv run radar setup`: where the data folder, history and cache are / choose it (first start of 0.2.0: copies an older version's data in)
