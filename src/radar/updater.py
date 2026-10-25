@@ -110,7 +110,7 @@ def update_external(log: Log = print) -> None:
         "erp": ("Equity risk premium (Damodaran)", valuation.update_erp),
         "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
-        "factors": ("Long factor histories (French, JKP; monthly)", factors.update_factors),
+        "factors": ("Factor histories (French, JKP; monthly, and daily developed factors)", factors.update_factors),
         "acwi_segments": ("MSCI ACWI weights (iShares; weekly snapshot)", constituents.update_acwi_segments),
         "valuation_etfs": ("ETF valuation (Yahoo fund data)", lambda: valuation.update_etfs(universe.etf_tickers())),
         "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)",

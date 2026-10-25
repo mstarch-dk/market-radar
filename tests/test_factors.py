@@ -142,3 +142,57 @@ def test_total_adds_rf_and_keeps_missing():
     t = factors.total(ex, data)
     assert t["dnk"].iloc[0] == pytest.approx(0.011)
     assert t["dnk"].isna().tolist() == [False, True, True]     # missing return, missing RF: missing, never 0
+
+
+# the layout of French's daily developed files (a real file's header and first rows, trimmed)
+DAILY = """This file was created using the 202608 Bloomberg database.
+
+Missing data are indicated by -99.99.
+
+
+
+,Mkt-RF,SMB,HML,RMW,CMA,RF
+19900702    ,0.69   ,-0.08   ,-0.33    ,0.21   ,-0.12    ,0.03
+19900703    ,0.21    ,0.12    ,0.05   ,-0.99    ,0.14    ,0.03
+19900704    ,0.05   ,-99.99    ,0.11    ,0.02    ,0.01    ,0.03
+19900705   ,-0.62    ,0.21    ,0.31    ,0.07    ,0.09    ,0.03
+19900706    ,0.33    ,0.03   ,-0.02    ,0.11   ,-0.05    ,0.03
+19900709    ,0.10    ,0.01    ,0.02    ,0.03    ,0.04    ,0.03
+"""
+
+
+def test_daily_french_file_parses_days_and_missing():
+    df = factors.parse_french(_zip("Developed_5_Factors_Daily.csv", DAILY), daily=True)
+    assert list(df.columns) == ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
+    assert df.index[0] == pd.Timestamp("1990-07-02") and len(df) == 6
+    assert df.loc["1990-07-02", "Mkt-RF"] == pytest.approx(0.0069)
+    assert np.isnan(df.loc["1990-07-04", "SMB"])                          # -99.99: missing, never a return
+    with pytest.raises(ValueError, match="no daily returns"):
+        factors.parse_french(_zip("x.csv", FACTORS_ONLY), daily=True)      # a monthly file read as daily
+    assert factors.french_blocks(DAILY) == {}                              # and daily rows aren't monthly
+
+
+def test_to_weeks_compounds_and_leaves_gaps_missing():
+    df = factors.parse_french(_zip("x.csv", DAILY), daily=True)
+    w = factors.to_weeks(df)
+    assert list(w.index) == [pd.Timestamp("1990-07-06")]                  # the week of 9 July isn't complete
+    mkt = (1.0069 * 1.0021 * 1.0005 * (1 - 0.0062) * 1.0033) - 1
+    assert w.loc["1990-07-06", "Mkt-RF"] == pytest.approx(mkt)
+    assert np.isnan(w.loc["1990-07-06", "SMB"])                            # a missing day: the week is missing
+
+
+def test_daily_datasets_go_to_their_own_store(monkeypatch):
+    monkeypatch.setattr(factors, "cfg", lambda: Factors(max_age_days=30, french={"a": "A_CSV"},
+                                                        french_daily={"d": "D_CSV"}))
+    daily = factors.parse_french(_zip("x.csv", DAILY), daily=True)
+    answers = {"A_CSV": _wide(24), "D_CSV": daily}
+    monkeypatch.setattr(factors, "fetch", lambda spec: answers[spec["file"]])
+    assert factors.update_factors(date(2026, 10, 1)).startswith("2 downloaded")
+    assert set(factors.load()["key"]) == {"french:a"}
+    assert set(factors.load_daily()["key"]) == {"french_daily:d"}
+    assert factors.daily_panel("french_daily:d").shape == (6, 6)
+    assert factors.update_factors(date(2026, 10, 2)) == "0 downloaded, 2 up to date"
+    monkeypatch.setattr(factors, "fetch", lambda spec: answers[spec["file"]].iloc[2:])   # starts later
+    with pytest.raises(RuntimeError, match="french_daily:d"):
+        factors.update_factors(date(2026, 10, 2), force=True)
+    assert len(factors.daily_panel("french_daily:d")) == 6                 # kept the stored rows

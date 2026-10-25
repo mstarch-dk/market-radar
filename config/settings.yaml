@@ -257,6 +257,9 @@ factors:                   # src/radar/factors.py: long monthly histories for `r
     mom_dev: Developed_Mom_Factor_CSV
     ff3_eu: Europe_3_Factors_CSV
     mom_eu: Europe_Mom_Factor_CSV
+  french_daily:            # daily files, in a file of their own: the attribution's factor regression of your portfolios
+    ff5_dev: Developed_5_Factors_Daily_CSV    # Mkt-RF, SMB, HML, RMW, CMA, RF (USD, from 1990-07); ends ~2 months back
+    mom_dev: Developed_Mom_Factor_Daily_CSV   # WML (from 1990-11)
   jkp:                     # JKP Global Factor Data (CC BY-NC 4.0): USD returns in excess of the US T-bill
     mkt_countries: {region: all_countries, theme: mkt, weighting: vw}            # market return per country
     mkt_world: {region: world, theme: mkt, weighting: vw}

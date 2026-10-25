@@ -61,7 +61,7 @@ SOURCES = {
     "fundamentals_yahoo": ("Financial statements", "Yahoo Finance via yfinance", False,
                            "per company, as reports come out", "Statement facts (radar fundamentals)"),
     "factors": ("Long factor and industry histories", "Kenneth R. French Data Library; JKP Global Factor Data", True,
-                "monthly re-fetch", "The long-history score test (radar study longrun)"),
+                "monthly re-fetch", "The long-history score test (radar study longrun), attribution's factor regression"),
 }
 
 
