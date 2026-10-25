@@ -12,10 +12,11 @@ import pandas as pd
 from ..config import typed, universe_config
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
-from ..portfolios import fees
+from ..portfolios import exposure, fees, riskmodel
+from ..portfolios.prices import Prices
 from ..sources import tracked
 from ..values import num
-from . import basket, draft, drift, exposure, picks_file, pricing, riskmodel, rules
+from . import basket, draft, drift, picks_file, resample, rules
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -51,7 +52,7 @@ def alternative_metrics(values: dict[str, float], ctx: draft.Ctx, cov: pd.DataFr
     cc = c.model_copy(update={"bootstrap": c.bootstrap.model_copy(update={"draws": draws or c.bootstrap.draws})})
     rp = riskmodel.weekly_returns(values, R, bench)
     weeks = round(horizon * rules.WEEKS_PER_MONTH)
-    boot = riskmodel.bootstrap(rp, R[bench], weeks, net_drift(drift, cost_pct), cc) \
+    boot = resample.bootstrap(rp, R[bench], weeks, net_drift(drift, cost_pct), cc) \
         if rp is not None and bench in R else {"note": "no weekly returns"}
     after = dict(before or {})
     for t, v in values.items():
@@ -63,7 +64,7 @@ def alternative_metrics(values: dict[str, float], ctx: draft.Ctx, cov: pd.DataFr
             "realised_dd_1y": riskmodel.realised_dd(rp, 52), "realised_dd_3y": riskmodel.realised_dd(rp, 156)}
 
 
-def adv_dkk(prices: pricing.Prices, t: str) -> float | None:
+def adv_dkk(prices: Prices, t: str) -> float | None:
     """Mean daily traded value over the last 20 sessions in DKK (None without volumes)."""
     v = getattr(prices.market, "volumes", None)
     s = prices.dkk(t)
@@ -73,7 +74,7 @@ def adv_dkk(prices: pricing.Prices, t: str) -> float | None:
     return num(x.mean()) if len(x) else None
 
 
-def _cost_one(prices: pricing.Prices, sf: fees.SimFees, t: str, amount: float, adv=None) -> float | None:
+def _cost_one(prices: Prices, sf: fees.SimFees, t: str, amount: float, adv=None) -> float | None:
     """Round-trip cost share of putting `amount` DKK into `t` (fees both ways, FX surcharge, half-spread)."""
     adv = adv if adv is not None else adv_dkk(prices, t)
     if adv is None and t in exposure.look_through():
@@ -193,7 +194,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
         "size": sz, "filler": fl, "constraints": cons,
         "exposure": {"before": exposure.exposures(vals, meta, ctx.acwi), "after": exposure.exposures(after, meta, ctx.acwi),
                      "basket": exposure.exposures(new, meta, ctx.acwi)},
-        "factors": factors(new, R, market),
+        "factors": riskmodel.factor_tilts(new, R, market),
         "risk": {"basket": prop["risk"], "before": riskmodel.ex_ante_risk(vals, cov, bench) if vals else None, "after": prop["after"]},
         "model": {"horizon": horizon, "study": sv, "drift_gross": hv["drift_gross"], "cost_pct": cost_pct,
                   "drift_net": prop["drift_net"], "bootstrap": prop["bootstrap"],
@@ -209,18 +210,6 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
             "Returns are before tax. Spreads are estimates by liquidity bucket.",
         ],
     })
-
-
-def factors(values: dict[str, float], R: pd.DataFrame, market: Market) -> dict | None:
-    from ..signals import risk as rk
-
-    bench = tracked.benchmark()
-    rp = riskmodel.weekly_returns(values, R, bench)
-    if rp is None or bench not in R:
-        return None
-    tilts = {f: R[f] for f in typed().risk.factors if f in R}
-    rf = market.fred().get("DGS3MO")   # None without the series: raw returns, said by alpha_basis
-    return rk.factor_loadings(rp, R[bench], tilts, rf, rules.cfg().history_weeks, rules.cfg().min_weeks)
 
 
 def decide(prop: dict, hv: dict, dd: dict, tolerance: float | None, c: Propose) -> dict:

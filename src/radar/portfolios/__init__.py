@@ -1,3 +1,4 @@
 """Your portfolios, from the transactions in `userstore`: positions and ledgers (`trades`), the checks a row passes
 before it is saved and moves between portfolios (`checks`), value and returns over time vs ACWI (`performance`),
-virtual portfolios and simulated runs (`simulate`) and broker fees (`fees`)."""
+virtual portfolios and simulated runs (`simulate`), broker fees (`fees`), and what the holdings are exposed to and
+how risky they are against ACWI (`prices`, `exposure`, `riskmodel`; shared by proposals and the portfolio views)."""

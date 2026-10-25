@@ -19,10 +19,11 @@ from ..model import artifacts
 from ..model import paths as mpaths
 from ..model.stats import mean as _mean
 from ..portfolios import fees, trades
+from ..portfolios.prices import Prices
 from ..signals.risk import deepest_drawdown
 from ..sources import tracked
 from ..values import num
-from . import basket, draft, evaluation, picks_file, pricing, rules
+from . import basket, draft, evaluation, picks_file, rules
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -104,7 +105,7 @@ def shadow(market: Market, doc: dict, name: str) -> dict:
     for v in names.values():
         if userstore.portfolio_by_name(v):
             raise ValueError(f"there is already a portfolio called {v}: shadows are new, virtual portfolios")
-    prices = pricing.Prices(market)
+    prices = Prices(market)
     sf = fees.SimFees.for_portfolio(src, typed().backtest.fee_bps)
     day = pd.Timestamp(market.closes.index[-1])
     when = m.date.isoformat()
@@ -138,7 +139,7 @@ def shadow(market: Market, doc: dict, name: str) -> dict:
             "returns_link": f"/returns?pf={','.join(str(v) for v in ids.values())}&from={day.date().isoformat()}"}
 
 
-def _basket_path(prices: pricing.Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
+def _basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
     """Equal DKK weights bought at the close of `start`: kept, and with the trend exit (model.paths: a close below
     the average after the buy day, sold at the next close, parked in ACWI)."""
     bench = tracked.benchmark()
@@ -175,7 +176,7 @@ def _basket_path(prices: pricing.Prices, tickers: list[str], start: pd.Timestamp
 def review(market: Market) -> dict:
     """How each frozen proposal did since its day, against ACWI, its rule basket and its own modelled range."""
     c = rules.cfg()
-    prices = pricing.Prices(market)
+    prices = Prices(market)
     st = typed().stops
     rows: list[dict] = []
     for fname, d in proposals():
@@ -221,7 +222,7 @@ def check_exits(market: Market, portfolio: str | None = None) -> dict:
     from ..model import panels as mp
 
     c = rules.cfg()
-    prices = pricing.Prices(market)
+    prices = Prices(market)
     st = typed().stops
     p = mp.panels(market)
     pl = basket.pool(market, prices, p)

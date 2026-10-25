@@ -150,8 +150,9 @@ change to the model and to its schema version.
 - `abtest.py`: the forward A/B test of three score strategies as virtual portfolios. Its monthly picks are
   appended and never changed; a failed refresh is logged and never stops the report.
 - `propose/`: portfolio proposals (`radar propose`, `/propose-portfolio`). The modules build on each other in the
-  order rules → pricing → exposure → basket → riskmodel → drift → draft → evaluation → store; the package
-  re-exports every public name. The frozen picks file's shape is `propose/picks_file.py`, checked on freeze and
+  order rules → basket → resample → drift → draft → evaluation → store; the package re-exports every public name.
+  The holdings, exposure and risk model it measures a proposal with live in `portfolios/` (shared with the
+  portfolio views). The frozen picks file's shape is `propose/picks_file.py`, checked on freeze and
   read-back. It reads the rule study only through `model/artifacts.py`, stale when the rule's hash has changed.
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
@@ -181,6 +182,11 @@ change to the model and to its schema version.
   - `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
     runs).
   - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
+  - `prices.py`: DKK closes, exchange rates and weekly DKK returns per ticker, computed once.
+  - `exposure.py`: the holdings book in DKK, sector / region / currency per name (world funds counted with ACWI's
+    own weights) and exposures against ACWI.
+  - `riskmodel.py`: shrunk covariance, ex-ante volatility, beta and tracking error with each name's share of risk,
+    the weekly path of fixed weights, stress windows, realised drawdown and factor tilts.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
