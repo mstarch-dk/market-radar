@@ -34,11 +34,11 @@ const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton
 
 // what each page in lib/nav.ts shows (the groups, labels and order live there)
 const ELEMENTS: Record<string, ReactNode> = {
-  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />,
+  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />, "/evidence": <Evidence />,
   "/discover": <Discover />, "/positioning": <Positioning />,
   "/me": <Me />, "/xray": <Xray />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
   "/notebook": lazyPage(<Notebook />),
-  "/data": <Data />, "/ops": <Ops />, "/evidence": <Evidence />,
+  "/data": <Data />, "/ops": <Ops />,
 };
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });

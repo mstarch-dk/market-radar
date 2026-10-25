@@ -67,7 +67,7 @@ EDGAR, Kenneth R. French, JKP). Only the *Used for* column changes: add "Evidenc
 | features | `api_models/evidence.py` | `EvidenceView` and its parts (`extra="forbid"`), re-exported by `api_models`. |
 | interfaces | `api/evidence.py` | `GET /api/evidence`, a router included **last** in `api/app.py`. |
 | interfaces | `cli/study.py` | `radar evidence [--json]`. |
-| web | `web/src/pages/Evidence.tsx` | New page `/evidence` in the *System* group after *Operations* (see section 9). |
+| web | `web/src/pages/Evidence.tsx` | New page `/evidence` in the *Markets* group after *Quality & value*. |
 
 **The study rule hash.** `study_rule_hash(kind, signal)` is a SHA-256 (12 hex) of the raw settings the study's
 numbers depend on, plus a hand-bumped revision per score, so a change to a score's code also retires the old
@@ -203,7 +203,7 @@ prints the `EvidenceView`. It is the input `/market-brief` can read for "the sco
 ### 4.7 Web page
 
 `/evidence`, label *Evidence*, blurb "How well the scores have worked: studies, holdout, forward record", in
-*System* after *Operations*. Layout:
+*Markets* after *Quality & value*. Layout:
 
 1. **Status strip**: one chip per report (score × 4, long-run, propose, exits, redeploy) coloured by status, with
    age; a click scrolls to the card.
@@ -311,8 +311,8 @@ applied:
   is truthful (we don't know what it tested); the release notes say to re-run each study once.
 - The forward scoreboard shows cohort means without a t (overlapping windows, small counts), and says why. The
   acceptance criterion "t next to every mean" applies to the study cards, where every mean has one.
-- The page lives in *System*, after *Operations*. *Markets* was the first choice (the page is about the scores shown
-  there), but that group already has seven pages, the limit `lib/nav.test.ts` holds (changed in TASK-2.5).
+- The page lives in *Markets* after *Quality & value* (it is about the scores shown there). That makes eight pages in
+  the group, so the nav's limit per group (`lib/nav.test.ts`) goes from seven to eight.
 - Running a study from the UI stays a later task (TASK-2.8): minutes of CPU, and the review suggests an ops job
   refused while a report build holds the lock (`locks.py`); the card shows the command until then.
 
