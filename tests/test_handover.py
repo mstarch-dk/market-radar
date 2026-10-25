@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import world
-from radar import api, cli, dashboard, updater
+from radar import api, cli, updater
+from radar.reporting import dashboard
 from radar.sources import ingest
 from test_holdings_import import HEADER, _row
 

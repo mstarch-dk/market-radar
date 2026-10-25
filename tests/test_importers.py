@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, net, ops, userstore
+from radar import api, importers, net, ops, userstore
+from radar.reporting import dashboard
 from radar.sources import ingest
 from world import IDX
 

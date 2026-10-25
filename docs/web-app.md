@@ -11,7 +11,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 
 ## Contract
 - `src/radar/api_models/` defines every response with `extra="forbid"` (one module per area, every model
-  re-exported by the package: `from radar.api_models import X`), so `profile.py`, `dashboard.py`, `mine.py`
+  re-exported by the package: `from radar.api_models import X`), so `profile.py`, `reporting/dashboard.py`, `mine.py`
   and the models can't drift silently (`report.build` checks every dashboard section against them before writing,
   `dashboard.check`, and `profile.build` its profile; `test_report_e2e` and `test_profile` hold both to it).
   `api_models` sits in the features layer, below the API, so the producers can import it.
@@ -96,7 +96,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Returns: `GET /api/portfolios/{id}/performance?start=&end=` (series with null gaps, TWR/MWR stats vs ACWI, notes),
   `GET /api/portfolios/compare?portfolio=&tag=&start=` (lines rebased at a common start; default: each of your real
   portfolios).
-- Data folder (`home.py`, `backup.py`, `export.py`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
+- Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every
   other `/api/*` route except the guide and the doctor answers 409 `{detail: {setup}}` and the app shows the setup

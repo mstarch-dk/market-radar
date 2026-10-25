@@ -5,7 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, api_models, dashboard, paths, report
+from radar import api, api_models, paths
+from radar.reporting import dashboard, report
 from radar.sources import ingest
 
 

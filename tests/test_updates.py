@@ -3,7 +3,8 @@
 import pytest
 
 from conftest import with_settings
-from radar import home, manifest, net, updates
+from radar import manifest, net, updates
+from radar.datahome import home
 
 
 class Resp:

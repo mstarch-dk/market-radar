@@ -12,14 +12,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .. import (
-    dashboard,
-    errors,
-    manifest,
-    ops,
-    updater,
-)
+from .. import errors, manifest, ops, updater
 from ..config import ROOT
+from ..reporting import dashboard
 from . import (
     discover,
     docs,

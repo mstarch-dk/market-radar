@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from radar import coverage
-from radar.dashboard import clusters
+from radar.reporting import coverage
+from radar.reporting.dashboard import clusters
 from radar.signals import regime
 
 CFG = {"vix_calm": 18, "vix_stress": 25, "breadth_strong": 60, "breadth_weak": 40, "highs_lows_band": 3,

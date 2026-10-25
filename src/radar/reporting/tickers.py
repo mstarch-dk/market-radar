@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from . import dashboard, universe
-from .paths import CACHE
-from .portfolios import trades
-from .sources import tracked
+from .. import universe
+from ..paths import CACHE
+from ..portfolios import trades
+from ..sources import tracked
+from . import dashboard
 
 if TYPE_CHECKING:
-    from .market import Market
+    from ..market import Market
 
 _cache: tuple[tuple, list[dict]] | None = None
 

@@ -20,8 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeGuard
 
-from . import manifest, paths
-from .config import ROOT
+from .. import manifest, paths
+from ..config import ROOT
 
 # Changes to the data folder's layout (a folder renamed, a file moved between tiers): one function per step, taking
 # the home Path; step i turns format i into i + 1. Append only, never edit a released step, never delete user data
@@ -60,7 +60,7 @@ Læg i stedet backups der (se guiden: Dine data, backup og opdatering).
 
 
 def schema_known() -> int:
-    from . import userstore
+    from .. import userstore
 
     return len(userstore.MIGRATIONS)
 

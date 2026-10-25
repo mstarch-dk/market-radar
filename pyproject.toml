@@ -65,7 +65,7 @@ name = "The kernel (radar.model) stands on its own: no studies, no app, no repor
 type = "forbidden"
 source_modules = ["radar.model"]
 forbidden_modules = [
-    "radar.backtest", "radar.dashboard", "radar.api", "radar.cli", "radar.report", "radar.updater",
+    "radar.backtest", "radar.reporting", "radar.api", "radar.cli", "radar.updater",
     "radar.propose", "radar.abtest",
 ]
 
@@ -73,12 +73,12 @@ forbidden_modules = [
 name = "The studies (radar.backtest) read data, not the report builder or the app"
 type = "forbidden"
 source_modules = ["radar.backtest"]
-forbidden_modules = ["radar.dashboard", "radar.api", "radar.cli", "radar.mine", "radar.profile"]
+forbidden_modules = ["radar.reporting", "radar.api", "radar.cli", "radar.mine", "radar.profile"]
 
 [[tool.importlinter.contracts]]
 name = "The app reads the studies' reports (model.artifacts), never runs a study"
 type = "forbidden"
-source_modules = ["radar.updater", "radar.report", "radar.api", "radar.abtest", "radar.propose"]
+source_modules = ["radar.updater", "radar.reporting", "radar.api", "radar.abtest", "radar.propose"]
 forbidden_modules = ["radar.backtest"]
 
 [[tool.importlinter.contracts]]
@@ -91,9 +91,9 @@ containers = ["radar"]
 exhaustive = true
 layers = [
     "api : cli",
-    "abtest : api_models : backtest : coverage : dashboard : health : mine : profile : propose : report : tickers : updater",
+    "abtest : api_models : backtest : health : mine : profile : propose : reporting : updater",
     "model",
-    "backup : export : guide : home : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",
+    "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",
     "discovery : fundamentals : sources : updates",
     "signals",
     "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",
@@ -128,7 +128,7 @@ known-first-party = ["radar"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/radar/cli/*.py" = ["B904"]   # `raise typer.Exit(message)` inside except: the message is the whole report
-"src/radar/export.py" = ["E501"]   # EXPORT.md's Markdown table rows can't be wrapped
+"src/radar/datahome/export.py" = ["E501"]   # EXPORT.md's Markdown table rows can't be wrapped
 
 # Coverage (CI: `uv run pytest -q --cov`, which fails below fail_under). The floor is the total after the last
 # tranche minus two, rounded down (thread timing moves a run by a point or two): 89.5 % after Tranche 10. Raise it

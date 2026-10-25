@@ -123,8 +123,8 @@ def test_refresh_stores_runs_and_the_view(market):
 def test_summary_digest(market, tmp_data):
     import json
 
-    from radar import report
     from radar.paths import REPORTS
+    from radar.reporting import report
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     f = REPORTS / "summary.json"

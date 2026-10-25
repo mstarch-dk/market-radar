@@ -4,7 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard
+from radar import api
+from radar.reporting import dashboard
 from radar.sources import ingest
 from world import IDX
 

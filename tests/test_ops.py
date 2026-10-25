@@ -7,8 +7,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from radar import api, coverage, net, ops, sourcelog, updater
+from radar import api, net, ops, sourcelog, updater
 from radar.api_models import OpsJobDetail, OpsSummary
+from radar.reporting import coverage
 
 
 def test_summary_per_host_and_source_with_percentiles():

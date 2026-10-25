@@ -7,9 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, importers, report, userstore
+from radar import api, importers, userstore
 from radar.market import Market
 from radar.portfolios import performance, trades
+from radar.reporting import dashboard, report
 from radar.sources import ingest
 from world import IDX
 

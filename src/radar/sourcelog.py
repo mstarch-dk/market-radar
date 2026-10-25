@@ -1,6 +1,6 @@
 """The update log of every data source (sources.json in the cache): each step records its attempt here, a failure
 keeping the last success, and each attempt is also an event in the operations log. Low level on purpose: the
-data sources write it, coverage.py reads it for the Data & coverage page."""
+data sources write it, reporting/coverage.py reads it for the Data & coverage page."""
 from __future__ import annotations
 
 import json

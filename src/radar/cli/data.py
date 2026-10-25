@@ -16,8 +16,8 @@ def setup(from_: str = typer.Option(None, "--from", help="An old Market Radar fo
     you already have. The old folder is never changed (it gets a MOVED.txt); the copy is checked file by file."""
     from pathlib import Path
 
-    from .. import home as homes
     from .. import paths
+    from ..datahome import home as homes
 
     if use:
         loc = homes.use(Path(use))
@@ -63,7 +63,7 @@ def backup_now(reason: str = typer.Option("manual", help="A word or two saved in
     downloaded again). Backups are also taken by themselves once a day and before a new version first runs."""
     from pathlib import Path
 
-    from .. import backup
+    from ..datahome import backup
 
     if mirror:
         m = backup.set_mirror(None if mirror == "off" else Path(mirror))
@@ -75,7 +75,7 @@ def backup_now(reason: str = typer.Option("manual", help="A word or two saved in
 @app.command()
 def backups():
     """The backups in your data folder (and in the second backup folder, if one is set)."""
-    from .. import backup
+    from ..datahome import backup
 
     for where in filter(None, (backup.folder(), backup.mirror())):
         rows = backup.listing(where)
@@ -90,7 +90,7 @@ def restore(file: str = typer.Argument(..., help="A backup zip (from `radar back
     """Put a backup back. What is there now is backed up first, so a restore can itself be undone."""
     from pathlib import Path
 
-    from .. import backup
+    from ..datahome import backup
 
     meta = backup.verify(Path(file))
     typer.echo(f"{Path(file).name}: made {meta['created']} by Market Radar {meta['app_version']}, "
@@ -134,8 +134,8 @@ def paths(as_json: bool = typer.Option(False, "--json", help="As JSON (for the s
     """Where your data, the history and the market-data cache are, and how the app found them."""
     import json
 
-    from .. import home as homes
     from .. import paths as p
+    from ..datahome import home as homes
 
     st = homes.status()
     out = {k: st[k] for k in ("state", "source", "app_version", "home", "cache", "pointer", "read_only", "warning")}
@@ -171,7 +171,7 @@ def bundle_holdings(out: str = typer.Option(None, "--out", help="Write the bundl
     import io
     import zipfile
 
-    from .. import export
+    from ..datahome import export
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -198,7 +198,7 @@ def unbundle_holdings(file: str = typer.Option(None, "--file", help="Read the bu
     import zipfile
     from pathlib import Path
 
-    from .. import export
+    from ..datahome import export
 
     raw = Path(file).read_text(encoding="utf-8-sig") if file else os.environ.get("HOLDINGS_BUNDLE", "")
     # keep only base64 characters: tolerates BOMs/CRLF/whitespace added by shells or editors
@@ -220,7 +220,7 @@ def export_data(out: str = typer.Option(None, "--out", help="The zip to write (d
     what each file and column holds. It holds your holdings: keep it private."""
     from pathlib import Path
 
-    from .. import export
+    from ..datahome import export
 
     f = export.write(Path(out) if out else None)
     typer.echo(f"Wrote {f} ({f.stat().st_size // 1024} KB). It holds your holdings: keep it private.")
@@ -233,7 +233,7 @@ def import_export(file: str = typer.Argument(..., help="A zip written by `radar 
     that aren't here yet are added, ones that are here are left alone. radar.db is backed up first."""
     from pathlib import Path
 
-    from .. import export
+    from ..datahome import export
 
     pv = export.preview(Path(file))
     typer.echo(f"{file}: {pv['portfolios']} portfolios, {pv['transactions']} transactions, {len(pv['documents'])} "

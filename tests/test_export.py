@@ -7,7 +7,8 @@ import zipfile
 import pytest
 from typer.testing import CliRunner
 
-from radar import cli, export, home, paths, userstore
+from radar import cli, paths, userstore
+from radar.datahome import export, home
 
 pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
 

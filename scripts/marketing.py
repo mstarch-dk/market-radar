@@ -112,7 +112,8 @@ def demo_home() -> None:
     """.demo in portable mode, with an empty data folder and a copy of the market data and the history (public,
     market-derived: rank and valuation snapshots, analyst targets). Never radar.db, notes or any personal folder."""
     sys.path.insert(0, str(ROOT / "src"))
-    from radar import home, paths
+    from radar import paths
+    from radar.datahome import home
 
     real, src = paths.resolve()
     if real is None and (ROOT / "data").is_dir():

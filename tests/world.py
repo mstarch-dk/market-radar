@@ -8,7 +8,8 @@ from datetime import date
 import numpy as np
 import pandas as pd
 
-from radar import dashboard, profile, universe
+from radar import profile, universe
+from radar.reporting import dashboard
 from radar.sources import external, fxrates, ingest, tracked
 
 N = 300

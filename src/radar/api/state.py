@@ -4,13 +4,8 @@ from __future__ import annotations
 
 import threading
 
-from .. import (
-    errors,
-    home,
-    ops,
-    paths,
-    profile,
-)
+from .. import errors, ops, paths, profile
+from ..datahome import home
 from ..market import Market
 
 gate: tuple[str, str | None] | None = None      # (state, why read-only), from home.gate() at start
@@ -66,7 +61,7 @@ def open_home() -> tuple[str, str | None]:
     gate = home.gate()
     if gate[0] != "ok":
         return gate
-    from .. import backup
+    from ..datahome import backup
 
     try:
         backup.before_upgrade()                  # a new version's first start: keep the data as it was

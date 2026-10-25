@@ -3,7 +3,8 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from radar import coverage, sourcelog
+from radar import sourcelog
+from radar.reporting import coverage
 from radar.signals import levels
 from radar.sources import constituents
 

@@ -22,8 +22,9 @@ from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import home, manifest, paths
-from .jsonsafe import dumps
+from .. import manifest, paths
+from ..jsonsafe import dumps
+from . import home
 
 PREFIX = "market-radar-"
 KINDS = ("manual", "daily", "upgrade", "restore")
@@ -136,7 +137,7 @@ def _mirror_copy(f: Path) -> None:
         m.mkdir(parents=True, exist_ok=True)
         shutil.copy2(f, m / f.name)
     except OSError as e:                          # a disconnected USB disk must not stop the backup itself
-        from . import ops
+        from .. import ops
 
         ops.event("warn", "job", f"backup mirror {m}: {type(e).__name__}: {e}", source="backup")
 

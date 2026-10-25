@@ -10,8 +10,9 @@ import pandas as pd
 import pytest
 
 import world
-from radar import report, snapshot
+from radar import snapshot
 from radar.config import settings
+from radar.reporting import report
 from radar.sources import fxrates
 from world import BUY_AT, IDX, N
 
@@ -111,7 +112,7 @@ def test_dashboard_matches_the_api_models(summary):
     fails the build, naming it."""
     import copy
 
-    from radar import dashboard
+    from radar.reporting import dashboard
 
     dashboard.check(summary["_dash"])
     bad = copy.deepcopy(summary["_dash"])
