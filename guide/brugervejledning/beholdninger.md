@@ -4,6 +4,8 @@ Siden [Holdings & watchlist](/me) viser dine egne navne i tre tabeller: det, du 
 
 Tallene regnes live ud fra de seneste kurser, hver gang du åbner siden. Regimet og rotationsgrafens kvadranter, som niveauerne bruger, kommer fra den seneste opdatering.
 
+Siden ser på ét navn ad gangen. Vil du se porteføljen som helhed (eksponering mod ACWI efter sektor, region og valuta, hvilke positioner der bærer risikoen, koncentration og stress), så brug [X-ray](/xray); se [Røntgen af porteføljen](brugervejledning/xray).
+
 ## Hvor kommer navnene fra?
 
 - **Beholdninger og solgte positioner** følger af dine handler på siden [Portfolio](/portfolio). Se [Portefølje: handler, kontanter og import](brugervejledning/portefolje).
