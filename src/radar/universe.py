@@ -10,7 +10,7 @@ from .config import typed, write_csv
 from .paths import CACHE
 from .portfolios import trades
 from .sources import fxrates
-from .sources.tracked import benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
+from .sources.tracked import attribution_tickers, benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
 
 # ---------- MSCI ACWI's own weights (iShares MSCI ACWI UCITS holdings) ----------
 
@@ -103,6 +103,7 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     tickers |= set(trades.holdings()["symbol"].dropna())
     tickers |= trades.portfolio_symbols()                  # virtual portfolios need prices too
     tickers |= set(fxrates.FX_TICKERS)
+    tickers |= attribution_tickers()                       # attribution's benchmark segments
     return sorted(tickers)
 
 

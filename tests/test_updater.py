@@ -9,7 +9,7 @@ from radar import cli, locks, sourcelog, universe, updater
 from radar.discovery import scan
 from radar.fundamentals import edgar, yahoo
 from radar.portfolios import trades
-from radar.sources import external, factors, ingest, sentiment, valuation
+from radar.sources import constituents, external, factors, ingest, sentiment, valuation
 
 
 @pytest.fixture
@@ -146,6 +146,7 @@ def test_every_external_source_is_tried_even_when_one_raises(tmp_data, monkeypat
     monkeypatch.setattr(sentiment, "update_putcall", ok("putcall"))
     monkeypatch.setattr(sentiment, "update_aaii", ok("aaii"))
     monkeypatch.setattr(factors, "update_factors", ok("factors"))
+    monkeypatch.setattr(constituents, "update_acwi_segments", ok("acwi_segments"))
     monkeypatch.setattr(valuation, "update_etfs", ok("valuation_etfs"))
     monkeypatch.setattr(valuation, "update_stocks", ok("valuation_stocks"))
     calendar_args = {}
@@ -156,7 +157,7 @@ def test_every_external_source_is_tried_even_when_one_raises(tmp_data, monkeypat
     lines = []
     updater.update_external(lines.append)
     assert ran == ["cftc", "oecd", "factset", "analyst", "ecb", "cape", "erp", "putcall", "aaii", "factors",
-                   "valuation_etfs", "valuation_stocks", "calendar", "fundamentals_edgar", "fundamentals_yahoo"]
+                   "acwi_segments", "valuation_etfs", "valuation_stocks", "calendar", "fundamentals_edgar", "fundamentals_yahoo"]
     assert set(calendar_args) == {"max_age_days", "near_days", "near_max_age_hours"}   # calendar.refresh
     log = sourcelog.load_log()
     assert log["ecb"]["error"] == "ValueError: ECB changed its format"

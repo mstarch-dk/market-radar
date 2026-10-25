@@ -330,3 +330,77 @@ def test_acwi_region_keys_match():
                "XX.PR": "europe", "XX.JK": "asia", "9984.T": "asia"}
     assert {t: universe.region_for(t) for t in samples} == samples
     assert {universe.region_for(t) for t in samples} == set(universe.REGIONS)
+
+
+# ---------------- ACWI's weights over time (attribution) ----------------
+
+def _ssac(asof_line='Fondsposition per,"14.Okt.2026"'):
+    text = (FIXTURES / "ishares_ssac_holdings.csv").read_text(encoding="utf-8")
+    return constituents.parse_acwi_holdings(text.replace('Fondsposition per,"14.Okt.2026"', asof_line), min_rows=10)
+
+
+def test_acwi_asof_is_parsed_from_the_file():
+    assert set(_ssac()["asof"]) == {"2026-10-14"}
+    assert set(_ssac('Fondsposition per,"03.Mär.2025"')["asof"]) == {"2025-03-03"}
+    assert set(_ssac("")["asof"]) == {None}
+
+
+def test_acwi_segments_add_up_per_dimension():
+    seg = constituents.acwi_segments(_ssac())
+    for dim in ("sector", "region", "country", "currency", "sector_currency", "region_currency", "region_country"):
+        assert seg.loc[seg["dim"] == dim, "weight"].sum() == pytest.approx(1.0)
+    assert "United States" in set(seg.loc[seg["dim"] == "country", "key"])
+    assert "us|United States" in set(seg.loc[seg["dim"] == "region_country", "key"])
+
+
+def test_acwi_segment_history_is_append_only_once_a_week(tmp_data):
+    first = constituents.record_acwi_segments(_ssac('Fondsposition per,"14.Okt.2026"'))
+    assert "recorded" in first
+    before = constituents.acwi_segment_history()
+    assert "already" in constituents.record_acwi_segments(_ssac('Fondsposition per,"16.Okt.2026"'))  # same week
+    assert "older" in constituents.record_acwi_segments(_ssac('Fondsposition per,"02.Okt.2026"'))
+    pd.testing.assert_frame_equal(constituents.acwi_segment_history(), before)
+    constituents.record_acwi_segments(_ssac('Fondsposition per,"21.Okt.2026"'))
+    after = constituents.acwi_segment_history()
+    assert sorted(after["asof"].unique()) == ["2026-10-14", "2026-10-21"]
+    pd.testing.assert_frame_equal(after.iloc[: len(before)].reset_index(drop=True), before)   # earlier rows unchanged
+    with pytest.raises(ValueError, match="no date"):
+        constituents.record_acwi_segments(_ssac(""))
+
+
+def test_acwi_keys_are_ones_the_attribution_can_use():
+    """Every sector ACWI's file can name has a proxy and is a sector the radar's classification uses; every country
+    the region map knows has an English name (the country proxies are keyed by it)."""
+    from radar.config import load_yaml
+    from radar.discovery.sources import ISHARES_SECTORS
+
+    conf = load_yaml("universe.yaml")
+    assert set(ISHARES_SECTORS.values()) == set(conf["attribution"]["sectors"])
+    assert set(ISHARES_SECTORS.values()) <= set(conf["sector_etfs"]["us"])
+    seen = ["Vereinigte Staaten", "Japan", "Taiwan", "Vereinigtes Königreich", "Kanada", "Deutschland", "Korea",
+            "Schweiz", "Irland", "Frankreich", "China", "Australien", "Niederlande", "Spanien", "Schweden", "Italien",
+            "Dänemark", "Singapur", "Südafrika", "Hongkong", "Belgien", "Finnland", "Israel", "Mexiko", "Norwegen",
+            "Thailand", "Ver. Arabische Emirate", "Malaysia", "Polen", "Österreich", "Indonesien", "Portugal",
+            "Griechenland", "Peru", "Kuwait", "Ungarn", "Qatar", "Neuseeland", "Chile", "Türkei", "Philippinen",
+            "Kolumbien", "Indien", "Tschechien", "Ägypten", "Russland"]   # every country in the October 2026 file
+    assert all(c in constituents.COUNTRY_EN for c in seen)
+    regions = conf["attribution"]["regions"]
+    assert set(regions) == set(universe.REGIONS)
+    for r, countries in regions.items():
+        assert all(constituents.acwi_region(de) == r for de, en in constituents.COUNTRY_EN.items() if en in countries)
+
+
+def test_the_update_step_records_the_cached_files_week(tmp_data, monkeypatch):
+    from radar.config import write_csv
+
+    def offline(*a, **k):
+        raise ConnectionError("offline")
+    monkeypatch.setattr(net, "get", offline)
+    with pytest.raises(RuntimeError, match="no ACWI holdings"):
+        constituents.update_acwi_segments()
+    write_csv(_ssac(), constituents.ACWI_FILE, index=False)        # fresh: read from the cache, no request
+    assert "2026-10-14" in constituents.update_acwi_segments()
+    assert "already" in constituents.update_acwi_segments()
+    write_csv(_ssac().drop(columns="asof"), constituents.ACWI_FILE, index=False)   # a cache from before the date
+    with pytest.raises(ValueError, match="no date"):
+        constituents.update_acwi_segments()

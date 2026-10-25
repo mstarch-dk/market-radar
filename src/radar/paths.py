@@ -257,6 +257,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "fred_rolling.parquet",         # FRED serves ICE BofA's spreads for ~3 years only
         "fundamentals/yahoo.parquet",   # Yahoo's statements: it shows ~4 years, what scrolls out is gone
         "fundamentals/scores.parquet",  # weekly kvalitets- and værdiscore per stock
+        "acwi_segments.csv",            # ACWI's weights each week: iShares serves only today's holdings
     ),
     "cache": (
         "prices.parquet", "prices_from.json", "fred.parquet", "cot.parquet", "oecd_cli.parquet", "ecb.parquet",

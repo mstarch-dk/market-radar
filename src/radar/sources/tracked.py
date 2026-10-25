@@ -71,3 +71,16 @@ def macro_fred_views() -> dict[str, str]:
 def macro_fred_study() -> dict[str, str]:
     """FRED series only `radar study longrun` reads (USD/DKK since 1971, US recessions)."""
     return universe_config()["macro"].get("fred_study") or {}
+
+
+def attribution_tickers() -> set[str]:
+    """Every ticker attribution's benchmark segments read prices from (universe.yaml `attribution:`): the sector
+    proxies, the sector ETFs they fall back to, and the country ETFs."""
+    conf = universe_config()
+    attr = conf.get("attribution") or {}
+    sectors = attr.get("sectors") or {}
+    fallback = (conf.get("sector_etfs") or {}).get(attr.get("sector_fallback") or "") or {}
+    out = set(sectors.values()) | {t for k, t in fallback.items() if k in sectors and isinstance(t, str)}
+    for countries in (attr.get("regions") or {}).values():
+        out |= set((countries or {}).values())
+    return out

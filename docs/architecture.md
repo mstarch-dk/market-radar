@@ -187,8 +187,8 @@ change to the model and to its schema version.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
   - `checks.py`: checks a row before it is saved (unknown symbol, future date, oversold, price vs the close,
     negative cash) and moves between portfolios.
-  - `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
-    flows, comparisons and cash.
+  - `performance.py`: a portfolio's value over time (in total and per symbol), time-weighted and money-weighted
+    returns, ACWI with the same flows, comparisons and cash.
   - `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
     runs).
   - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
@@ -196,6 +196,9 @@ change to the model and to its schema version.
   - `exposure.py`: the holdings book in DKK, each name's class (world fund, sector fund, other fund, stock,
     unknown) with sector / region / currency (a fund looked through where its cached data allows, else *fund: not
     looked through*, never filed under its listing), and exposures against ACWI with coverage per dimension.
+  - `segments.py`: attribution's benchmark segments: ACWI's weights by sector and region on each day (the weekly
+    snapshots drifted with the segments' returns, back-drifted before the first) and each segment's daily DKK return
+    from its proxy ETFs (universe.yaml `attribution:`); a segment without a return is missing that day.
   - `riskmodel.py`: shrunk covariance (`book_cov`: each set of holdings on its own names and ACWI, so its risk is
     the same wherever it is computed), ex-ante volatility, beta and tracking error with each name's share of total
     and active risk and its marginal contribution, concentration and correlated pairs, the weekly path of fixed
@@ -221,7 +224,8 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   - `valuation.py`: weekly valuation snapshots of stocks and ETFs, and the market's (CAPE, ERP).
   - `sentiment.py`: CBOE put/call and the AAII survey.
   - `factors.py`: long monthly return histories (Kenneth R. French, JKP) for testing rules over decades.
-  - `constituents.py`: the S&P 500 and MSCI ACWI holdings.
+  - `constituents.py`: the S&P 500 and MSCI ACWI holdings, and a weekly record of ACWI's aggregate weights in the
+    history tier (`acwi_segments.csv`, append-only: iShares serves no past holdings).
   - `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
     sources.
   - `fxrates.py`: each ticker's quote currency and the FX tickers that turn it into DKK.
