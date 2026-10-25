@@ -16,13 +16,14 @@ from . import userstore
 from .config import typed
 from .portfolios import exposure, performance, riskmodel
 from .portfolios.prices import Prices
-from .sources import constituents, tracked
+from .sources import constituents, external, tracked
 from .values import num
 
 if TYPE_CHECKING:
     from .market import Market
 
 REALISED_DAYS = 365
+_cache: dict[tuple, dict] = {}
 
 
 def _book(market: Market, prices: Prices, ids: list[int]) -> tuple[dict[str, float], list[dict]]:
@@ -117,6 +118,18 @@ def _risk(values: dict[str, float], cov: pd.DataFrame, bench: str, realised: tup
             "coverage": coverage, "warn": warn, "realised_vol_1y": realised[0], "realised_max_dd_1y": realised[1],
             "positions": positions, "acwi_leg_share_active": active.get(bench), "excluded": excluded,
             "window_weeks": cv.history_weeks, "shrink": cv.shrink}
+
+
+def cached(market: Market, ids: list[int] | None = None, scope: str | None = None) -> dict:
+    """`build`, kept until a trade or portfolio edit, a price update or a newly cached fund detail changes it."""
+    ids = userstore.portfolio_ids() if ids is None else ids
+    d = external.PROFILE_DIR
+    key = (tuple(ids), scope, market.mtime, userstore.transactions_version(), d.stat().st_mtime if d.exists() else 0)
+    if key not in _cache:
+        if len(_cache) > 32:
+            _cache.clear()
+        _cache[key] = build(market, ids, scope)
+    return _cache[key]
 
 
 def build(market: Market, ids: list[int] | None = None, scope: str | None = None) -> dict:

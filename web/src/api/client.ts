@@ -68,6 +68,7 @@ export type Comparison = S["Comparison"];
 export type CompareRow = S["CompareRow"];
 export type PerformanceView = S["Performance"];
 export type PerfStats = S["PerfStats"];
+export type XrayView = S["XrayView"];
 export type ImportPreview = S["ImportPreview"];
 export type ImportRow = S["ImportRow"];
 export type ImportRecord = S["ImportRecord"];
@@ -198,6 +199,7 @@ export const api = {
   restoreTx: (row: TxRow) => get<TxRow>("/api/portfolio/transactions/restore", "POST", JSON.stringify(row), "application/json"),
   positions: (sel?: PortfolioSel) => get<PositionsView>(withSel("/api/portfolio/positions", sel)),
   exportUrl: (sel?: PortfolioSel) => withSel("/api/portfolio/export.csv", sel),
+  xray: (sel?: PortfolioSel) => get<XrayView>(withSel("/api/xray", sel)),
   priceCheck: (symbol: string, date: string) =>
     get<PriceCheck>(`/api/portfolio/price-check?symbol=${enc(symbol)}&date=${enc(date)}`),
   portfolios: () => get<Portfolio[]>("/api/portfolios"),
