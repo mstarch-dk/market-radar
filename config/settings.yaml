@@ -285,6 +285,10 @@ longrun:                   # src/radar/backtest/longrun.py: `radar study longrun
     "Value theme, world ex US (JKP)": [jkp:themes_world_ex_us, value]
     "Quality theme, developed (JKP)": [jkp:themes_developed, quality]
 
+attribution:               # attribution vs ACWI (plans/F4-attribution.md): benchmark segments in portfolios/segments.py
+  snapshot_days: 6         # ACWI's holdings are fetched again when older than this, for the weekly weights snapshot
+  min_proxy_coverage: 0.8  # share of a region's ACWI weight its country ETFs must cover, else its return is missing
+
 updates:                   # src/radar/updates.py: the check for a new version (off until switched on in the app)
   repo: mstarch-dk/market-radar   # the public repo's "owner/name" on GitHub; null: nothing to check
 

@@ -117,6 +117,7 @@ class Book:
     dividends: str
     missing: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    positions: pd.DataFrame = field(default_factory=pd.DataFrame)   # DKK per symbol: 0 = not held, NaN = unknown
 
 
 def _session(idx: pd.DatetimeIndex, day: pd.Timestamp) -> int | None:
@@ -151,6 +152,7 @@ def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Boo
     # holdings: shares (dividend-scaled under `reinvested`) per symbol, valued at each close in DKK
     closes, raw = market.closes, market.raw_closes()
     holdings = pd.Series(0.0, index=idx)
+    positions: dict[str, pd.Series] = {}
     unknown = pd.Series(False, index=idx)
     late = 0
     by_symbol: dict[str, list[dict]] = {}
@@ -189,9 +191,11 @@ def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Boo
         if px is None or fx is None:
             missing.append(f"{sym}: " + ("no prices" if px is None else "no DKK rate for its currency"))
             unknown |= held
+            positions[sym] = pd.Series(0.0, index=idx).mask(held)
             continue
         val = units * px.reindex(idx) * fx.reindex(idx)
         unknown |= held & val.isna()
+        positions[sym] = val.where(held, 0.0)   # zero: not held that day
         holdings = holdings + val.fillna(0.0)   # zero: those days are marked in `unknown`, never shown as a value
     if late:
         notes.append(f"{late} row(s) after the last price date are not counted yet")
@@ -239,7 +243,9 @@ def book(rows: list[dict], market: Market, dividends: str = "reinvested") -> Boo
                          "starting from what was held then")
     if dividends == "reinvested" and any(r["type"] == "DIVIDEND" for r in rows):
         notes.append("Dividend rows are kept for the record but not counted: adjusted prices already include dividends")
-    return Book(idx, value, holdings.where(~unknown), cash, inflow, outflow, breaks, funding, dividends, missing, notes)
+    pos = pd.DataFrame(positions, index=idx).mask(unknown, axis=0)
+    return Book(idx, value, holdings.where(~unknown), cash, inflow, outflow, breaks, funding, dividends, missing, notes,
+                pos)
 
 
 def pool(maybe: list[Book | None]) -> Book | None:
@@ -257,11 +263,15 @@ def pool(maybe: list[Book | None]) -> Book | None:
 
     value = sum(b.value.reindex(idx).where(idx >= b.dates[0], 0.0) for b in books)
     breaks = sum(b.breaks.reindex(idx).fillna(False).astype(int) for b in books) > 0
+    symbols = sorted({str(c) for b in books for c in b.positions.columns})
+    positions = pd.DataFrame(0.0, index=idx, columns=symbols)
+    for b in books:   # zero: a symbol a book doesn't hold, or a day outside its dates, adds nothing
+        positions = positions + b.positions.reindex(index=idx, columns=symbols, fill_value=0.0)
     fundings = {b.funding for b in books}
     return Book(idx, value, total("holdings", None), total("cash", 0.0), total("inflow", 0.0), total("outflow", 0.0),
                 breaks, fundings.pop() if len(fundings) == 1 else "mixed",
                 books[0].dividends if len({b.dividends for b in books}) == 1 else "mixed",
-                [m for b in books for m in b.missing], [n for b in books for n in b.notes])
+                [m for b in books for m in b.missing], [n for b in books for n in b.notes], positions)
 
 
 # ---------------- returns ----------------

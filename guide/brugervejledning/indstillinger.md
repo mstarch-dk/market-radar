@@ -154,6 +154,15 @@ Nøglerne `covariance`, `world_funds` og `stress` lå tidligere under `propose:`
 
 Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 
+## `attribution`: attribution mod ACWI
+
+Attributionen er under opbygning; indtil videre gemmer radaren ACWI's vægte hver uge, så den senere kan forklare tidligere måneder.
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `attribution.snapshot_days` | {{settings:attribution.snapshot_days}} dage | ACWI's beholdningsfil hentes igen, når den er ældre end dette, og ugens vægte (sektor, region, land og valuta) gemmes i historikmappen. iShares viser kun dagens beholdninger, så en uge uden opdatering kan ikke hentes bagefter |
+| `attribution.min_proxy_coverage` | {{settings:attribution.min_proxy_coverage|pct}} | En regions afkast bygges af lande-ETF'er vægtet med ACWI's landevægte; dækker landene med en ETF mindre end denne andel af regionen, mangler regionens afkast den dag |
+
 ## `analyst`: analytikerkonsensus
 
 `analyst.max_age_days` = {{settings:analyst.max_age_days}}: Yahoos konsensus for beholdninger og watchlist hentes igen, når den er ældre end dette. Hvor gammel konsensus må være, før kursmålene ikke længere bruges, styres af `coverage.max_age.analyst` ({{settings:coverage.max_age.analyst}} dage).
@@ -296,6 +305,7 @@ Eksempler: RSI ({{settings:gauges.rsi14.ticks}} som tærskler), momentumscoren (
 - `stock_groups`: aktielisterne pr. region (USA er S&P 500).
 - `macro`: makrotickere og FRED-serier.
 - `external`: CFTC-markeder og OECD-områder.
+- `attribution`: de ETF'er, der står i stedet for ACWI's sektorer (MSCI World-sektorfonde, med de amerikanske sektor-ETF'er før deres første kurs) og regioner (lande-ETF'er) i attributionen.
 
 Et symbol, der ikke findes på Yahoo, dukker op under *Missing tickers* på siden [Data & coverage](/data).
 

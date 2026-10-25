@@ -32,7 +32,9 @@ SOURCES = {
     "constituents": ("S&P 500 constituents", "SSGA SPY holdings", True, "monthly re-fetch",
                      "Momentum, breadth"),
     "acwi_holdings": ("MSCI ACWI weights", "iShares MSCI ACWI UCITS holdings", True, "monthly re-fetch, on use",
-                      "Portfolio proposals (sector, region and currency vs ACWI)"),
+                      "Portfolio proposals and the X-ray (sector, region and currency vs ACWI)"),
+    "acwi_segments": ("MSCI ACWI weights over time", "iShares MSCI ACWI UCITS holdings (aggregates kept by the radar)",
+                      True, "weekly snapshot", "Attribution (ACWI's segment weights in past weeks)"),
     "reference": ("Names, sectors, currencies", "Yahoo Finance (cached)", False, "on first use",
                   "Momentum clusters, Holdings (DKK)"),
     "positive_list": ("Positive list (aktiebaserede inv.selskaber)", "SKAT (manual download)", True, "yearly",
@@ -171,12 +173,20 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
     rows.append(_row("constituents", _mtime(cons), today, cfg["constituents_max_age_days"] + 14,
                      f"{n_cons} US stocks", "Today's members only: no history of index changes", log))
 
-    # ACWI's weights (fetched when a proposal needs them)
+    # ACWI's weights (fetched weekly for the snapshot, and when a proposal needs them)
     aw = CACHE / "acwi_holdings.csv"
     n_aw = len(pd.read_csv(aw)) if aw.exists() else 0
     rows.append(_row("acwi_holdings", _mtime(aw), today, cfg["constituents_max_age_days"] + 14,
-                     f"{n_aw} stocks", "Fetched by `radar propose` when older than a month", log,
+                     f"{n_aw} stocks", "Fetched weekly by `radar run` (and by `radar propose` when older than a month)", log,
                      state=None if aw.exists() else INFO))
+
+    # ACWI's weights over time: the radar's own weekly snapshots (iShares serves no past holdings)
+    seg = paths.HISTORY / "acwi_segments.csv"
+    snaps = sorted(pd.read_csv(seg, usecols=["asof"])["asof"].unique()) if seg.exists() else []
+    rows.append(_row("acwi_segments", snaps[-1] if snaps else None, today, 14,
+                     f"{len(snaps)} weekly snapshots" + (f" since {snaps[0]}" if snaps else ""),
+                     "Weeks before the first snapshot are back-drifted from it", log,
+                     state=None if snaps else INFO))
 
     # reference caches: how many stocks have a sector (used by the momentum clusters)
     sec_file = CACHE / "sectors.csv"

@@ -209,6 +209,24 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - The old `imports/holdings.csv` + `transactions.csv` move into the store once, automatically; if the rebuilt
   positions differ, the move is undone and the CSVs stay in use (`radar doctor` says so).
 
+## Attribution's benchmark segments (`sources/constituents.py`, `portfolios/segments.py`)
+- **ACWI's weights over time**: iShares serves only today's holdings file, so `radar run` keeps its own record
+  (`history/acwi_segments.csv`): once per ISO week of the file's date (`Fondsposition per`), the stock rows'
+  weights summed by sector, region, country (English names), currency and the cross-tabs sector × currency,
+  region × currency and region × country. Aggregates only, never the stock list. A file from a week already
+  recorded, or older than the newest snapshot, adds nothing; rows are never changed or removed. The file holds stock
+  rows only: what SSAC holds through funds and futures (most of India and Brazil) is left out, so those countries
+  weigh almost nothing in it.
+- **Weights on a day**: the last snapshot on or before the day, drifted with the segments' DKK returns since (buy
+  and hold: w_s(t) ∝ w_s(a) · G_s(t) / G_s(a)); before the first snapshot that snapshot rolled back the same way
+  (`back-drifted`), which misses index changes and GICS reclassifications. A weighted segment with a missing return
+  between the day and the snapshot leaves the day's weights missing.
+- **Segment returns** (DKK, close to close on the benchmark's calendar): sectors from the MSCI World sector UCITS
+  ETFs, from the `sector_etfs.us` ETF on days before the proxy's first return (with a note); regions from the country
+  ETFs mixed by ACWI's country weights inside the region (the last snapshot's, undrifted), missing on a day the
+  countries with an ETF cover less than `attribution.min_proxy_coverage` of the region or one of them has no return.
+  A missing segment return is never 0 %.
+
 ## Long histories (`sources/factors.py`, `backtest/longrun.py`)
 - **French**: each ZIP holds one CSV with several blocks; a block is a header line starting with "," followed by rows
   dated YYYYMM, titled by the text line above it. The configured block is matched on its title (`block`), else the
