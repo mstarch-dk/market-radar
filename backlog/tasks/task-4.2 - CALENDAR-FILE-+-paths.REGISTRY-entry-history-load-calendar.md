@@ -1,9 +1,10 @@
 ---
 id: TASK-4.2
-title: CALENDAR_FILE + paths.REGISTRY entry (history), load_calendar
-status: To Do
+title: 'CALENDAR_FILE + paths.REGISTRY entry (history), load_calendar'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
 dependencies: []
@@ -23,7 +24,13 @@ F5-02 (`CALENDAR_FILE` + `paths.REGISTRY` entry (history), `load_calendar`). PR 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_registry` covers the file
-- [ ] #2 Layout docs list it
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_registry` covers the file
+- [x] #2 Layout docs list it
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+No doc lists history files one by one; the REGISTRY comment in paths.py is the list.
+<!-- SECTION:NOTES:END -->

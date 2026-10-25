@@ -158,6 +158,18 @@ Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 
 `analyst.max_age_days` = {{settings:analyst.max_age_days}}: Yahoos konsensus for beholdninger og watchlist hentes igen, når den er ældre end dette. Hvor gammel konsensus må være, før kursmålene ikke længere bruges, styres af `coverage.max_age.analyst` ({{settings:coverage.max_age.analyst}} dage).
 
+## `calendar`: regnskabsdatoer
+
+Radaren læser Yahoos regnskabskalender for de aktier, du ejer eller følger, og gemmer hver læsning, så en dato, der flytter sig, kan ses. Fonde har ingen regnskaber og læses kun én gang.
+
+| Nøgle | Værdi | Betydning |
+|---|---|---|
+| `calendar.refresh.max_age_days` | {{settings:calendar.refresh.max_age_days}} | Kalenderen læses igen, når den seneste læsning er ældre end dette antal dage |
+| `calendar.refresh.near_days` | {{settings:calendar.refresh.near_days}} | Når et regnskab er højst så mange dage væk, … |
+| `calendar.refresh.near_max_age_hours` | {{settings:calendar.refresh.near_max_age_hours}} | … læses kalenderen igen efter så mange timer |
+
+Når et regnskab er overstået, læses kalenderen igen ved næste opdatering, så den næste dato kommer med. Hvor gammel læsningen må være, før kilden er *stale* på *Data & coverage*, styres af `coverage.max_age.calendar` ({{settings:coverage.max_age.calendar}} dage).
+
 ## `coverage`: friskhed og blinde vinkler
 
 ### max_age

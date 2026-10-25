@@ -1,9 +1,10 @@
 ---
 id: TASK-4.3
-title: update_calendar with the refresh schedule, parallel fetch, guard
-status: To Do
+title: 'update_calendar with the refresh schedule, parallel fetch, guard'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
 dependencies:
@@ -25,8 +26,8 @@ F5-03 (`update_calendar` with the refresh schedule, parallel fetch, guard). PR s
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_calendar_schedule`
-- [ ] #2 `test_calendar_append_only`
-- [ ] #3 `test_calendar_all_fail_loud`
-- [ ] #4 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_calendar_schedule`
+- [x] #2 `test_calendar_append_only`
+- [x] #3 `test_calendar_all_fail_loud`
+- [x] #4 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

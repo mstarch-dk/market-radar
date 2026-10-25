@@ -65,6 +65,22 @@ def test_calendar_picks_the_next_earnings_date():
     assert external.parse_calendar(_raw("msft")["calendar"], today=date(2026, 10, 13))["next_earnings"] == "2026-10-28"
 
 
+def test_parse_calendar_range():
+    msft = external.parse_calendar(_raw("msft")["calendar"], today=date(2026, 10, 13))
+    assert msft["earnings_start"] == msft["earnings_end"] == "2026-10-28" and msft["is_range"] is False
+    assert msft["eps_low"] == pytest.approx(4.43) and msft["eps_high"] == pytest.approx(4.83363)
+    assert msft["revenue_low"] < msft["revenue_estimate"] < msft["revenue_high"]
+    window = {"Earnings Date": ["2026-11-06", "2026-10-30"]}                    # Yahoo's expected window
+    c = external.parse_calendar(window, today=date(2026, 10, 25))
+    assert (c["earnings_start"], c["earnings_end"], c["is_range"]) == ("2026-10-30", "2026-11-06", True)
+    assert c["next_earnings"] == "2026-10-30"
+    during = external.parse_calendar(window, today=date(2026, 11, 2))              # inside the window: still a range
+    assert (during["earnings_start"], during["is_range"]) == ("2026-10-30", True)
+    after = external.parse_calendar(window, today=date(2026, 11, 7))
+    assert after["earnings_start"] is None and after["earnings_end"] is None and after["is_range"] is False
+    assert external.parse_calendar({})["earnings_start"] is None
+
+
 def test_etf_has_look_through_but_no_estimates():
     raw = _raw("iuit")
     assert raw["recommendations"] == [] and raw["eps_trend"] == {}

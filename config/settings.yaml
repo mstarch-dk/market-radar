@@ -173,6 +173,12 @@ risk:                      # signals/risk.py: weekly returns in DKK
 analyst:
   max_age_days: 7          # re-fetch Yahoo consensus for holdings/watchlist after this
 
+calendar:                  # earnings dates of what you hold or watch (sources/external.py update_calendar)
+  refresh:
+    max_age_days: 3        # read Yahoo's calendar again after this
+    near_days: 14          # ... and, with a report this close,
+    near_max_age_hours: 20 # after this many hours
+
 coverage:                  # data transparency (coverage.py, "Data & coverage" tab)
   max_age:                 # days behind the report's as-of date before a source is stale and stops counting
     prices: 7
@@ -181,6 +187,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     factset: 14            # weekly
     oecd: 75               # monthly, published with a ~2-month lag
     analyst: 21            # Yahoo consensus used for take-profit levels
+    calendar: 7            # earnings dates of holdings/watchlist (read every few days, daily near a report)
     discovery_universe: 45 # the discovery scan's list of names (re-built monthly)
     discovery_prices: 10   # the discovery scan's prices (run it weekly)
     valuation_stocks: 10   # weekly P/E and EPS-estimate snapshot (Yahoo screener)

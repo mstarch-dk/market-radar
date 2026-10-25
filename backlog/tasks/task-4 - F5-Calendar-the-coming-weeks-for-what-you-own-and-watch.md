@@ -1,9 +1,10 @@
 ---
 id: TASK-4
 title: 'F5 Calendar: the coming weeks for what you own and watch'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
   - calendar

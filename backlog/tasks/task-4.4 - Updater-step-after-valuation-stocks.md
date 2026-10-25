@@ -1,9 +1,10 @@
 ---
 id: TASK-4.4
 title: Updater step after valuation_stocks
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:17'
 labels:
   - feature
 dependencies:
@@ -24,7 +25,13 @@ F5-04 (Updater step after `valuation_stocks`; settings `calendar.refresh`, `stal
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `radar run` on the test world writes rows
-- [ ] #2 Settings test passes
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `radar run` on the test world writes rows
+- [x] #2 Settings test passes
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Covered by test_every_external_source_is_tried_even_when_one_raises (the step runs after valuation_stocks with calendar.refresh). stale_days moves to TASK-4.7, where resolve_earnings reads it.
+<!-- SECTION:NOTES:END -->

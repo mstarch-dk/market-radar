@@ -1,9 +1,10 @@
 ---
 id: TASK-4.6
 title: Licence *Used for* rows
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
 dependencies: []
@@ -23,6 +24,6 @@ F5-06 (Licence *Used for* rows; `data-og-daekning.md`). PR step 1 of plans/F5-ca
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_guide.py` passes
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_guide.py` passes
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

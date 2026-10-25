@@ -269,8 +269,9 @@ export function AnalystCard({ p }: { p: Profile }) {
         </>
       )}
       <KV rows={[
-        ["Next earnings", a.calendar.next_earnings ? date(a.calendar.next_earnings) : "–",
-          { hint: days !== null ? `in ${days} days` : undefined }],
+        ["Next earnings", a.calendar.is_range ? `${date(a.calendar.earnings_start)} – ${date(a.calendar.earnings_end)}`
+          : a.calendar.next_earnings ? date(a.calendar.next_earnings) : "–",
+          { hint: days !== null ? `in ${days} days${a.calendar.is_range ? " (Yahoo's expected window, not a set date)" : ""}` : undefined }],
         ["Ex-dividend", date(a.calendar.ex_dividend), { hide: !a.calendar.ex_dividend }],
       ]} />
       {a.recommendations.length > 0 && (

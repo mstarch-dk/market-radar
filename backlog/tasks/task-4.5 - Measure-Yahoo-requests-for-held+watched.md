@@ -4,6 +4,7 @@ title: Measure Yahoo requests for held+watched
 status: To Do
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
 dependencies:
@@ -27,3 +28,9 @@ F5-05 (Measure Yahoo requests for held+watched; decide `detail` vs lean fetch; r
 - [ ] #1 The number and the decision are in the PR description
 - [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Not measured yet: needs a real radar run against Yahoo, then radar ops, on the user's data folder. The step reuses external.detail (about six Yahoo calls per ticker); a held fund is read only once.
+<!-- SECTION:NOTES:END -->

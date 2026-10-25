@@ -333,7 +333,8 @@ def compute() -> Computed:
         asof, prices, universe.all_price_tickers(offline=True), fred, tracked.macro_fred(), cot, cot_markets,
         cli_raw, ext.get("oecd_cli", {}), fs_hist, external.load_analyst(),
         universe.held_or_watched(),
-        sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today)
+        sorted({t for ts in groups.values() for t in ts}), h, pl_year, inds, cfg, today,
+        calendar=external.load_calendar())
 
     head = {"generated": datetime.now().isoformat(timespec="seconds"), "asof": asof.isoformat(),
             "build": {"format": FORMAT, "inputs": seen}}
@@ -394,6 +395,7 @@ def _input_files() -> dict:
     and so are the user's own edits (watchlist, portfolios, votes): the API applies those live."""
     return {"prices": PRICES_FILE, "fred": FRED_FILE, "cot": external.COT_FILE, "oecd_cli": external.CLI_FILE,
             "ecb": external.ECB_FILE, "factset": external.FACTSET_FILE, "analyst": external.ANALYST_FILE,
+            "calendar": external.CALENDAR_FILE,
             "valuation_stocks": valuation.STOCKS_FILE, "valuation_etfs": valuation.ETFS_FILE,
             "valuation_market": valuation.MARKET_FILE, "aaii": sentiment.AAII_FILE, "putcall": sentiment.PUTCALL_FILE,
             "fundamentals_edgar": fstore.EDGAR_FILE, "fundamentals_yahoo": fstore.YAHOO_FILE,

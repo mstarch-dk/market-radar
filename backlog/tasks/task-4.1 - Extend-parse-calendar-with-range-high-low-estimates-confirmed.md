@@ -1,9 +1,10 @@
 ---
 id: TASK-4.1
-title: Extend parse_calendar with range, high/low estimates, confirmed
-status: To Do
+title: 'Extend parse_calendar with range, high/low estimates, confirmed'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:16'
 labels:
   - feature
 dependencies: []
@@ -23,7 +24,7 @@ F5-01 (Extend `parse_calendar` with range, high/low estimates, `confirmed`). PR 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_parse_calendar_range` passes
-- [ ] #2 The profile shows a range when Yahoo gives two dates
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_parse_calendar_range` passes
+- [x] #2 The profile shows a range when Yahoo gives two dates
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

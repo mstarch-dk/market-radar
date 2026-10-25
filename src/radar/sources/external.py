@@ -573,14 +573,111 @@ def parse_eps_trend(trend: dict, revisions: dict, growth: dict) -> list[dict]:
 
 
 def parse_calendar(cal: dict, today: date | None = None) -> dict:
-    """Next earnings date (the first one not in the past), its consensus, and dividend dates."""
+    """Next earnings date (the first one not in the past), its consensus, and dividend dates.
+
+    Yahoo gives one date or two: two are the window it expects the report in, not two reports, so they are kept
+    as `earnings_start`/`earnings_end` with `is_range` (never collapsed to the first day). Both are None once the
+    last date has passed. Neither form says the company has confirmed the date."""
     today = today or date.today()
     dates = cal.get("Earnings Date") or []
-    dates = sorted(date.fromisoformat(d) for d in (dates if isinstance(dates, list) else [dates]) if d)
+    dates = sorted(date.fromisoformat(str(d)) for d in (dates if isinstance(dates, list) else [dates]) if d)
     upcoming = [d for d in dates if d >= today]
+    start, end = (dates[0], dates[-1]) if upcoming else (None, None)
     return {"next_earnings": upcoming[0].isoformat() if upcoming else None,
-            "eps_estimate": cal.get("Earnings Average"), "revenue_estimate": cal.get("Revenue Average"),
+            "earnings_start": start.isoformat() if start else None,
+            "earnings_end": end.isoformat() if end else None,
+            "is_range": bool(start and end and start != end),
+            "eps_estimate": cal.get("Earnings Average"), "eps_low": cal.get("Earnings Low"),
+            "eps_high": cal.get("Earnings High"), "revenue_estimate": cal.get("Revenue Average"),
+            "revenue_low": cal.get("Revenue Low"), "revenue_high": cal.get("Revenue High"),
             "ex_dividend": cal.get("Ex-Dividend Date"), "dividend_date": cal.get("Dividend Date")}
+
+
+# ---------------- Earnings calendar of what you hold or watch (history) ----------------
+# Each refresh of a held or watched stock's detail appends what Yahoo said that day: a date that moves, or a
+# window that narrows to a day, leaves a trace, and an old read can't be fetched again.
+
+CALENDAR_FILE = HISTORY / "calendar.parquet"
+CALENDAR_DATES = ("earnings_start", "earnings_end", "ex_dividend", "dividend_date")
+CALENDAR_COLS = ("ticker", "fetched", *CALENDAR_DATES[:2], "eps_avg", "eps_low", "eps_high", "rev_avg", "rev_low",
+                 "rev_high", *CALENDAR_DATES[2:], "eps_chg_30d", "eps_up_30d", "eps_down_30d", "quote_type", "source")
+FUND_TYPES = ("ETF", "MUTUALFUND")
+
+
+def calendar_row(ticker: str, raw: dict) -> dict:
+    """One history row from a fetched detail: Yahoo's dates as given that day (past ones too, so the row is a
+    record of the read, not of what was still upcoming) and the consensus for the quarter being reported."""
+    cal = parse_calendar(raw.get("calendar") or {}, today=date.min)
+    eps = next((e for e in parse_eps_trend(*(raw.get(k) or {} for k in ("eps_trend", "eps_revisions",
+                                                                         "growth_estimates")))
+                if e["period"] == "0q"), {})
+    return {"ticker": ticker, "fetched": pd.Timestamp(raw["fetched"]),
+            "earnings_start": cal["earnings_start"], "earnings_end": cal["earnings_end"],
+            "eps_avg": cal["eps_estimate"], "eps_low": cal["eps_low"], "eps_high": cal["eps_high"],
+            "rev_avg": cal["revenue_estimate"], "rev_low": cal["revenue_low"], "rev_high": cal["revenue_high"],
+            "ex_dividend": cal["ex_dividend"], "dividend_date": cal["dividend_date"],
+            "eps_chg_30d": eps.get("chg_30d"), "eps_up_30d": eps.get("up_30d"), "eps_down_30d": eps.get("down_30d"),
+            "quote_type": (raw.get("info") or {}).get("quoteType"), "source": "yahoo_detail"}
+
+
+def calendar_due(tickers: list[str], hist: pd.DataFrame, now: pd.Timestamp, max_age_days: float,
+                 near_days: int, near_max_age_hours: float) -> list[str]:
+    """The tickers whose calendar should be read again: never read, last read older than `max_age_days`, a date
+    within `near_days` and a read older than `near_max_age_hours`, or a report that has passed since the read
+    (the next date is wanted). A fund, once read, is not read again: it has no earnings."""
+    last = hist.sort_values("fetched").groupby("ticker").last() if not hist.empty else pd.DataFrame()
+    today = now.normalize()
+    due = []
+    for t in tickers:
+        if t not in last.index:
+            due.append(t)
+            continue
+        r = last.loc[t]
+        if r.get("quote_type") in FUND_TYPES:
+            continue
+        age_h = (now - pd.Timestamp(r["fetched"])).total_seconds() / 3600
+        start = pd.Timestamp(r["earnings_start"]) if pd.notna(r["earnings_start"]) else None
+        end = pd.Timestamp(r["earnings_end"]) if pd.notna(r["earnings_end"]) else None
+        if (age_h >= max_age_days * 24
+                or (start is not None and (start - today).days <= near_days and age_h >= near_max_age_hours)
+                or (end is not None and end < today and pd.Timestamp(r["fetched"]).normalize() <= end)):
+            due.append(t)
+    return due
+
+
+def update_calendar(tickers: list[str], max_age_days: float = 3, near_days: int = 14,
+                    near_max_age_hours: float = 20, now: pd.Timestamp | None = None) -> str:
+    """Read the detail of the tickers that are due again (`calendar_due`) and append a row per ticker (a fund's row
+    says it is a fund and has no dates). A failed read writes nothing and keeps the earlier rows; when every read
+    fails the step fails, so the source log shows it."""
+    now = now or pd.Timestamp.now()
+    hist = load_calendar()
+    due = calendar_due(tickers, hist, now, max_age_days, near_days, near_max_age_hours)
+    if not due:
+        return "up to date"
+
+    def read(t):
+        raw, status = detail(t, refresh=True)
+        return calendar_row(t, raw) if status == "ok" and raw else None
+
+    with net.pool(8) as ex:
+        rows = [r for r in ex.map(read, due) if r]
+    if not rows:
+        raise RuntimeError(f"no data for {len(due)} tickers")
+    new = pd.DataFrame(rows, columns=list(CALENDAR_COLS))
+    for col in CALENDAR_DATES:
+        new[col] = pd.to_datetime(new[col], errors="coerce")
+    df = new if hist.empty else pd.concat([hist, new], ignore_index=True)
+    df = df.drop_duplicates(["ticker", "fetched"], keep="first")   # an earlier read is never rewritten
+    write_parquet(df.sort_values(["ticker", "fetched"]), CALENDAR_FILE, index=False)
+    funds = int(new["quote_type"].isin(FUND_TYPES).sum())
+    dated = int(new["earnings_start"].notna().sum())
+    return (f"{len(rows)} of {len(due)} read, {dated} with an earnings date"
+            + (f"; {funds} funds (no earnings)" if funds else ""))
+
+
+def load_calendar() -> pd.DataFrame:
+    return pd.read_parquet(CALENDAR_FILE) if CALENDAR_FILE.exists() else pd.DataFrame(columns=list(CALENDAR_COLS))
 
 
 FUND_SECTORS = {"realestate": "Real Estate"}  # funds_data keys → the sector names Yahoo uses for stocks

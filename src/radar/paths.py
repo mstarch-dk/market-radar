@@ -249,6 +249,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "snapshots/",                   # rank snapshots: "new", "dropped", "Δ rank"
         "discovery/snapshots/",         # discovery scores per scan
         "analyst.parquet",              # analyst consensus as fetched, kept to see targets raised or cut
+        "calendar.parquet",             # earnings dates as Yahoo gave them on each read: dates move
         "valuation/stocks.parquet",     # weekly P/E and EPS snapshots
         "valuation/etfs.parquet",
         "factset.parquet",              # the source only looks 14 days back

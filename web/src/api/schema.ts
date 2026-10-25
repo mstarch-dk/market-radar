@@ -1608,10 +1608,27 @@ export interface components {
         Calendar: {
             /** Next Earnings */
             next_earnings?: string | null;
+            /** Earnings Start */
+            earnings_start?: string | null;
+            /** Earnings End */
+            earnings_end?: string | null;
+            /**
+             * Is Range
+             * @default false
+             */
+            is_range: boolean;
             /** Eps Estimate */
             eps_estimate?: number | null;
+            /** Eps Low */
+            eps_low?: number | null;
+            /** Eps High */
+            eps_high?: number | null;
             /** Revenue Estimate */
             revenue_estimate?: number | null;
+            /** Revenue Low */
+            revenue_low?: number | null;
+            /** Revenue High */
+            revenue_high?: number | null;
             /** Ex Dividend */
             ex_dividend?: string | null;
             /** Dividend Date */
