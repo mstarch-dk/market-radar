@@ -314,3 +314,19 @@ def test_a_sector_is_cached_only_from_a_real_answer(tmp_data, monkeypatch):
     universe.sectors(["S", "E", "T"])
     cached = pd.read_csv(paths.CACHE / "sectors.csv", keep_default_na=False)
     assert sorted(cached["ticker"]) == ["E", "S"]          # T's empty answer (throttled?) is asked again later
+
+
+def test_acwi_region_keys_match():
+    """ACWI's holdings and the radar's own stocks are mapped to the same regions, so an active weight compares like
+    with like: every region one side can produce, the other can too."""
+    df = constituents.parse_acwi_holdings((FIXTURES / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"),
+                                          min_rows=10)
+    countries = set(df["country"]) | {"Vereinigte Staaten", "Dänemark", "Japan", "Kanada", "Australien", ""}
+    acwi = {constituents.acwi_region(c) for c in countries}
+    assert acwi == set(universe.REGIONS) and set(df["region"]) <= set(universe.REGIONS)
+    assert set(tracked.stock_groups(offline=True)) <= set(universe.REGIONS)
+    # each suffix region and both fallbacks are reachable from region_for
+    samples = {"AAPL": "us", "SHOP.TO": "other", "BHP.AX": "other", "PETR4.SA": "other", "NOKIA.HE": "nordic",
+               "XX.PR": "europe", "XX.JK": "asia", "9984.T": "asia"}
+    assert {t: universe.region_for(t) for t in samples} == samples
+    assert {universe.region_for(t) for t in samples} == set(universe.REGIONS)

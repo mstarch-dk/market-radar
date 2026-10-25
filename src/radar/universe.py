@@ -128,19 +128,25 @@ def etf_tickers() -> list[str]:
     return sorted(out | (set(held_or_watched()) - stocks))
 
 
-# Exchange suffix -> region, for stocks outside the stock groups (region_for)
+# Exchange suffix -> region, for stocks outside the stock groups (region_for). The regions are the ones ACWI's
+# holdings file is mapped to (sources/constituents.acwi_region), so active weights compare like with like: Canada,
+# Australia and the other markets outside these groups are "other" there and here.
 REGION_SUFFIXES = {
     "nordic": (".CO", ".ST", ".OL", ".HE", ".IC"),
-    "europe": (".DE", ".F", ".PA", ".AS", ".BR", ".L", ".MI", ".SW", ".MC", ".LS", ".VI", ".IR", ".WA"),
-    "asia": (".T", ".HK", ".TW", ".TWO", ".KS", ".KQ", ".SS", ".SZ", ".SI", ".AX", ".NS", ".BO"),
+    "europe": (".DE", ".F", ".PA", ".AS", ".BR", ".L", ".MI", ".SW", ".MC", ".LS", ".VI", ".IR", ".WA", ".AT", ".BD",
+               ".PR"),
+    "asia": (".T", ".HK", ".TW", ".TWO", ".KS", ".KQ", ".SS", ".SZ", ".SI", ".NS", ".BO", ".KL", ".BK", ".JK", ".PS"),
 }
+REGIONS = ("us", *REGION_SUFFIXES, "other")
 
 
 def region_for(ticker: str) -> str:
+    """The region of a stock: its stock group, else its exchange suffix; no suffix is a US listing and any other
+    suffix (Toronto, Sydney, São Paulo …) is "other"."""
     for region, tickers in stock_groups(offline=True).items():
         if ticker in tickers:
             return region
     for region, suffixes in REGION_SUFFIXES.items():
         if ticker.upper().endswith(suffixes):
             return region
-    return "us"
+    return "other" if "." in ticker else "us"

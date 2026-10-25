@@ -456,6 +456,24 @@ def detail(ticker: str, max_age_hours: float = 24, refresh: bool = False) -> tup
     return raw, "ok"
 
 
+def cached_detail(ticker: str) -> tuple[dict | None, str, str | None]:
+    """The cached `fetch_detail` as it is, however old: (raw, status, fetched), status ok | missing | invalid (the
+    file can't be read). Never fetches, so a live request (the portfolio X-ray) can read it; the caller shows
+    `fetched` as the data's date."""
+    import json
+
+    path = PROFILE_DIR / f"{ticker}.json"
+    if not path.exists():
+        return None, "missing", None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None, "invalid", None
+    if not isinstance(raw, dict):
+        return None, "invalid", None
+    return raw, "ok", raw.get("fetched")
+
+
 def _ratio(v, lo: float, hi: float, name: str, notes: list[str], scale: float = 1.0) -> float | None:
     """A ratio from Yahoo (divided by `scale` first), or None with a note when it is outside [lo, hi]."""
     try:

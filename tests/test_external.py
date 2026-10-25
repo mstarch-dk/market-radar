@@ -337,3 +337,20 @@ def test_an_ecb_daily_series_parses_to_its_calendar_days_sorted():
 def test_an_ecb_answer_whose_values_are_all_blank_is_refused():
     with pytest.raises(ValueError, match="no values"):
         external.parse_ecb(ECB_HEAD + "FM.M.X,M,2026-08,\nFM.M.X,M,2026-09,NaN\n")
+
+
+def test_cached_detail_never_fetches(monkeypatch, tmp_path):
+    """The X-ray's read of a fund's detail: the cache as it is, however old, or missing; never a request."""
+    def boom(*a, **k):
+        raise AssertionError("cached_detail reached for the network")
+
+    monkeypatch.setattr(external, "fetch_detail", boom)
+    monkeypatch.setattr(net, "yf", boom)
+    monkeypatch.setattr(external, "PROFILE_DIR", tmp_path)
+    assert external.cached_detail("FUND.L") == (None, "missing", None)
+    (tmp_path / "FUND.L.json").write_text(json.dumps({"symbol": "FUND.L", "fetched": "2020-01-02T10:00:00"}),
+                                          encoding="utf-8")
+    raw, status, fetched = external.cached_detail("FUND.L")
+    assert status == "ok" and raw["symbol"] == "FUND.L" and fetched == "2020-01-02T10:00:00"   # years old: still used
+    (tmp_path / "BAD.L.json").write_text("{not json", encoding="utf-8")
+    assert external.cached_detail("BAD.L") == (None, "invalid", None)          # unreadable: said, not "missing"

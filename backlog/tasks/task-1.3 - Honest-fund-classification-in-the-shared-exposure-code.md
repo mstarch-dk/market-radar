@@ -1,7 +1,7 @@
 ---
 id: TASK-1.3
 title: Honest fund classification in the shared exposure code
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -24,9 +24,9 @@ Plan step 3 (sections 3 C3-C5, 4.3). Classify each holding as world / sector_fun
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 test_fund_classes covers every class; a CSPX-like fund is not filed under europe
-- [ ] #2 'fund: not looked through' never counts as active weight in a real region
-- [ ] #3 cached_detail never reaches the network (test with the network layer failing)
-- [ ] #4 Every region key acwi_region can produce, region_for can produce, and vice versa
-- [ ] #5 propose_study output unchanged on the test world
+- [x] #1 test_fund_classes covers every class; a CSPX-like fund is not filed under europe
+- [x] #2 'fund: not looked through' never counts as active weight in a real region
+- [x] #3 cached_detail never reaches the network (test with the network layer failing)
+- [x] #4 Every region key acwi_region can produce, region_for can produce, and vice versa
+- [x] #5 propose_study output unchanged on the test world
 <!-- AC:END -->
