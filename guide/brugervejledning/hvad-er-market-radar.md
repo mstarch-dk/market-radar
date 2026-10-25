@@ -46,6 +46,7 @@ Fanerne øverst i appen følger rækkefølgen ovenfor. Her er hvad hver side gø
 | *Discover* | Et bredere net: nordiske og europæiske aktier og UCITS-ETF'er i et heatmap og en screener | [Discover](brugervejledning/discover) |
 | *Positioning & cycle* | Indtjeningsrevisioner, værdiansættelse, OECD-cyklus, renter, futurespositionering og sentiment | [Positionering og cyklus](brugervejledning/positionering) |
 | *Holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |
+| *X-ray* | Porteføljens eksponering mod ACWI efter sektor, region og valuta, og hvor risikoen sidder | [Røntgen af porteføljen](brugervejledning/xray) |
 | *Market views* | Dine egne markedssyn, holdt op mod data | [Mine markedssyn](brugervejledning/markedssyn) |
 | *Notebook* | Briefs, research-notater, sammenligninger og din beslutningsjournal | [Notesbogen](brugervejledning/notesbog) |
 | *Portfolio* | Dine konti: positioner, handler, import og kurtageskemaer | [Portefølje](brugervejledning/portefolje) |
