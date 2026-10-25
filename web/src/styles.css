@@ -484,6 +484,17 @@ details.card > summary { cursor: pointer; }
 .chip-check { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--line);
   border-radius: 12px; cursor: pointer; }
 .perf-notes { padding-left: 18px; }
+.waterfall { display: grid; grid-template-columns: minmax(150px, max-content) 1fr 70px; gap: 6px 12px; align-items: center; font-size: 13px; }
+.wf-row { display: contents; }
+.wf-track { position: relative; height: 14px; background: linear-gradient(var(--line), var(--line)) no-repeat var(--zero) 0 / 1px 100%; }
+.wf-track i { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; }
+.wf-total > span { padding-top: 6px; border-top: 1px solid var(--line); }
+.waterfall .num { text-align: right; font-variant-numeric: tabular-nums; }
+.attr-months { margin-top: 12px; }
+.attr-plot { position: relative; padding-left: 52px; }
+.attr-plot svg { display: block; }
+.attr-axis { position: absolute; left: 0; width: 46px; text-align: right; font-size: 11px; color: var(--muted); line-height: 14px; }
+.attr-readout { min-height: 2.6em; }
 .page-tabs { margin: 10px 0 12px; flex-wrap: wrap; }
 .page-tabs button { padding: 6px 14px; }
 .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
