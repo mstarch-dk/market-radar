@@ -19,6 +19,7 @@ from . import (
     agenda,
     discover,
     docs,
+    evidence,
     holdings,
     imports,
     operations,
@@ -128,7 +129,7 @@ async def _record_errors(request: Request, call_next):
 
 
 for _r in (setup, ticker, readings, operations, views, discover, holdings, refresh, transactions, portfolios, docs,
-           imports, xray, agenda):              # new routers last: the OpenAPI order of the others stays put
+           imports, xray, agenda, evidence):    # new routers last: the OpenAPI order of the others stays put
     app.include_router(_r.router)
 
 

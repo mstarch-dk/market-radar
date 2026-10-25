@@ -81,6 +81,27 @@ from .docs import (
     NotebookKind,
     NotebookListing,
 )
+from .evidence import (
+    BaseRateRow,
+    EvidenceForward,
+    EvidenceView,
+    ForwardCohort,
+    ForwardGroup,
+    ForwardRecord,
+    LongrunCard,
+    LongrunHorizon,
+    LongrunPanelCard,
+    LongrunPart,
+    LongrunRow,
+    ReportHead,
+    ReportStatus,
+    ScoreCard,
+    ScoreHorizon,
+    ScoreRow,
+    ScoreUniverse,
+    SurvivorshipGauge,
+    VariantVerdict,
+)
 from .home import (
     BackupRow,
     DataFolder,
@@ -299,4 +320,7 @@ __all__ = [
     "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "ScoreTilt", "XrayView",
     "AgendaKind", "AgendaLevel", "ReasonKey", "AgendaReason", "AgendaEarnings", "AgendaItem", "AgendaNoDate",
     "AgendaSelection", "AgendaView",
+    "ReportStatus", "ReportHead", "ScoreRow", "ScoreHorizon", "VariantVerdict", "ScoreUniverse", "ScoreCard",
+    "LongrunRow", "LongrunHorizon", "LongrunPart", "LongrunPanelCard", "SurvivorshipGauge", "BaseRateRow",
+    "LongrunCard", "ForwardRecord", "ForwardCohort", "ForwardGroup", "EvidenceForward", "EvidenceView",
 ]

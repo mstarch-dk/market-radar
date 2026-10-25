@@ -222,6 +222,19 @@ class Abtest(_Section):
     value_score: Literal["qv", "value"]
 
 
+class EvidenceAge(_Section):
+    score: int
+    longrun: int
+    rules: int
+
+
+class Evidence(_Section):
+    max_age_days: EvidenceAge
+    forward_min_months: int
+    cohort_age_months: int
+    cohort_min: int
+
+
 class Analyst(_Section):
     max_age_days: int
 
@@ -437,6 +450,7 @@ class Settings(_Section):
     stops: Stops
     backtest: Backtest
     abtest: Abtest
+    evidence: Evidence
     propose: Propose
     risk: Risk
     analyst: Analyst

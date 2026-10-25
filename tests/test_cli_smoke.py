@@ -180,6 +180,16 @@ def test_cli_xray(built):
     assert "--scope must be one of" in run("xray", "--scope", "isk", code=1)
 
 
+def test_cli_evidence(built):
+    """radar evidence prints each report's status and the scoreboard; --json is the EvidenceView."""
+    from radar import api_models
+
+    out = run("evidence")
+    assert "Momentum score: not run yet: run `radar study score`" in out and "Frozen proposals:" in out
+    v = api_models.EvidenceView.model_validate(run_json("evidence", "--json"))
+    assert [c.head.signal for c in v.scores] == ["momentum", "quality", "value", "qv"] and v.forward is not None
+
+
 def test_portfolios_lifecycle(built):
     assert "Added Try (virtual, other)" in run("portfolios", "add", "Try", "--virtual", "--tag", "x")
     assert "kind must be one of" in run("portfolios", "add", "Bad", "--kind", "isk", code=1)   # the store's rule

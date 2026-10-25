@@ -29,7 +29,6 @@ from . import study
 if TYPE_CHECKING:
     from ..market import Market
 
-STRATEGIES = {"hold": "picks-hold", "exits": "picks-exits", "control": "picks-control"}
 REPORT_DIR = "sim-picks"
 LOOKBACK = re.compile(r"^(\d+)\s*([MY])$", re.I)
 BLIND = re.compile(r"^C\d{3,}$")
@@ -256,11 +255,11 @@ def _sim(name: str, kind: str, params: dict, tags: list[str]) -> int:
     pname = portfolio_name(name, kind)
     p = userstore.portfolio_by_name(pname)
     if p:
-        if p["origin"] != "sim" or p.get("strategy") != STRATEGIES[kind]:
+        if p["origin"] != "sim" or p.get("strategy") != simulate.PICKS_STRATEGIES[kind]:
             raise ValueError(f"there is already a portfolio called {pname} that isn't this basket's simulation")
         userstore.save_portfolio({"params": params, "tags": sorted(set(p["tags"]) | set(tags))}, p["id"])
         return p["id"]
-    return simulate.new_sim_portfolio(pname, STRATEGIES[kind], params, tags=tags)
+    return simulate.new_sim_portfolio(pname, simulate.PICKS_STRATEGIES[kind], params, tags=tags)
 
 
 def _ret(c: pd.DataFrame, t: str, f, e) -> float | None:
@@ -323,7 +322,7 @@ def run(market: Market, asof, picks: list[dict] | None, name: str, capital: floa
     runs = [("hold", rows), ("exits", rep["rows"])] + ([("control", crow)] if crow else [])
     for kind, rs in runs:
         pid = _sim(name, kind, params, tags)
-        simulate.write_run(pid, STRATEGIES[kind], params, day.date().isoformat(), end_ts.date().isoformat(), rs, market, msg)
+        simulate.write_run(pid, simulate.PICKS_STRATEGIES[kind], params, day.date().isoformat(), end_ts.date().isoformat(), rs, market, msg)
         ids[kind] = pid
     cmp = performance.compare(market, list(ids.values()), start=fday.date().isoformat())
 
@@ -390,18 +389,11 @@ def _seed(day: pd.Timestamp, n: int) -> int:
     return int(day.strftime("%Y%m%d")) * 100 + n
 
 
-def baskets(tag: str | None = None) -> list[dict]:
-    """The stored baskets (their hold portfolios), optionally with a tag."""
-    t = userstore.norm_tag(tag) if tag else None
-    return [p for p in userstore.portfolios() if p["origin"] == "sim" and p.get("strategy") == STRATEGIES["hold"]
-            and (t is None or t in p["tags"])]
-
-
 def find(name: str) -> list[dict]:
     """The stored baskets (their hold portfolios) by basket name, or every basket with a tag ("tag:<tag>")."""
     if name.startswith("tag:"):
-        return baskets(name[4:])
-    return [h for h in baskets() if h["name"] == portfolio_name(name, "hold")]
+        return simulate.picks_baskets(name[4:])
+    return [h for h in simulate.picks_baskets() if h["name"] == portfolio_name(name, "hold")]
 
 
 def rerun(market: Market, hold: dict, p: mp.Panels | None = None) -> dict:

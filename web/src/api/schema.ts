@@ -1384,6 +1384,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evidence
+         * @description A card per score study (momentum, quality, value, K+V) and the long-run study, the rule studies' headers, and
+         *     the forward scoreboard (A/B test, paper trail, frozen proposals vs ACWI). Missing reports are cards that say so;
+         *     without prices the scoreboard is null and the study cards still come back.
+         */
+        get: operations["get_evidence_api_evidence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1750,6 +1772,27 @@ export interface components {
             change?: number | null;
             /** Volume */
             volume?: number | null;
+        };
+        /** BaseRateRow */
+        BaseRateRow: {
+            /** Label */
+            label: string;
+            /** First */
+            first?: string | null;
+            /** Last */
+            last?: string | null;
+            /** Ann Return */
+            ann_return?: number | null;
+            /** T */
+            t?: number | null;
+            /** Last 10Y Ann */
+            last_10y_ann?: number | null;
+            /** Share Neg 6M */
+            share_neg_6m?: number | null;
+            /** Share Neg 12M */
+            share_neg_12m?: number | null;
+            /** Max Dd */
+            max_dd?: number | null;
         };
         /** Breach */
         Breach: {
@@ -2319,6 +2362,12 @@ export interface components {
              */
             verdict: "supported" | "contradicted" | "mixed" | "unclear" | "no data";
         };
+        /** EvidenceForward */
+        EvidenceForward: {
+            abtest: components["schemas"]["ForwardGroup"];
+            paper_trail: components["schemas"]["ForwardGroup"];
+            proposals: components["schemas"]["ForwardGroup"];
+        };
         /** EvidenceItem */
         EvidenceItem: {
             /** Indicator */
@@ -2341,6 +2390,26 @@ export interface components {
              * @enum {string}
              */
             state: "supports" | "contradicts" | "flat" | "no data";
+        };
+        /**
+         * EvidenceView
+         * @description `forward` is None without prices (the study cards don't need them).
+         */
+        EvidenceView: {
+            /** Generated */
+            generated: string;
+            /** Holdout From */
+            holdout_from: string;
+            /** Longrun Holdout From */
+            longrun_holdout_from?: string | null;
+            /** Scores */
+            scores: components["schemas"]["ScoreCard"][];
+            longrun: components["schemas"]["LongrunCard"];
+            /** Rules */
+            rules: components["schemas"]["ReportHead"][];
+            forward?: components["schemas"]["EvidenceForward"] | null;
+            /** Notes */
+            notes: string[];
         };
         /**
          * ExposureDim
@@ -2531,6 +2600,60 @@ export interface components {
              * @default []
              */
             tags: string[];
+        };
+        /**
+         * ForwardCohort
+         * @description The mean excess and share ahead of ACWI over the records long enough to judge, once there are `need` of
+         *     them (else None). No t: the windows overlap and the counts are small.
+         */
+        ForwardCohort: {
+            /** Count */
+            count: number;
+            /** Need */
+            need: number;
+            /** Enough */
+            enough: boolean;
+            /** Mean Excess */
+            mean_excess?: number | null;
+            /** Beat Acwi */
+            beat_acwi?: number | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** ForwardGroup */
+        ForwardGroup: {
+            /** Running */
+            running: boolean;
+            /** Records */
+            records: components["schemas"]["ForwardRecord"][];
+            cohort?: components["schemas"]["ForwardCohort"] | null;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * ForwardRecord
+         * @description One forward line against ACWI over the same days. `too_short`: younger than its minimum, so listed but never
+         *     ranked or averaged.
+         */
+        ForwardRecord: {
+            /** Label */
+            label: string;
+            /** Start */
+            start?: string | null;
+            /** Days */
+            days?: number | null;
+            /** Ret */
+            ret?: number | null;
+            /** Acwi */
+            acwi?: number | null;
+            /** Excess */
+            excess?: number | null;
+            /** Max Dd */
+            max_dd?: number | null;
+            /** Too Short */
+            too_short: boolean;
+            /** Note */
+            note?: string | null;
         };
         /** FundMetric */
         FundMetric: {
@@ -3187,6 +3310,96 @@ export interface components {
             beta?: number | null;
             /** T */
             t?: number | null;
+        };
+        /** LongrunCard */
+        LongrunCard: {
+            head: components["schemas"]["ReportHead"];
+            /** Holdout From */
+            holdout_from?: string | null;
+            /** Panels */
+            panels: components["schemas"]["LongrunPanelCard"][];
+            survivorship?: components["schemas"]["SurvivorshipGauge"] | null;
+            /** Base Rates */
+            base_rates: components["schemas"]["BaseRateRow"][];
+            /** Caveats */
+            caveats: string[];
+            /** Notes */
+            notes: string[];
+        };
+        /** LongrunHorizon */
+        LongrunHorizon: {
+            /** H */
+            h: number;
+            all?: components["schemas"]["LongrunRow"] | null;
+            holdout?: components["schemas"]["LongrunRow"] | null;
+        };
+        /**
+         * LongrunPanelCard
+         * @description A panel the long-run study ranks; `error`: why it wasn't studied (then everything else is empty).
+         */
+        LongrunPanelCard: {
+            /** Key */
+            key: string;
+            /** Label */
+            label?: string | null;
+            /** Members */
+            members?: number | null;
+            /** N Top */
+            n_top?: number | null;
+            /** Months */
+            months?: number | null;
+            /** First */
+            first?: string | null;
+            /** Last */
+            last?: string | null;
+            /** Baseline */
+            baseline?: string | null;
+            /** Variants Tried */
+            variants_tried?: number | null;
+            /** Horizons */
+            horizons: components["schemas"]["LongrunHorizon"][];
+            /** By Decade */
+            by_decade: components["schemas"]["LongrunPart"][];
+            /** By Recession */
+            by_recession: components["schemas"]["LongrunPart"][];
+            /** Verdicts */
+            verdicts: components["schemas"]["VariantVerdict"][];
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * LongrunPart
+         * @description One split of the baseline (a decade, in or out of recession) at one horizon.
+         */
+        LongrunPart: {
+            /** H */
+            h: number;
+            /** Part */
+            part: string;
+            row?: components["schemas"]["LongrunRow"] | null;
+        };
+        /** LongrunRow */
+        LongrunRow: {
+            /** Dates */
+            dates?: number | null;
+            /** Eff N */
+            eff_n?: number | null;
+            /** Ic Mean */
+            ic_mean?: number | null;
+            /** Ic T */
+            ic_t?: number | null;
+            /** Spread */
+            spread?: number | null;
+            /** Spread T */
+            spread_t?: number | null;
+            /** Top Excess */
+            top_excess?: number | null;
+            /** Top Excess T */
+            top_excess_t?: number | null;
+            /** Top Vs Market */
+            top_vs_market?: number | null;
+            /** Top Vs Market T */
+            top_vs_market_t?: number | null;
         };
         /** MarketValuation */
         MarketValuation: {
@@ -4607,6 +4820,42 @@ export interface components {
             charts: components["schemas"]["LineChart"][];
             coverage: components["schemas"]["RegimeCoverage"];
         };
+        /**
+         * ReportHead
+         * @description A study report's header row. `stale`: it tested another rule than today's (`rule_hash` vs `rule_hash_now`),
+         *     or recorded none; `old_data`: an ok report whose last day of data is older than `evidence.max_age_days`.
+         */
+        ReportHead: {
+            /** Name */
+            name: string;
+            /** Signal */
+            signal?: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "stale" | "missing" | "invalid";
+            /** Reason */
+            reason?: string | null;
+            /** Command */
+            command: string;
+            /** Created */
+            created?: string | null;
+            /** Data Asof */
+            data_asof?: string | null;
+            /** Age Days */
+            age_days?: number | null;
+            /** Old Data */
+            old_data: boolean;
+            /** Rule Hash */
+            rule_hash?: string | null;
+            /** Rule Hash Now */
+            rule_hash_now?: string | null;
+            /** Legacy */
+            legacy: boolean;
+        };
         /** RestoreIn */
         RestoreIn: {
             /** Name */
@@ -4901,6 +5150,78 @@ export interface components {
             /** Tail */
             tail: components["schemas"]["RrgPoint"][];
         };
+        /** ScoreCard */
+        ScoreCard: {
+            head: components["schemas"]["ReportHead"];
+            universe?: components["schemas"]["ScoreUniverse"] | null;
+            /** Us Only */
+            us_only: boolean;
+            /** Baseline */
+            baseline?: string | null;
+            /** Variants Tried */
+            variants_tried?: number | null;
+            /** N Top */
+            n_top?: number | null;
+            /** Holdout From */
+            holdout_from?: string | null;
+            /** Horizons */
+            horizons: components["schemas"]["ScoreHorizon"][];
+            /** Verdicts */
+            verdicts: components["schemas"]["VariantVerdict"][];
+            /** Turnover */
+            turnover?: number | null;
+            /** Momentum Corr */
+            momentum_corr?: number | null;
+            /** Caveats */
+            caveats: string[];
+            /** Notes */
+            notes: string[];
+        };
+        /** ScoreHorizon */
+        ScoreHorizon: {
+            /** H */
+            h: number;
+            all?: components["schemas"]["ScoreRow"] | null;
+            in_sample?: components["schemas"]["ScoreRow"] | null;
+            holdout?: components["schemas"]["ScoreRow"] | null;
+        };
+        /**
+         * ScoreRow
+         * @description The baseline over one split of formation dates; each mean next to its Newey-West t. `top_vs_acwi`: the top N
+         *     in DKK minus ACWI (its t judges `top_dkk` too).
+         */
+        ScoreRow: {
+            /** Dates */
+            dates?: number | null;
+            /** Ic Mean */
+            ic_mean?: number | null;
+            /** Ic T */
+            ic_t?: number | null;
+            /** Ic Pos */
+            ic_pos?: number | null;
+            /** Q */
+            q?: (number | null)[] | null;
+            /** Monotone */
+            monotone?: boolean | null;
+            /** Spread */
+            spread?: number | null;
+            /** Spread T */
+            spread_t?: number | null;
+            /** Top Excess */
+            top_excess?: number | null;
+            /** Top Excess T */
+            top_excess_t?: number | null;
+            /** Top Dkk */
+            top_dkk?: number | null;
+            /** Acwi Dkk */
+            acwi_dkk?: number | null;
+            /** Top Vs Acwi */
+            top_vs_acwi?: number | null;
+            /** Top Vs Acwi T */
+            top_vs_acwi_t?: number | null;
+            /** Top Beats Acwi */
+            top_beats_acwi?: number | null;
+        };
         /**
          * ScoreTilt
          * @description The holdings' value-weighted momentum score (against the whole stock universe) or K+V, next to the universe's
@@ -4920,6 +5241,17 @@ export interface components {
             coverage?: number | null;
             /** Missing */
             missing: string[];
+        };
+        /** ScoreUniverse */
+        ScoreUniverse: {
+            /** Tickers */
+            tickers?: number | null;
+            /** Fund Names */
+            fund_names?: number | null;
+            /** First */
+            first?: string | null;
+            /** Last */
+            last?: string | null;
         };
         /** SearchHit */
         SearchHit: {
@@ -5127,6 +5459,25 @@ export interface components {
             acwi_max_dd?: number | null;
             /** Missing */
             missing: string[];
+            /** Note */
+            note?: string | null;
+        };
+        /** SurvivorshipGauge */
+        SurvivorshipGauge: {
+            /** Implied Haircut */
+            implied_haircut?: number | null;
+            /** Configured Haircut */
+            configured_haircut?: number | null;
+            /** First */
+            first?: string | null;
+            /** Last */
+            last?: string | null;
+            /** Study Top Quintile Excess 1M */
+            study_top_quintile_excess_1m?: number | null;
+            /** Survivorship Free Same Months */
+            survivorship_free_same_months?: number | null;
+            /** Survivorship Free Since 1927 */
+            survivorship_free_since_1927?: number | null;
             /** Note */
             note?: string | null;
         };
@@ -5475,6 +5826,23 @@ export interface components {
             };
             /** History */
             history: components["schemas"]["PePoint"][];
+        };
+        /** VariantVerdict */
+        VariantVerdict: {
+            /** H */
+            h: number;
+            /** Variant */
+            variant: string;
+            /** Label */
+            label?: string | null;
+            /** In Sample Ic */
+            in_sample_ic?: number | null;
+            /** Holdout Ic */
+            holdout_ic?: number | null;
+            /** Holdout Ic T */
+            holdout_ic_t?: number | null;
+            /** Holdout Diff T */
+            holdout_diff_t?: number | null;
         };
         /**
          * ViewAlignment
@@ -8258,6 +8626,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evidence_api_evidence_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceView"];
                 };
             };
         };

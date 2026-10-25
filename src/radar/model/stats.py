@@ -63,7 +63,8 @@ def cross_section(x: pd.Series, y: pd.Series, n_top: int, min_names: int, y_dkk:
 
 
 def summarize(rows: list[dict], lag: int) -> dict | None:
-    """Across dates: means, Newey-West t-statistics and shares."""
+    """Across dates: means, Newey-West t-statistics and shares. `top_vs_acwi`: the top N in DKK minus ACWI, on the
+    dates that have both."""
     rows = [r for r in rows if r is not None]
     if not rows:
         return None
@@ -72,6 +73,7 @@ def summarize(rows: list[dict], lag: int) -> dict | None:
     top_dkk = [r.get("top_dkk") for r in rows]
     acwi = [r.get("acwi_dkk") for r in rows]
     beat = [a < b for a, b in zip(acwi, top_dkk) if a is not None and b is not None]
+    vs_acwi = [b - a for a, b in zip(acwi, top_dkk) if a is not None and b is not None]
     return {
         "dates": len(rows), "n_mean": mean([r["n"] for r in rows]),
         "ic_mean": mean(ics), "ic_t": nw_t(ics, lag), "ic_pos": mean([float(i > 0) for i in ics if i is not None]),
@@ -79,7 +81,9 @@ def summarize(rows: list[dict], lag: int) -> dict | None:
         "monotone": all(a is not None and b is not None and a < b for a, b in zip(q, q[1:])),
         "top_excess": mean([r["top_excess"] for r in rows]), "top_excess_t": nw_t([r["top_excess"] for r in rows], lag),
         "top_hit": mean([r["top_hit"] for r in rows]),
-        "top_dkk": mean(top_dkk), "acwi_dkk": mean(acwi), "top_beats_acwi": mean([float(b) for b in beat]),
+        "top_dkk": mean(top_dkk), "acwi_dkk": mean(acwi),
+        "top_vs_acwi": mean(vs_acwi), "top_vs_acwi_t": nw_t(vs_acwi, lag),
+        "top_beats_acwi": mean([float(b) for b in beat]),
     }
 
 
