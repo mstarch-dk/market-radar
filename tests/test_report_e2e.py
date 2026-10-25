@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 import world
-from radar import snapshot
+from radar import api_models, snapshot
 from radar.config import settings
 from radar.reporting import report
 from radar.sources import fxrates
@@ -39,9 +39,35 @@ def test_summary_schema(summary):
         "asof", "regime", "indicators", "rotation", "momentum_top10", "momentum_new_entrants",
         "momentum_dropped_out", "me", "momentum_clusters", "positioning_cot", "leading_indicators",
         "earnings_factset", "stale_tickers", "behind_tickers", "coverage", "portfolios", "valuation", "revisions_regional", "sentiment",
-        "quality_top10", "quality_new_entrants", "quality_coverage", "abtest"}
+        "quality_top10", "quality_new_entrants", "quality_coverage", "abtest", "calendar"}
     assert summary["abtest"] == {"running": False}
     assert summary["asof"] == IDX[-1].date().isoformat()
+
+
+def _built_calendar(tmp_data) -> dict:
+    report.build()
+    return json.loads((tmp_data / "reports" / "summary.json").read_text(encoding="utf-8"))["calendar"]
+
+
+def test_summary_calendar_key(tmp_data, monkeypatch):
+    """summary.json["calendar"] is the calendar of your real portfolios and the watchlist, an AgendaView without
+    the selection and the build time, counted from asof."""
+    world.install(tmp_data, monkeypatch)
+    world.calendar_reads(IDX[-1])
+    cal = _built_calendar(tmp_data)
+    assert "selection" not in cal and "generated" not in cal
+    v = api_models.AgendaView.model_validate(cal | {"generated": "x", "selection": {"ids": [], "names": []}})
+    assert v.today == v.asof == IDX[-1].date().isoformat() and v.days == settings()["calendar"]["days"]
+    items = {i.symbol: i for i in v.items}
+    assert set(items) == {"S1", "E2"}                       # held and watched; S3 is neither
+    assert items["S1"].level == "high" and v.soon == [items["S1"].id]
+
+
+def test_summary_deterministic(tmp_data, monkeypatch):
+    """Two builds on the same data give the same calendar: dates against asof, not the clock."""
+    world.install(tmp_data, monkeypatch)
+    world.calendar_reads(IDX[-1])
+    assert _built_calendar(tmp_data) == _built_calendar(tmp_data)
 
 
 def test_summary_portfolios_are_your_real_ones_with_returns_vs_acwi(summary):

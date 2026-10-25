@@ -153,25 +153,13 @@ def test_xray_api_contract(client, monkeypatch):
     assert gone.status_code == 503 and "radar update" in gone.json()["detail"]["message"]
 
 
-def _calendar_reads(asof: pd.Timestamp) -> None:
-    """S1 (held) reports in 3 days, E2 (watched) in Yahoo's window 10-14 days out; S3 isn't held or watched."""
-    from radar.config import write_parquet
-    from radar.sources import external
-
-    rows = [{"ticker": t, "fetched": asof, "earnings_start": asof + pd.Timedelta(days=a),
-             "earnings_end": asof + pd.Timedelta(days=b), "eps_chg_30d": chg, "quote_type": "EQUITY",
-             "source": "yahoo_detail"} for t, a, b, chg in (("S1", 3, 3, -0.05), ("E2", 10, 14, None),
-                                                              ("S3", 2, 2, None))]
-    write_parquet(pd.DataFrame(rows, columns=list(external.CALENDAR_COLS)), external.CALENDAR_FILE, index=False)
-
-
 def test_calendar_api_contract(built, monkeypatch):
     """GET /api/calendar validates against AgendaView: S1's report is high (held, soon, estimate cut, the whole
     portfolio), E2's window is info; an empty selection is a view with a note; the router came last; no prices is
     503."""
     from world import IDX
 
-    _calendar_reads(IDX[-1])
+    world.calendar_reads(IDX[-1])
     r = built.get("/api/calendar")
     assert r.status_code == 200, r.json()
     v = api_models.AgendaView.model_validate(r.json())
@@ -199,7 +187,7 @@ def test_calendar_api_contract(built, monkeypatch):
 def test_me_flag_matches_calendar(built):
     from world import IDX
 
-    _calendar_reads(IDX[-1])
+    world.calendar_reads(IDX[-1])
     rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
     days = {i["symbol"]: i["days"] for i in built.get("/api/calendar").json()["items"]}
     assert f"earnings in {days['S1']} d" in rows["S1"]["flags"]
