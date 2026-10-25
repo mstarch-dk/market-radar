@@ -7,7 +7,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 ```
 interfaces       api, cli
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
-                 reporting/, studyrun, updater, xray
+                 reporting/, studyrun, tax, updater, xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -23,7 +23,7 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`, `studyrun`) never imports `backtest/` and reads the studies' reports through
+`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`, `tax`, `studyrun`) never imports `backtest/` and reads the studies' reports through
 `model/artifacts.py`. When you run a study from the Evidence page, `studyrun.py` starts the study's own command
 (`python -m radar study …`) as a child process: the contract holds, the heavy work stays off the server, and the run
 can be cancelled.
@@ -36,7 +36,7 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
 ## Config
 - `config/universe.yaml`: everything tracked (ETF groups, stock lists, macro series, CFTC/OECD sources, the
   watchlist, the sector ETF each stock is compared with). Theme ETFs carry a UCITS `isin`, checked against SKAT's
-  positive list (only the latest year's sheet counts).
+  positive list (the latest year's sheet for the flag; the tax estimate reads each income year's own sheet).
 - `config/settings.yaml`: thresholds and rules (regime, momentum, rotation, stops, coverage, backtest, propose,
   `network:` host limits, `ops:` retention). Checked on load against `config_schema.py`, which models every
   section: an unknown key, a missing key or a wrong type fails with the key's path; `radar doctor` reports it. A
@@ -51,6 +51,8 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
 - `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
+- `config/tax_dk.yaml`: Danish tax rates and limits per income year, each with its source and the day it was
+  checked; checked on load against `config_schema.TaxRules` (`portfolios/taxrules.py`).
 - `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
 
 ## Where data lives
@@ -135,10 +137,11 @@ for one.
 - `api/` + `api_models/`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md). `api/app.py`
   builds the app (lifespan, error handlers, the data-home gate and error-recording middlewares, the web app) from
   one `APIRouter` per page area (`setup`, `ticker`, `readings`, `operations`, `views`, `discover`, `holdings`,
-  `refresh`, `transactions`, `portfolios`, `docs`, `imports`, `xray`, `evidence`, `studies`), included in a fixed order so the OpenAPI schema
+  `refresh`, `transactions`, `portfolios`, `docs`, `imports`, `xray`, `agenda`, `evidence`, `attribution`, `tax`, `studies`), included in a fixed order so the OpenAPI schema
   doesn't move; `api/state.py` holds the price store, its re-entrant lock (`ensure`, `has_prices`) and the data
   home's gate; `api/common.py` what several routers share. `api_models/` has one module per area of the app
-  (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs, xray, evidence), all re-exported
+  (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs, xray, agenda, evidence,
+  attribution, tax), all re-exported
   by the package.
 - `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
   the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
@@ -181,6 +184,10 @@ for one.
   reconciliation to *Returns* (trading and fees, benchmark proxies vs ACWI) and the factor regression. It assembles
   `portfolios/performance.py` (`Book.positions`), `exposure.py`, `segments.py` and the math in
   `model/attribution.py`; live, nothing written. No attribution under `attribution.min_months`.
+- `tax.py`: the Danish tax estimate for an income year: each aktiesparekonto's and pension account's pool, and each
+  tax person's share and capital income over their frie midler accounts, with carries chained from the first year,
+  the holdings it can't classify named and left out. It assembles `portfolios/performance.py` (the book at traded
+  closes), `taxrules.py`, `taxinputs.py` and the math in `model/tax.py`; live, nothing written.
 - `agenda.py`: the calendar of a selection: earnings and ex-dividend dates of held and watched stocks, open
   journal reviews and proposal time stops in a window, each with the reasons it is highlighted and a level
   (`calendar.highlight`). `resolve_earnings` is the one place a next earnings date is decided (the latest read of
@@ -202,7 +209,9 @@ for one.
 - `model/`: what the app and the studies must compute the same way, defined once, so what is tested is what is
   shown: point-in-time panels and the month-end calendar, selection under caps, the trend exit, the shared
   statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), attribution's math (Brinson–Fachler,
-  the currency effect, Carino linking, the factor regression with Newey-West t), the long-run prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
+  the currency effect, Carino linking, the factor regression with Newey-West t), the tax arithmetic (the average-cost
+  replay in DKK, lager, the ASK and pension pools, share income with the loss rules and progression), the long-run
+  prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
 
 ### Domain
 - `universe.py`: everything the radar downloads prices for (incl. holdings), names, sectors, region, how far
@@ -210,7 +219,8 @@ for one.
 - `market.py`: the price store as wide frames, loaded once and shared by the API, CLI and studies.
 - `userstore/`: the user's own edits in `radar.db` (SQLite, versioned by `PRAGMA user_version` and an append-only
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
-  symbol map, meta; market views in `viewstore.py`, backup copies in `backups.py`. It is the one place that decides which
+  symbol map, meta, the tax inputs (tax persons and who owns which account, instruments with ISIN and class, losses
+  carried in); market views in `viewstore.py`, backup copies in `backups.py`. It is the one place that decides which
   portfolios count, and holds the one list of row types. New stateful data gets a table here.
 - `portfolios/`: your portfolios, from the transactions in `userstore/`.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
@@ -228,6 +238,9 @@ for one.
   - `segments.py`: attribution's benchmark segments: ACWI's weights by sector and region on each day (the weekly
     snapshots drifted with the segments' returns, back-drifted before the first) and each segment's daily DKK return
     from its proxy ETFs (universe.yaml `attribution:`); a segment without a return is missing that day.
+  - `taxrules.py`: the tax rules of an income year from `config/tax_dk.yaml`, only when verified.
+  - `taxinputs.py`: each holding's ISIN (filled from imports, `universe.yaml`, the discovery map) and its tax class
+    in a year from the positive list's sheet for that year.
   - `riskmodel.py`: shrunk covariance (`book_cov`: each set of holdings on its own names and ACWI, so its risk is
     the same wherever it is computed), ex-ante volatility, beta and tracking error with each name's share of total
     and active risk and its marginal contribution, concentration and correlated pairs, the weekly path of fixed
@@ -258,7 +271,7 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
   - `tracked.py`: what `universe.yaml` lists (benchmark, ETFs, stock groups, macro series), readable by the data
     sources.
   - `fxrates.py`: each ticker's quote currency and the FX tickers that turn it into DKK.
-  - `positive_list.py`: SKAT's positive list.
+  - `positive_list.py`: SKAT's positive list, the latest sheet and every year's.
 - `fundamentals/`: financial statements from SEC EDGAR (US, with filing dates) and Yahoo (every stock,
   append-only) in one long fact format (its period arithmetic is pure, in `signals/periods.py`); which tickers
   are due.

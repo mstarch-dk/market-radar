@@ -223,6 +223,20 @@ def test_positive_list_uses_the_latest_year_only(tmp_data):
     assert positive_list.flag(None, isins) == "?" and positive_list.flag("X", None) == "?"
 
 
+def test_positive_list_per_income_year(tmp_data):
+    """The tax estimate reads each year's own sheet: a fund that left the list is off it that year only."""
+    left = ["IE", "IE00BOLD0001", "", "", "", "", "", "Old fund", "2024", "2026"]
+    keep = ["IE", "IE00B6R52259", "", "", "", "", "", "ACWI", "2018", ""]
+    _poslist(tmp_data, {"2025": [left, keep], "2026": [keep]})
+    years = positive_list.load_years()
+    assert set(years) == {2025, 2026}
+    assert positive_list.status("IE00BOLD0001", 2025, years) == "yes"
+    assert positive_list.status("ie00bold0001", 2026, years) == "no"
+    assert positive_list.status("IE00B6R52259", 2024, years) == "no_sheet"
+    assert positive_list.status(None, 2026, years) == "no_isin"
+    assert positive_list.status("IE00B6R52259", 2026, None) == "no_sheet"
+
+
 def test_positive_list_finds_the_isin_column_by_header(tmp_data):
     header = POSLIST_HEADER[2:3] + POSLIST_HEADER[:2] + POSLIST_HEADER[3:]   # SKAT moved a column
     _poslist(tmp_data, {"2026": [["ACWI", "IE", "IE00B6R52259", "", "", "", "", "", "", ""]]}, header)

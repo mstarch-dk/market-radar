@@ -42,7 +42,8 @@ Dette kapitel er et kort, letlæst overblik. Den fulde engelske version står i 
 | **OECD** | Ledende indikatorer (CLI) | Ja | Ja, med kildeangivelse (CC BY 4.0) |
 | **CFTC** | Futurespositionering (COT) | Ja | Ja (offentligt amerikansk data) |
 | **SEC EDGAR** (XBRL company facts) | Amerikanske selskabers regnskaber fra 10-K og 10-Q, med indleveringsdato; testene af kvalitets- og værdiscoren, hvis resultater siden *Evidence* viser | Ja | Ja (offentligt amerikansk data). SEC beder om højst 10 forespørgsler i sekundet og en kontakt-e-mail i hver forespørgsel, som du selv angiver på siden *Data* |
-| **SKAT**, positivlisten | Positivliste-status | Ja | Ja (offentlige danske data) |
+| **SKAT**, positivlisten | Positivliste-status; hvert års ark afgør, hvordan en fond beskattes i skatteestimatet (på eller uden for listen det indkomstår) | Ja | Ja (offentlige danske data) |
+| **skat.dk** og Skatteministeriet, satser og beløbsgrænser (skrevet af i hånden i `config/tax_dk.yaml` med kilde og dato; intet hentes) | Skatteestimatet: satserne og progressionsgrænsen for aktieindkomst, aktiesparekontoens sats og indskudsloft, PAL-satsen og reglerne for tab | Ja | Ja, med kilde |
 | **Saxo, Danske Bank**, offentlige prislister (skrevet af i hånden i `config/fee_presets.yaml` med dato og kilde; intet hentes) | Skabeloner til kurtage-estimatet | Ja | Ja, med kilde og dato |
 
 Testdataene i `tests/fixtures/` er små prøver i hver kildes format, så programmets læsere kan testes uden net. Fra de åbne kilder er det beskårne, ægte svar; fra de andre kun en håndfuld tal i kildens opstilling, og al tekst (FactSets rapporttekst, Yahoos virksomhedsbeskrivelser) er opdigtet. De er ikke en kopi af kildernes data og skal ikke bruges som data.

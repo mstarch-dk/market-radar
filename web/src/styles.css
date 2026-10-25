@@ -484,6 +484,9 @@ details.card > summary { cursor: pointer; }
 .chip-check { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--line);
   border-radius: 12px; cursor: pointer; }
 .perf-notes { padding-left: 18px; }
+.tax-bar { position: relative; height: 8px; margin: 6px 0 10px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.tax-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s1); }
+.tax-bar i.over { background: var(--neg); opacity: .35; }
 .waterfall { display: grid; grid-template-columns: minmax(150px, max-content) 1fr 70px; gap: 6px 12px; align-items: center; font-size: 13px; }
 .wf-row { display: contents; }
 .wf-track { position: relative; height: 14px; background: linear-gradient(var(--line), var(--line)) no-repeat var(--zero) 0 / 1px 100%; }

@@ -6,6 +6,24 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Tax estimate** (a *Tax* tab on *Portfolio*): the Danish tax your own records imply for an income year, an
+  estimate and not tax advice. Each aktiesparekonto and pension account is one pool (lager on the whole return,
+  negative tax carried forward); each tax person's frie midler accounts are taken together for share income
+  (realised gains by the average-cost method in DKK at each trade's rate, dividends, lager on positive-list funds,
+  listed-share losses offset and carried, the progression limit) and capital income (lager on funds off the list,
+  taxed only at a rate you give). Values are at traded closes in DKK; each fund is classified from its ISIN on
+  that income year's positive-list sheet, so an ETF that leaves the list changes tax that year. A holding the radar
+  can't classify is named with its value and left out, never guessed; a missing value is missing, never 0.
+  - Rates and limits per year in the new `config/tax_dk.yaml` (2025 and 2026, from skat.dk), each with its source
+    and the day it was checked. A year without verified rules shows the amounts and no tax.
+  - New inputs in `radar.db` (schema step): tax persons and who owns each account ("Me" owns them all at first),
+    each holding's ISIN and class (filled from your imports, `universe.yaml` and the discovery map; yours wins),
+    losses carried in from before your history. In the export and the holdings bundle as `tax.json`.
+  - `radar tax year|classify|isin|person|opening` and `GET /api/tax` with edit endpoints.
+  - The positive list is read per income year for the estimate; the ETF pages' flag still uses the latest sheet.
+- **The proposals' ASK deposit check follows skat.dk**: the cap less the account's value on 31 December the year
+  before and this year's deposits, with the cap from `config/tax_dk.yaml`. The settings `propose.ask_deposit_cap`
+  and `propose.ask_cap_year` are gone (a settings.yaml that still has them fails on start and names them).
 - **Run the studies from the Evidence page.** Every study card and rule study now has a button: *Run the study*
   when there is no report, *Run again* when it tested an older rule or has old data. The app runs the study's own
   command (the one on the card) in the background as a child process, shows how long it has run and its log, and

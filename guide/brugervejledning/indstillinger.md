@@ -346,6 +346,12 @@ Eksempler: RSI ({{settings:gauges.rsi14.ticks}} som tærskler), momentumscoren (
 
 Et symbol, der ikke findes på Yahoo, dukker op under *Missing tickers* på siden [Data & coverage](/data).
 
+### tax_dk.yaml
+
+`config/tax_dk.yaml` holder de danske satser pr. indkomstår til fanen *Tax*: aktieindkomstens to satser og progressionsgrænsen, aktiesparekontoens sats og indskudsloft, PAL-satsen og reglerne for tab. Hvert tal har sin kilde på skat.dk og den dato, det er tjekket (`verified`). Et år uden afsnit, eller uden `verified`, giver grundlaget uden skat; radaren låner aldrig et andet års tal. Et nyt år tilføjer du ved at kopiere det seneste afsnit og tjekke hvert tal mod kilden. Se [Skat: radarens skatteestimat](brugervejledning/skat).
+
+Indskudsloftet på aktiesparekontoen stod tidligere i `settings.yaml` som `propose.ask_deposit_cap` og `propose.ask_cap_year`. De to nøgler er fjernet; har du stadig dem i din egen `settings.yaml`, så slet dem (en ukendt nøgle giver en fejl ved start). Porteføljeforslagene læser nu loftet fra `tax_dk.yaml` og måler det mod kontoens værdi den 31. december året før.
+
 ### views.yaml
 
 `config/views.yaml` holder skabelonerne til markedssyn (færdige syn med eksponeringer og indikatorer, ordnet i modsatte par) og kataloget over indikatorer, evidenstjekket kan læse, hver med et bånd for "flat". Her står også tærsklerne for sammenhæng: `theme_corr` (en aktie bevæger sig med en ETF ved en korrelation på mindst 0,5), `min_weeks` (26 ugers fælles historik) og `thresholds.aligned` (0,35). Se [Mine markedssyn](brugervejledning/markedssyn).

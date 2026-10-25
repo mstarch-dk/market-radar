@@ -192,6 +192,30 @@ def test_cli_attribution(built):
     assert "--scope must be one of" in run("attribution", "--scope", "isk", code=1)
 
 
+def test_cli_tax(built):
+    """radar tax: the year's estimate (the --json view is the API's), the classes, an ISIN, persons and openings."""
+    from radar import api_models
+    from radar.market import Market
+    from radar.tax import year_report
+
+    year = IDX[-1].year
+    assert f"Tax estimate for {year}" in run("tax", "year")
+    v = run_json("tax", "year", str(year), "--json")
+    api_models.TaxYearView.model_validate(v)
+    assert v["accounts"] == year_report(Market.load(), year)["accounts"]
+    assert "S1" in run("tax", "classify")
+    assert "THEME1: IE00B4L5Y983" in run("tax", "isin", "THEME1", "IE00B4L5Y983")
+    assert "S1: stock" in run("tax", "classify", "S1", "stock")
+    assert "isn't an ISIN" in run("tax", "isin", "THEME1", "nope", code=1)
+    assert "Saved Partner" in run("tax", "person", "add", "Partner", "--capital-rate", "0.37")
+    assert "Saved Partner" in run("tax", "person", "set", "Partner", "--account", "frie midler")
+    assert "Partner" in run("tax", "person", "list")
+    assert "Added opening #1" in run("tax", "opening", "add", "--pool", "listed_loss", "--year", str(year),
+                                     "--amount", "500", "--person", "Partner")
+    assert "listed_loss" in run("tax", "opening", "list")
+    assert "Removed opening #1" in run("tax", "opening", "remove", "--id", "1")
+
+
 def test_cli_evidence(built):
     """radar evidence prints each report's status and the scoreboard; --json is the EvidenceView."""
     from radar import api_models

@@ -149,8 +149,6 @@ propose:                   # src/radar/propose.py: `radar propose` and /propose-
   max_swaps: 2             # judgment may replace at most this many of the rule's picks
   frontier_knee: 0.005     # basket size: the smallest n after which one more name cuts volatility by less than this
   # --- the account
-  ask_deposit_cap: null    # aktiesparekonto: the year's deposit ceiling in DKK (fill in from skat.dk; null = not checked)
-  ask_cap_year: null
   etf_filler: {ticker: SSAC.L, model: ACWI, name: "iShares MSCI ACWI UCITS (Acc)", isin: IE00B6R52259, min_dkk: 3000}
   review_min: 6            # `radar propose review`: fewer proposals than this are too few to judge anything by
 

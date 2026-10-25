@@ -163,6 +163,9 @@ export const GLOSSARY = {
   ev_eff_n: "Effective number of independent periods: the dates divided by the horizon in months, since overlapping windows share returns.",
   ev_survivorship: "The score study ranks today's stocks, so companies that died are missing and momentum looks better than it was. The gauge compares the study's top-quintile excess with the same for all US stocks without survivorship bias (Kenneth R. French's momentum deciles) over the same months, and the haircut the difference implies against the one proposals assume.",
   ev_forward: "Results picked before the returns were known: the only evidence free of hindsight, but slow to build. A record younger than its minimum ({{settings:evidence.forward_min_months}} months for the A/B test, {{settings:evidence.cohort_age_months}} for a basket or a proposal) is listed but never ranked; a mean appears from {{settings:evidence.cohort_min}} records.",
+  tax_share_income: "Share income (aktieindkomst) for the year: realised gains on shares by the average-cost method in DKK, dividends and lager on positive-list funds, across all your frie midler accounts, after the loss rules. Taxed at the low rate up to the progression limit and the high rate above it. An estimate: your årsopgørelse wins.",
+  tax_lager: "Lager taxation: each year the change in value is taxed whether you sold or not: value at year end, plus what sales brought in, minus the value at the start of the year and what buys cost.",
+  tax_pool: "An aktiesparekonto or a pension account is taxed on its whole return each year: value at the end minus value at the start minus deposits plus withdrawals. A losing year gives a negative tax that is set against later years' tax.",
   ev_too_short: "Younger than its minimum: its numbers are listed, but it isn't judged, ranked or counted in the mean.",
 } as const;
 
