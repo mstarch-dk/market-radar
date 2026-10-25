@@ -78,7 +78,7 @@ forbidden_modules = ["radar.reporting", "radar.api", "radar.cli", "radar.mine", 
 [[tool.importlinter.contracts]]
 name = "The app reads the studies' reports (model.artifacts), never runs a study"
 type = "forbidden"
-source_modules = ["radar.updater", "radar.reporting", "radar.api", "radar.abtest", "radar.propose"]
+source_modules = ["radar.updater", "radar.reporting", "radar.api", "radar.abtest", "radar.propose", "radar.xray"]
 forbidden_modules = ["radar.backtest"]
 
 [[tool.importlinter.contracts]]
@@ -91,7 +91,7 @@ containers = ["radar"]
 exhaustive = true
 layers = [
     "api : cli",
-    "abtest : api_models : backtest : health : mine : profile : propose : reporting : updater",
+    "abtest : api_models : backtest : health : mine : profile : propose : reporting : updater : xray",
     "model",
     "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",
     "discovery : fundamentals : sources : updates",

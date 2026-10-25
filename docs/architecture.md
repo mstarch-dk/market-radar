@@ -6,7 +6,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater
+features         abtest, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater, xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -22,7 +22,7 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `propose/`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
+`abtest`, `propose/`, `xray`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
 `model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
@@ -154,6 +154,10 @@ change to the model and to its schema version.
   The holdings, exposure and risk model it measures a proposal with live in `portfolios/` (shared with the
   portfolio views). The frozen picks file's shape is `propose/picks_file.py`, checked on freeze and
   read-back. It reads the rule study only through `model/artifacts.py`, stale when the rule's hash has changed.
+- `xray.py`: the portfolio X-ray of a selection of portfolios: the book and its cash, classes, exposures with
+  coverage, ex-ante risk with per-position shares (hidden below `risk.xray.min_coverage`), realised figures,
+  concentration, stress and factor tilts. It only assembles `portfolios/exposure.py` and `riskmodel.py`, the code
+  proposals use, and computes live: nothing written.
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
   exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
@@ -183,10 +187,12 @@ change to the model and to its schema version.
     runs).
   - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
   - `prices.py`: DKK closes, exchange rates and weekly DKK returns per ticker, computed once.
-  - `exposure.py`: the holdings book in DKK, sector / region / currency per name (world funds counted with ACWI's
-    own weights) and exposures against ACWI.
-  - `riskmodel.py`: shrunk covariance, ex-ante volatility, beta and tracking error with each name's share of risk,
-    the weekly path of fixed weights, stress windows, realised drawdown and factor tilts.
+  - `exposure.py`: the holdings book in DKK, each name's class (world fund, sector fund, other fund, stock,
+    unknown) with sector / region / currency (a fund looked through where its cached data allows, else *fund: not
+    looked through*, never filed under its listing), and exposures against ACWI with coverage per dimension.
+  - `riskmodel.py`: shrunk covariance, ex-ante volatility, beta and tracking error with each name's share of total
+    and active risk and its marginal contribution, concentration and correlated pairs, the weekly path of fixed
+    weights, stress windows, realised drawdown and factor tilts.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
