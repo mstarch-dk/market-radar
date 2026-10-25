@@ -2,6 +2,15 @@
 
 Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der kræves noget af dig, når du opdaterer. Hvordan du opdaterer, står i [Dine data, backup og opdatering](brugervejledning/dine-data#opdatering-til-en-ny-version).
 
+## Næste version
+
+**En kalender over det, du ejer og følger.** Den nye side *Calendar* under *Mine* viser de næste {{settings:calendar.days}} dages regnskaber og udbyttedage for dine beholdninger og din watchlist, og dine egne datoer: gennemgangsdatoer i journalen og tidsstop i dine porteføljeforslag. Hvert punkt siger, hvorfor det er fremhævet, efter faste regler: hvor meget af porteføljen der står på spil, hvor tæt kursen er på dit gennemgangsniveau, svagt momentum, nedjusterede skøn, og hvor sikker datoen er. Se [Kalenderen](brugervejledning/kalender).
+
+- **Datoerne er Yahoos, og det står der.** Et vindue vises som et vindue, aldrig som dets første dag. En aktie uden kendt dato står under *No date known* med grunden; fonde tælles, men listes ikke.
+- **Et nyt trin i opdateringen** læser Yahoos kalender for dine aktier hver {{settings:calendar.refresh.max_age_days}}. dag, og dagligt når et regnskab nærmer sig. Læsningerne gemmes i historikken i datamappen, så kalenderen kan se, når en dato flytter sig. Første opdatering efter skiftet læser alle dine aktier og tager lidt længere tid.
+- **Samme kalender andre steder**: båndet *Soon* på forsiden, flaget *earnings in N d* på *Holdings & watchlist*, `radar calendar` på kommandolinjen og afsnittet *Kommende uger* i månedsbriefen.
+- **Nye indstillinger** under `calendar:`; se [Indstillinger](brugervejledning/indstillinger#calendar-regnskabsdatoer). Du skal ikke gøre noget, når du opdaterer.
+
 ## 0.2.0
 
 **Dine data har fået deres egen mappe.** Porteføljer, handler, markedssyn, watchlist, noter, briefs, research, journal og den historik, radaren har samlet op, ligger nu i en datamappe uden for programmappen, som standard `Market Radar` i din brugermappe. Markedsdata ligger i en cache-mappe for sig og kan altid hentes igen. Fremover pakker du bare en ny version ud og starter den; den finder selv dine data, og du skal ikke kopiere mapper.
