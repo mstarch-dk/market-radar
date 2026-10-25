@@ -316,6 +316,7 @@ class _JkpPortfolios(_Section):
 class Factors(_Section):
     max_age_days: int = 30
     french: dict[str, str | _FrenchFile] = {}
+    french_daily: dict[str, str] = {}
     jkp: dict[str, _JkpSet] = {}
     jkp_portfolios: _JkpPortfolios | None = None
 

@@ -2,7 +2,8 @@
 
 The patterns live outside git, in notes/leak-patterns.txt (one per line, case-insensitive), plus the git
 author's email unless it is a GitHub noreply address. Lines listed in notes/leak-allow.txt ('path: line') are
-accepted as harmless. Both files are local, so this runs on your computer, not in CI.
+accepted as harmless. Both files are local, so this runs on your computer, not in CI. A linked git worktree
+without its own notes/ uses the main checkout's.
 
     uv run python scripts/leak_check.py                    # tracked and new files in the working tree
     uv run python scripts/leak_check.py --history          # every file version and commit message ever committed
@@ -21,8 +22,26 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATTERNS = ROOT / "notes" / "leak-patterns.txt"
-ALLOW = ROOT / "notes" / "leak-allow.txt"  # local: 'path: line' hits known to be harmless
+
+
+def notes_dir() -> Path:
+    """This checkout's notes/, or, in a linked git worktree that has no patterns file of its own (notes/ is
+    gitignored, so a new worktree never has one), the main checkout's: the patterns stay in one place."""
+    own = ROOT / "notes"
+    if (own / "leak-patterns.txt").exists():
+        return own
+    try:
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
+                                check=True, capture_output=True, text=True).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        return own
+    main = Path(common).parent / "notes"
+    return main if Path(common).name == ".git" and (main / "leak-patterns.txt").exists() else own
+
+
+NOTES = notes_dir()
+PATTERNS = NOTES / "leak-patterns.txt"
+ALLOW = NOTES / "leak-allow.txt"  # local: 'path: line' hits known to be harmless
 TEXT_SUFFIXES = {".py", ".md", ".ts", ".tsx", ".css", ".json", ".yaml", ".yml", ".toml", ".txt", ".csv", ".html",
                  ".cmd", ".command", ".sh", ".ps1", ".lock", ".cfg", ".ini", ".j2", ".mjs", ".gitignore",
                  ".gitattributes", ""}

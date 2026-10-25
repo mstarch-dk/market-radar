@@ -232,6 +232,11 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   dated YYYYMM, titled by the text line above it. The configured block is matched on its title (`block`), else the
   first monthly block; annual blocks (YYYY) are skipped. Percent → decimals; -99.99 and -999 are missing (NaN), never
   a return. Month-end dates.
+- **French, daily** (`factors.french_daily`, the attribution's factor regression): the same layout with rows dated
+  YYYYMMDD, kept in `factors/daily.parquet` so the monthly file stays month-end only. Returns are USD; `Mkt-RF` is in
+  excess of the US one-month T-bill (`RF`). The files run to the end of a month about two months back. Weeks are
+  compounded from the days (`factors.to_weeks`, W-FRI): a week with a missing day is missing, and the last week is
+  left out when the data stops before its Friday.
 - **JKP**: long CSVs (location, name, date, ret …) pivoted wide by country (`location`) or by factor (`name`). Returns
   are decimals in USD **in excess of the US one-month T-bill**: `factors.total` adds French's RF back (a month without
   RF stays missing). Duplicate rows for a series and month raise. JKP's `vw_cap` weights cap big firms (at the NYSE
