@@ -1,9 +1,10 @@
 ---
 id: TASK-4.13
 title: Earnings in N d flag in /api/me from agenda.next_earnings_map
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:36'
 labels:
   - feature
 dependencies:
@@ -24,6 +25,12 @@ F5-13 (`earnings in N d` flag in `/api/me` from `agenda.next_earnings_map`). PR 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_me_flag_matches_calendar`
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_me_flag_matches_calendar`
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+agenda.with_earnings_flags runs agenda.build over soon_days; mine.live is the shared holdings-rows builder for /api/me and the calendar.
+<!-- SECTION:NOTES:END -->

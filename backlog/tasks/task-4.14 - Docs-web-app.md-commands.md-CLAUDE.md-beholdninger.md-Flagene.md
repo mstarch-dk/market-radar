@@ -1,9 +1,10 @@
 ---
 id: TASK-4.14
 title: 'Docs: web-app.md, commands.md, CLAUDE.md, beholdninger.md *Flagene*'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:36'
 labels:
   - feature
 dependencies:
@@ -24,8 +25,8 @@ F5-14 (Docs: `web-app.md`, `commands.md`, `CLAUDE.md`, `beholdninger.md` *Flagen
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `lint-imports`
-- [ ] #2 `test_layers.py`
-- [ ] #3 `test_guide.py` pass
-- [ ] #4 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `lint-imports`
+- [x] #2 `test_layers.py`
+- [x] #3 `test_guide.py` pass
+- [x] #4 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

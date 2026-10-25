@@ -207,6 +207,65 @@ def xray(names: list[str] = typer.Argument(None, help="Portfolio names (default:
         typer.echo(f"  · {n}")
 
 
+@app.command()
+def calendar(names: list[str] = typer.Argument(None, help="Portfolio names (default: your real portfolios)"),
+             tag: list[str] = typer.Option(None, "--tag", help="Portfolios carrying this tag (repeatable)"),
+             scope: str = typer.Option(None, "--scope", help="real | virtual | all, when no name or tag is given"),
+             days: int = typer.Option(None, "--days", min=1, max=366, help="Window in days (default calendar.days)"),
+             as_json: bool = typer.Option(False, "--json", help="The AgendaView as JSON (for the skills)")):
+    """The calendar: earnings and ex-dividend dates of what you hold and watch, your journal reviews and the
+    proposals' time stops, each with why it is highlighted. Dates are Yahoo's. Analysis, not advice."""
+    from datetime import date as _date
+    from datetime import timedelta
+
+    from .. import agenda, userstore
+    from ..reporting import dashboard
+
+    trades.ensure_migrated()
+    if scope and scope not in userstore.SCOPES:
+        raise SystemExit(f"--scope must be one of {', '.join(userstore.SCOPES)}")
+    d = dashboard.load()
+    if d is None:
+        raise SystemExit("No dashboard yet: run `uv run radar run` (or `radar report`) first.")
+    ids = (portfolio_ids(names, tag) if (names or tag) else
+           userstore.portfolio_ids(scope) if scope else userstore.portfolio_ids())
+    v = agenda.collect(Market.load(), d, ids, scope, days)
+    if as_json:
+        typer.echo(to_json(v, indent=1))
+        return
+    by_id = {i["id"]: i for i in v["items"]}
+    mark = {"high": "!", "normal": "·", "info": " "}
+
+    def line(i):
+        when = i["date"] + (f"–{i['date_end'][5:]}" if i["date_end"] else "")
+        who = {"holding": "held", "watch": "watch", "own": "own"}[i["status"]]
+        reasons = "; ".join(r["text"] for r in i["reasons"] if r["key"] != "held")
+        return f"  {mark[i['level']]} {when:<17} {(i['symbol'] or '')[:10]:<11}{i['kind']:<12}{who:<6} {reasons}"
+
+    typer.echo(f"Calendar of {', '.join(v['selection']['names']) or 'no portfolios'}: {v['days']} days from "
+               f"{v['today']}")
+    typer.echo(f"\nNext 7 days ({len(v['soon'])} to look at first)" if v["soon"] else "\nNext 7 days: nothing high")
+    for k in v["soon"]:
+        typer.echo(line(by_id[k]))
+    week = None
+    for i in v["items"]:
+        d0 = _date.fromisoformat(i["date"])
+        monday = d0 - timedelta(days=d0.weekday())
+        if monday != week:
+            week = monday
+            typer.echo(f"\nWeek of {monday.isoformat()}")
+        typer.echo(line(i))
+    if v["no_date"]:
+        typer.echo("\nNo earnings date known")
+        for r in v["no_date"]:
+            typer.echo(f"    {r['symbol']:<11}{r['status']:<8} {r['reason']}")
+    if v["excluded_funds"]:
+        typer.echo(f"\n{v['excluded_funds']} fund(s) left out: funds have no earnings")
+    typer.echo("")
+    for n in v["notes"]:
+        typer.echo(f"  · {n}")
+
+
 portfolios_app = typer.Typer(help="Your portfolios: real ones (your accounts) and virtual ones (simulations, A/B "
                                   "tests), with tags. Only real ones count as yours unless chosen.")
 

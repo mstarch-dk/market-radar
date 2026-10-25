@@ -1,9 +1,10 @@
 ---
 id: TASK-4.12
-title: radar calendar CLI (tables, --json)
-status: To Do
+title: 'radar calendar CLI (tables, --json)'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:36'
 labels:
   - feature
 dependencies:
@@ -24,6 +25,6 @@ F5-12 (`radar calendar` CLI (tables, `--json`)). PR step 3 of plans/F5-calendar.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_cli_calendar`
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_cli_calendar`
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

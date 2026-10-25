@@ -6,18 +6,26 @@ stated rules (`calendar.highlight`): how much of the money is at stake, how clos
 whether the momentum is fading, whether the quarter's estimate is being cut, and how sure the date is. The level
 (high / normal / info) follows from those reasons; nothing here says what to do.
 
-The functions are pure: the caller passes in the holdings rows (`mine.table`), the weights, the calendar history
-(`external.load_calendar`), the screener's dates, the journal and the exit check, and `today`, which is the
-data's as-of date, so the same data gives the same items. Analysis, not advice."""
+`build` and the rules are pure: the caller passes in the holdings rows (`mine.table`), the weights, the calendar
+history (`external.load_calendar`), the screener's dates, the journal and the exit check, and `today`, which is the
+data's as-of date (the benchmark's last close), so the same data gives the same items. `collect` gathers those for
+a selection of portfolios; `cached` keeps its result until one of them changes. Analysis, not advice."""
 from __future__ import annotations
 
-from datetime import date, timedelta
-from typing import Any
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from . import mine, notebook, propose, userstore
+from .config import settings, typed
 from .config_schema import Calendar
-from .sources.external import FUND_TYPES
+from .portfolios import exposure
+from .portfolios.prices import Prices
+from .sources import external, tracked, valuation
+
+if TYPE_CHECKING:
+    from .market import Market
 
 LEVELS = ("high", "normal", "info")
 ESCALATE = ("big_position", "near_level", "momentum_weak", "estimates_cut")   # with `held` and soon: high
@@ -192,7 +200,7 @@ def build(me_rows: list[dict], weights: dict[str, float], calendar: pd.DataFrame
             continue
         hist = by_symbol.get(sym, pd.DataFrame(columns=calendar.columns))
         qt = hist.sort_values("fetched").iloc[-1].get("quote_type") if not hist.empty else None
-        if sym in funds or qt in FUND_TYPES:
+        if sym in funds or qt in external.FUND_TYPES:
             excluded_funds += 1
             continue
         weight = weights.get(sym) if status == "holding" else None
@@ -279,3 +287,95 @@ def next_earnings_map(view: dict) -> dict[str, dict]:
     """symbol -> the earnings item of a built calendar, for flags elsewhere (the holdings table), so they never
     disagree with the calendar."""
     return {i["symbol"]: i for i in view["items"] if i["kind"] == "earnings"}
+
+
+# ---------------- gathering the inputs (I/O) ----------------
+
+def screener_dates(vctx, symbols) -> dict[str, tuple[Any, Any]]:
+    """symbol -> (the weekly screener's earnings date, the snapshot's date), for those that have one."""
+    out = {}
+    for s in symbols:
+        d = vctx.stock(s).get("earnings_date")
+        if d:
+            out[s] = (d, vctx.asof)
+    return out
+
+
+def _funds() -> set[str]:
+    return {i.ticker for i in tracked.etfs()} | {tracked.benchmark()}
+
+
+def with_earnings_flags(rows: list[dict], vctx, today: date, cfg: Calendar) -> list[dict]:
+    """The holdings rows with an "earnings in N d" flag where a held or watched stock reports within `soon_days`,
+    from the same `build` as the calendar (so the two never disagree)."""
+    v = build(rows, {}, external.load_calendar(), screener_dates(vctx, [r["symbol"] for r in rows]), [], None,
+              set(), today, cfg, days=cfg.soon_days, funds=_funds())
+    nxt = next_earnings_map(v)
+    out = []
+    for r in rows:
+        i = nxt.get(r["symbol"])
+        if i is not None and r["status"] in ("holding", "watch"):
+            n = max(i["days"], 0)
+            r = r | {"flags": [*r["flags"], "earnings today" if n == 0 else f"earnings in {n} d"]}
+        out.append(r)
+    return out
+
+
+def collect(market: Market, dash: dict, ids: list[int], scope: str | None = None, days: int | None = None) -> dict:
+    """The calendar of these portfolios now: the holdings rows, their weights, the history file, the screener,
+    the journal and the proposals' exit check, built as of the benchmark's last close. The view adds the
+    selection, the as-of date and notes."""
+    cfg = typed().calendar
+    ports = [p for p in (userstore.get_portfolio(i) for i in ids) if p]
+    notes: list[str] = []
+    today = market.closes[tracked.benchmark()].dropna().index[-1].date()
+    rows = mine.live(market, dash, ids, settings())
+    book = exposure.holdings_book(market, Prices(market), ids)
+    valued = book.dropna(subset=["value_dkk"]).groupby("symbol")["value_dkk"].sum() if not book.empty else pd.Series(dtype=float)
+    total = float(valued.sum())
+    weights = {s: float(v) / total for s, v in valued.items()} if total > 0 else {}
+    if not book.empty and len(valued) < book["symbol"].nunique():
+        notes.append("Holdings without a DKK value have no weight here")
+    vctx = valuation.context()
+    journal = notebook.listing(today)["journal"] if cfg.include.reviews else []
+    exits = None
+    if cfg.include.reviews and propose.proposals():
+        try:
+            exits = propose.check_exits(market)
+        except Exception as e:   # the exit check needs the panels; the rest of the calendar stands without it
+            notes.append(f"Proposal time stops left out: the exit check failed ({type(e).__name__})")
+    v = build(rows, weights, external.load_calendar(), screener_dates(vctx, [r["symbol"] for r in rows]), journal,
+              exits, {p["name"] for p in ports}, today, cfg, days=days, funds=_funds())
+    if not rows:
+        notes.append("Nothing held or watched in this selection")
+    if v["no_date"]:
+        notes.append(f"{len(v['no_date'])} stock(s) without a known earnings date: listed below, not guessed")
+    notes.append("Dates are Yahoo's (a date or the window it expects), not confirmed by the companies; days are "
+                 f"counted from the last close ({today.isoformat()})")
+    return {"asof": today.isoformat(), "generated": datetime.now().isoformat(timespec="seconds"),
+            "selection": {"ids": [p["id"] for p in ports], "names": [p["name"] for p in ports], "scope": scope},
+            **v, "notes": notes}
+
+
+_cache: dict[tuple, dict] = {}
+
+
+def _mtime(p) -> float:
+    try:
+        return p.stat().st_mtime
+    except (FileNotFoundError, OSError):
+        return 0.0
+
+
+def cached(market: Market, dash: dict, ids: list[int] | None = None, scope: str | None = None,
+           days: int | None = None) -> dict:
+    """`collect`, kept until a trade or portfolio edit, a price update, a calendar read, a new build, a journal
+    entry or a proposal changes it."""
+    ids = userstore.portfolio_ids() if ids is None else ids
+    key = (tuple(ids), scope, days, market.mtime, userstore.transactions_version(), _mtime(external.CALENDAR_FILE),
+           dash.get("generated"), _mtime(notebook.FOLDERS["journal"]), _mtime(propose.rules.PROPOSALS))
+    if key not in _cache:
+        if len(_cache) > 32:
+            _cache.clear()
+        _cache[key] = collect(market, dash, ids, scope, days)
+    return _cache[key]

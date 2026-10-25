@@ -4,13 +4,13 @@ from __future__ import annotations
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-from .. import mine, universe, userstore
+from .. import agenda, mine, universe, userstore
 from ..api_models import (
     MeView,
     TickerSummary,
     WatchState,
 )
-from ..config import settings
+from ..config import settings, typed
 from ..model import inputs
 from ..reporting import dashboard, tickers
 from ..sources import tracked, valuation
@@ -37,19 +37,19 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
     the stop levels come from the last `radar run`."""
     sel = selection(portfolio, tag, scope)
     d = dashboard_or_503()
-    rot_rows = [r for g in d["rotation"]["groups"] for r in g["rows"]]
     regime_label = inputs.current_regime(d)["label"]
     with state.lock:
         m = state.market()
-        rows = mine.table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows, regime_label,
-                          settings(), sessions=lambda s: m.bars(s)["close"], portfolios=sel)
-        asof = m.closes[tracked.benchmark()].dropna().index[-1].date().isoformat()
+        rows = mine.live(m, d, sel, settings())
+        asof = m.closes[tracked.benchmark()].dropna().index[-1].date()
         from ..fundamentals import context as fcontext
 
         fctx = fcontext.context(m.closes, m.raw_closes(), universe.tracked_stocks(), m.mtime)
-    rows = dashboard.with_fundamentals(dashboard.with_valuation(rows, valuation.context()), fctx)
-    return {"asof": asof, "generated": pd.Timestamp.now().isoformat(timespec="seconds"), "regime": regime_label,
-            "rows": rows}
+    vctx = valuation.context()
+    rows = agenda.with_earnings_flags(rows, vctx, asof, typed().calendar)
+    rows = dashboard.with_fundamentals(dashboard.with_valuation(rows, vctx), fctx)
+    return {"asof": asof.isoformat(), "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
+            "regime": regime_label, "rows": rows}
 
 
 @router.get("/api/tickers", response_model=list[TickerSummary])

@@ -69,6 +69,8 @@ export type CompareRow = S["CompareRow"];
 export type PerformanceView = S["Performance"];
 export type PerfStats = S["PerfStats"];
 export type XrayView = S["XrayView"];
+export type AgendaView = S["AgendaView"];
+export type AgendaItem = S["AgendaItem"];
 export type ImportPreview = S["ImportPreview"];
 export type ImportRow = S["ImportRow"];
 export type ImportRecord = S["ImportRecord"];
@@ -200,6 +202,8 @@ export const api = {
   positions: (sel?: PortfolioSel) => get<PositionsView>(withSel("/api/portfolio/positions", sel)),
   exportUrl: (sel?: PortfolioSel) => withSel("/api/portfolio/export.csv", sel),
   xray: (sel?: PortfolioSel) => get<XrayView>(withSel("/api/xray", sel)),
+  calendar: (sel?: PortfolioSel, days?: number) =>
+    get<AgendaView>(withSel(days ? `/api/calendar?days=${days}` : "/api/calendar", sel)),
   priceCheck: (symbol: string, date: string) =>
     get<PriceCheck>(`/api/portfolio/price-check?symbol=${enc(symbol)}&date=${enc(date)}`),
   portfolios: () => get<Portfolio[]>("/api/portfolios"),

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from . import universe
-from .model.inputs import level_etfs, level_universe
+from .model.inputs import current_regime, level_etfs, level_universe
 from .portfolios import trades
 from .signals import gauges as gz
 from .signals import levels, momentum, technicals
@@ -206,6 +206,16 @@ def table(closes, highs, lows, volumes, raw_closes, leaders: pd.DataFrame, rotat
         row["watchouts"] = gz.watchouts(row["gauges"], skip=set() if row["status"] == "holding" else {"stop_dist", "tp_dist"})
         rows.append(row)
     return rows
+
+
+def live(market, dash: dict, portfolios: list[int] | None, cfg: dict) -> list[dict]:
+    """`table` now, from the market's prices, with the quadrants and the regime of the last build (`dash`, the
+    dashboard): what `/api/me` and the calendar both show."""
+    rot_rows = [r for g in dash["rotation"]["groups"] for r in g["rows"]]
+    m = market
+    return table(m.closes, m.highs, m.lows, m.volumes, m.raw_closes(), m.leaders(), rot_rows,
+                 current_regime(dash)["label"], cfg, sessions=lambda s: m.bars(s)["close"],
+                 portfolios=portfolios)
 
 
 def _levels_row(lv: dict | None) -> dict | None:

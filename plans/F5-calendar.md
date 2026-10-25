@@ -193,8 +193,8 @@ AgendaView
 
 - `id` is stable: `kind:symbol:date`. F5-feed will key its events on it.
 - Computed live, like `/api/me`, cached per (selection, market mtime, calendar-file mtime, transactions version) with
-  the `performance._cached` pattern. Without prices, it still answers (dates don't need prices) and leaves out
-  `near_level` with a note.
+  the `performance._cached` pattern. Without prices or a built dashboard it answers 503, like `/api/me` and
+  `/api/xray`: the holdings rows (status, flags, review levels) come from `mine.table`, which needs both.
 - `pnpm -C web gen:api`, `client.ts` gets `calendar(sel, days)`.
 - CLI: `uv run radar calendar [NAME…] [--tag T] [--scope …] [--days N] [--json]`. It prints *Next 7 days*, then a
   table per week (date, symbol, held/watch, level, reasons), then *no date known*. `--json` prints the `AgendaView`
@@ -269,7 +269,7 @@ its acceptance criterion.
 | F5-08 | Item builders: earnings, ex-div, journal `review_by`, proposal `time_stop` + exit status | 2 | F5-07 | M | `test_agenda_items_kinds`, funds counted in `excluded_funds` |
 | F5-09 | Highlight rules, levels, reason texts (English, as the app); settings `calendar.highlight`, `days`, `soon_days`, `include` | 2 | F5-08 | M | `test_highlight_rules` (one case per reason), `test_levels` |
 | F5-10 | `no_date` list with reasons; notes | 2 | F5-08 | S | `test_no_date_listed_never_dropped` |
-| F5-11 | `AgendaView` models, `/api/calendar`, cache key, no-prices behaviour; `gen:api` | 3 | F5-09 | M | `test_calendar_api_contract`, `test_calendar_without_prices` |
+| F5-11 | `AgendaView` models, `/api/calendar`, cache key, no-prices behaviour; `gen:api` | 3 | F5-09 | M | `test_calendar_api_contract` (incl. 503 without prices) |
 | F5-12 | `radar calendar` CLI (tables, `--json`) | 3 | F5-09 | S | `test_cli_calendar` |
 | F5-13 | `earnings in N d` flag in `/api/me` from `agenda.next_earnings_map` | 3 | F5-07 | S | `test_me_flag_matches_calendar` |
 | F5-14 | Docs: `web-app.md`, `commands.md`, `CLAUDE.md`, `beholdninger.md` *Flagene*; layers in `pyproject.toml` | 3 | F5-11 | S | `lint-imports`, `test_layers.py`, `test_guide.py` pass |
@@ -298,7 +298,7 @@ its acceptance criterion.
 | `test_summary_deterministic` | `tests/test_report.py` | Two builds on the same data → the same `calendar` key (dates against `asof`, not the clock). |
 | `test_summary_calendar_key` | same | The key is present, validates against `AgendaView`, and holds the default selection. |
 | `test_calendar_api_contract` | `tests/test_api.py` | `GET /api/calendar` validates. An empty selection → 200 with notes. |
-| `test_calendar_without_prices` | same | No prices → 200, no `near_level` reasons, a note. |
+| (in `test_calendar_api_contract`) | same | No prices → 503, as `/api/me` and `/api/xray`. |
 | `test_me_flag_matches_calendar` | `tests/test_api.py` | The `/api/me` flag's N equals the calendar's days-until for the same symbol. |
 | `test_cli_calendar` | `tests/test_cli_smoke.py` | `radar calendar --json` prints valid JSON on the test world. |
 | layers | `tests/test_layers.py`, `lint-imports` | `agenda` is in features. Nothing below imports it. |

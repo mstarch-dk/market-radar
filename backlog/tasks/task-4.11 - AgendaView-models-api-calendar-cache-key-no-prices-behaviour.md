@@ -1,9 +1,10 @@
 ---
 id: TASK-4.11
-title: AgendaView models, /api/calendar, cache key, no-prices behaviour
-status: To Do
+title: 'AgendaView models, /api/calendar, cache key, no-prices behaviour'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:36'
 labels:
   - feature
 dependencies:
@@ -24,7 +25,13 @@ F5-11 (`AgendaView` models, `/api/calendar`, cache key, no-prices behaviour; `ge
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_calendar_api_contract`
-- [ ] #2 `test_calendar_without_prices`
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_calendar_api_contract`
+- [x] #2 `test_calendar_without_prices`
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+No prices or no dashboard is 503, like /api/me and /api/xray (mine.table needs both); covered in test_calendar_api_contract. Plan 4.6 updated. client.ts has calendar(sel, days).
+<!-- SECTION:NOTES:END -->
