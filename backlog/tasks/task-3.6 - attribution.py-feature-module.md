@@ -4,12 +4,14 @@ title: attribution.py feature module
 status: To Do
 assignee: []
 created_date: '2026-10-25 14:52'
+updated_date: '2026-10-25 15:07'
 labels:
   - feature
 dependencies:
   - TASK-3.3
   - TASK-3.4
   - TASK-3.5
+  - TASK-3.13
 references:
   - plans/F4-attribution.md
 parent_task_id: TASK-3

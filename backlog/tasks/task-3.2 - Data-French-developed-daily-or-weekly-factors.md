@@ -4,6 +4,7 @@ title: 'Data: French developed daily or weekly factors'
 status: To Do
 assignee: []
 created_date: '2026-10-25 14:52'
+updated_date: '2026-10-25 15:07'
 labels:
   - feature
 dependencies:
@@ -18,7 +19,7 @@ ordinal: 26000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-sources/factors.py and the factors: settings: add the developed-market 5-factor and momentum files at daily (or weekly) frequency (today only monthly ff3_dev and mom_dev are configured). Same licence; update the Used-for column in DATA_LICENSE.md and guide/brugervejledning/datalicenser.md.
+sources/factors.py and the factors: settings: a new factors.french_daily block with the developed-market 5-factor and momentum files at daily frequency (Developed_5_Factors_Daily_CSV, Developed_Mom_Factor_Daily_CSV; French has no weekly developed files), a daily row parser (YYYYMMDD), a separate cache file factors/daily.parquet so the monthly file's month-end contract stays, and compounding to W-FRI weeks (a week with a missing day is missing). Same licence; update the Used-for column in DATA_LICENSE.md and guide/brugervejledning/datalicenser.md. Plan: plans/F4-attribution.md, 4.2 and step 3.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
