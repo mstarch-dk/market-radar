@@ -1428,6 +1428,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tax": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tax
+         * @description The estimate for `year`: per account (the ASK's or pension's pool, or the frie midler sales, lager and
+         *     dividends) and per person (share income with the progression limit, capital income), computed now. A year
+         *     without rules is a view with the bases, no tax, and a note.
+         */
+        get: operations["get_tax_api_tax_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/persons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tax Persons */
+        get: operations["list_tax_persons_api_tax_persons_get"];
+        put?: never;
+        /** Add Tax Person */
+        post: operations["add_tax_person_api_tax_persons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/persons/{pid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Tax Person */
+        put: operations["edit_tax_person_api_tax_persons__pid__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/instruments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Instruments */
+        get: operations["list_instruments_api_tax_instruments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/instruments/{symbol}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Instrument
+         * @description Set a holding's ISIN or class by hand (a class of none: decided from the ISIN and the positive list).
+         */
+        put: operations["set_instrument_api_tax_instruments__symbol__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/openings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Openings */
+        get: operations["list_openings_api_tax_openings_get"];
+        put?: never;
+        /** Add Opening */
+        post: operations["add_opening_api_tax_openings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tax/openings/{oid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Opening */
+        delete: operations["delete_opening_api_tax_openings__oid__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1981,6 +2110,15 @@ export interface components {
             /** Since */
             since: string;
             gauge?: components["schemas"]["Gauge"] | null;
+        };
+        /** CapitalIncome */
+        CapitalIncome: {
+            /** Base */
+            base: number;
+            /** Rate */
+            rate?: number | null;
+            /** Tax */
+            tax?: number | null;
         };
         /** CashRow */
         CashRow: {
@@ -3359,6 +3497,33 @@ export interface components {
              */
             votes: boolean;
         };
+        /** InstrumentIn */
+        InstrumentIn: {
+            /** Isin */
+            isin?: string | null;
+            /** Tax Class */
+            tax_class?: ("stock" | "pl_fund" | "fund" | "dk_distributing") | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** InstrumentView */
+        InstrumentView: {
+            /** Symbol */
+            symbol: string;
+            /** Isin */
+            isin?: string | null;
+            /** Tax Class */
+            tax_class?: ("stock" | "pl_fund" | "fund" | "dk_distributing") | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "import" | "universe" | "discovery";
+            /** Note */
+            note?: string | null;
+            /** Updated At */
+            updated_at: string;
+        };
         /** Issue */
         Issue: {
             /**
@@ -4475,6 +4640,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             fee_schedule?: components["schemas"]["FeeSchedule"] | null;
+            /** Tax Person Id */
+            tax_person_id?: number | null;
             /** Note */
             note?: string | null;
             /** Archived */
@@ -4529,6 +4696,8 @@ export interface components {
              */
             tags: string[];
             fee_schedule?: components["schemas"]["FeeSchedule"] | null;
+            /** Tax Person Id */
+            tax_person_id?: number | null;
         };
         /** PortfolioRef */
         PortfolioRef: {
@@ -5627,6 +5796,42 @@ export interface components {
             };
         };
         /**
+         * ShareIncomeView
+         * @description A person's share income (aktieindkomst) after the loss rules, and its tax with the progression limit.
+         */
+        ShareIncomeView: {
+            /** Realised Gains */
+            realised_gains: number;
+            /** Realised Losses */
+            realised_losses: number;
+            /** Dividends */
+            dividends: number;
+            /** Pl Gains */
+            pl_gains: number;
+            /** Pl Losses */
+            pl_losses: number;
+            /** Listed Loss In */
+            listed_loss_in: number;
+            /** Listed Loss Used */
+            listed_loss_used: number;
+            /** Listed Loss Out */
+            listed_loss_out: number;
+            /** Negative In */
+            negative_in: number;
+            /** Negative Out */
+            negative_out: number;
+            /** Net */
+            net: number;
+            /** Limit */
+            limit: number;
+            /** Tax Low */
+            tax_low: number;
+            /** Tax High */
+            tax_high: number;
+            /** Tax */
+            tax: number;
+        };
+        /**
          * SimRun
          * @description One run that wrote a simulated portfolio's rows (the latest replaces the earlier ones).
          */
@@ -5781,6 +5986,276 @@ export interface components {
         TagsIn: {
             /** Tags */
             tags: string[];
+        };
+        /** TaxAccount */
+        TaxAccount: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "ask" | "frie_midler" | "pension" | "other";
+            /** Person Id */
+            person_id?: number | null;
+            pool?: components["schemas"]["TaxPool"] | null;
+            /** Realised */
+            realised: components["schemas"]["TaxSale"][];
+            /** Lager */
+            lager: components["schemas"]["TaxLager"][];
+            /** Dividends */
+            dividends: components["schemas"]["TaxDividend"][];
+            /** Complete */
+            complete: boolean;
+            /** Warnings */
+            warnings: string[];
+            /** Notes */
+            notes: string[];
+        };
+        /**
+         * TaxBases
+         * @description The year's amounts before any netting, also when there are no rules for the year.
+         */
+        TaxBases: {
+            /** Realised Gains */
+            realised_gains: number;
+            /** Realised Losses */
+            realised_losses: number;
+            /** Dividends */
+            dividends: number;
+            /** Pl Gains */
+            pl_gains: number;
+            /** Pl Losses */
+            pl_losses: number;
+            /** Capital Base */
+            capital_base: number;
+        };
+        /** TaxDividend */
+        TaxDividend: {
+            /** Symbol */
+            symbol: string;
+            /** Date */
+            date: string;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio */
+            portfolio: string;
+            /** Amount */
+            amount: number;
+            /**
+             * Tax Class
+             * @enum {string}
+             */
+            tax_class: "stock" | "pl_fund" | "fund" | "dk_distributing" | "unknown";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** TaxLager */
+        TaxLager: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Tax Class
+             * @enum {string}
+             */
+            tax_class: "stock" | "pl_fund" | "fund" | "dk_distributing" | "unknown";
+            /** V Start */
+            v_start?: number | null;
+            /** V End */
+            v_end?: number | null;
+            /** Buys */
+            buys?: number | null;
+            /** Sales */
+            sales?: number | null;
+            /** Gain */
+            gain?: number | null;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio */
+            portfolio: string;
+        };
+        /** TaxOpeningIn */
+        TaxOpeningIn: {
+            /** Year */
+            year: number;
+            /**
+             * Pool
+             * @enum {string}
+             */
+            pool: "ask_negative_tax" | "pension_negative_tax" | "listed_loss" | "negative_share_income";
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /** Tax Person Id */
+            tax_person_id?: number | null;
+            /** Amount */
+            amount: number;
+            /** Note */
+            note?: string | null;
+        };
+        /** TaxOpeningView */
+        TaxOpeningView: {
+            /** Id */
+            id: number;
+            /** Year */
+            year: number;
+            /**
+             * Pool
+             * @enum {string}
+             */
+            pool: "ask_negative_tax" | "pension_negative_tax" | "listed_loss" | "negative_share_income";
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /** Tax Person Id */
+            tax_person_id?: number | null;
+            /** Amount */
+            amount: number;
+            /** Note */
+            note?: string | null;
+            /** Created At */
+            created_at: string;
+        };
+        /** TaxPerson */
+        TaxPerson: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Accounts */
+            accounts: string[];
+            share_income?: components["schemas"]["ShareIncomeView"] | null;
+            bases?: components["schemas"]["TaxBases"] | null;
+            capital_income?: components["schemas"]["CapitalIncome"] | null;
+            /** Complete */
+            complete: boolean;
+            /** Notes */
+            notes: string[];
+        };
+        /** TaxPersonIn */
+        TaxPersonIn: {
+            /** Name */
+            name: string;
+            /** Capital Income Rate */
+            capital_income_rate?: number | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** TaxPersonView */
+        TaxPersonView: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Capital Income Rate */
+            capital_income_rate?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Portfolio Ids */
+            portfolio_ids: number[];
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * TaxPool
+         * @description An aktiesparekonto's or a pension account's year: return = v_end − v_start − deposits + withdrawals.
+         */
+        TaxPool: {
+            /** V Start */
+            v_start?: number | null;
+            /** V End */
+            v_end?: number | null;
+            /** Deposits */
+            deposits: number;
+            /** Withdrawals */
+            withdrawals: number;
+            /** Ret */
+            ret?: number | null;
+            /** Carried In */
+            carried_in?: number | null;
+            /** Rate */
+            rate?: number | null;
+            /** Gross Tax */
+            gross_tax?: number | null;
+            /** Used */
+            used?: number | null;
+            /** Tax */
+            tax?: number | null;
+            /** Carried Out */
+            carried_out?: number | null;
+        };
+        /**
+         * TaxRulesRef
+         * @description The year's rules in config/tax_dk.yaml: the day they were checked and their sources.
+         */
+        TaxRulesRef: {
+            /** Year */
+            year: number;
+            /** Verified */
+            verified?: string | null;
+            /** Sources */
+            sources: string[];
+        };
+        /** TaxSale */
+        TaxSale: {
+            /** Symbol */
+            symbol: string;
+            /** Date */
+            date: string;
+            /** Portfolio Id */
+            portfolio_id?: number | null;
+            /** Portfolio */
+            portfolio?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Proceeds */
+            proceeds?: number | null;
+            /** Basis */
+            basis?: number | null;
+            /** Gain */
+            gain?: number | null;
+            /**
+             * Tax Class
+             * @enum {string}
+             */
+            tax_class: "stock" | "pl_fund" | "fund" | "dk_distributing" | "unknown";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** TaxUnknown */
+        TaxUnknown: {
+            /** Symbol */
+            symbol: string;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio */
+            portfolio: string;
+            /** Value Dkk */
+            value_dkk?: number | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** TaxYearView */
+        TaxYearView: {
+            /** Year */
+            year: number;
+            /** Asof */
+            asof: string;
+            /** Complete Year */
+            complete_year: boolean;
+            rules?: components["schemas"]["TaxRulesRef"] | null;
+            /** Disclaimer */
+            disclaimer: string;
+            /** Persons */
+            persons: components["schemas"]["TaxPerson"][];
+            /** Accounts */
+            accounts: components["schemas"]["TaxAccount"][];
+            /** Unknown */
+            unknown: components["schemas"]["TaxUnknown"][];
+            /** Notes */
+            notes: string[];
         };
         /** Technicals */
         Technicals: {
@@ -8950,6 +9425,269 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttributionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_tax_api_tax_get: {
+        parameters: {
+            query?: {
+                /** @description Income year (default: this year) */
+                year?: number | null;
+                /** @description Only these accounts (ids) */
+                portfolio?: number[] | null;
+                /** @description Only this tax person's accounts */
+                person?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxYearView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tax_persons_api_tax_persons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxPersonView"][];
+                };
+            };
+        };
+    };
+    add_tax_person_api_tax_persons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaxPersonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxPersonView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_tax_person_api_tax_persons__pid__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaxPersonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxPersonView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_instruments_api_tax_instruments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstrumentView"][];
+                };
+            };
+        };
+    };
+    set_instrument_api_tax_instruments__symbol__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstrumentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstrumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_openings_api_tax_openings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxOpeningView"][];
+                };
+            };
+        };
+    };
+    add_opening_api_tax_openings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaxOpeningIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxOpeningView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_opening_api_tax_openings__oid__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                oid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
                 };
             };
             /** @description Validation Error */

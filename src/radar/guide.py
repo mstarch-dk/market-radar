@@ -3,8 +3,9 @@
 `guide/guide.yaml` decides everything about order and titles: books → parts → chapters (`slug`, `title`), one
 Markdown file per chapter at `guide/<book>/<slug>.md`. Files are only ever reached through the manifest, so a
 crafted URL can't read anything else. Chapters may quote live settings with `{{settings:regime.vix_calm}}`
-(`|pct` shows a fraction as a percentage, `|raw` keeps the decimal point, for formulas), so the text never drifts
-from config/settings.yaml. Heading ids (the `#anker` part of a link) are made here, once, and the page uses them.
+and the tax rules with `{{tax:2026.ask.rate}}` (`|pct` shows a fraction as a percentage, `|raw` keeps the decimal
+point, for formulas), so the text never drifts from config/settings.yaml or config/tax_dk.yaml.
+Heading ids (the `#anker` part of a link) are made here, once, and the page uses them.
 """
 from __future__ import annotations
 
@@ -15,12 +16,12 @@ from pathlib import Path
 
 import yaml
 
-from .config import ROOT, settings
+from .config import ROOT, load_yaml, settings
 
 GUIDE = ROOT / "guide"
 MANIFEST = GUIDE / "guide.yaml"
 
-PLACEHOLDER = re.compile(r"\{\{settings:([A-Za-z0-9_.]+)(?:\|(pct|raw))?\}\}")
+PLACEHOLDER = re.compile(r"\{\{(settings|tax):([A-Za-z0-9_.]+)(?:\|(pct|raw))?\}\}")
 FENCE = re.compile(r"^(```|~~~)")
 HEADING = re.compile(r"^(#{1,4})\s+(.+?)\s*#*\s*$")
 
@@ -85,12 +86,13 @@ def settings_text() -> dict[str, str]:
 
 # ---------------- text ----------------
 
-def _setting(key: str):
-    v = settings()
+def _setting(key: str, source: str = "settings"):
+    v = settings() if source == "settings" else load_yaml("tax_dk.yaml")["years"]
     for part in key.split("."):
-        if not isinstance(v, dict) or part not in v:
-            raise KeyError(f"settings has no {key}")
-        v = v[part]
+        part_ = int(part) if source == "tax" and part.isdigit() else part
+        if not isinstance(v, dict) or part_ not in v:
+            raise KeyError(f"{source} has no {key}")
+        v = v[part_]
     return v
 
 
@@ -110,8 +112,9 @@ def _fmt(v, how: str | None) -> str:
 
 
 def fill(md: str) -> str:
-    """Replace `{{settings:…}}` with today's value from settings.yaml (Danish decimal comma unless `|raw`)."""
-    return PLACEHOLDER.sub(lambda m: _fmt(_setting(m.group(1)), m.group(2)), md)
+    """Replace `{{settings:…}}` and `{{tax:…}}` with today's value from settings.yaml or tax_dk.yaml (Danish
+    decimal comma unless `|raw`)."""
+    return PLACEHOLDER.sub(lambda m: _fmt(_setting(m.group(2), m.group(1)), m.group(3)), md)
 
 
 def plain(text: str) -> str:

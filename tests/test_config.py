@@ -122,7 +122,7 @@ def test_optional_and_nullable_settings_pass():
     from radar import config_schema
     c = _raw()
     c["stops"]["analyst_max_age_days"] = 21                  # read with a default, absent from the file
-    c["propose"]["ask_deposit_cap"] = None
+    c["attribution"]["nw_lag"] = None
     config_schema.check(c)
     c["other_section"] = {"anything": 1}                     # the whole file has a model: an unknown section is a typo
     with pytest.raises(config_schema.SettingsError, match="other_section: unknown key"):

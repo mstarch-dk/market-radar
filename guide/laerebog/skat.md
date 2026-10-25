@@ -11,7 +11,7 @@ For en dansk investor, der bruger ETF'er til at følge temaer og sektorer, er de
 - En udenlandsk ETF, der står på positivlisten, beskattes som aktieindkomst. En, der ikke gør, beskattes som kapitalindkomst, hvilket for de fleste er dyrere.
 - På en aktiesparekonto beskattes hele afkastet med en lav, fast sats hvert år, men kun visse papirer må stå der, og der er et loft over indskuddet.
 
-Radaren beregner ingen skat. Den viser, om en ETF står på positivlisten, og holder styr på, hvilken slags konto hver portefølje er. Resten er dit ansvar.
+Radaren giver et skøn over skatten af dine egne handler, pr. konto og pr. person, på fanen *Tax* (se [Skat: radarens skatteestimat](brugervejledning/skat)). Det er et estimat: din årsopgørelse er det, der gælder.
 
 ## Teori
 
@@ -42,10 +42,10 @@ For penge, du investerer uden for pension og aktiesparekonto:
 
 Aktiesparekontoen (ASK) er en særlig konto med sin egen skat:
 
-- Hele kontoens afkast (kursændringer og udbytte) **lagerbeskattes** hvert år med en fast sats, ved skrivende stund 17 %. Skatten trækkes typisk direkte fra kontoen.
-- Der er et **loft over indskud**. Det er blevet ændret flere gange, og ændres fortsat; tjek det aktuelle beløb på skat.dk.
+- Hele kontoens afkast (kursændringer og udbytte) **lagerbeskattes** hvert år med en fast sats, {{tax:2026.ask.rate|pct}} i 2026. Skatten trækkes typisk direkte fra kontoen.
+- Der er et **loft over indskud**, {{tax:2026.ask.deposit_cap}} kr. i 2026. Det måles mod kontoens værdi den 31. december året før: er den 105.000 kr., kan du i 2026 indskyde forskellen op til loftet. Loftet er ændret flere gange; tjek det aktuelle beløb på skat.dk.
 - Kun visse papirer må stå på kontoen: børsnoterede aktier og aktiebaserede investeringsforeninger og -selskaber, herunder udenlandske ETF'er **på positivlisten**.
-- Et negativt afkast giver ikke fradrag, men fremføres på kontoen og modregnes i senere års positive afkast. Ved lukning af kontoen går et uudnyttet tab som udgangspunkt tabt.
+- Et negativt afkast giver negativ skat, som ikke udbetales, men fremføres på kontoen og modregnes i skatten de følgende år med positivt afkast. Ved lukning af kontoen går en uudnyttet negativ skat som udgangspunkt tabt.
 - Kontoen er adskilt fra dine frie midler: handler på ASK påvirker ikke gennemsnitsmetoden eller tabsfremførsel i frie midler.
 
 ### Positivlisten
@@ -69,18 +69,24 @@ Et salg fjerner anskaffelsessum i forhold til det solgte antal og ændrer ikke g
 
 ### Pension
 
-Afkast på pensionsopsparing beskattes med **pensionsafkastskat (PAL-skat)**, i en længere årrække 15,3 %, som lagerbeskatning af det årlige afkast. Udbetalingerne beskattes efter pensionstypen. Mange regler om, hvad der må stå på en pensionskonto, afhænger af udbyderen.
+Afkast på pensionsopsparing beskattes med **pensionsafkastskat (PAL-skat)**, {{tax:2026.pension.pal_rate|pct}} i 2026, som lagerbeskatning af det årlige afkast. Et år med negativt afkast giver negativ skat, der fremføres uden tidsbegrænsning. Udbetalingerne beskattes efter pensionstypen. Mange regler om, hvad der må stå på en pensionskonto, afhænger af udbyderen.
 
 ## Sådan gør radaren
 
-**Radaren beregner ingen skat.** Alle afkast på [Returns](/returns) og [My holdings](/me) er før skat. Det, radaren gør:
+Fanen *Tax* på [Portfolio](/portfolio) regner skatten for et indkomstår ud fra dine handler (koden: `model/tax.py` og `tax.py`). Brugen af fanen står i [Skat: radarens skatteestimat](brugervejledning/skat); her er metoden.
 
-- **Porteføljetype.** Hver rigtig portefølje har en skattetype: *Aktiesparekonto* (`ask`), *Frie midler* (`frie_midler`), *Pension* (`pension`) eller *Other* (se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags)). Appen viser en kort påmindelse om reglerne for typen, fx for ASK "17 % lager on everything; stocks and positive-list funds only". Typen ændrer ikke nogen beregning; den hjælper dig og skillsene med at tænke placering.
-- **Positivlisten.** Læg SKATs regneark i `imports/positivliste.xlsx`. Radaren læser kun det nyeste års ark (ældre ark er historik, og en fond, der er fjernet i år, må ikke tælle) og finder ISIN-kolonnen efter overskriften, fordi SKAT ændrer kolonnernes rækkefølge. Siderne [Themes & factors](/themes) og sektorrotationen viser for hver ETF *Positive list*: *yes* (ISIN'et står på listen), *no* (står ikke) eller *?* (ikke tjekket, fx fordi ETF'en mangler et ISIN i `universe.yaml`, eller listen ikke er indlæst). Siden *Data & coverage* markerer listen som forældet, når et nyt kalenderår er begyndt uden årets ark.
-- **UCITS-alternativer.** Temaerne måles med likvide amerikanske ETF'er, som en dansk privatinvestor typisk ikke kan købe. Kolonnen *UCITS* peger på en europæisk variant, og det er dens ISIN, der skal stå på positivlisten.
-- **Gennemsnitsmetoden.** Positioner udledes af dine handler med gennemsnitsmetoden (`trades.replay`): kurtage ved køb lægges til anskaffelsessummen, et salg fjerner anskaffelsessum forholdsmæssigt og ændrer ikke gennemsnittet. Et salg større end beholdningen begrænses og rapporteres, i stedet for at blive accepteret stiltiende.
+- **Satser pr. år.** Satser, progressionsgrænse, indskudsloft og PAL-sats står i `config/tax_dk.yaml`, ét afsnit pr. år, hvert tal med kilde og den dato, det er tjekket mod skat.dk. For 2026: aktieindkomst {{tax:2026.share_income.low_rate|pct}} op til {{tax:2026.share_income.progression_limit}} kr. og {{tax:2026.share_income.high_rate|pct}} derover, aktiesparekonto {{tax:2026.ask.rate|pct}} med et indskudsloft på {{tax:2026.ask.deposit_cap}} kr., PAL {{tax:2026.pension.pal_rate|pct}}. Et år uden tjekkede tal giver grundlaget uden skat; et andet års tal bruges aldrig.
+- **Konto og person.** Hver rigtig portefølje har en skattetype (*Aktiesparekonto*, *Frie midler*, *Pension* eller *Other*) og en ejer, en skatteperson. En aktiesparekonto og en pensionskonto er hver ét regnskab; konti med frie midler regnes sammen pr. person. *Other* får intet estimat.
+- **Kroner på handelsdagen.** Hver handel omregnes med sin egen valutakurs, ellers Yahoos kurs den dag. Værdier ved årets start og slut er lukkekursen den sidste handelsdag i kroner, ikke de udbyttejusterede kurser, så udbytte ikke tælles to gange.
+- **Gennemsnitsmetoden** regnes i kroner pr. person og papir over alle personens konti med frie midler: kurtage ved køb lægges til anskaffelsessummen, kurtage ved salg trækkes fra provenuet, og et salg fjerner anskaffelsessum forholdsmæssigt. Køb på aktiesparekonto og pension er holdt uden for. Det er en anden opgørelse end gennemsnitsprisen under *Positions*, som er i papirets egen valuta.
+- **Lager** pr. fond og år: $V_{slut} + \text{salg} - V_{start} - \text{køb}$, alle i kroner. Det er SKATs "værdi ved årets slut minus værdi ved årets start eller anskaffelsessummen", skrevet for et vilkårligt antal handler i året.
+- **Aktiesparekonto og pension**: afkastet er $V_{slut} - V_{start} - \text{indbetalt} + \text{udbetalt}$ for hele kontoen (beholdning plus kontanter, hvis kontoen har kontantrækker; ellers tæller hvert køb som indbetalt og hvert salg og udbytte som udbetalt). Skatten er afkastet gange satsen; et negativt år giver negativ skat, som fremføres og modregnes i de næste års skat.
+- **Klassificering pr. år.** En aktie (Yahoos *quoteType* EQUITY, eller en aktie radaren følger) er realisationsbeskattet aktieindkomst. En fond slås op på positivlistens ark for netop det indkomstår ("Kalenderåret 2026" er arket for 2026) ud fra sin ISIN-kode: på listen er den lagerbeskattet aktieindkomst, uden for listen lagerbeskattet kapitalindkomst. En dansk udloddende fond angiver du selv. En fond uden ISIN, et år uden ark eller en dansk fond uden for listen er *ukendt* og regnes ikke med; den nævnes med værdi og årsag.
+- **Aktieindkomst** pr. person: realiserede gevinster på aktier og danske udloddende fonde, udbytte og lagergevinst på positivlistefonde. Tab på børsnoterede aktier (med det fremførte) modregnes i gevinster, udbytte og lagergevinst på positivlistefonde; resten fremføres. Lagertab på positivlistefonde trækkes fra, som det er. Bliver aktieindkomsten negativ, fremføres den. Skatten er den lave sats op til progressionsgrænsen og den høje derover.
+- **Kapitalindkomst** fra fonde uden for listen vises som grundlag. Skatten kræver din marginale sats på kapitalindkomst, som du selv angiver; ellers står der ingen skat.
+- **Fremførsel** regnes fra kontoens eller personens første år med handler, plus de fremførte tab fra før din historik, som du selv angiver.
 
-> **Bemærk:** Radaren beregner positioner både pr. portefølje og samlet. Den samlede (puljede) opgørelse er rigtig til at måle afkast mod ACWI, men ikke til skat: en aktiesparekonto opgøres for sig, og gennemsnitsprisen for en aktie, du ejer både på ASK og i frie midler, er i skattemæssig forstand to forskellige gennemsnit. Desuden er radarens gennemsnitspris i papirets egen valuta, mens skatten skal opgøres i kroner med kursen på hver handelsdag, og salgsomkostninger indgår ikke i radarens gennemsnit. Brug din mæglers årsopgørelse og skat.dk til selve skatten.
+> **Bemærk:** Radarens andre sider regner afkast puljet over dine konti og før skat. Det er rigtigt til sammenligningen med ACWI. Skatten regnes kun på fanen *Tax*, og der pr. konto og pr. person. Udbytte tæller med det beløb, du har bogført; udenlandsk kildeskat og ægtefælleregler er ikke med. Listen over, hvad der er med og ikke med, står i [brugervejledningen](brugervejledning/skat#hvad-radaren-regner-med-og-hvad-den-ikke-gør).
 
 ## Regneeksempel
 
@@ -104,7 +110,7 @@ Tallene illustrerer principperne. Satser og regler skal tjekkes for det aktuelle
 | Køb | 10 | 130 | 20 | 2.340 | 20 | 117,00 |
 | Salg | 5 | 150 | 20 | 1.755 | 15 | 117,00 |
 
-Salget giver $5 \cdot 150 - 20 = 730$ kr. Den solgte del har en anskaffelsessum på $5 \cdot 117 = 585$ kr. Gevinsten er $730 - 585 = 145$ kr., som er aktieindkomst. De resterende 15 aktier har fortsat gennemsnitsprisen 117 kr. Radaren ville vise *avg price* 117 (i aktiens valuta), men ikke beregne gevinsten på 145 kr.
+Salget giver $5 \cdot 150 - 20 = 730$ kr. Den solgte del har en anskaffelsessum på $5 \cdot 117 = 585$ kr. Gevinsten er $730 - 585 = 145$ kr., som er aktieindkomst. De resterende 15 aktier har fortsat gennemsnitsprisen 117 kr. Fanen *Tax* viser salget med anskaffelsessum 585 og gevinst 145 (eksemplet er en af radarens tests).
 
 ### Positivliste eller ej
 
@@ -122,9 +128,9 @@ Du køber i frie midler en udenlandsk ETF for 50.000 kr. i løbet af året. Den 
 - **Lagerskat uden likviditet.** Lagerbeskatning kan give en skatteregning i et år, hvor du ikke har solgt noget. Hav likviditet til den.
 - **Skattekredit.** Realisationsbeskatning udskyder skatten. Det er en reel fordel over mange år, som en sammenligning af afkast før skat ikke viser.
 - **Tab har begrænsninger.** Hvor og hvordan et tab kan bruges, afhænger af papirets type og kontoen. Et tab på aktiesparekontoen kan kun bruges på kontoen.
-- **Puljede tal er ikke skattetal.** Radarens samlede positioner og afkast blander kontotyper. Det er rigtigt til sammenligning med ACWI, men forkert til skat.
+- **Puljede tal er ikke skattetal.** Radarens samlede positioner og afkast blander kontotyper. Det er rigtigt til sammenligning med ACWI, men forkert til skat; fanen *Tax* regner pr. konto og person.
 - **Udenlandsk kildeskat.** Udbytte fra udenlandske aktier kan være pålagt kildeskat, som ikke altid kan modregnes, særligt på aktiesparekontoen og pension.
-- **Radaren er ikke en skatteberegner.** Brug din mæglers årsopgørelse, din forskudsopgørelse og skat.dk.
+- **Radarens skat er et estimat.** Den regner kun med det, du har ført ind, og ikke med alle regler (se listen i [brugervejledningen](brugervejledning/skat#hvad-radaren-regner-med-og-hvad-den-ikke-gør)). Din mæglers årsopgørelse, din forskudsopgørelse og skat.dk er det, der gælder.
 
 ## Videre læsning
 

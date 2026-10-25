@@ -8,12 +8,13 @@ Virtuelle porteføljer (A/B-testen, simuleringer og forks) vises ikke her, men p
 
 Øverst står en række kort, ét pr. konto, med kontoens navn, skattetype og værdi i DKK. *All accounts* viser alle dine konti samlet (standard); klikker du på en konto, viser siden kun den (`?pf=` i adressen).
 
-Derunder er siden delt i fire faner (`?tab=` i adressen, så *Tilbage* i browseren går til den forrige fane):
+Derunder er siden delt i fem faner (`?tab=` i adressen, så *Tilbage* i browseren går til den forrige fane):
 
 - ***Positions***: dine positioner med antal, gennemsnitlig anskaffelseskurs (*Average cost*), seneste kurs, værdi, urealiseret afkast og dato for første køb. *Total* lægger kontiene sammen, *By account* viser dem hver for sig. Har en konto kontantrækker, står kontantbeholdningen i DKK under tabellen. Værdierne er i hvert papirs egen valuta.
 - ***Transactions***: alle rækker, nyeste først, med *Edit* og *Delete*. Knapperne *Add a trade* og *Add a cash row* åbner formularen lige over tabellen, og *Download your transactions (CSV)* henter de viste rækker. Sletter du en række, kan du fortryde med *Undo* lige bagefter.
 - ***Imports***: *Import a file…* åbner guiden til import fra en bank eller et regneark, og *Past imports* viser tidligere importer med mulighed for at fortryde (se [Fortryd en import](#fortryd-en-import)).
 - ***Accounts***: dine konti med skattetype, tags, kurtageskema og arkiv. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags).
+- ***Tax***: et skøn over skatten for et indkomstår, pr. konto og pr. person, og det, radaren ikke kan klassificere. Se [Skat: radarens skatteestimat](brugervejledning/skat).
 
 Ligger der handler i porteføljen *Main* (handler fra før porteføljerne fandtes), og har du andre konti, viser siden over fanerne en linje, hvor du kan flytte dem: alle eller ét symbol ad gangen.
 

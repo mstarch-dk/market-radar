@@ -3,17 +3,17 @@ candidates; which account it fits."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 
 from .. import universe, userstore
 from ..config import typed
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
-from ..model import inputs
-from ..portfolios import exposure, fees, riskmodel, trades
+from ..model import inputs, tax
+from ..portfolios import exposure, fees, performance, riskmodel, taxrules, trades
 from ..portfolios.prices import Prices
 from ..sources import constituents, tracked
 from . import basket, drift, rules
@@ -186,22 +186,36 @@ def ask_flag(t: str) -> str | None:
     return None if m != "OTHER" else "listing outside the known exchanges: check that an aktiesparekonto may hold it"
 
 
-def ask_account(ctx: Ctx, amount: float) -> dict:
-    c = rules.cfg()
-    cap, year = c.ask_deposit_cap, c.ask_cap_year
+def ask_account(ctx: Ctx, amount: float, today: date | None = None) -> dict:
+    """The aktiesparekonto's deposit headroom this year (config/tax_dk.yaml): the cap less the account's value on
+    31 December the year before and this year's deposits (skat.dk), against the amount to add."""
+    year = (today or date.today()).year
+    out: dict = {"cap_year": year, "deposit_cap": None, "value_prev_end_dkk": None, "deposits_dkk": None,
+                 "headroom_dkk": None,
+                 "note": "17 % lager on the account's yearly gain: frequent momentum trades cost no extra tax here; "
+                         "funds must be on the positive list"}
+    try:
+        out["deposit_cap"] = taxrules.rules(year).ask.deposit_cap
+    except taxrules.NoRules:
+        out["cap_check"] = f"not checked: no rules for {year} in config/tax_dk.yaml"
+        return out
     rows = trades.ledger([ctx.portfolio["id"]])
-    dep = None
-    if not rows.empty and "amount" in rows:
-        d = rows[rows["type"].isin(["DEPOSIT", "WITHDRAW"])]
-        if len(d):
-            dep = float(np.where(d["type"] == "DEPOSIT", d["amount"].astype(float), -d["amount"].astype(float)).sum())
-    out = {"deposit_cap": cap, "cap_year": year, "net_deposits_dkk": dep,
-           "note": "17 % lager on the account's yearly gain: frequent momentum trades cost no extra tax here; "
-                   "funds must be on the positive list"}
-    if cap is None:
-        out["cap_check"] = "not checked: set propose.ask_deposit_cap (and ask_cap_year) from skat.dk"
-    elif dep is None:
+    if rows.empty or not rows["type"].isin(["DEPOSIT"]).any():
         out["cap_check"] = "not checked: the account has no deposit rows"
-    else:
-        out["cap_check"] = "within the cap" if dep + amount <= cap else f"over the {year} cap by {dep + amount - cap:,.0f} DKK"
+        return out
+    days = pd.to_datetime(rows["date"])
+    dep = rows[(rows["type"] == "DEPOSIT") & (days.dt.year == year)]
+    out["deposits_dkk"] = float(dep["amount"].astype(float).sum())
+    prev = 0.0 if (days.dt.year >= year).all() else None      # zero: opened this year, nothing held on 31 December
+    b = performance.portfolio_book(ctx.portfolio, ctx.market) if prev is None else None
+    if b is not None:
+        before = b.value[b.value.index <= pd.Timestamp(year - 1, 12, 31)]
+        prev = 0.0 if before.empty else (None if pd.isna(before.iloc[-1]) else float(before.iloc[-1]))
+    if prev is None:
+        out["cap_check"] = f"not checked: the account's value on 31 December {year - 1} is unknown"
+        return out
+    out["value_prev_end_dkk"] = prev
+    room = tax.ask_headroom(out["deposit_cap"], prev, out["deposits_dkk"])
+    out["headroom_dkk"] = room
+    out["cap_check"] = "within the cap" if amount <= room else f"over the {year} cap by {amount - room:,.0f} DKK"
     return out

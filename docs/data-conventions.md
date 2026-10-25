@@ -249,6 +249,31 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   week, on French's daily developed factors compounded to weeks, the market factor converted to DKK; the window ends
   where the factor files end (about two months back).
 
+## Tax (`tax.py`, `model/tax.py`, `portfolios/taxrules.py`, `portfolios/taxinputs.py`)
+- **Rules per year**: `config/tax_dk.yaml`, each number with its source and the day it was checked (`verified`). A
+  year without a verified block raises `NoRules`: the report shows the bases with every tax null. Never another
+  year's numbers.
+- **DKK**: each trade at its own `fx_rate`, else Yahoo's rate that day (`performance.trade_fx`, as Returns). Values at
+  the year's start and end are the last session on or before 31 December from `performance.book(rows, market,
+  "cash")`: traded closes, not adjusted ones, so a distributing fund's dividend isn't counted in both its lager and
+  its dividend row. Before an account's first row its value is 0 (not held yet); an unknown value is None.
+- **Average cost** (`model/tax.replay_dkk`): in DKK, per tax person and symbol over their frie midler accounts
+  (`portfolios.tax_person_id`), buy fees in the cost, sale fees out of the proceeds; ASK and pension apart. A trade
+  without a rate makes the cost unknown from then on. `trades.replay` (quote currency, the positions) is unchanged.
+- **Class per holding and year** (`taxinputs.classify`): a manual class wins; a share by the cached detail's
+  quoteType or the stock groups; a fund by its ISIN on that year's positive-list sheet (`positive_list.status`):
+  pl_fund, or fund off the list; unknown (named with value and reason, left out) for a fund without an ISIN, a
+  year without a sheet, a Danish fund off the list, or what the radar can't tell. ISINs fill once per symbol from
+  the import's symbol map, `universe.yaml` (the `ucits:` listing's `isin:`, never the US ticker's) and discovery's
+  ISIN map; a manual row is never overwritten.
+- **Pools** (ASK, pension): return = V_end − V_start − inflow + outflow from the book's flows in the year; negative
+  tax is carried, chained from the account's first year plus `tax_openings`; an unknown year breaks the chain
+  (later carries unknown, no tax).
+- **Share income** per person: realised gains on shares and Danish distributing funds, dividends (as booked: gross
+  or net of withholding isn't known), positive-list lager; listed-share losses offset what `losses.listed_offsets`
+  lists and carry; a negative total carries as negative share income. Capital income (lager on funds off the list)
+  is taxed only at the person's own `capital_income_rate`, else null.
+
 ## Long histories (`sources/factors.py`, `backtest/longrun.py`)
 - **French**: each ZIP holds one CSV with several blocks; a block is a header line starting with "," followed by rows
   dated YYYYMM, titled by the text line above it. The configured block is matched on its title (`block`), else the

@@ -278,6 +278,31 @@ def test_fill_gaps_prefers_an_underweight_sector(market):
 
 # ---------------- the filler on an aktiesparekonto ----------------
 
+def test_ask_deposit_headroom_from_last_year_end_value(market):
+    """skat.dk: this year's deposits may reach the cap less the account's value on 31 December the year before."""
+    from radar.portfolios import performance, taxrules
+
+    pid = userstore.save_portfolio({"name": "Kontoen", "mode": "real", "kind": "ask"})
+    year = IDX[-1].year
+    before = [d for d in IDX if d.year == year - 1]
+    this = [d for d in IDX if d.year == year]
+    px = float(market.closes["S1"].loc[before[10]])
+    userstore.add_tx({"date": before[5].date().isoformat(), "type": "DEPOSIT", "amount": 50_000, "portfolio_id": pid})
+    userstore.add_tx({"symbol": "S1", "date": before[10].date().isoformat(), "type": "BUY", "quantity": 10,
+                      "price": px, "fee": 0, "portfolio_id": pid})
+    userstore.add_tx({"date": this[5].date().isoformat(), "type": "DEPOSIT", "amount": 10_000, "portfolio_id": pid})
+    ctx = propose.context(market, "Kontoen")
+    out = propose.ask_account(ctx, 5_000, today=IDX[-1].date())
+    b = performance.portfolio_book(ctx.portfolio, market)
+    prev = float(b.value[b.value.index <= pd.Timestamp(year - 1, 12, 31)].iloc[-1])
+    cap = taxrules.rules(year).ask.deposit_cap
+    assert out["value_prev_end_dkk"] == pytest.approx(prev) and out["deposits_dkk"] == 10_000
+    assert out["headroom_dkk"] == pytest.approx(cap - prev - 10_000)
+    assert out["cap_check"] == "within the cap"
+    late = propose.ask_account(ctx, 5_000, today=date(2031, 6, 1))
+    assert late["cap_check"] == "not checked: no rules for 2031 in config/tax_dk.yaml"
+
+
 def test_ask_filler_only_from_the_positive_list(market, monkeypatch):
     pr = Prices(market)
     sf = fees.SimFees(10)

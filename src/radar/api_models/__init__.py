@@ -241,6 +241,29 @@ from .profile import (
     WatchState,
     Windows,
 )
+from .tax import (
+    CapitalIncome,
+    InstrumentIn,
+    InstrumentView,
+    ManualTaxClass,
+    OpeningPool,
+    ShareIncomeView,
+    TaxAccount,
+    TaxBases,
+    TaxClass,
+    TaxDividend,
+    TaxLager,
+    TaxOpeningIn,
+    TaxOpeningView,
+    TaxPerson,
+    TaxPersonIn,
+    TaxPersonView,
+    TaxPool,
+    TaxRulesRef,
+    TaxSale,
+    TaxUnknown,
+    TaxYearView,
+)
 from .tx import (
     CashRow,
     Effect,
@@ -343,4 +366,7 @@ __all__ = [
     "SegmentDim", "AttributionSelection", "AttributionPeriod", "Reconciliation", "EffectTotals", "SegmentRow",
     "AttributionMonth", "AttributionDim", "CurrencyRow", "CurrencyEffect", "AttributionBenchmark", "Unclassified",
     "FactorLoading", "FactorRegression", "AttributionView",
+    "TaxClass", "ManualTaxClass", "OpeningPool", "TaxRulesRef", "ShareIncomeView", "TaxBases", "CapitalIncome",
+    "TaxPerson", "TaxPool", "TaxSale", "TaxLager", "TaxDividend", "TaxAccount", "TaxUnknown", "TaxYearView",
+    "TaxPersonView", "TaxPersonIn", "InstrumentView", "InstrumentIn", "TaxOpeningView", "TaxOpeningIn",
 ]

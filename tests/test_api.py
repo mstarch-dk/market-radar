@@ -146,7 +146,7 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-4:] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
+    assert paths_[-11:-7] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -178,10 +178,47 @@ def test_calendar_api_contract(built, monkeypatch):
     empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
     assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-3:] == ["/api/calendar", "/api/evidence", "/api/attribution"]
+    assert paths_[-10:-7] == ["/api/calendar", "/api/evidence", "/api/attribution"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/calendar").status_code == 503
+
+
+def test_tax_api_contract(built, monkeypatch):
+    """GET /api/tax validates against TaxYearView (the CLI's --json is the same); the edits round-trip; a year
+    without rules is a view with notes; the tax router came last; no prices is 503."""
+    from world import IDX
+
+    year = IDX[-1].year
+    r = built.get("/api/tax", params={"year": year})
+    assert r.status_code == 200
+    v = api_models.TaxYearView.model_validate(r.json())
+    assert v.rules is not None and v.disclaimer and {a.name for a in v.accounts} >= {"ASK", "frie midler"}
+    assert built.get("/api/tax", params={"year": 2031}).json()["notes"]
+    me = built.get("/api/tax/persons").json()[0]
+    api_models.TaxPersonView.model_validate(me)
+    assert built.put(f"/api/tax/persons/{me['id']}", json={"name": "Me", "capital_income_rate": 0.37}).json()[
+        "capital_income_rate"] == 0.37
+    assert built.put(f"/api/tax/persons/{me['id']}", json={"name": "Me", "capital_income_rate": 2}).status_code == 422
+    assert built.post("/api/tax/persons", json={"name": "Me"}).status_code == 409
+    inst = built.put("/api/tax/instruments/theme1", json={"isin": "IE00B4L5Y983"}).json()
+    assert inst == built.get("/api/tax/instruments").json()[0] and inst["source"] == "manual"
+    assert built.put("/api/tax/instruments/X", json={"isin": "nope"}).status_code == 422
+    o = built.post("/api/tax/openings", json={"year": year, "pool": "listed_loss", "tax_person_id": me["id"],
+                                              "amount": 250}).json()
+    api_models.TaxOpeningView.model_validate(o)
+    assert built.post("/api/tax/openings", json={"year": year, "pool": "ask_negative_tax", "amount": 1}).status_code == 422
+    assert built.delete(f"/api/tax/openings/{o['id']}").json() == o["id"]
+    assert built.delete(f"/api/tax/openings/{o['id']}").status_code == 404
+    pf = built.get("/api/portfolios").json()
+    ask = next(p for p in pf if p["name"] == "ASK")
+    assert ask["tax_person_id"] == me["id"]
+    paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
+    assert paths_[-7:] == ["/api/tax", "/api/tax/persons", "/api/tax/persons/{pid}", "/api/tax/instruments",
+                           "/api/tax/instruments/{symbol}", "/api/tax/openings", "/api/tax/openings/{oid}"]
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    assert built.get("/api/tax").status_code == 503
 
 
 def test_me_flag_matches_calendar(built):

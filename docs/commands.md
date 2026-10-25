@@ -140,6 +140,18 @@ Always run Python through uv; the frontend uses pnpm.
   sector and region tables (largest |total| first), the currency effect by currency, the factor regression (alpha
   p.a., t, months to t = 2, loadings) and the notes. Under `attribution.min_months` of history: notes, no numbers.
   `--json` prints the `AttributionView` dict, the same as `GET /api/attribution`.
+- `uv run radar tax year [YEAR] [--portfolio NAME…] [--person NAME] [--json]`: the Danish tax estimate (`tax.py`)
+  for an income year (default: this year): each aktiesparekonto's and pension account's pool (return, tax, negative
+  tax carried), each tax person's share income over their frie midler accounts (realised gains by the average-cost
+  method in DKK, dividends, positive-list lager, the loss rules, the progression limit) and capital income, the
+  holdings it can't classify and the notes. A year without verified rules in `config/tax_dk.yaml`: the bases, no
+  tax. `--json` prints the `TaxYearView` dict, the same as `GET /api/tax`. An estimate, not tax advice.
+- `uv run radar tax classify [--year Y] [--unknown]` / `tax classify SYMBOL stock|pl_fund|fund|dk_distributing|auto`
+  / `tax isin SYMBOL ISIN`: the holdings' ISIN, its source and the class in a year; set a class or an ISIN by hand
+  (a manual row is never overwritten by the automatic fill from imports, `universe.yaml` and the discovery map).
+- `uv run radar tax person list|add|set NAME [--capital-rate R] [--account NAME…] [--rename NEW]` / `tax opening
+  list|add|remove [--pool P --year Y --amount DKK --portfolio NAME | --person NAME] [--id N]`: tax persons (who owns
+  which account, the marginal rate on capital income) and the losses carried in from before the history.
 - `uv run radar calendar [NAME…] [--tag T] [--scope real|virtual|all] [--days N] [--json]`: the calendar
   (`agenda.py`) of the chosen portfolios (default: your real ones): the high items of the next `calendar.soon_days`,
   then every item by week (earnings and ex-dividend dates of held and watched stocks, journal reviews, proposal time
@@ -151,7 +163,7 @@ Always run Python through uv; the frontend uses pnpm.
   re-imports). `watchlist:` in `config/universe.yaml` still works for fixed extras.
 - `uv run radar bundle-holdings [--out FILE] [--include-virtual]` / `unbundle-holdings [--file FILE]`: carry your data
   to another machine: the real portfolios (all with `--include-virtual`) with their transactions, kinds and tags, the
-  watchlist edits, market views and regime vote choices, as one base64 text. Restoring takes a database backup first
+  watchlist edits, market views, regime vote choices and the tax inputs (`tax.json`), as one base64 text. Restoring takes a database backup first
   and gives each portfolio in the bundle exactly its rows. The file holds your holdings: keep it private.
 
 ## Data folder, backups, export

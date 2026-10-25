@@ -44,8 +44,9 @@ def _save_portfolio(body: PortfolioIn, pid: int | None = None) -> dict:
     if pid is not None:
         portfolio_or_404(pid)
     data = body.model_dump()
-    if "fee_schedule" not in body.model_fields_set:      # an older client: keep the schedule as it is
-        data.pop("fee_schedule")
+    for key in ("fee_schedule", "tax_person_id"):
+        if key not in body.model_fields_set:             # an older client: keep it as it is
+            data.pop(key)
     try:
         return portfolio_or_404(userstore.save_portfolio(data, pid))
     except errors.RadarError:

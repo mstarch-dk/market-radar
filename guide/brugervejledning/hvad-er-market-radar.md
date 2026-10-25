@@ -64,7 +64,7 @@ Derudover har hver aktie og ETF sin egen tickerprofil med graf, teknik, risiko, 
 - **Ikke en købsliste.** En høj momentumscore eller en sektor i kvadranten fører (*Leading*) er en grund til at undersøge nærmere, ikke et signal om at købe.
 - **Ikke en prognose.** Regimet beskriver, hvad indikatorerne viser i dag. Det forudsiger ikke næste måned.
 - **Ikke realtid.** Alle kurser er dagslukkekurser, og nogle kilder opdateres kun ugentligt eller månedligt.
-- **Ikke skatterådgivning.** Positivliste-status og kontotyper er hjælp til at finde rundt; tjek de aktuelle regler på skat.dk.
+- **Ikke skatterådgivning.** Positivliste-status, kontotyper og skatteestimatet på fanen *Tax* er hjælp til at finde rundt; din årsopgørelse og de aktuelle regler på skat.dk gælder.
 
 ## Dine data bliver hos dig
 
