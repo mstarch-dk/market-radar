@@ -316,6 +316,7 @@ class _JkpPortfolios(_Section):
 class Factors(_Section):
     max_age_days: int = 30
     french: dict[str, str | _FrenchFile] = {}
+    french_daily: dict[str, str] = {}
     jkp: dict[str, _JkpSet] = {}
     jkp_portfolios: _JkpPortfolios | None = None
 
@@ -338,9 +339,19 @@ class Longrun(_Section):
     factors: dict[str, tuple[str, str]] = {}    # label -> (dataset, series)
 
 
+class _AttributionFactors(_Section):
+    five: str = "ff5_dev"
+    momentum: str = "mom_dev"
+
+
 class Attribution(_Section):
     snapshot_days: int = 6
     min_proxy_coverage: float = 0.8
+    min_months: int = 12
+    min_weeks: int = 52
+    nw_lag: int | None = None
+    tolerance: float = 1e-8
+    factors: _AttributionFactors = _AttributionFactors()
 
 
 class Updates(_Section):

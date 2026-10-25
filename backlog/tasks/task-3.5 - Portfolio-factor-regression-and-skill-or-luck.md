@@ -1,10 +1,10 @@
 ---
 id: TASK-3.5
 title: Portfolio factor regression and skill-or-luck
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:52'
-updated_date: '2026-10-25 15:07'
+updated_date: '2026-10-25 16:35'
 labels:
   - feature
 dependencies:
@@ -24,7 +24,13 @@ Regress the portfolio's weekly DKK excess returns (TWR index minus the weekly co
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 No regression under the minimum weekly observations (setting); a note says why
-- [ ] #2 Alpha never shown without t and n
-- [ ] #3 Tested on the synthetic world with a known loading
+- [x] #1 No regression under the minimum weekly observations (setting); a note says why
+- [x] #2 Alpha never shown without t and n
+- [x] #3 Tested on the synthetic world with a known loading
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+model/stats: ols_nw (Newey-West standard errors; equals nw_t for an intercept, White's at lag 0), nw_lag (Newey-West 1994 rule), periods_to_t. model/attribution: regression_frame (weekly DKK excess returns; French's market in DKK via USD/DKK, long-short factors as given) and factor_regression (None under min_weeks, alpha always with t and n, weeks/months to t = 2 or reached, loadings with NW t). Tested on generated weeks with known loadings. The note under the minimum is written by attribution.py (TASK-3.6), from the None this returns.
+<!-- SECTION:FINAL_SUMMARY:END -->

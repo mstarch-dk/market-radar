@@ -156,12 +156,17 @@ Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 
 ## `attribution`: attribution mod ACWI
 
-Attributionen er under opbygning; indtil videre gemmer radaren ACWI's vægte hver uge, så den senere kan forklare tidligere måneder.
+Attributionen (`radar attribution`) forklarer, hvorfor de valgte porteføljer slog eller haltede efter ACWI: handel og gebyrer, forskellen mellem segment-ETF'erne og ACWI, allokering, udvælgelse og samspil efter sektor og region, og valutaen. Faktorregressionen siger, om det, der er tilbage, ligner dygtighed. Radaren gemmer ACWI's vægte hver uge, så den kan forklare tidligere måneder.
 
 | Nøgle | Værdi | Betyder |
 |---|---|---|
 | `attribution.snapshot_days` | {{settings:attribution.snapshot_days}} dage | ACWI's beholdningsfil hentes igen, når den er ældre end dette, og ugens vægte (sektor, region, land og valuta) gemmes i historikmappen. iShares viser kun dagens beholdninger, så en uge uden opdatering kan ikke hentes bagefter |
 | `attribution.min_proxy_coverage` | {{settings:attribution.min_proxy_coverage|pct}} | En regions afkast bygges af lande-ETF'er vægtet med ACWI's landevægte; dækker landene med en ETF mindre end denne andel af regionen, mangler regionens afkast den dag |
+| `attribution.min_months` | {{settings:attribution.min_months}} måneder | Kortere historik i perioden: ingen attribution, kun en note. Allokering og udvælgelse over få måneder er mest støj |
+| `attribution.min_weeks` | {{settings:attribution.min_weeks}} uger | Færre ugentlige observationer: ingen faktorregression, kun en note |
+| `attribution.nw_lag` | tom = reglen | Antal uger i Newey-West-korrektionen af t-tallene; tom bruger reglen ⌊4 (n/100)^(2/9)⌋ |
+| `attribution.tolerance` | {{settings:attribution.tolerance}} | Hvor meget de sammenkædede effekter må afvige fra det aktive afkast, de forklarer; mere end det er en fejl, ikke et tal |
+| `attribution.factors` | `ff5_dev`, `mom_dev` | Hvilke af French's daglige faktorfiler (under `factors.french_daily`) regressionen bruger: de fem udviklede faktorer og momentum |
 
 ## `analyst`: analytikerkonsensus
 

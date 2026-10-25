@@ -180,6 +180,18 @@ def test_cli_xray(built):
     assert "--scope must be one of" in run("xray", "--scope", "isk", code=1)
 
 
+def test_cli_attribution(built):
+    """radar attribution runs on a history too short to attribute: notes, not numbers; --json is the
+    AttributionView; bad flags are refused."""
+    from radar import api_models
+    assert "Attribution of" in run("attribution")
+    v = api_models.AttributionView.model_validate(run_json("attribution", "--json"))
+    assert v.dims == {} and v.notes
+    assert run_json("attribution", "--scope", "all", "--json")["selection"]["scope"] == "all"
+    assert "--start must be a date" in run("attribution", "--start", "2026-13-01", code=1)
+    assert "--scope must be one of" in run("attribution", "--scope", "isk", code=1)
+
+
 def test_cli_evidence(built):
     """radar evidence prints each report's status and the scoreboard; --json is the EvidenceView."""
     from radar import api_models
