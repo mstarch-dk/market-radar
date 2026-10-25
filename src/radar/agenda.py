@@ -126,12 +126,13 @@ def _estimate_reasons(row, cut: float) -> list[dict]:
     up, down = (None if row.get(k) is None or pd.isna(row.get(k)) else int(row.get(k))
                 for k in ("eps_up_30d", "eps_down_30d"))
     counts = f" ({down} down, {up} up)" if up is not None and down is not None else ""
+    # the text quotes the change only when the change itself passes the threshold; else it was the counts
     if (chg is not None and chg <= cut) or (up is not None and down is not None and down > up):
-        text = (f"the quarter's EPS estimate cut {-chg:.1%} in 30 days" if chg is not None and chg < 0
+        text = (f"the quarter's EPS estimate cut {-chg:.1%} in 30 days" if chg is not None and chg <= cut
                 else "more estimate cuts than raises in 30 days") + counts
         return [_reason("estimates_cut", text, chg)]
     if (chg is not None and chg >= -cut) or (up is not None and down is not None and up > down):
-        text = (f"the quarter's EPS estimate raised {chg:.1%} in 30 days" if chg is not None and chg > 0
+        text = (f"the quarter's EPS estimate raised {chg:.1%} in 30 days" if chg is not None and chg >= -cut
                 else "more estimate raises than cuts in 30 days") + counts
         return [_reason("estimates_raised", text, chg)]
     return []

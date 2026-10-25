@@ -155,6 +155,8 @@ def test_highlight_rules():
     assert "estimates_cut" in keys(cut) and cut["reasons"][-1]["value"] == pytest.approx(hl.revision_cut)
     assert "estimates_cut" not in keys(one(me("A"), {"eps_chg_30d": hl.revision_cut + 0.001}))
     assert "estimates_cut" in keys(one(me("A"), {"eps_up_30d": 0, "eps_down_30d": 2}))
+    tiny = one(me("A"), {"eps_chg_30d": -0.0004, "eps_up_30d": 0, "eps_down_30d": 1})   # the counts, not the change
+    assert tiny["reasons"][-1]["text"] == "more estimate cuts than raises in 30 days (1 down, 0 up)"
     assert "estimates_raised" in keys(one(me("A"), {"eps_chg_30d": -hl.revision_cut}))
     rng = build([me("A")], cal(("A", "2026-10-24", "2026-10-28", "2026-11-03")))["items"][0]
     assert "unconfirmed" in keys(rng) and "28 Oct–3 Nov" in rng["reasons"][-1]["text"]
