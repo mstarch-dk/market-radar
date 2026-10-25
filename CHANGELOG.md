@@ -4,6 +4,21 @@ What changed in each release, newest first. The user-facing version, in Danish, 
 (`guide/brugervejledning/nyheder.md`). `scripts/release.py prepare X.Y.Z` refuses to bump the version until both
 have a `## X.Y.Z` section; the release workflow uses this file's section as the release notes.
 
+## Unreleased
+
+- **Held funds are classified honestly in proposals' exposure tables.** A fund is looked through (a world fund
+  with ACWI's weights, a sector fund with its sector, another fund with the sector weights in its cached Yahoo
+  data) or shown as *fund: not looked through*. It is never filed under the region of its exchange or the
+  currency it is quoted in: an S&P 500 fund listed in London used to count as Europe. Each dimension now
+  reports its coverage, and only real sectors, regions and currencies count as active weight vs ACWI. A fund's
+  Yahoo data is read from the cache only; a fund you haven't opened a profile for shows as *unknown* until you do.
+- **Regions match ACWI's**: stocks listed outside the radar's four regions (Toronto, Sydney, São Paulo …) are
+  `other`, as in ACWI's holdings file, not `us` (Canada) or `asia` (Australia).
+- **Settings moved** from `propose:` to `risk:` (values unchanged): `history_weeks`, `min_weeks` (for the
+  covariance) and `shrink` are now `risk.covariance`, `look_through` is `risk.world_funds` and `stress` is
+  `risk.stress`. A settings.yaml with the old keys fails on start and names them. `propose.min_weeks` stays, for
+  the bootstrap. New: `risk.xray`.
+
 ## 0.2.0
 
 Your data now lives apart from the program, so a new version never touches it.
