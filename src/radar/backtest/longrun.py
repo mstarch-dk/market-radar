@@ -387,6 +387,6 @@ def build(panels: list[str] | None = None, horizons=None, variants=None, since=N
 def write(rep: dict) -> artifacts.LongrunStudy:
     months = (rep.get("datasets_asof") or {}).values()
     out = artifacts.write("longrun-study", rep, data_asof=artifacts.month_end(max(months)) if months else None,
-                          file=REPORT_FILE)
+                          file=REPORT_FILE, rule_hash=artifacts.study_rule_hash("longrun-study"))
     assert isinstance(out, artifacts.LongrunStudy)
     return out

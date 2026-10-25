@@ -240,7 +240,11 @@ uv run radar study redeploy
 uv run radar sim picks-candidates --asof 6M
 uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name test-6m
 uv run radar sim picks --rerun tag:picks-live
+uv run radar evidence                    # alle testenes status og hovedtal, og resultaterne fremad mod ACWI
+uv run radar evidence --json
 ```
+
+`radar evidence` kører ingen test, men læser de rapporter, testene har skrevet: for hver test om den er kørt, hvor gamle dataene er, og om den testede reglen, som den er i dag; for hver score IC med t-tal over alle måneder og i holdout-perioden; og A/B-testen, papirsporet og de frosne porteføljeforslag mod ACWI. En kurv, der er for ung til at sige noget, står som *for kort* og tæller ikke med i gennemsnittet.
 
 ### A/B-test: kvalitet og værdi mod momentum
 

@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from ..market import Market
 
 SIM_TYPES = ("BUY", "SELL", "DEPOSIT", "WITHDRAW", "FEE", "INTEREST")
+# A basket simulated by `radar sim picks` (backtest/picks.py) keeps one portfolio per run kind, by strategy.
+PICKS_STRATEGIES = {"hold": "picks-hold", "exits": "picks-exits", "control": "picks-control"}
 
 
 def _close(market: Market, sym: str, day: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
@@ -98,6 +100,13 @@ def new_sim_portfolio(name: str, strategy: str, params: dict | None = None, tags
     p = {"name": name, "mode": "virtual", "origin": "sim", "kind": kind, "strategy": strategy, "params": params or {},
          "tags": list(tags)}
     return userstore.save_portfolio(p | ({"parent_id": parent_id} if parent_id is not None else {}))
+
+
+def picks_baskets(tag: str | None = None) -> list[dict]:
+    """The stored `radar sim picks` baskets (their hold portfolios), optionally with a tag (e.g. picks-live)."""
+    t = userstore.norm_tag(tag) if tag else None
+    return [p for p in userstore.portfolios() if p["origin"] == "sim"
+            and p.get("strategy") == PICKS_STRATEGIES["hold"] and (t is None or t in p["tags"])]
 
 
 def find_sim(parent_id: int, strategy: str) -> dict | None:
