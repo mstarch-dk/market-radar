@@ -6,7 +6,8 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater, xray
+features         abtest, api_models/, backtest/, evidence, health, mine, profile, propose/, reporting/, updater,
+                 xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -22,7 +23,8 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `propose/`, `xray`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
+`abtest`, `propose/`, `xray`, `evidence`) never imports `backtest/` and reads the studies' reports through
+`model/artifacts.py`.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
 `model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
@@ -166,6 +168,11 @@ for one.
   coverage, ex-ante risk with per-position shares (hidden below `risk.xray.min_coverage`), realised figures,
   concentration, stress and factor tilts. It only assembles `portfolios/exposure.py` and `riskmodel.py`, the code
   proposals use, and computes live: nothing written.
+- `evidence.py`: the Evidence page: a card per score study and the long-run study (status, age, the rule tested
+  and today's, the baseline per horizon with a t next to every mean, the verdicts), the rule studies' header rows,
+  and a forward scoreboard of the A/B test, the `picks-live` baskets and the frozen proposals against ACWI, where a
+  record younger than its minimum is *too short* and left out of any mean. It only reads (`model/artifacts.py`,
+  `portfolios/`, `abtest`, `propose.store.review`); a stale report's numbers stay inside its own card.
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
   exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
@@ -192,7 +199,7 @@ for one.
   - `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
     flows, comparisons and cash.
   - `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
-    runs).
+    runs), and the `radar sim picks` baskets' strategies, so the app finds them without importing a study.
   - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.
   - `prices.py`: DKK closes, exchange rates and weekly DKK returns per ticker, computed once.
   - `exposure.py`: the holdings book in DKK, each name's class (world fund, sector fund, other fund, stock,

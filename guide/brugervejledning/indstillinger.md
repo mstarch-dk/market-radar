@@ -256,6 +256,19 @@ Vægtene (`quality.weights`, `value.weights`, `financial_value.weights`), branch
 
 Ændringer gælder kun for en ny test; en kørende test beholder sine indstillinger. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum).
 
+## `evidence`: evidens-siden
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `evidence.max_age_days.score` | {{settings:evidence.max_age_days.score}} | Dage, før en scoretest får mærket *gamle data* (reglen er den samme, men markedet er gået videre) |
+| `evidence.max_age_days.longrun` | {{settings:evidence.max_age_days.longrun}} | Det samme for testen over årtier, hvis serier opdateres sjældnere |
+| `evidence.max_age_days.rules` | {{settings:evidence.max_age_days.rules}} | Det samme for testene af forslagsreglen og stopreglen |
+| `evidence.forward_min_months` | {{settings:evidence.forward_min_months}} | Måneder, en kurv i A/B-testen skal have kørt, før den sammenlignes; før det står den som *for kort* |
+| `evidence.cohort_age_months` | {{settings:evidence.cohort_age_months}} | Måneder, en kurv i papirsporet skal være gammel for at tælle med i gennemsnittet |
+| `evidence.cohort_min` | {{settings:evidence.cohort_min}} | Så mange kurve i papirsporet skal være gamle nok, før gennemsnittet vises |
+
+Se [Test momentumscoren på historikken](brugervejledning/scoretest).
+
 ## `sentiment`: put/call og AAII
 
 | Nøgle | Værdi | Betyder |

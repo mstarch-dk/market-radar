@@ -1,10 +1,10 @@
 ---
 id: TASK-2.3
 title: evidence.py feature module and forward scoreboard
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:51'
-updated_date: '2026-10-25 15:01'
+updated_date: '2026-10-25 15:32'
 labels:
   - feature
 dependencies:
@@ -24,8 +24,8 @@ src/radar/evidence.py assembles the page: a card per score study and the long-ru
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Forward records below a minimum length are labelled as too short, not ranked
-- [ ] #2 uv run lint-imports and tests/test_layers.py pass
-- [ ] #3 Missing data is None with a note, never 0
-- [ ] #4 A stale report's numbers never appear next to current ones (tested)
+- [x] #1 Forward records below a minimum length are labelled as too short, not ranked
+- [x] #2 uv run lint-imports and tests/test_layers.py pass
+- [x] #3 Missing data is None with a note, never 0
+- [x] #4 A stale report's numbers never appear next to current ones (tested)
 <!-- AC:END -->

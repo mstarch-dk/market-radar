@@ -12,7 +12,7 @@ from radar import userstore
 from radar.backtest import picks, study
 from radar.market import Market
 from radar.model import panels as mp
-from radar.portfolios import performance
+from radar.portfolios import performance, simulate
 from radar.userstore import viewstore
 from world import IDX, N
 
@@ -92,7 +92,7 @@ def test_a_rerun_replaces_the_run_and_sims_are_never_yours(market):
     first = picks.run(market, day(), [{"ticker": "S3"}], "again", tags=["picks-live"])
     ids = {k: v["id"] for k, v in first["portfolios"].items()}
     n_rows = {k: userstore.get_portfolio(v)["n_tx"] for k, v in ids.items()}
-    [hold] = picks.baskets("picks-live")
+    [hold] = simulate.picks_baskets("picks-live")
     second = picks.rerun(market, hold)
     assert {k: v["id"] for k, v in second["portfolios"].items()} == ids
     assert {k: userstore.get_portfolio(v)["n_tx"] for k, v in ids.items()} == n_rows

@@ -110,8 +110,13 @@ class Survivorship(_Open):
 
 
 class Verdict(_Open):
+    """A variant's verdict; the ICs and t-statistics behind it where the study gives them (model/stats.variant_verdict)."""
     label: str | None = None
     why: list[str] = []
+    in_sample_ic: float | None = None
+    holdout_ic: float | None = None
+    holdout_ic_t: float | None = None
+    holdout_diff_t: float | None = None
 
 
 class StudySettings(_Open):
