@@ -28,6 +28,11 @@ The radar's output must be truthful: a missing value is shown as missing, never 
 - The history starts `history_years` back, or `backtest.warmup_days` before your first trade when that is earlier
   (capped at `backtest.max_years`), so your trades can be valued and the rule replayed from the day you bought. A
   shallower stored history is downloaded again in full, once (`data/prices_from.json`).
+- Only bars dated Monday to Friday are sessions (`ingest.sessions`, applied to every Yahoo answer and when the
+  store is read). On a weekend run Yahoo answers some symbols (FX pairs) with a Sunday stub; stored, that one row
+  put a Sunday into every wide frame, the benchmark forward-filled Friday's close into it and the as-of date became
+  the Sunday. Stubs an older version stored are ignored when read and dropped from the store by the next update
+  (prices are cache). Nothing tracked trades on a weekend; a weekend-trading symbol (crypto) would need this changed.
 - `ingest.wide()` forward-fills up to 5 sessions, which is right for return windows. Anything shown as a session uses
   the ticker's own bars (`market.Market.bars`), so a missing Yahoo bar is a gap, not a flat day. That covers the last
   price, day change, recent bars and the chart.

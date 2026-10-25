@@ -229,6 +229,10 @@ data update wherever it runs. (The version after 0.2.0; there is no 0.3.0.)
     `/propose-portfolio` read a held or watched name's next report from `radar calendar --json`.
   - New settings: `calendar:` (window, soon days, highlight thresholds, refresh schedule, what to include).
 
+- **A weekend run no longer dates the report on a Sunday.** Yahoo answers some FX pairs with a Sunday bar on a
+  weekend; stored, it made ACWI's last session the Sunday (Friday's close carried forward), so the as-of date and
+  every day count from it were off. Bars dated Saturday or Sunday are no longer stored, and ones already stored are
+  ignored and dropped by the next update.
 - **Held funds are classified honestly in proposals' exposure tables.** A fund is looked through (a world fund
   with ACWI's weights, a sector fund with its sector, another fund with the sector weights in its cached Yahoo
   data) or shown as *fund: not looked through*. It is never filed under the region of its exchange or the

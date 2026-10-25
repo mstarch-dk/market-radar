@@ -117,3 +117,55 @@ def test_an_answer_where_no_ticker_has_adj_close_says_the_format_changed(fake_yf
 def test_norm_dates_drops_the_time_of_day_on_naive_dates():
     out = ingest.norm_dates(pd.DataFrame({"date": pd.to_datetime(["2026-10-06 16:00", "2026-10-07 00:00"])}))
     assert out["date"].tolist() == [pd.Timestamp("2026-10-06"), pd.Timestamp("2026-10-07")]
+
+
+# ---------------- weekend stubs ----------------
+# A `radar run` on Sunday 25 Oct 2026: Yahoo answered with a Sunday bar for the FX pairs (Friday's close again, no
+# volume). Stored, it put a Sunday into every wide frame, ACWI forward-filled Friday's close into it, and the
+# report's as-of date (the benchmark's last session) became the Sunday.
+
+def _with_sunday_stub(bars: pd.DataFrame) -> pd.DataFrame:
+    stub = bars.iloc[[-1]].copy()
+    stub.index = pd.DatetimeIndex([pd.Timestamp("2026-10-25")], name="Date")
+    stub["Volume"] = 0
+    return pd.concat([bars, stub])
+
+
+def test_a_sunday_stub_from_yahoo_is_not_kept_as_a_session(fake_yf):
+    bars = _with_sunday_stub(_bars(5, "2026-10-19"))
+    fake_yf(lambda b: _multi(b, A=bars, B=bars))
+    out = ingest.download_bars(["A", "B"], date(2026, 10, 19))
+    a = out[out["ticker"] == "A"]
+    assert a["date"].max() == pd.Timestamp("2026-10-23")             # Friday, not the Sunday
+    assert len(a) == 5 and (pd.to_datetime(out["date"]).dt.dayofweek < 5).all()
+
+
+def test_a_sunday_stub_in_a_tz_aware_answer_is_dropped_on_the_local_calendar_day(fake_yf):
+    bars = _with_sunday_stub(_bars(5, "2026-10-19"))
+    bars.index = bars.index.tz_localize("Europe/London")
+    fake_yf(lambda b: _multi(b, A=bars, B=bars))
+    out = ingest.norm_dates(ingest.download_bars(["A", "B"], date(2026, 10, 19)))
+    assert out.loc[out["ticker"] == "A", "date"].max() == pd.Timestamp("2026-10-23")
+
+
+def test_a_stored_sunday_stub_is_not_a_session_and_the_next_update_drops_it(tmp_data, monkeypatch):
+    from radar.market import Market
+    from radar.paths import PRICES_FILE
+
+    week = pd.bdate_range("2026-10-19", "2026-10-23")
+    rows = [pd.DataFrame({"date": week, "ticker": t, "high": c, "low": c, "close": c, "raw_close": c,
+                          "volume": v}) for t, c, v in (("ACWI", 156.8, 1e6), ("USDDKK=X", 6.66, 0.0))]
+    stub = pd.DataFrame({"date": [pd.Timestamp("2026-10-25")], "ticker": "USDDKK=X", "high": 6.66, "low": 6.66,
+                         "close": 6.66, "raw_close": 6.66, "volume": 0.0})
+    PRICES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    pd.concat([*rows, stub], ignore_index=True).to_parquet(PRICES_FILE, index=False)   # as an older version stored it
+
+    market = Market.load()
+    assert market.closes["ACWI"].dropna().index[-1] == pd.Timestamp("2026-10-23")
+    assert pd.Timestamp("2026-10-25") not in market.closes.index
+
+    monkeypatch.setattr(ingest, "download_bars", lambda tickers, start, progress=None: pd.DataFrame(
+        columns=ingest.COLUMNS))
+    res = ingest.update_prices(["ACWI", "USDDKK=X"], bench="ACWI", today=date(2026, 10, 25))
+    assert res["asof"] == "2026-10-23" and res["behind"] == {}
+    assert (pd.read_parquet(PRICES_FILE)["date"].dt.dayofweek < 5).all()
