@@ -153,7 +153,9 @@ templates, editor, evidence), `/notebook` (briefs, research, journal; `?tab=`) a
 (virtual portfolios: list with the A/B test card, or one experiment `?pf=<id>` with tabs holdings | trades |
 rebalances | returns), `/returns` (returns over time vs ACWI; `?pf=` lines, `?from=` start), `/data`, `/ops`
 (operations: tiles, sites and sources with a `?days=` window, events, jobs with their logs, recent requests, health
-checks, resuming a paused site), `/ticker/:symbol`, `/guide` and `/guide/:book/:slug` (the Danish books: sidebar with
+checks, resuming a paused site), `/evidence` (the study cards per score with tabs `?tab=` momentum | quality | value |
+qv, the long-run card, the forward scoreboard and the rule studies; a stale report greyed with both rule hashes, a
+missing one with the command to run it, a t next to every mean), `/ticker/:symbol`, `/guide` and `/guide/:book/:slug` (the Danish books: sidebar with
 both books and their parts, search, "På denne side" with the current section, prev/next; below 900 px the sidebars
 fold into disclosures). The topbar's *Guide* link opens it, the group row ends with "? Om denne side" (from
 `page_links`), and a glossary tooltip links to its textbook section when `glossary_links` has one. "/" focuses the

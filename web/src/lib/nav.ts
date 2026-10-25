@@ -31,6 +31,7 @@ export const NAV: NavGroup[] = [
     id: "system", label: "System", pages: [
       { path: "/data", label: "Data & coverage", blurb: "Sources, freshness, blind spots" },
       { path: "/ops", label: "Operations", blurb: "Requests, errors, jobs and pauses" },
+      { path: "/evidence", label: "Evidence", blurb: "How well the scores have worked: studies, holdout, forward record" },
     ],
   },
 ];

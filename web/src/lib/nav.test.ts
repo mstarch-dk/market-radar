@@ -18,6 +18,7 @@ describe("navigation groups", () => {
     expect(groupOf("/notebook/journal/2026-09-01-X-buy")?.id).toBe("mine");
     expect(groupOf("/ops")?.id).toBe("system");
     expect(groupOf("/xray")?.id).toBe("mine");
+    expect(groupOf("/evidence")?.id).toBe("system");
     expect(groupOf("/ticker/NOVO-B.CO")?.id).toBe("markets");
     expect(groupOf("/")).toBeNull();
     expect(groupOf("/guide/laerebog/rrg")).toBeNull();
