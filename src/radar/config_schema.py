@@ -232,7 +232,24 @@ class CalendarRefresh(_Section):
     near_max_age_hours: float
 
 
+class CalendarInclude(_Section):
+    watchlist: bool
+    ex_dividend: bool
+    reviews: bool
+
+
+class CalendarHighlight(_Section):
+    big_position: float
+    near_level: float
+    revision_cut: float
+
+
 class Calendar(_Section):
+    days: int
+    soon_days: int
+    stale_days: int
+    include: CalendarInclude
+    highlight: CalendarHighlight
     refresh: CalendarRefresh
 
 

@@ -1,9 +1,10 @@
 ---
 id: TASK-4.9
-title: Highlight rules, levels, Danish reason texts
-status: To Do
+title: 'Highlight rules, levels, reason texts'
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:29'
 labels:
   - feature
 dependencies:
@@ -24,7 +25,13 @@ F5-09 (Highlight rules, levels, Danish reason texts; settings `calendar.highligh
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_highlight_rules` (one case per reason)
-- [ ] #2 `test_levels`
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_highlight_rules` (one case per reason)
+- [x] #2 `test_levels`
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Reason texts are English like the app's interface (guide/STIL.md); the Danish brief words them from key and value. Plan 4.5 updated.
+<!-- SECTION:NOTES:END -->

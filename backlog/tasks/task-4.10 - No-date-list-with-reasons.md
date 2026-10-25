@@ -1,9 +1,10 @@
 ---
 id: TASK-4.10
 title: No_date list with reasons
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
+updated_date: '2026-10-25 15:29'
 labels:
   - feature
 dependencies:
@@ -24,6 +25,6 @@ F5-10 (`no_date` list with reasons; notes). PR step 2 of plans/F5-calendar.md (s
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_no_date_listed_never_dropped`
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_no_date_listed_never_dropped`
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->

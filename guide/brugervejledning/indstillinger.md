@@ -164,6 +164,13 @@ Radaren læser Yahoos regnskabskalender for de aktier, du ejer eller følger, og
 
 | Nøgle | Værdi | Betydning |
 |---|---|---|
+| `calendar.days` | {{settings:calendar.days}} | Kalenderens vindue i dage (også månedsbriefens) |
+| `calendar.soon_days` | {{settings:calendar.soon_days}} | De nærmeste dage, hvor en beholdning med et særligt hensyn fremhæves som *high* |
+| `calendar.stale_days` | {{settings:calendar.stale_days}} | En læsning ældre end dette sætter ikke datoen, når den ugentlige screener har en |
+| `calendar.include.watchlist`, `.ex_dividend`, `.reviews` | {{settings:calendar.include.watchlist}}, {{settings:calendar.include.ex_dividend}}, {{settings:calendar.include.reviews}} | Tag watchlist, udbyttedatoer og dine egne gennemgangsdatoer (journal, tidsstop) med |
+| `calendar.highlight.big_position` | {{settings:calendar.highlight.big_position|pct}} | En beholdning med mindst denne andel af den investerede værdi |
+| `calendar.highlight.near_level` | {{settings:calendar.highlight.near_level|pct}} | Kursen er højst så langt fra gennemgangsniveauet, over eller under |
+| `calendar.highlight.revision_cut` | {{settings:calendar.highlight.revision_cut|pct}} | Kvartalets EPS-estimat er ændret så meget eller mere nedad på 30 dage: en nedjustering (det modsatte: en opjustering) |
 | `calendar.refresh.max_age_days` | {{settings:calendar.refresh.max_age_days}} | Kalenderen læses igen, når den seneste læsning er ældre end dette antal dage |
 | `calendar.refresh.near_days` | {{settings:calendar.refresh.near_days}} | Når et regnskab er højst så mange dage væk, … |
 | `calendar.refresh.near_max_age_hours` | {{settings:calendar.refresh.near_max_age_hours}} | … læses kalenderen igen efter så mange timer |

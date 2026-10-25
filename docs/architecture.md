@@ -6,7 +6,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater, xray
+features         abtest, agenda, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater, xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -22,7 +22,7 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `propose/`, `xray`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
+`abtest`, `agenda`, `propose/`, `xray`) never imports `backtest/` and reads the studies' reports through `model/artifacts.py`.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
 `model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
@@ -158,6 +158,12 @@ change to the model and to its schema version.
   coverage, ex-ante risk with per-position shares (hidden below `risk.xray.min_coverage`), realised figures,
   concentration, stress and factor tilts. It only assembles `portfolios/exposure.py` and `riskmodel.py`, the code
   proposals use, and computes live: nothing written.
+- `agenda.py`: the calendar of a selection: earnings and ex-dividend dates of held and watched stocks, open
+  journal reviews and proposal time stops in a window, each with the reasons it is highlighted and a level
+  (`calendar.highlight`). `resolve_earnings` is the one place a next earnings date is decided (the latest read of
+  `history/calendar.parquet`, else the weekly screener, else none with the reason). Pure functions of what the
+  caller passes in (holdings rows, weights, the history, the journal, the exit check) and the data's as-of date,
+  so a rebuild gives the same items.
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
   exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
