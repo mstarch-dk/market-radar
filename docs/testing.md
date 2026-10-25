@@ -74,7 +74,7 @@
 - `tests/test_layers.py` runs the import-linter contracts in `pyproject.toml` (the same as `uv run lint-imports`): the
   kernel (`radar.model`) imports neither the studies nor the app, the studies (`radar.backtest`) don't import the
   report builder (`dashboard`, `mine`, `profile`) or the app, the app (`updater`, `report`, `api`, `abtest`,
-  `propose`) never imports a study, and the whole package sits in layers that only import downwards (a new module
+  `propose`, `xray`, `evidence`) never imports a study, and the whole package sits in layers that only import downwards (a new module
   needs a layer). A broken contract names the chain of imports; move the shared piece down a layer
   (docs/architecture.md, *Layers*) rather than adding an exception.
 - The same file checks what import-linter doesn't: no module uses another one's `_private` names (none does: make the

@@ -16,6 +16,23 @@ from .agenda import (
     AgendaView,
     ReasonKey,
 )
+from .attribution import (
+    AttributionBenchmark,
+    AttributionDim,
+    AttributionMonth,
+    AttributionPeriod,
+    AttributionSelection,
+    AttributionView,
+    CurrencyEffect,
+    CurrencyRow,
+    EffectTotals,
+    FactorLoading,
+    FactorRegression,
+    Reconciliation,
+    SegmentDim,
+    SegmentRow,
+    Unclassified,
+)
 from .common import (
     FundValuation,
     Gauge,
@@ -80,6 +97,27 @@ from .docs import (
     NotebookEntry,
     NotebookKind,
     NotebookListing,
+)
+from .evidence import (
+    BaseRateRow,
+    EvidenceForward,
+    EvidenceView,
+    ForwardCohort,
+    ForwardGroup,
+    ForwardRecord,
+    LongrunCard,
+    LongrunHorizon,
+    LongrunPanelCard,
+    LongrunPart,
+    LongrunRow,
+    ReportHead,
+    ReportStatus,
+    ScoreCard,
+    ScoreHorizon,
+    ScoreRow,
+    ScoreUniverse,
+    SurvivorshipGauge,
+    VariantVerdict,
 )
 from .home import (
     BackupRow,
@@ -299,4 +337,10 @@ __all__ = [
     "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "ScoreTilt", "XrayView",
     "AgendaKind", "AgendaLevel", "ReasonKey", "AgendaReason", "AgendaEarnings", "AgendaItem", "AgendaNoDate",
     "AgendaSelection", "AgendaView",
+    "ReportStatus", "ReportHead", "ScoreRow", "ScoreHorizon", "VariantVerdict", "ScoreUniverse", "ScoreCard",
+    "LongrunRow", "LongrunHorizon", "LongrunPart", "LongrunPanelCard", "SurvivorshipGauge", "BaseRateRow",
+    "LongrunCard", "ForwardRecord", "ForwardCohort", "ForwardGroup", "EvidenceForward", "EvidenceView",
+    "SegmentDim", "AttributionSelection", "AttributionPeriod", "Reconciliation", "EffectTotals", "SegmentRow",
+    "AttributionMonth", "AttributionDim", "CurrencyRow", "CurrencyEffect", "AttributionBenchmark", "Unclassified",
+    "FactorLoading", "FactorRegression", "AttributionView",
 ]

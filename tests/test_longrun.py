@@ -65,6 +65,19 @@ def test_finds_a_planted_momentum_effect(monkeypatch):
     assert rep["variants_tried"] == 1
 
 
+def test_the_written_report_records_its_rule(monkeypatch, tmp_data):
+    _cfg(monkeypatch)
+    panel = longrun.run(_panel(_momentum_world(n_months=240)), variants=["score", "r12_1"])
+    longrun.write({"generated": "2026-10-16T20:00:00", "datasets_asof": {"french:ind49": "2026-08"},
+                   "panels": {"test": panel}})
+    got = artifacts.load("longrun-study", rule_hash=artifacts.study_rule_hash("longrun-study"))
+    assert got.ok and got.report.data_asof == date(2026, 8, 31)
+    p = got.report.panels["test"]
+    assert [v.key for v in p.variants if v.baseline] == ["score"]
+    al = p.results["1"]["score"].all
+    assert al.top_vs_market is not None and al.top_vs_market_t is not None
+
+
 @pytest.mark.slow
 def test_finds_nothing_in_noise(monkeypatch):
     _cfg(monkeypatch)

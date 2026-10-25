@@ -183,9 +183,9 @@ every past day; a note says so):
 | fund, unknown | one segment, `unclassified` | its own return |
 | cash (ledger portfolios) | segment `cash` | 0 (the book's cash earns nothing) |
 
-A segment the benchmark doesn't have (`cash`, `unclassified`, `fund: …`) has benchmark weight 0 and benchmark
-return := the benchmark's total return, so its effect lands in selection (`unclassified`) or allocation (`cash`,
-whose return is 0: the cash drag). These rows are always listed, with their value. A day with an unknown position
+A segment the benchmark doesn't have (`cash`, `unclassified`, `fund: …`) has benchmark weight 0, so no selection:
+`unclassified` gets the benchmark's total return as its benchmark return, and its excess return shows as
+interaction; `cash` gets its own return (0) as benchmark return, and shows as allocation: the cash drag. These rows are always listed, with their value. A day with an unknown position
 value (a gap in the book) has no attribution; the month's linked figures then cover fewer days, and the count is
 shown.
 

@@ -67,7 +67,7 @@ def _print_score(rep: a.ScoreStudy, n: int) -> None:
     sig = study.SIGNALS[rep.signal]
     names = f"{u.fund_names} US stocks with SEC EDGAR statements" if sig.fund else f"{u.tickers} stocks"
     typer.echo(f"\n{sig.label}: {names}, formation dates {u.first} to {u.last}; holdout from "
-               f"{rep.settings.holdout_from}; {rep.variants_tried} variants tried against {bk}")
+               f"{rep.settings.holdout_from}; {rep.variants_tried} variants tried against {bk}; rule {rep.rule_hash or '-'}")
     labels = {v.key: v for v in rep.variants}
     for h, res in rep.results.items():
         typer.echo(f"\n{h} month(s) ahead: excess over the equal-weight universe")
@@ -93,8 +93,9 @@ def _print_score(rep: a.ScoreStudy, n: int) -> None:
             typer.echo(f"  {bk} IC within each group: " + ", ".join(f"{g} {fmt_num(s.ic_mean)}" for g, s in grp.items()))
         al = base.all or a.ScoreSummary()
         if al.top_dkk is not None:
-            typer.echo(f"  top {n} in DKK: mean {fmt_pct(al.top_dkk)} against ACWI {fmt_pct(al.acwi_dkk)}, "
-                       f"ahead on {fmt_pct(al.top_beats_acwi, False)} of dates")
+            typer.echo(f"  top {n} in DKK: mean {fmt_pct(al.top_dkk)} against ACWI {fmt_pct(al.acwi_dkk)} "
+                       f"(difference t {fmt_num(al.top_vs_acwi_t, '+.1f')}), ahead on "
+                       f"{fmt_pct(al.top_beats_acwi, False)} of dates")
     typer.echo(f"\nIC decay ({bk}): " + ", ".join(f"{h}m {fmt_num(v)}" for h, v in rep.decay.get(bk, {}).items()))
     typer.echo(f"Top-quintile turnover per month ({bk}): {fmt_pct(rep.turnover.get(bk), False)}")
     mc = rep.momentum_corr
@@ -167,11 +168,11 @@ def _print_longrun(rep: a.LongrunStudy) -> None:
     for pr in rep.panels.values():
         typer.echo(f"\n{pr.label}: {pr.members} members, top {pr.n_top}, {pr.months} formation months "
                    f"{_month(pr.first)} to {_month(pr.last)}; holdout from {rep.settings.holdout_from}; "
-                   f"{pr.variants_tried} variants tried")
+                   f"{pr.variants_tried} variants tried; rule {rep.rule_hash or '-'}")
         for h, res in pr.results.items():
             typer.echo(f"\n  {h} month(s) ahead: excess over the panel's equal weight")
             typer.echo(f"    {'':<12}{'dates':>6} {'eff N':>6} {'IC':>6} {'t':>6}  {'Q5-Q1':>7} {'t':>6}  {'top N':>7} {'t':>6}"
-                       f"  {'vs mkt':>7}  {'holdout IC':>10}  verdict")
+                       f"  {'vs mkt':>7} {'t':>6}  {'holdout IC':>10}  verdict")
             for k, r in res.items():
                 al, ho = r.all or a.LongrunSummary(), r.holdout or a.LongrunSummary()
                 verdict = pr.verdicts.get(h, {}).get(k)
@@ -179,7 +180,8 @@ def _print_longrun(rep: a.LongrunStudy) -> None:
                 typer.echo(f"    {k:<12}{al.dates or 0:>6} {fmt_num(al.eff_n, '.0f'):>6} {fmt_num(al.ic_mean):>6} "
                            f"{fmt_num(al.ic_t, '+.1f'):>6}  {fmt_pct(al.spread):>7} {fmt_num(al.spread_t, '+.1f'):>6}  "
                            f"{fmt_pct(al.top_excess):>7} {fmt_num(al.top_excess_t, '+.1f'):>6}  "
-                           f"{fmt_pct(al.top_vs_market):>7}  {fmt_num(ho.ic_mean):>10}  {v}")
+                           f"{fmt_pct(al.top_vs_market):>7} {fmt_num(al.top_vs_market_t, '+.1f'):>6}  "
+                           f"{fmt_num(ho.ic_mean):>10}  {v}")
             base = res.get("score") or a.LongrunVariant()
             dec = {d: s for d, s in base.by_decade.items() if s}
             typer.echo("    score IC by decade: " + ", ".join(f"{d} {fmt_num(s.ic_mean)}" for d, s in dec.items()))
@@ -387,3 +389,81 @@ def _print_propose(rep: a.ProposeStudy) -> None:
     typer.echo("\nExcess: over ACWI in DKK after costs. Read the effective N: overlapping windows. Caveat: "
                + (rep.caveats[0] if rep.caveats else "–"))
     typer.echo("Report: reports/propose-study.json")
+
+
+@app.command()
+def evidence(as_json: bool = typer.Option(False, "--json", help="The EvidenceView as JSON (for the skills)")):
+    """The Evidence page on the command line: each study report's status, age and rule, the scores' IC with t over
+    all dates and the holdout, and the forward record (A/B test, paper trail, frozen proposals vs ACWI). Analysis,
+    not advice."""
+    from .. import evidence as ev
+    from ..portfolios import trades
+
+    trades.ensure_migrated()
+    try:
+        market = Market.load()
+    except SystemExit:                           # no prices yet: the studies still show, the scoreboard doesn't
+        market = None
+    v = ev.build(market)
+    if as_json:
+        typer.echo(to_json(v, indent=1))
+        return
+    _print_evidence(v)
+
+
+def _status(h: dict) -> str:
+    if h["status"] == "ok":
+        return f"ok, data to {h['data_asof']}" + (f" ({h['age_days']} days old)" if h["old_data"] else "")
+    if h["status"] == "stale":
+        return f"older rule ({h['rule_hash'] or 'not recorded'}, today's {h['rule_hash_now']}): run `{h['command']}`"
+    return f"{'not run yet' if h['status'] == 'missing' else 'unreadable'}: run `{h['command']}`"
+
+
+def _print_evidence(v: dict) -> None:
+    typer.echo(f"Study reports (holdout from {v['holdout_from']}):")
+    for card in v["scores"]:
+        h = card["head"]
+        typer.echo(f"\n{h['label']}: {_status(h)}")
+        if h["status"] not in ("ok", "stale"):
+            continue
+        for x in card["horizons"]:
+            al, ho = x["all"] or {}, x["holdout"] or {}
+            typer.echo(f"  {x['h']:>2}m  IC {fmt_num(al.get('ic_mean'))} (t {fmt_num(al.get('ic_t'), '+.1f')}), "
+                       f"holdout {fmt_num(ho.get('ic_mean'))} (t {fmt_num(ho.get('ic_t'), '+.1f')}); top "
+                       f"{card['n_top'] or 'N'} vs ACWI {fmt_pct(al.get('top_vs_acwi'))} "
+                       f"(t {fmt_num(al.get('top_vs_acwi_t'), '+.1f')})")
+        for n in card["notes"]:
+            typer.echo(f"  {n}")
+    lr = v["longrun"]
+    typer.echo(f"\n{lr['head']['label']}: {_status(lr['head'])}")
+    for p in lr["panels"]:
+        if p["error"]:
+            typer.echo(f"  {p['key']}: not studied ({p['error']})")
+            continue
+        six = next((x for x in p["horizons"] if x["h"] == 6), p["horizons"][0] if p["horizons"] else None)
+        if six:
+            al, ho = six["all"] or {}, six["holdout"] or {}
+            typer.echo(f"  {p['label']}: {six['h']}m IC {fmt_num(al.get('ic_mean'))} (t "
+                       f"{fmt_num(al.get('ic_t'), '+.1f')}), holdout {fmt_num(ho.get('ic_mean'))} (t "
+                       f"{fmt_num(ho.get('ic_t'), '+.1f')}), {p['months']} months")
+    typer.echo("")
+    for h in v["rules"]:
+        typer.echo(f"{h['label']}: {_status(h)}")
+    fwd = v["forward"]
+    if fwd is None:
+        typer.echo("\n" + " ".join(v["notes"]))
+        return
+    for key, title in (("abtest", "A/B test"), ("paper_trail", "Paper trail (picks-live)"),
+                       ("proposals", "Frozen proposals")):
+        g = fwd[key]
+        typer.echo(f"\n{title}:" + ("" if g["running"] else f" {g['note']}"))
+        for r in g["records"]:
+            short = "  (too short)" if r["too_short"] else ""
+            typer.echo(f"  {r['label']:<28} since {r['start'] or '–'}: {fmt_pct(r['ret'])} vs ACWI "
+                       f"{fmt_pct(r['acwi'])}, excess {fmt_pct(r['excess'])}{short}")
+        c = g["cohort"]
+        if c:
+            typer.echo(f"  mean excess {fmt_pct(c['mean_excess'])}, ahead of ACWI {fmt_pct(c['beat_acwi'], False)} "
+                       f"over {c['count']} (no t: overlapping windows)" if c["enough"] else f"  {c['note']}")
+        if g["running"] and g["note"]:
+            typer.echo(f"  {g['note']}")

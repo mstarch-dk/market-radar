@@ -22,7 +22,7 @@ settings.load_profile("radar")
 
 
 CACHED = ("radar.api", "radar.reporting.dashboard", "radar.portfolios.performance", "radar.fundamentals.context",
-          "radar.sources.valuation", "radar.reporting.tickers", "radar.market_views")
+          "radar.sources.valuation", "radar.reporting.tickers", "radar.market_views", "radar.attribution")
 
 
 def reset_caches() -> None:

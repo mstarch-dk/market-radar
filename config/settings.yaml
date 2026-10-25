@@ -82,6 +82,12 @@ abtest:                    # src/radar/abtest.py: the forward A/B test (kvalitet
   capital: 100000          # DKK each basket starts with (virtual)
   value_score: qv          # the value basket ranks on qv (kvalitet + værdi) or value (værdiscore alone)
 
+evidence:                  # src/radar/evidence.py: the Evidence page, read-only over the study reports
+  max_age_days: {score: 62, longrun: 120, rules: 120}   # data older than this: an "old data" badge (same rule)
+  forward_min_months: 12   # a forward line younger than this is "too short", never ranked
+  cohort_age_months: 3     # a paper-trail basket counts towards the cohort's mean from this age
+  cohort_min: 6            # the paper trail's mean is shown from this many such baskets
+
 propose:                   # src/radar/propose.py: `radar propose` and /propose-portfolio (analysis, not advice)
   # --- the rule (pre-registered: a change here makes reports/propose-study.json stale; re-run `radar study propose`)
   min_ticket_dkk: 10000    # at least this much per new name (fees: a broker minimum on a small ticket costs a lot)
@@ -257,6 +263,9 @@ factors:                   # src/radar/factors.py: long monthly histories for `r
     mom_dev: Developed_Mom_Factor_CSV
     ff3_eu: Europe_3_Factors_CSV
     mom_eu: Europe_Mom_Factor_CSV
+  french_daily:            # daily files, in a file of their own: the attribution's factor regression of your portfolios
+    ff5_dev: Developed_5_Factors_Daily_CSV    # Mkt-RF, SMB, HML, RMW, CMA, RF (USD, from 1990-07); ends ~2 months back
+    mom_dev: Developed_Mom_Factor_Daily_CSV   # WML (from 1990-11)
   jkp:                     # JKP Global Factor Data (CC BY-NC 4.0): USD returns in excess of the US T-bill
     mkt_countries: {region: all_countries, theme: mkt, weighting: vw}            # market return per country
     mkt_world: {region: world, theme: mkt, weighting: vw}
@@ -300,9 +309,14 @@ longrun:                   # src/radar/backtest/longrun.py: `radar study longrun
     "Value theme, world ex US (JKP)": [jkp:themes_world_ex_us, value]
     "Quality theme, developed (JKP)": [jkp:themes_developed, quality]
 
-attribution:               # attribution vs ACWI (plans/F4-attribution.md): benchmark segments in portfolios/segments.py
+attribution:               # attribution vs ACWI (src/radar/attribution.py; plans/F4-attribution.md)
   snapshot_days: 6         # ACWI's holdings are fetched again when older than this, for the weekly weights snapshot
   min_proxy_coverage: 0.8  # share of a region's ACWI weight its country ETFs must cover, else its return is missing
+  min_months: 12           # less book history in the period: no attribution, a note
+  min_weeks: 52            # fewer weekly observations: no factor regression, a note
+  nw_lag: null             # Newey-West lag in weeks; null = the rule floor(4 (n/100)^(2/9))
+  tolerance: 1.0e-8        # linked effects vs the active return they explain (return units); beyond it: an error
+  factors: {five: ff5_dev, momentum: mom_dev}   # keys under factors.french_daily
 
 updates:                   # src/radar/updates.py: the check for a new version (off until switched on in the app)
   repo: mstarch-dk/market-radar   # the public repo's "owner/name" on GitHub; null: nothing to check

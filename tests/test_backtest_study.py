@@ -82,6 +82,18 @@ def test_newey_west_by_hand():
     assert mstats.nw_t([0.1, None], 0) is None
 
 
+def test_top_vs_acwi_t():
+    rows = [{"ic": 0.1, "q": [0.0] * 5, "spread": 0.0, "top_excess": 0.0, "top_hit": 0.5, "n": 30,
+             "top_dkk": t, "acwi_dkk": a} for t, a in ((0.05, 0.01), (0.02, 0.03), (0.04, None), (0.06, 0.02),
+                                                       (None, 0.01), (0.03, 0.00))]
+    s = mstats.summarize(rows, 0)
+    d = [0.04, -0.01, 0.04, 0.03]                       # top minus ACWI on the four dates that have both
+    assert s["top_vs_acwi"] == pytest.approx(np.mean(d))
+    assert s["top_vs_acwi_t"] == pytest.approx(mstats.nw_t(d, 0))
+    assert s["top_beats_acwi"] == pytest.approx(0.75)
+    assert mstats.summarize([dict(rows[2]), dict(rows[4])], 0)["top_vs_acwi"] is None   # never 0
+
+
 def test_nothing_after_the_horizon_is_read(cfg):
     c = drifting()
     first = run(c, horizons=(1,))["dates"][0]

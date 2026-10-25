@@ -146,7 +146,7 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-2:] == ["/api/xray", "/api/calendar"]             # the newest routers come last
+    assert paths_[-4:] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -178,7 +178,7 @@ def test_calendar_api_contract(built, monkeypatch):
     empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
     assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-1] == "/api/calendar"
+    assert paths_[-3:] == ["/api/calendar", "/api/evidence", "/api/attribution"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/calendar").status_code == 503
@@ -192,6 +192,27 @@ def test_me_flag_matches_calendar(built):
     days = {i["symbol"]: i["days"] for i in built.get("/api/calendar").json()["items"]}
     assert f"earnings in {days['S1']} d" in rows["S1"]["flags"]
     assert not any(f.startswith("earnings") for f in rows["E2"]["flags"])        # 10 days out: past soon_days
+
+
+def test_evidence_api_contract(client, monkeypatch):
+    """GET /api/evidence validates against EvidenceView with no reports run (every card says so), is cached until
+    something it reads changes, and without prices still answers with the study cards and no scoreboard."""
+    from radar.model import artifacts
+
+    r = client.get("/api/evidence")
+    assert r.status_code == 200, r.json()
+    v = api_models.EvidenceView.model_validate(r.json())
+    assert [c.head.status for c in v.scores] == ["missing"] * 4 and v.longrun.head.status == "missing"
+    assert v.forward is not None and not v.forward.proposals.running
+    assert client.get("/api/evidence").json()["generated"] == r.json()["generated"]       # cached
+    artifacts.write("exit-study", {"generated": "2026-10-16T20:00:00", "asof": "2026-10-16"}, data_asof="2026-10-16")
+    again = api_models.EvidenceView.model_validate(client.get("/api/evidence").json())
+    assert again.rules[1].status == "ok"                                                  # a new report is read
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    gone = client.get("/api/evidence")
+    assert gone.status_code == 200 and gone.json()["forward"] is None
+    assert len(gone.json()["scores"]) == 4 and "radar run" in gone.json()["notes"][0]
 
 
 def test_watchlist_add_and_remove(client):

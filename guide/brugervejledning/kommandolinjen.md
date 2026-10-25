@@ -227,6 +227,19 @@ uv run radar calendar --json                 # det hele som JSON, det samme som 
 
 Reglerne og hvor datoerne kommer fra, står i [Kalenderen](brugervejledning/kalender).
 
+### Attribution mod ACWI
+
+`radar attribution` forklarer forskellen mellem de valgte porteføljers tidsvægtede afkast og ACWI's over en periode i DKK. Først afstemningen: forskellen er handel og gebyrer + segment-ETF'erne mod ACWI + det, der kan fordeles. Så fordelingen efter sektor og efter region (allokering, udvælgelse og samspil pr. segment, største først), valutaeffekten pr. valuta og faktorregressionen: alfa pr. år med t-tal, og hvor mange måneder mere det vil tage at nå t = 2. Navne, tags og `--scope` vælges som ved `radar xray`.
+
+```
+uv run radar attribution                          # dine rigtige porteføljer samlet, hele historikken
+uv run radar attribution "ASK" --start 2025-01-01
+uv run radar attribution --tag momentum-a --end 2026-06-30
+uv run radar attribution --json                   # det hele som JSON
+```
+
+Under {{settings:attribution.min_months}} måneders historik i perioden er der ingen attribution, kun en note. En beholdning, der ikke kan placeres i en sektor, er sit eget segment med sit eget afkast, og en dag, hvor en kurs eller vægt mangler, tælles ikke med; begge dele står i noterne, aldrig som 0 %.
+
 ### Simulér stop og take-profit
 
 `radar sim exits` afspiller dine rigtige handler med radarens stop og take-profit fulgt, dag for dag, ind i virtuelle porteføljer. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
@@ -252,7 +265,11 @@ uv run radar study redeploy
 uv run radar sim picks-candidates --asof 6M
 uv run radar sim picks --asof 6M --rule top-n --n 15 --max-per-sector 3 --name test-6m
 uv run radar sim picks --rerun tag:picks-live
+uv run radar evidence                    # alle testenes status og hovedtal, og resultaterne fremad mod ACWI
+uv run radar evidence --json
 ```
+
+`radar evidence` kører ingen test, men læser de rapporter, testene har skrevet: for hver test om den er kørt, hvor gamle dataene er, og om den testede reglen, som den er i dag; for hver score IC med t-tal over alle måneder og i holdout-perioden; og A/B-testen, papirsporet og de frosne porteføljeforslag mod ACWI. En kurv, der er for ung til at sige noget, står som *for kort* og tæller ikke med i gennemsnittet.
 
 ### A/B-test: kvalitet og værdi mod momentum
 
@@ -327,6 +344,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se mit afkast mod ACWI | `uv run radar performance` |
 | se hvad mine beholdninger er eksponeret mod | `uv run radar xray` |
 | se de kommende regnskaber for det, jeg ejer og følger | `uv run radar calendar` |
+| se hvorfor jeg slog eller haltede efter ACWI | `uv run radar attribution` |
 | teste momentumscoren | `uv run radar study score` |
 | teste scorens regel over årtier | `uv run radar study longrun` |
 | teste varianter af stopreglen | `uv run radar study exits` |

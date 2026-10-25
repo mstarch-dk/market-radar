@@ -1,6 +1,7 @@
 """Long monthly return histories for testing the radar's rules over decades (`radar study longrun`) and for the
 proposals' long-run prior: portfolios and factors built by researchers from every listed stock at the time (Kenneth
-R. French Data Library, JKP Global Factor Data), so they hold no survivorship bias.
+R. French Data Library, JKP Global Factor Data), so they hold no survivorship bias. Also French's daily developed
+factors, for the attribution's factor regression of your portfolios (kept in a file of their own).
 
 The data rules (formats, excess returns, refresh and guard): docs/data-conventions.md, *Long histories*; the sources
 and their terms: DATA_LICENSE.md."""
@@ -20,6 +21,7 @@ from ..config_schema import Factors
 from ..paths import CACHE
 
 FACTORS_FILE = CACHE / "factors" / "returns.parquet"
+DAILY_FILE = CACHE / "factors" / "daily.parquet"
 FRENCH_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/{file}.zip"
 JKP_URL = "https://jkpfactors-data.s3.amazonaws.com/public/%5B{region}%5D_%5B{theme}%5D_%5Bmonthly%5D_%5B{weighting}%5D.zip"
 JKP_PF_URL = ("https://jkpfactors-data.s3.amazonaws.com/public/portfolios/"
@@ -35,45 +37,50 @@ def cfg() -> Factors:
 # ---------------- Kenneth R. French Data Library ----------------
 
 _MONTH = re.compile(r"^\s*(\d{6})\s*,")
+_DAY = re.compile(r"^\s*(\d{8})\s*,")
 
 
-def french_blocks(text: str) -> dict[str, pd.DataFrame]:
+def french_blocks(text: str, daily: bool = False) -> dict[str, pd.DataFrame]:
     """Every monthly block in one French CSV: {title: frame (month-end index, one column per series, decimals)}.
     A block is a header line starting with "," followed by rows dated YYYYMM; its title is the last text line before
-    the header ("" when there is none). Annual blocks (YYYY) are skipped."""
+    the header ("" when there is none). Annual blocks (YYYY) are skipped. With `daily`, the blocks of rows dated
+    YYYYMMDD instead, indexed by those days."""
+    row = _DAY if daily else _MONTH
     lines = text.splitlines()
     out: dict[str, pd.DataFrame] = {}
     title = ""
     i = 0
     while i < len(lines):
         line = lines[i]
-        if line.lstrip().startswith(",") and i + 1 < len(lines) and _MONTH.match(lines[i + 1]):
+        if line.lstrip().startswith(",") and i + 1 < len(lines) and row.match(lines[i + 1]):
             cols = [c.strip() for c in line.split(",")[1:]]
             rows = []
             i += 1
-            while i < len(lines) and _MONTH.match(lines[i]):
+            while i < len(lines) and row.match(lines[i]):
                 rows.append([v.strip() for v in lines[i].split(",")])
                 i += 1
-            idx = pd.PeriodIndex([r[0] for r in rows], freq="M").to_timestamp(how="end").normalize()
+            idx = (pd.DatetimeIndex(pd.to_datetime([r[0] for r in rows], format="%Y%m%d")) if daily else
+                   pd.PeriodIndex([r[0] for r in rows], freq="M").to_timestamp(how="end").normalize())
             vals = pd.DataFrame([r[1:len(cols) + 1] for r in rows], index=idx, columns=cols)
             vals = vals.apply(pd.to_numeric, errors="coerce")
             vals = vals.mask(vals <= FRENCH_MISSING) / 100       # -99.99 and -999: missing, never a return
             out.setdefault(title, vals)
             continue
-        if line.strip() and not _MONTH.match(line):
+        if line.strip() and not row.match(line):
             title = line.strip()
         i += 1
     return out
 
 
-def parse_french(blob: bytes, block: str | None = None) -> pd.DataFrame:
-    """The block whose title contains `block` (case-insensitive), or the first monthly block, from a French ZIP."""
+def parse_french(blob: bytes, block: str | None = None, daily: bool = False) -> pd.DataFrame:
+    """The block whose title contains `block` (case-insensitive), or the first monthly (with `daily`: daily) block,
+    from a French ZIP."""
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         names = [n for n in z.namelist() if n.lower().endswith(".csv")]
         if not names:
             raise ValueError("no CSV in the French ZIP: has the format changed?")
         text = z.read(names[0]).decode("latin-1")
-    blocks = french_blocks(text)
+    blocks = french_blocks(text, daily)
     if block:
         hits = [t for t in blocks if block.lower() in t.lower()]
         if not hits:
@@ -84,8 +91,21 @@ def parse_french(blob: bytes, block: str | None = None) -> pd.DataFrame:
     else:
         df = pd.DataFrame()
     if df.empty or df.notna().sum().sum() == 0:
-        raise ValueError(f"no monthly returns in {names[0]}: has the format changed?")
+        raise ValueError(f"no {'daily' if daily else 'monthly'} returns in {names[0]}: has the format changed?")
     return df
+
+
+def to_weeks(daily: pd.DataFrame) -> pd.DataFrame:
+    """Daily returns compounded into W-FRI weeks. A week with a missing day (NaN) is missing for that series, never
+    compounded over the gap; a last week the data doesn't reach the end of is left out."""
+    if daily.empty:
+        return daily
+    grown = (1 + daily).resample("W-FRI").prod(min_count=1) - 1
+    gaps = daily.isna().resample("W-FRI").sum() > 0
+    weeks = grown.mask(gaps)
+    if daily.index[-1] < weeks.index[-1]:
+        weeks = weeks.iloc[:-1]
+    return weeks
 
 
 # ---------------- JKP Global Factor Data ----------------
@@ -128,11 +148,13 @@ def long_rows(key: str, wide: pd.DataFrame, fetched: date) -> pd.DataFrame:
 def datasets() -> dict[str, dict]:
     """{key: spec} for every configured dataset: key "french:<name>", "jkp:<name>" or, for JKP's long-only portfolios
     (a region's stocks in terciles by one characteristic), "jkp_pf:<region>:<characteristic>" with series "1" (low)
-    to "3" (high)."""
+    to "3" (high); French's daily files "french_daily:<name>"."""
     conf = cfg()
     out: dict[str, dict] = {}
     for name, f in conf.french.items():
         out[f"french:{name}"] = {"source": "french", **({"file": f} if isinstance(f, str) else f.model_dump(exclude_none=True))}
+    for name, file in conf.french_daily.items():
+        out[f"french_daily:{name}"] = {"source": "french_daily", "file": file}
     for name, j in conf.jkp.items():
         out[f"jkp:{name}"] = {"source": "jkp", **j.model_dump(exclude_none=True)}
     pf = conf.jkp_portfolios
@@ -144,10 +166,10 @@ def datasets() -> dict[str, dict]:
 
 
 def fetch(spec: dict) -> pd.DataFrame:
-    if spec["source"] == "french":
+    if spec["source"] in ("french", "french_daily"):
         resp = net.get(FRENCH_URL.format(file=spec["file"]), timeout=120)
         resp.raise_for_status()
-        return parse_french(resp.content, spec.get("block"))
+        return parse_french(resp.content, spec.get("block"), daily=spec["source"] == "french_daily")
     if spec["source"] == "jkp_pf":
         resp = net.get(JKP_PF_URL.format(**{k: spec[k] for k in ("region", "characteristic", "weighting")}), timeout=120)
         resp.raise_for_status()
@@ -160,13 +182,31 @@ def fetch(spec: dict) -> pd.DataFrame:
 def update_factors(today: date | None = None, force: bool = False) -> str:
     """Download the datasets whose stored copy is older than `max_age_days` (all with `force`). Each one is checked
     against what is stored (guard: the same series, starting no later, ending no earlier, not markedly fewer rows);
-    one that fails keeps its stored rows, and the step then fails naming it after the rest are written."""
+    one that fails keeps its stored rows, and the step then fails naming it after the rest are written. The daily
+    datasets are kept in a file of their own."""
     today = today or date.today()
+    specs = datasets()
+    daily = {k: s for k, s in specs.items() if s["source"] == "french_daily"}
+    monthly = {k: s for k, s in specs.items() if k not in daily}
+    fresh, skipped = 0, 0
+    failed: list[str] = []
+    for group, file in ((monthly, FACTORS_FILE), (daily, DAILY_FILE)):
+        n, s, f = refresh(group, file, today, force)
+        fresh, skipped, failed = fresh + n, skipped + s, failed + f
+    msg = f"{fresh} downloaded, {skipped} up to date"
+    if failed:
+        raise RuntimeError(msg + "; failed (kept the stored copy): " + "; ".join(failed))
+    return msg
+
+
+def refresh(specs: dict[str, dict], file, today: date, force: bool = False) -> tuple[int, int, list[str]]:
+    """One store's datasets, as `update_factors`: (downloaded, up to date, failures)."""
+    if not specs:
+        return 0, 0, []
     max_age = timedelta(days=cfg().max_age_days)
-    stored = load()
+    stored = read_store(file)
     fetched = stored.groupby("key")["fetched"].max() if not stored.empty else pd.Series(dtype="datetime64[ns]")
     fresh, failed, skipped = [], [], 0
-    specs = datasets()
     for key, spec in specs.items():
         if not force and key in fetched.index and pd.Timestamp(today) - fetched[key] < pd.Timedelta(max_age):
             skipped += 1
@@ -182,16 +222,30 @@ def update_factors(today: date | None = None, force: bool = False) -> str:
         done = {f["key"].iat[0] for f in fresh}
         rest = stored[~stored["key"].isin(done)] if not stored.empty else None
         out = pd.concat([f for f in [rest, *fresh] if f is not None and not f.empty], ignore_index=True)
-        write_parquet(out.sort_values(["key", "series", "date"]), FACTORS_FILE, index=False)
-    msg = f"{len(fresh)} downloaded, {skipped} up to date"
-    if failed:
-        raise RuntimeError(msg + "; failed (kept the stored copy): " + "; ".join(failed))
-    return msg
+        write_parquet(out.sort_values(["key", "series", "date"]), file, index=False)
+    return len(fresh), skipped, failed
+
+
+def read_store(file) -> pd.DataFrame:
+    """A store's rows (COLUMNS), empty when it hasn't been written."""
+    return pd.read_parquet(file) if file.exists() else pd.DataFrame(columns=COLUMNS)
 
 
 def load() -> pd.DataFrame:
-    """Every dataset, long: key, series, date (month-end), ret (a decimal), fetched. Missing months have no row."""
-    return pd.read_parquet(FACTORS_FILE) if FACTORS_FILE.exists() else pd.DataFrame(columns=COLUMNS)
+    """Every monthly dataset, long: key, series, date (month-end), ret (a decimal), fetched. Missing months have no
+    row."""
+    return read_store(FACTORS_FILE)
+
+
+def load_daily() -> pd.DataFrame:
+    """Every daily dataset (French's daily developed factors), long like `load`, dated by trading day."""
+    return read_store(DAILY_FILE)
+
+
+def daily_panel(key: str, data: pd.DataFrame | None = None) -> pd.DataFrame:
+    """One daily dataset ("french_daily:<name>") wide: trading-day index, one column per series, decimals (NaN where
+    missing). Empty when it hasn't been downloaded."""
+    return panel(key, load_daily() if data is None else data)
 
 
 def panel(key: str, data: pd.DataFrame | None = None) -> pd.DataFrame:

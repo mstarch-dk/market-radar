@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from ..signals.risk import TRADING_DAYS, deepest_drawdown, worst_window
+from ..signals.risk import TRADING_DAYS, deepest_drawdown, ols, worst_window
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -37,6 +37,38 @@ def nw_t(values, lag: int) -> float | None:
     return float(v.mean() / math.sqrt(s / n))
 
 
+def nw_lag(n: int) -> int:
+    """Newey and West's (1994) rule for the lag: ⌊4 (n/100)^(2/9)⌋ (4 from 100 observations, 5 from 273)."""
+    return int(math.floor(4 * (n / 100) ** (2 / 9))) if n > 0 else 0
+
+
+def ols_nw(y: np.ndarray, X: np.ndarray, lag: int) -> dict:
+    """Least squares with an intercept (coefficients and R² from `signals.risk.ols`) with Newey-West (Bartlett)
+    standard errors: (AᵀA)⁻¹ S (AᵀA)⁻¹, S = Σ_l w_l Σ_t e_t e_{t−l} a_t a_{t−l}ᵀ (both directions), w_l = 1 − l/(lag+1),
+    no small-sample correction (as `nw_t`, which it equals for an intercept alone). With lag 0 it is White's."""
+    fit = ols(y, X)
+    A = np.column_stack([np.ones(len(y)), X])
+    e = fit["resid"]
+    u = A * e[:, None]
+    s = u.T @ u
+    for k in range(1, min(lag, len(y) - 1) + 1):
+        g = u[k:].T @ u[:-k]
+        s += (1 - k / (lag + 1)) * (g + g.T)
+    inv = np.linalg.pinv(A.T @ A)
+    se = np.sqrt(np.clip(np.diag(inv @ s @ inv), 0, None))
+    t = np.divide(fit["coef"], se, out=np.full_like(fit["coef"], np.nan), where=se > 0)
+    return {"coef": fit["coef"], "se": se, "t": t, "r2": fit["r2"], "resid": e, "n": len(y), "lag": lag}
+
+
+def periods_to_t(t: float, n: int, target: float = 2.0) -> float | None:
+    """How many observations it would take for a t-statistic now at `t` from `n` observations to reach `target`, if
+    the estimate and its noise stayed as measured: t grows with √n, so n · (target / t)². None when t is 0 or
+    missing."""
+    if t is None or not np.isfinite(t) or t == 0:
+        return None
+    return float(n * (target / abs(t)) ** 2)
+
+
 def path_stats(level: pd.Series) -> dict:
     """A value path's return (from 1), maximum drawdown and worst 20-session change."""
     return {"ret": float(level.iloc[-1] - 1), "max_dd": deepest_drawdown(level), "worst20": worst_window(level, 20)}
@@ -63,7 +95,8 @@ def cross_section(x: pd.Series, y: pd.Series, n_top: int, min_names: int, y_dkk:
 
 
 def summarize(rows: list[dict], lag: int) -> dict | None:
-    """Across dates: means, Newey-West t-statistics and shares."""
+    """Across dates: means, Newey-West t-statistics and shares. `top_vs_acwi`: the top N in DKK minus ACWI, on the
+    dates that have both."""
     rows = [r for r in rows if r is not None]
     if not rows:
         return None
@@ -72,6 +105,7 @@ def summarize(rows: list[dict], lag: int) -> dict | None:
     top_dkk = [r.get("top_dkk") for r in rows]
     acwi = [r.get("acwi_dkk") for r in rows]
     beat = [a < b for a, b in zip(acwi, top_dkk) if a is not None and b is not None]
+    vs_acwi = [b - a for a, b in zip(acwi, top_dkk) if a is not None and b is not None]
     return {
         "dates": len(rows), "n_mean": mean([r["n"] for r in rows]),
         "ic_mean": mean(ics), "ic_t": nw_t(ics, lag), "ic_pos": mean([float(i > 0) for i in ics if i is not None]),
@@ -79,7 +113,9 @@ def summarize(rows: list[dict], lag: int) -> dict | None:
         "monotone": all(a is not None and b is not None and a < b for a, b in zip(q, q[1:])),
         "top_excess": mean([r["top_excess"] for r in rows]), "top_excess_t": nw_t([r["top_excess"] for r in rows], lag),
         "top_hit": mean([r["top_hit"] for r in rows]),
-        "top_dkk": mean(top_dkk), "acwi_dkk": mean(acwi), "top_beats_acwi": mean([float(b) for b in beat]),
+        "top_dkk": mean(top_dkk), "acwi_dkk": mean(acwi),
+        "top_vs_acwi": mean(vs_acwi), "top_vs_acwi_t": nw_t(vs_acwi, lag),
+        "top_beats_acwi": mean([float(b) for b in beat]),
     }
 
 

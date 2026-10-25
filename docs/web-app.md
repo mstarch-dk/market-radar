@@ -113,6 +113,22 @@ Python computes every number; the frontend only formats and draws. It is the rad
   Computed live under the price lock, cached per (selection, days, prices mtime, transactions version, calendar file,
   dashboard build, journal and proposals folders). Needs the dashboard (503 without one) and prices (503); included
   after the X-ray's router.
+- Attribution: `GET /api/attribution?portfolio=&tag=&scope=&start=&end=` → `AttributionView` (`attribution.py`): the
+  period, the reconciliation with Returns, per dimension (`dims.sector`, `dims.region`) the segments' average weights,
+  returns and linked allocation / selection / interaction, the months (with `basis` snapshot | back-drifted), the
+  totals incl. currency and cross, days used and left out and the linking error; the currency effect by currency;
+  ACWI's first weekly snapshot and the back-drifted months; unclassified holdings (`class` on the wire); the factor
+  regression (null under `attribution.min_weeks` or without factors) and notes. Under `attribution.min_months` or
+  without ACWI's weekly weights: a valid view with empty `dims`, nulls and notes. `start`/`end` must be YYYY-MM-DD
+  (422 otherwise). Computed live under the price lock; cached per (selection, period, prices mtime, transactions
+  version, ACWI segment file, daily factor file); no prices is 503. Its router is included last.
+- Evidence: `GET /api/evidence` → `EvidenceView` (`evidence.py`): a card per score study (momentum, quality, value,
+  K+V) and the long-run study, each with its header (`status` ok | stale | missing | invalid, the reason and the
+  command, `data_asof`, `age_days`, `old_data` past `evidence.max_age_days`, the rule tested and today's), the baseline
+  per horizon with a t next to every mean, the verdicts and notes; the rule studies' headers; and `forward` (A/B test,
+  paper trail, frozen proposals vs ACWI; `too_short` records are never averaged; null without prices, the cards still
+  come back). Never 503. Cached until a report, the prices, a trade, a frozen proposal, the settings or the day
+  change. Its router is included last, after the calendar's.
 - Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every
