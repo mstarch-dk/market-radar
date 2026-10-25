@@ -4,6 +4,8 @@ Siden [Returns](/returns) viser, hvordan dine porteføljer har udviklet sig over
 
 ## Det viser siden
 
+Siden har to faner: *Returns* med grafen og tabellen nedenfor, og *Attribution*, der forklarer forskellen til ACWI (se [Attribution](#attribution-hvorfor-du-slog-eller-haltede-efter-acwi)). Afkrydsningen af porteføljer og datoen *From* gælder for begge.
+
 - **Grafen** *Growth of 100 (time-weighted, DKK)*: hver linje er et tidsvægtet indeks, der starter på 100 på den fælles startdato. Linjen *ACWI (DKK)* er verdensindekset fra samme dag. En linje over ACWI's har klaret sig bedre.
 - **Tabellen** med én række pr. linje:
 
@@ -69,6 +71,23 @@ Valget står i adressen: `?pf=` for linjerne (fx `?pf=3,7` eller `?pf=tag:moment
 
 > **Tip:** En fork og originalen starter lige, fordi kopien bygges af originalens beholdninger ved samme lukkekurs. Derfor er det en ren måde at teste en ændring på: lav ændringen i kopien, og se hvilken linje der ligger højest efter nogle måneder.
 
+## Attribution: hvorfor du slog eller haltede efter ACWI
+
+Fanen *Attribution* forklarer forskellen mellem de afkrydsede porteføljers tidsvægtede afkast og ACWI's i perioden fra *From* (tom: hele historikken). Flere afkrydsede porteføljer eller tags lægges sammen til én. Det hele er i DKK.
+
+- **Fra ACWI til dit afkast** (*From ACWI to your return*) er et vandfald, hvor søjlerne lægges oven i hinanden og ender i forskellen til ACWI:
+  - *Trading and fees*: det, der sker inden for en dag (køb over eller salg under lukkekursen) og gebyrerne.
+  - *Benchmark proxies vs ACWI*: ACWI's segmenter måles med ETF'er, der følger MSCI World-sektorer og landeindeks, ikke ACWI's egne segmenter. Forskellen mellem de ETF'er og ACWI står for sig selv i stedet for at gemme sig i effekterne.
+  - *Allocation* (allokering): at have mere eller mindre end ACWI i et segment, der gik bedre eller dårligere end ACWI som helhed. Kontanter er et segment med 0 % afkast, så deres træk på afkastet tæller her.
+  - *Selection* (udvælgelse): at vælge papirer inden for et segment, der slog segmentet, målt i lokal valuta.
+  - *Interaction* (samspil): udvælgelse i et segment, du samtidig over- eller undervægtede.
+  - *Currency* og *Cross*: valutaeffekten mod DKK og den lille rest, der opstår, når valuta og lokale afkast forrentes sammen.
+- **Efter sektor og efter region** (*By sector*, *By region*): tabellen viser hvert segment med gennemsnitsvægt, afkast og effekter, de største først. Under den viser et søjlediagram effekterne måned for måned, over nul når de hjalp og under nul når de trak ned. Tallene står i tabellen under diagrammet.
+- **Valuta** (*Currency*): effekten pr. valuta.
+- **Dygtighed eller held** (*Skill or luck*): alfa pr. år fra en ugentlig regression på French's faktorer for udviklede markeder, med t-tal og antal uger. Feltet viser også, hvor mange måneder mere det vil tage at nå t = 2, hvis alfaen og støjen holder sig. Under t = 2 kan alfa ikke skelnes fra held.
+
+Der er ingen attribution under {{settings:attribution.min_months}} måneders historik i perioden og ingen regression under {{settings:attribution.min_weeks}} uger; noterne siger hvorfor. Hver beholdning placeres, som den er i dag, også for tidligere måneder. En fond, der ikke kan ses igennem, er sit eget segment med sit eget afkast. En dag, hvor en kurs, en vægt eller en valutakurs mangler, tælles ikke med, og antallet står under tabellen. Før den første ugentlige optegnelse af ACWI's vægte regnes vægtene tilbage fra den (*back-drifted*); de måneder er markeret.
+
 ## Kommandolinjen
 
 `uv run radar performance` viser det samme som tabellen for hver af dine rigtige porteføljer:
@@ -81,6 +100,8 @@ uv run radar performance --start 2026-01-01 --json
 ```
 
 Kolonnerne er værdi, TWR, TWR p.a., MWR p.a., ACWI, forskellen til ACWI og største fald, efterfulgt af noterne. Virtuelle porteføljer og tags kommer kun med, når du nævner dem.
+
+`uv run radar attribution` viser fanen *Attribution* for dine rigtige porteføljer samlet (`--start` og `--end` for en periode, `--json` for det hele). Se [Kommandolinjen](brugervejledning/kommandolinjen).
 
 ## Værd at vide
 
