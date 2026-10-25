@@ -1,10 +1,10 @@
 ---
 id: TASK-3.3
 title: 'Data: benchmark segment weights and returns'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:52'
-updated_date: '2026-10-25 15:07'
+updated_date: '2026-10-25 15:27'
 labels:
   - feature
 dependencies:
@@ -24,9 +24,15 @@ ACWI's aggregate weights (sector, region, country, currency and the sector/regio
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A missing month or proxy is shown as missing, never 0
-- [ ] #2 History file is append-only and never deletes user data
-- [ ] #3 Every ACWI weight key is one the radar's classification can produce
-- [ ] #4 Back-drifted months flagged as such, tested on a hand example
-- [ ] #5 Licence outcome for the iShares aggregate history recorded in DATA_LICENSE.md and datalicenser.md
+- [x] #1 A missing month or proxy is shown as missing, never 0
+- [x] #2 History file is append-only and never deletes user data
+- [x] #3 Every ACWI weight key is one the radar's classification can produce
+- [x] #4 Back-drifted months flagged as such, tested on a hand example
+- [x] #5 Licence outcome for the iShares aggregate history recorded in DATA_LICENSE.md and datalicenser.md
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+radar run records ACWI's aggregate weights (sector, region, country, currency and cross-tabs) once per ISO week in history/acwi_segments.csv, append-only, from the holdings file's as-of date. portfolios/segments.py gives the daily benchmark weights (drifted from the last snapshot, back-drifted before the first, with the basis) and the segments' daily DKK returns from universe.yaml attribution: (Xtrackers MSCI World sectors with the US sector ETFs before them; country ETFs mixed by ACWI's country weights, min_proxy_coverage). Missing returns stay missing. DATA_LICENSE.md, datalicenser.md, indstillinger.md, Data & coverage row, docs updated.
+<!-- SECTION:FINAL_SUMMARY:END -->

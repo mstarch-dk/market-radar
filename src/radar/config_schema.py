@@ -298,6 +298,11 @@ class Longrun(_Section):
     factors: dict[str, tuple[str, str]] = {}    # label -> (dataset, series)
 
 
+class Attribution(_Section):
+    snapshot_days: int = 6
+    min_proxy_coverage: float = 0.8
+
+
 class Updates(_Section):
     repo: str | None = None
 
@@ -412,6 +417,7 @@ class Settings(_Section):
     network: Network
     factors: Factors
     longrun: Longrun
+    attribution: Attribution = Attribution()
     updates: Updates = Updates()
     ops: Ops = Ops()
     valuation: Valuation

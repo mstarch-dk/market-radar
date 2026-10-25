@@ -151,14 +151,17 @@ attribution:
   regions:                 # region segments: country ETFs, weighted by ACWI's country weights inside the region
     us: {United States: SPY}
     nordic: {Denmark: EDEN, Sweden: EWD, Norway: ENOR, Finland: EFNL}
-    europe: {United Kingdom: EWU, Germany: EWG, France: EWQ, Switzerland: EWL, Netherlands: EWN, Spain: EWP,
-             Italy: EWI}
-    asia: {Japan: EWJ, China: MCHI, India: INDA, Korea: EWY, Taiwan: EWT, Hong Kong: EWH, Singapore: EWS}
-    other: {Canada: EWC, Australia: EWA, Brazil: EWZ}
+    europe: {United Kingdom: EWU, Germany: EWG, Switzerland: EWL, Ireland: EIRL, France: EWQ, Netherlands: EWN,
+             Spain: EWP, Italy: EWI}
+    asia: {Japan: EWJ, Taiwan: EWT, Korea: EWY, China: MCHI, Singapore: EWS, Hong Kong: EWH, India: INDA}
+    other: {Canada: EWC, Australia: EWA, South Africa: EZA, Israel: EIS, Mexico: EWW}
 ```
 
-New tickers (EWQ, EWL, EWN, EWP, EWI, EWH, EWS, EWC, EWA, EWZ, the ten Xtrackers and SPYJ.DE) are added to the price
-universe through `universe.py`, so `radar run` downloads them. Every proxy ticker was checked on Yahoo in the spike.
+New tickers (EWL, EIRL, EWQ, EWN, EWP, EWI, EWS, EWH, EWC, EWA, EZA, EIS, EWW, the ten Xtrackers and SPYJ.DE) are
+added to the price universe through `universe.py`, so `radar run` downloads them. Every proxy ticker was checked on
+Yahoo in the spike. With the October 2026 file the countries with a proxy cover about 96 % of Europe, 97 % of Asia
+and 93 % of *other*. SSAC holds India and Brazil mostly through funds and futures, which the parser leaves out (stock
+rows only), so their country weights in the file are near zero: an approximation the textbook names.
 
 ### 4.3 Method
 
@@ -186,10 +189,12 @@ whose return is 0: the cash drag). These rows are always listed, with their valu
 value (a gap in the book) has no attribution; the month's linked figures then cover fewer days, and the count is
 shown.
 
-**Benchmark segments.** Weights per month: the last snapshot on or before the month's first day; before the first
-snapshot, back-drifted: w_s(m−1) ∝ w_s(m) / (1 + R_s(m)) with R_s the segment's proxy return in month m (local
-currency for sectors and regions alike), renormalised to 1. Within a month the weights drift with the proxies' daily
-returns (buy-and-hold), so a day's benchmark is what ACWI would have held. Segment returns in DKK:
+**Benchmark segments.** Weights at each close: the last snapshot on or before the day, drifted with the segments'
+returns since (buy and hold); before the first snapshot, that snapshot rolled back: w_s(t) ∝ w_s(a) · G_s(t) / G_s(a),
+with G_s the growth of 1 DKK in segment s and a the snapshot, renormalised to 1. (Relative weights drift the same
+in any common currency, so DKK returns serve.) A day where a weighted segment has a missing return between t and the
+snapshot has no benchmark weights. The country weights inside a region are taken from the last snapshot as they
+are. Segment returns in DKK:
 
 - *Sector*: the proxy's DKK return (EUR close × EURDKK). Before the UCITS proxy's first price, the `sector_etfs.us`
   ETF (USD × USDDKK), with a note. A segment with neither is missing for that day, and that day's sector attribution
