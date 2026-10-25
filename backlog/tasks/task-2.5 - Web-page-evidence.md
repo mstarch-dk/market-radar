@@ -1,9 +1,10 @@
 ---
 id: TASK-2.5
 title: Web page /evidence
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:51'
+updated_date: '2026-10-25 16:56'
 labels:
   - feature
 dependencies:
@@ -23,7 +24,7 @@ web/src/pages/Evidence.tsx: one card per score study (IC bar per horizon with t,
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Missing study: 'not run yet' and the command to run it
-- [ ] #2 Stale study greyed with 'older rule'
-- [ ] #3 t shown next to every mean; holdout start from settings
+- [x] #1 Missing study: 'not run yet' and the command to run it
+- [x] #2 Stale study greyed with 'older rule'
+- [x] #3 t shown next to every mean; holdout start from settings
 <!-- AC:END -->
