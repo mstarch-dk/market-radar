@@ -19,6 +19,7 @@ import { Regime } from "./pages/Regime";
 import { Rotation } from "./pages/Rotation";
 import { Themes } from "./pages/Themes";
 import { Views } from "./pages/Views";
+import { Xray } from "./pages/Xray";
 import { Ticker } from "./pages/Ticker";
 import { pageChapter, useGuideTree } from "./lib/guide";
 import { ALL_PAGES, groupOf, lastPage, NAV, remember, rememberFrom, tickerLocation } from "./lib/nav";
@@ -34,7 +35,7 @@ const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton
 const ELEMENTS: Record<string, ReactNode> = {
   "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />,
   "/discover": <Discover />, "/positioning": <Positioning />,
-  "/me": <Me />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
+  "/me": <Me />, "/xray": <Xray />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
   "/notebook": lazyPage(<Notebook />),
   "/data": <Data />, "/ops": <Ops />,
 };

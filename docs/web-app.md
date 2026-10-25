@@ -97,8 +97,8 @@ Python computes every number; the frontend only formats and draws. It is the rad
   `GET /api/portfolios/compare?portfolio=&tag=&start=` (lines rebased at a common start; default: each of your real
   portfolios).
 - X-ray: `GET /api/xray?portfolio=&tag=&scope=` → `XrayView` (`xray.py`): exposure by sector, region and currency
-  against ACWI with coverage, each name's class (`class` on the wire), ex-ante risk with each position's share of total
-  and active risk and its MCTR (null below `risk.xray.min_coverage`, `warn` below `warn_coverage`), realised 1-year
+  against ACWI with coverage (`warn` below `warn_coverage`), each name's class (`class` on the wire), ex-ante risk
+  with each position's share of total and active risk and its MCTR (null below `risk.xray.min_coverage`, `warn` below `warn_coverage`), realised 1-year
   vol and drawdown, concentration with correlated pairs, the stress windows, the factor tilts and notes. Computed live
   under the price lock; cached per (selection, prices mtime, transactions version, fund-detail cache). An empty
   selection is a view with empty tables and a note; no prices at all is 503. Its router is included last in
@@ -129,8 +129,9 @@ row only.
 `/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map
 + screener over the discovery scan; market, colour, size and grouping in the URL as `mkt`, `color`, `size`, `by`;
 presets set the `d.*` table filters), `/positioning` (FactSet and regional revisions, valuation, OECD CLI, rates,
-CFTC, sentiment), `/me`, `/views` (market views: templates, editor, evidence), `/notebook` (briefs, research, journal;
-`?tab=`) and `/notebook/:kind/:name` (one document), `/portfolio` (your accounts only: account strip `?pf=<id>`, tabs
+CFTC, sentiment), `/me`, `/xray` (the portfolio X-ray: `?pf=` selection, header tiles, exposure tabs `?tab=` sector |
+region | currency with active-weight bars, risk shares, concentration, stress, factor tilts), `/views` (market views:
+templates, editor, evidence), `/notebook` (briefs, research, journal; `?tab=`) and `/notebook/:kind/:name` (one document), `/portfolio` (your accounts only: account strip `?pf=<id>`, tabs
 `?tab=` positions | transactions | imports | accounts; a virtual selection redirects to /experiments), `/experiments`
 (virtual portfolios: list with the A/B test card, or one experiment `?pf=<id>` with tabs holdings | trades |
 rebalances | returns), `/returns` (returns over time vs ACWI; `?pf=` lines, `?from=` start), `/data`, `/ops`
