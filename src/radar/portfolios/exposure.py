@@ -7,16 +7,16 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from .. import money, universe
-from ..config import universe_config
-from ..portfolios import trades
+from ..config import typed, universe_config
 from ..sources import tracked
-from . import pricing, rules
+from . import trades
+from .prices import Prices
 
 if TYPE_CHECKING:
     from ..market import Market
 
 
-def holdings_book(market: Market, prices: pricing.Prices, portfolio_ids: list[int]) -> pd.DataFrame:
+def holdings_book(market: Market, prices: Prices, portfolio_ids: list[int]) -> pd.DataFrame:
     """Holdings of these portfolios valued at the last close in DKK: symbol, quantity, price, rate, value_dkk
     (None when the price or rate is unknown)."""
     tx = trades.transactions(portfolio_ids)
@@ -44,13 +44,13 @@ def _sector_etf_map() -> dict[str, str]:
 def look_through() -> set[str]:
     """Tickers counted with ACWI's own weights: ACWI, its UCITS share classes, the filler and broad world funds
     (settings propose.look_through)."""
-    c = rules.cfg()
+    c = typed().propose
     named = {tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), c.etf_filler.ticker,
              c.etf_filler.model, *c.look_through}
     return {t for t in named if t is not None}
 
 
-def ticker_meta(tickers, prices: pricing.Prices) -> pd.DataFrame:
+def ticker_meta(tickers, prices: Prices) -> pd.DataFrame:
     """sector, region and currency per ticker (funds: a sector fund's sector, else '(fund)')."""
     from ..universe import region_for
 

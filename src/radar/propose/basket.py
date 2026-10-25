@@ -11,16 +11,17 @@ import pandas as pd
 
 from .. import money
 from ..config_schema import Propose
-from ..portfolios import fees
+from ..portfolios import exposure, fees
+from ..portfolios.prices import Prices
 from ..sources import fxrates, positive_list
 from ..values import num
-from . import exposure, pricing, rules
+from . import rules
 
 if TYPE_CHECKING:
     from ..market import Market
 
 
-def pool(market: Market, prices: pricing.Prices, p=None, day=None, fund_table: pd.DataFrame | None = None,
+def pool(market: Market, prices: Prices, p=None, day=None, fund_table: pd.DataFrame | None = None,
          live: bool = True) -> pd.DataFrame:
     """The stock universe ranked on `day` (default: the latest session) with what the proposal needs."""
     from ..model import panels as mp
@@ -223,7 +224,7 @@ def half_spread(adv: float | None, c: Propose | None = None) -> float:
     return money.bps(max(b.bps for b in c.spread_bps))
 
 
-def terms_for(prices: pricing.Prices, sf: fees.SimFees, t: str) -> fees.Terms:
+def terms_for(prices: Prices, sf: fees.SimFees, t: str) -> fees.Terms:
     ccy = prices.ccy(t)
     rate = prices.rate(t)
     if rate is None:
@@ -256,7 +257,7 @@ def budgets(amount: float, vols: list[float | None], weighting: str, ticket: flo
     return [float(x) for x in b]
 
 
-def size_picks(amount: float, picks: list[dict], df: pd.DataFrame, prices: pricing.Prices, sf: fees.SimFees, weighting: str = "equal",
+def size_picks(amount: float, picks: list[dict], df: pd.DataFrame, prices: Prices, sf: fees.SimFees, weighting: str = "equal",
          c: Propose | None = None) -> dict:
     """Whole shares per pick within its budget, every cost counted; leftover cash stated."""
     c = c or rules.cfg()
@@ -302,7 +303,7 @@ def size_picks(amount: float, picks: list[dict], df: pd.DataFrame, prices: prici
     return out
 
 
-def filler(leftover: float, kind: str, prices: pricing.Prices, sf: fees.SimFees, allowed: bool = True,
+def filler(leftover: float, kind: str, prices: Prices, sf: fees.SimFees, allowed: bool = True,
            c: Propose | None = None) -> dict | None:
     """The ETF filler for leftover cash (ACWI UCITS), or None when it isn't wanted or the leftover is too small."""
     c = c or rules.cfg()

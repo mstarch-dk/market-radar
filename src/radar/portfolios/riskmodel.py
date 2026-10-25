@@ -1,16 +1,22 @@
-"""The risk model: shrunk covariance, volatility and tracking error, the weekly path, the block bootstrap,
-stress windows and the realised drawdown."""
+"""The risk model of a set of DKK holdings: shrunk covariance, volatility and tracking error, the weekly path,
+stress windows, the realised drawdown and the factor tilts. Shared by proposals and the portfolio views."""
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
+from ..config import typed
 from ..config_schema import Propose
 from ..signals.risk import deepest_drawdown
-from . import exposure, pricing, rules
+from ..sources import tracked
+from . import exposure
+from .prices import Prices
+
+if TYPE_CHECKING:
+    from ..market import Market
 
 
 def shrunk_cov(R: pd.DataFrame, shrink: float, min_weeks: int) -> pd.DataFrame:
@@ -86,52 +92,9 @@ def weekly_returns(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.
     return out.dropna()
 
 
-def bootstrap(rp: pd.Series, rb: pd.Series, weeks: int, excess: float | None, c: Propose | None = None) -> dict:
-    """Block bootstrap of the basket's and ACWI's weekly returns together: demeaned, scaled to today's (EWMA)
-    volatility, re-centred on ACWI's assumed drift plus the modelled excess (none: on ACWI's drift alone)."""
-    c = c or rules.cfg()
-    bc = c.bootstrap
-    d = pd.concat([rp, rb], axis=1, keys=["p", "b"]).dropna()
-    if len(d) < c.min_weeks:
-        return {"weeks_used": len(d), "note": f"fewer than {c.min_weeks} weeks of joint returns: no bootstrap"}
-    lam = bc.ewma_lambda
-    scale = {}
-    for k in ("p", "b"):
-        x = d[k] - d[k].mean()
-        ew = float((x ** 2).ewm(alpha=1 - lam).mean().iloc[-1])
-        full = float((x ** 2).mean())
-        scale[k] = float(np.clip(math.sqrt(ew / full), 0.5, 2.0)) if full > 0 else 1.0
-    mu_b = (1 + c.acwi_drift_annual) ** (1 / 52) - 1
-    mu_p = mu_b + (excess / weeks if excess is not None else 0.0)
-    X = np.column_stack([(d["p"] - d["p"].mean()) * scale["p"] + mu_p, (d["b"] - d["b"].mean()) * scale["b"] + mu_b])
-    T, blk = len(X), max(1, bc.block_weeks)
-    rng = np.random.default_rng(bc.seed)
-    nb = math.ceil(weeks / blk)
-    starts = rng.integers(0, T - blk + 1, size=(bc.draws, nb))
-    idx = (starts[:, :, None] + np.arange(blk)).reshape(bc.draws, -1)[:, :weeks]
-    paths = {}
-    for j, k in enumerate(("p", "b")):
-        cum = np.cumprod(1 + X[idx, j], axis=1)
-        peak = np.maximum.accumulate(np.concatenate([np.ones((len(cum), 1)), cum], axis=1), axis=1)[:, 1:]
-        paths[k] = {"ret": cum[:, -1] - 1, "dd": np.minimum((cum / peak - 1).min(axis=1), 0.0)}
-    ex = paths["p"]["ret"] - paths["b"]["ret"]
-
-    def q(a, p):
-        return float(np.percentile(a, p))
-    return {"draws": bc.draws, "weeks": weeks, "weeks_used": T, "block_weeks": blk, "vol_scale": scale,
-            "drift_used": excess is not None, "acwi_drift_annual": c.acwi_drift_annual,
-            "ret": {"median": q(paths["p"]["ret"], 50), "p10": q(paths["p"]["ret"], 10), "p90": q(paths["p"]["ret"], 90)},
-            "acwi_ret": {"median": q(paths["b"]["ret"], 50), "p10": q(paths["b"]["ret"], 10), "p90": q(paths["b"]["ret"], 90)},
-            "excess": {"median": q(ex, 50), "p10": q(ex, 10), "p90": q(ex, 90)},
-            "p_beat": float((ex > 0).mean()),
-            "max_dd": {"median": q(paths["p"]["dd"], 50), "p10": q(paths["p"]["dd"], 10)},
-            "acwi_max_dd": {"median": q(paths["b"]["dd"], 50), "p10": q(paths["b"]["dd"], 10)},
-            "note": "weekly steps: a fall inside a week isn't seen, so drawdowns read a little shallow"}
-
-
-def stress(values: dict[str, float], prices: pricing.Prices, bench: str, c: Propose | None = None) -> list[dict]:
+def stress(values: dict[str, float], prices: Prices, bench: str, c: Propose | None = None) -> list[dict]:
     """Today's DKK weights through each stress window (daily DKK closes), where the price history covers it."""
-    c = c or rules.cfg()
+    c = c or typed().propose
     lt = exposure.look_through()
     out = []
     for e in c.stress:
@@ -173,3 +136,18 @@ def realised_dd(rp: pd.Series | None, weeks: int) -> float | None:
     if rp is None or len(rp.dropna()) < 10:
         return None
     return rk.drawdown(rp.dropna().iloc[-weeks:])[0]
+
+
+def factor_tilts(values: dict[str, float], R: pd.DataFrame, market: Market) -> dict | None:
+    """Loadings of the weekly return of fixed DKK `values` on ACWI and the factor ETFs' spreads over it
+    (settings risk.factors), with t-stats; None without a return path or ACWI's returns."""
+    from ..signals import risk as rk
+
+    bench = tracked.benchmark()
+    rp = weekly_returns(values, R, bench)
+    if rp is None or bench not in R:
+        return None
+    tilts = {f: R[f] for f in typed().risk.factors if f in R}
+    rf = market.fred().get("DGS3MO")   # None without the series: raw returns, said by alpha_basis
+    c = typed().propose
+    return rk.factor_loadings(rp, R[bench], tilts, rf, c.history_weeks, c.min_weeks)

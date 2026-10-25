@@ -1,4 +1,4 @@
-"""Prices in DKK for a proposal: traded and adjusted closes, the exchange rate on a day, weekly returns."""
+"""Prices in DKK for a set of holdings: traded and adjusted closes, the exchange rate on a day, weekly returns."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

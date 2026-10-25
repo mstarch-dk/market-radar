@@ -18,6 +18,7 @@ from ..model import panels as mp
 from ..model import paths as mpaths
 from ..model import stats as mstats
 from ..model.stats import path_stats, split_holdout
+from ..portfolios.exposure import DIMS, annotate
 from ..sources import constituents, fxrates
 from . import study
 
@@ -213,7 +214,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
             if needs_qv and not df0["qv"].notna().any():
                 continue
             kept, _ = propose.gates(df0, tilt, c.min_ticket_dkk, c, day)
-            kept = propose.annotate(kept, meta)
+            kept = annotate(kept, meta)
             sc = propose.proposal_score(kept, tilt, c, None)
             if len(sc) < max(ns) * 2:
                 continue
@@ -221,7 +222,7 @@ def run(market: Market, tilts=propose.TILTS, ns=None, horizons=None, since=None,
                 cs = mstats.cross_section(sc["composite"], y6, 15, min(min_names, len(sc)))
                 if cs and cs.get("ic") is not None:
                     ics[tilt].append({"date": day, "ic": cs["ic"]})
-            base = propose.Base({}, pd.DataFrame(columns=list(propose.DIMS)), acwi, {},
+            base = propose.Base({}, pd.DataFrame(columns=list(DIMS)), acwi, {},
                                 Wd.reindex(columns=list(sc.index[:80])))
             rec["picks"][tilt] = {}
             for n in ns:

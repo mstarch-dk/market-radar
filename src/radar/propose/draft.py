@@ -13,9 +13,10 @@ from ..config import typed
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
 from ..model import inputs
-from ..portfolios import fees, trades
+from ..portfolios import exposure, fees, riskmodel, trades
+from ..portfolios.prices import Prices
 from ..sources import constituents, tracked
-from . import basket, drift, exposure, pricing, riskmodel, rules
+from . import basket, drift, rules
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 @dataclass
 class Ctx:
     market: Market
-    prices: pricing.Prices
+    prices: Prices
 
     portfolio: dict
     holdings: pd.DataFrame
@@ -41,7 +42,7 @@ def context(market: Market, name: str, offline: bool = False) -> Ctx:
     if not p:
         known = ", ".join(x["name"] for x in userstore.portfolios(include_archived=False))
         raise ValueError(f"no portfolio called {name} (yours: {known or 'none'})")
-    prices = pricing.Prices(market)
+    prices = Prices(market)
     notes = []
     held = exposure.holdings_book(market, prices, [p["id"]])
     whole = exposure.holdings_book(market, prices, userstore.portfolio_ids())
