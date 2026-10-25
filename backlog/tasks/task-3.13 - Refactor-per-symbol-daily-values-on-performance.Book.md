@@ -1,9 +1,10 @@
 ---
 id: TASK-3.13
 title: 'Refactor: per-symbol daily values on performance.Book'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 15:06'
+updated_date: '2026-10-25 15:19'
 labels:
   - refactor
 dependencies:
@@ -23,6 +24,12 @@ portfolios/performance.book computes each symbol's daily DKK value and drops it.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Sum of positions equals holdings each day, NaN on the same days, for single and pooled books (tested)
-- [ ] #2 analyze and compare output unchanged on the test world (tested)
+- [x] #1 Sum of positions equals holdings each day, NaN on the same days, for single and pooled books (tested)
+- [x] #2 analyze and compare output unchanged on the test world (tested)
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Book.positions holds each symbol's daily DKK value (0 when not held, NaN when unknown, masked on the days the book's value is unknown); pool() sums them across books. Value, flows and returns are unchanged: the existing performance tests pass as they were.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -181,8 +181,8 @@ change to the model and to its schema version.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
   - `checks.py`: checks a row before it is saved (unknown symbol, future date, oversold, price vs the close,
     negative cash) and moves between portfolios.
-  - `performance.py`: a portfolio's value over time, time-weighted and money-weighted returns, ACWI with the same
-    flows, comparisons and cash.
+  - `performance.py`: a portfolio's value over time (in total and per symbol), time-weighted and money-weighted
+    returns, ACWI with the same flows, comparisons and cash.
   - `simulate.py`: virtual portfolios: forks and the one interface simulations write through (checked, idempotent
     runs).
   - `fees.py`: broker fee schedules and estimates; an estimate is None, never 0, when something is missing.

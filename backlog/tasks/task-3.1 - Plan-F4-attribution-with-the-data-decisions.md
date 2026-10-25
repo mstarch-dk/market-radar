@@ -1,10 +1,10 @@
 ---
 id: TASK-3.1
 title: 'Plan: F4 attribution, with the data decisions'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25 14:52'
-updated_date: '2026-10-25 15:07'
+updated_date: '2026-10-25 15:10'
 labels:
   - docs
 dependencies: []
@@ -23,6 +23,6 @@ Write plans/F4-attribution.md following section 7 of the review, and record thre
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Plan written and approved before code
+- [x] #1 Plan written and approved before code
 - [x] #2 Spike outcome and licence check recorded in the plan (section 2); the DATA_LICENSE.md rows land with TASK-3.2 and TASK-3.3
 <!-- AC:END -->
