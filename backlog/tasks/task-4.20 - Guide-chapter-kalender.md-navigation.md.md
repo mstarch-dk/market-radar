@@ -1,7 +1,7 @@
 ---
 id: TASK-4.20
 title: Guide chapter kalender.md, navigation.md
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,6 +24,12 @@ F5-20 (Guide chapter `kalender.md`, `navigation.md`; textbook sections). PR step
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_guide.py` passes; `{{settings:…}}` used for every threshold
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_guide.py` passes; `{{settings:…}}` used for every threshold
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Chapter brugervejledning/kalender.md after xray; textbook: estimatrevisioner#regnskaber-i-kalenderen, stop-og-storrelse#regnskaber-og-kursgab. Also hvad-er-market-radar (page map), kommandolinjen (radar calendar), maanedsbrief, beholdninger.
+<!-- SECTION:NOTES:END -->

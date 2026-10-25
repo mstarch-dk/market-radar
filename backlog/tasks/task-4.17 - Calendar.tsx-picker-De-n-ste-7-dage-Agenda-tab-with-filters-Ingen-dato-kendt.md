@@ -1,7 +1,7 @@
 ---
 id: TASK-4.17
 title: 'Calendar.tsx: picker, *De næste 7 dage*, Agenda tab with filters, *Ingen dato kendt*'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,6 +24,12 @@ F5-17 (`Calendar.tsx`: picker, *De næste 7 dage*, Agenda tab with filters, *Ing
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `pnpm -C web test` (`nav.test.ts` includes `/calendar`), `pnpm -C web build`
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `pnpm -C web test` (`nav.test.ts` includes `/calendar`), `pnpm -C web build`
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+UI labels are English like the rest of the app: Calendar, Next N days (from soon_days), Agenda | Month, No date known. Filters ?who= and ?kinds=. Mine now has eight pages: nav.test.ts allows eight per group (it went 6 -> 7 for Quality before).
+<!-- SECTION:NOTES:END -->

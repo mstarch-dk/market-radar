@@ -1,7 +1,7 @@
 ---
 id: TASK-4.18
 title: MonthGrid component (CSS grid, ranges drawn lighter)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,6 +24,12 @@ F5-18 (`MonthGrid` component (CSS grid, ranges drawn lighter)). PR step 5 of pla
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Component test: a range spans its days; levels coloured
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 Component test: a range spans its days; levels coloured
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+No DOM test library in web/: the grid's layout is lib/agenda.ts monthGrid, tested in agenda.test.ts (a range spans its days and is clipped to the month; levels map to badge colours). Weeks wholly outside the window are left out.
+<!-- SECTION:NOTES:END -->

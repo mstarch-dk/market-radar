@@ -93,6 +93,12 @@ shots:
     path: /me
     clip: {css: section.group, has_text: "^Watchlist", to: {css: section.group, has_text: "^Sold positions"}}
 
+  - id: calendar
+    feature: calendar
+    path: /calendar
+    wait_for: .cal-week
+    clip: {css: .page-head, to: {css: .cal-week}}
+
   - id: views
     feature: views
     path: /views

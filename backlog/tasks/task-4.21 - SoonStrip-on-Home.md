@@ -1,7 +1,7 @@
 ---
 id: TASK-4.21
 title: SoonStrip on Home
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,6 +24,12 @@ F5-21 (`SoonStrip` on Home; `navigation.md` *Forsiden*). PR step 6 of plans/F5-c
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Hidden when empty; same items as the page's `soon`
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 Hidden when empty; same items as the page's `soon`
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SoonStrip shares the query key and request with /calendar's default view, so it shows the same soon items; it renders nothing when the list is empty or the request fails. Checked on the real data folder: the same three items in the same order.
+<!-- SECTION:NOTES:END -->
