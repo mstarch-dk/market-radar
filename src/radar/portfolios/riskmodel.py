@@ -71,6 +71,77 @@ def ex_ante_risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dic
     return out
 
 
+def mctr(w: pd.Series, cov: pd.DataFrame) -> pd.Series:
+    """Marginal contribution to risk of each name, annualised: (Σw)_i / √(wᵀΣw) · √52, how the portfolio's
+    volatility moves per unit of weight. `w` over names in `cov`; weighted, they sum to the volatility (Euler).
+    Empty when the portfolio has no variance."""
+    S = cov.loc[w.index, w.index].to_numpy()
+    x = w.to_numpy(dtype=float)
+    var = float(x @ S @ x)
+    if var <= 0:
+        return pd.Series(dtype=float)
+    return pd.Series(S @ x / math.sqrt(var) * math.sqrt(52), index=w.index)
+
+
+def active_contributions(w: pd.Series, cov: pd.DataFrame, bench: str) -> dict[str, float]:
+    """Each name's share of active risk (the tracking error's variance) vs `bench`: with the active vector
+    a = (w, −1 on the benchmark), a_i (Σa)_i / aᵀΣa. The `bench` key is the net ACWI leg: what is held of ACWI
+    (world funds modelled with it included) less the benchmark itself. The shares sum to 1; a share below 0 is a
+    name that reduces the tracking error. Empty when the tracking error is 0 (the portfolio is the benchmark)."""
+    a = w.astype(float).copy()
+    a[bench] = a.get(bench, 0.0) - 1.0
+    S = cov.loc[a.index, a.index].to_numpy()
+    x = a.to_numpy()
+    var = float(x @ S @ x)
+    if var <= 1e-18:
+        return {}
+    return {t: float(x[i] * (S @ x)[i] / var) for i, t in enumerate(a.index)}
+
+
+def concentration(values: dict[str, float], ctr: dict[str, float] | None = None) -> dict:
+    """How concentrated DKK position `values` are: effective N (1/Σw²), the top-5 share, the largest position, the
+    largest share of total risk (from `ctr`, ex_ante_risk's contributions) and the weight in world funds, which
+    count as one position each here and so understate the diversification."""
+    pos = {t: x for t, x in values.items() if x and x > 0}
+    total = sum(pos.values())
+    out: dict[str, Any] = {"effective_n": None, "top5_share": None, "largest": None, "largest_ctr": None,
+                           "world_fund_weight": None}
+    if total <= 0:
+        return out
+    w = sorted(((t, x / total) for t, x in pos.items()), key=lambda kv: -kv[1])
+    lt = exposure.look_through()
+    out |= {"effective_n": 1 / sum(x ** 2 for _, x in w), "top5_share": sum(x for _, x in w[:5]),
+            "largest": {"symbol": w[0][0], "weight": w[0][1]},
+            "world_fund_weight": sum(x for t, x in w if t in lt)}
+    if ctr:
+        t, s = max(ctr.items(), key=lambda kv: kv[1])
+        out["largest_ctr"] = {"symbol": t, "share": s}
+    return out
+
+
+def correlated_pairs(values: dict[str, float], R: pd.DataFrame, threshold: float | None = None,
+                     weeks: int | None = None, min_weeks: int | None = None) -> list[dict]:
+    """Pairs of holdings whose weekly returns correlated above `threshold` (settings risk.xray.pair_corr) over the
+    last `weeks` (risk.covariance), highest first, with their combined share of the value. A pair with fewer than
+    `min_weeks` shared weeks isn't judged."""
+    from ..signals import risk as rk
+
+    c = typed().risk
+    threshold = c.xray.pair_corr if threshold is None else threshold
+    weeks = c.covariance.history_weeks if weeks is None else weeks
+    min_weeks = c.covariance.min_weeks if min_weeks is None else min_weeks
+    held = {t: x for t, x in values.items() if x and x > 0}
+    total = sum(held.values())
+    syms = [t for t in held if t in R.columns]
+    if total <= 0 or len(syms) < 2:
+        return []
+    m = rk.correlation({t: R[t] for t in syms}, weeks, min_weeks)["matrix"]
+    pairs = [{"a": a, "b": b, "corr": m[i][j], "weight": (held[a] + held[b]) / total}
+             for i, a in enumerate(syms) for j, b in enumerate(syms)
+             if i < j and m[i][j] is not None and m[i][j] > threshold]
+    return sorted(pairs, key=lambda p: -p["corr"])
+
+
 def weekly_returns(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.Series | None:
     """Weekly return of fixed DKK weights (rebalanced weekly; names without a return that week are left out and
     the rest re-weighted)."""

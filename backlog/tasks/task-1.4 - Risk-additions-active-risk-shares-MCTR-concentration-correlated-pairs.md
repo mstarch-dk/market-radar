@@ -1,7 +1,7 @@
 ---
 id: TASK-1.4
 title: 'Risk additions: active risk shares, MCTR, concentration, correlated pairs'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -22,7 +22,7 @@ Plan step 4 (section 4.3). Pure functions in portfolios/riskmodel.py: active_con
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Shares of total risk and of active risk (incl. the ACWI leg) each sum to 1 on a hand-computed 3-asset covariance
-- [ ] #2 MCTR matches a finite-difference derivative of portfolio volatility
-- [ ] #3 Effective N is n for n equal weights and 1 for one position
+- [x] #1 Shares of total risk and of active risk (incl. the ACWI leg) each sum to 1 on a hand-computed 3-asset covariance
+- [x] #2 MCTR matches a finite-difference derivative of portfolio volatility
+- [x] #3 Effective N is n for n equal weights and 1 for one position
 <!-- AC:END -->
