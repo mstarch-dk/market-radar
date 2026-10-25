@@ -173,7 +173,8 @@ change to the model and to its schema version.
 ### Kernel
 - `model/`: what the app and the studies must compute the same way, defined once, so what is tested is what is
   shown: point-in-time panels and the month-end calendar, selection under caps, the trend exit, the shared
-  statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), the long-run prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
+  statistics (Newey-West t, IC, quintiles, path and risk-adjusted stats), attribution's math (Brinson–Fachler,
+  the currency effect, Carino linking), the long-run prior, the inputs both sides read (level universe, regime votes) and the study reports' contracts.
 
 ### Domain
 - `universe.py`: everything the radar downloads prices for (incl. holdings), names, sectors, region, how far
