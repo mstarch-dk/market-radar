@@ -23,7 +23,7 @@ Output goes to `research/<TICKER>.md`. If the file already exists, keep the earl
    - Business: what the company does, segments, competitive position (2–3 sentences)
    - Last two quarters: results vs expectations, guidance, estimate revisions
    - Valuation: forward P/E and EV/EBITDA vs its own 5-year history and 2–3 peers (stockanalysis.com, company IR, Morningstar). FCF yield, ROIC and EV/EBIT come from the radar's `quality` section; search for them only when it is missing, and say so.
-   - Catalysts in the next 1–6 months: earnings dates, product or regulatory events, index changes
+   - Catalysts in the next 1–6 months: earnings dates, product or regulatory events, index changes. For a name the user holds or watches, take the next report from `uv run radar calendar --json` (its item for the ticker: the date or Yahoo's window, how sure it is, and the reasons it is highlighted, the same as the app and the brief show); for any other name, from `radar info`'s `analyst`. A date that isn't known is "no date known", never a guess.
    - For an ETF: index, TER, size, replication, top-10 concentration, overlap with the user's holdings, UCITS version, positive-list status (justETF)
 4. **Write the memo** with the template below. Link sources inline.
 5. Reply with the verdict line and a link to the file.

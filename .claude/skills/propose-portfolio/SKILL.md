@@ -80,7 +80,8 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
 
 5. **Judgment, bounded.** Start from `draft_picks` (the rule basket). You may swap at most `propose.max_swaps`
    picks, each with a written `swap_reason`, and only for reasons the rule can't see:
-   - an earnings report within two weeks (check the ticker's calendar via `uv run radar info <T>`), or news that
+   - an earnings report within two weeks (`uv run radar calendar --json` for the names the user already holds or watches, the same dates as the app;
+     `uv run radar info <T>` for the others), or news that
      breaks the thesis (search the web for the 2–3 names you have doubts about);
    - a conflict with a market view of conviction 4–5;
    - a sector or name the investor avoids (`investor.md`);

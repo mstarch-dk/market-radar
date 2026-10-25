@@ -32,6 +32,7 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `earnings_factset`: S&P 500 growth estimate vs the start of the quarter, guidance, forward P/E, and the sectors with upward or downward revisions.
    - The `me` list: holdings, watchlist and sold positions with flags (the user's real portfolios pooled; virtual ones are never in it).
    - `portfolios`: each real portfolio's returns over time in DKK (time-weighted, 1m / 3m / YTD / 1y and since its start) next to ACWI's, with its tax kind and notes (gaps, funding). Report these as they are; a `null` is missing data, not zero.
+   - `calendar`: the coming weeks (`days`, counted from `today` = `asof`) for the user's real portfolios and watchlist. `items` are earnings and ex-dividend dates of held and watched stocks, open journal reviews (`review`) and proposal time stops (`time_stop`), each with a `level` (`high` / `normal` / `info`) and its `reasons` (`key`, an English `text` with the number in it, and `value`). An earnings item's `earnings` says how sure the date is: `is_range` (Yahoo's expected window, `date` to `date_end`), `source`, `read_on`, `moved_from` and the quarter's consensus (`eps_avg`, `eps_low`, `eps_high`). `soon` lists the ids of the high items within the next days; `no_date` the stocks with no known date and why; `excluded_funds` how many funds it left out (funds have no earnings). `null` = the calendar couldn't be built: say so, don't write "nothing coming".
    - `coverage`: how many regime indicators have current data (`regime.na` = no data, `regime.stale` = too old, both left out of the vote), failing or stale sources, and the radar's blind spots. If any indicator is n/a or stale, or a source failed, say which near the regime reading and how much that weakens it. Fill a blind spot with web research only when it matters for this month's story (for example valuation when leadership looks stretched).
 
    - If `reports/discovery.json` exists and its `asof` is under 10 days old, read it too: per market, rows with `off_radar` true and a high `score`, a big `d_score`, `new_high` or `trend_turn`, leaving out `thin`, `check_data` and `stale` rows. These are names outside the radar's own lists. If it is older, say the discovery scan is stale and skip it.
@@ -51,6 +52,8 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - BofA Global Fund Manager Survey (mid-month, via press coverage): most crowded trade, cash level, biggest tail risk.
    - The Fed Beige Book (8 times a year), IMF World Economic Outlook (April and October), and the ECB monetary policy statements.
    - Company IR pages and earnings call coverage for momentum names.
+
+   - For each `high` earnings item in `calendar`: what the market is watching in the report (consensus and its recent revisions, the company's guidance, the last quarter's surprise), with links.
 
    **The user's own notes:** if `notes/` has reading notes (e.g. `notes/bloomberg.md`), read the entries from the last month. They are takeaways the user pasted from paid sources. Treat them as leads to verify and link, not as sources to cite.
 5. **Write the brief** in the structure below. Keep it under about 900 words, and use tables for numbers.
@@ -94,6 +97,12 @@ Only when the user has active views. One line per view (highest conviction first
 - Holdings: trend status, and any flags worth acting on (review, not trade)
 - Watchlist names turning up
 - Sold names: was the exit right? (since-sell move)
+- **Kommende uger** (from `calendar`; skip the step only when there is nothing held in it):
+  - The `high` items first, then the other held earnings, each with its date (a range as a range: "Yahoo venter 28. okt.–3. nov.", never its first day), and its reasons as given, worded in Danish from `key` and `value` ("5,2 % af porteføljen", "kursen 3 % over dit gennemgangsniveau", "EPS-estimatet skåret 4 % på 30 dage", "ingen fast dato"). Don't add reasons of your own. For a high item, one line on what the market is watching (step 4).
+  - Your own dates (`review`, `time_stop`) in one line each, with the exit status for a proposal pick.
+  - The watched names in one line.
+  - The held stocks in `no_date`: "ingen dato kendt", with the reason. Say how many funds were left out.
+  - Never suggest acting before a report. Add the caveat that a stop level doesn't protect against an overnight gap at a report.
 - Proposals (`/propose-portfolio`): run `uv run radar propose check --json`; list each pick whose status is Triggered (and Weakening ones in one line), with the criterion and its value, as a reason to review, not a trade. Skip the line when there are no open proposals.
 - The score's paper trail (`picks-live`): one line on how the monthly top-15 baskets have done so far against ACWI and the equal-weight universe (`return_dkk`, `yardsticks`), and their mean percentile among random baskets. Only once at least three baskets are 3 months old; until then just say how many there are.
 
