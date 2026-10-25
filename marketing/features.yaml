@@ -61,6 +61,15 @@ features:
     pages: [/me]
     shots: [holdings, sold]
 
+  - id: calendar
+    title: Kalender over regnskaber og egne datoer
+    section: calendar
+    pages: [/calendar, /]
+    commands: [radar calendar]
+    skills: [market-brief]
+    shots: [calendar]
+    since: "F5 calendar"
+
   - id: portfolio
     title: Porteføljeeditor og import
     section: portfolio

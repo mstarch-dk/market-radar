@@ -142,3 +142,15 @@ def install(tmp_data, monkeypatch) -> dict[str, pd.DataFrame]:
     (tmp_data / "transactions.csv").write_text(
         f"symbol,date,type,quantity,price\nS1,{IDX[BUY_AT].date()},BUY,10,{buy_px}\n", encoding="utf-8")
     return extra
+
+
+def calendar_reads(asof: pd.Timestamp) -> None:
+    """S1 (held) reports in 3 days, E2 (watched) in Yahoo's window 10-14 days out; S3 isn't held or watched."""
+    from radar.config import write_parquet
+    from radar.sources import external
+
+    rows = [{"ticker": t, "fetched": asof, "earnings_start": asof + pd.Timedelta(days=a),
+             "earnings_end": asof + pd.Timedelta(days=b), "eps_chg_30d": chg, "quote_type": "EQUITY",
+             "source": "yahoo_detail"} for t, a, b, chg in (("S1", 3, 3, -0.05), ("E2", 10, 14, None),
+                                                              ("S3", 2, 2, None))]
+    write_parquet(pd.DataFrame(rows, columns=list(external.CALENDAR_COLS)), external.CALENDAR_FILE, index=False)

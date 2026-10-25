@@ -1,7 +1,7 @@
 ---
 id: TASK-4.16
 title: Market-brief SKILL.md *Kommende uger*
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -25,6 +25,12 @@ F5-16 (`market-brief` SKILL.md *Kommende uger*; `research`/`propose-portfolio` r
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A dry-run brief on the demo copy has the section with the given reasons
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 A dry-run brief on the demo copy has the section with the given reasons
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Dry run on the demo copy: the Kommende uger section written from .demo summary.json's calendar (MSFT high with its reasons, NOVO-B and NVDA normal, watched names in one line, ASML, DSV and SAAB-B under no date known). Web research left out of the dry run.
+<!-- SECTION:NOTES:END -->

@@ -326,10 +326,18 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
             <li>Mekanisk trailing stop (højeste lukkekurs − k × ATR) og kursmål</li>
             <li>Watchlist med de samme målinger, og solgte positioner: hvordan aktien har klaret sig, siden du solgte</li>
           </ul>
+          <p>Siden <em>Calendar</em> viser de næste fem uger for det, du ejer og følger: regnskaber, udbyttedage og dine egne gennemgangsdatoer. Hvert punkt siger, <b>hvorfor</b> det er fremhævet, efter faste regler: positionens andel af porteføljen, afstanden til stoppet, svagt momentum og nedjusterede EPS-skøn. Yahoos forventede vindue vises som et vindue, og en aktie uden kendt dato står på en liste for sig i stedet for at forsvinde.</p>
         </div>
         <figure>
           <a class="shot" href="img/holdings.png" target="_blank" rel="noopener"><img src="img/holdings.png" alt="Beholdningstabel med afkast i DKK mod ACWI, stop og mål" loading="lazy"></a>
           <figcaption><b>Beholdninger mod ACWI.</b> Kolonnen <em>Since buy (DKK)</em> står ved siden af <em>ACWI (DKK)</em>: de samme kroner i ACWI på de samme datoer. En bred indeksfond får ingen stop eller mål. Demoportefølje.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide" id="calendar">
+        <figure>
+          <a class="shot" href="img/calendar.png" target="_blank" rel="noopener"><img src="img/calendar.png" alt="Kalender med de næste regnskaber for beholdninger og watchlist og grundene til fremhævningen" loading="lazy"></a>
+          <figcaption><b>Kalenderen.</b> Øverst de regnskaber de næste syv dage, der er værd at se på før, med grundene som mærker; nedenfor ugerne med alle datoer. Et stop beskytter ikke mod et kursgab ved et regnskab, så kalenderen viser, hvor et gab ville betyde mest, ikke hvad du skal gøre. Demoportefølje.</figcaption>
         </figure>
       </div>
 
@@ -431,6 +439,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
       <div><h3>Tickerprofil</h3><p>Graf, teknik, risiko mod ACWI i DKK, faktortilt, analytikere og EPS-revisioner, værdiansættelse, peers, <b>fondsgennemlysning</b> og de sidste 20 handelsdage. Hover-kort med sparkline på alle tickerlinks.</p></div>
       <div><h3>Portefølje og konti</h3><p>Handler og kontantbevægelser indtastes eller <b>importeres</b> fra Saxo, Nordnet, Danske Bank, Yahoo Finance eller et regneark. Konti for ASK, frie midler og pension, automatiske backups og CSV-eksport.</p></div>
       <div><h3>Afkast over tid</h3><p>TWR og MWR i DKK mod ACWI med de samme pengestrømme, drawdown og <b>virtuelle kopier til A/B-test</b>, grupperet med tags.</p></div>
+      <div><h3>Kalender</h3><p>Regnskaber og udbyttedage for <b>det, du ejer og følger</b>, og dine egne gennemgangsdatoer, med faste regler for, hvad der fremhæves og hvorfor. Også som bånd på forsiden, flag i beholdningerne og afsnit i månedsbriefen.</p></div>
       <div><h3>Beholdninger og watchlist</h3><p>Afkast i DKK mod <b>skyggeposition i ACWI</b>, regelbaseret stop og mål, advarselsflag og opfølgning på solgte positioner. Tilføj til watchlist med ☆ overalt.</p></div>
       <div><h3>Data og dækning</h3><p>Kildernes alder og status, en <b>opdateringsknap</b> med log, forklaring af beregningerne og en liste over blinde vinkler. Tabeller kan sorteres, filtreres og eksporteres som CSV.</p></div>
       <div id="interface"><h3>Lokal og privat</h3><p>Kører på din egen computer på <span class="mono">127.0.0.1</span> uden login og uden konto. Dine handler og noter forlader aldrig maskinen. <b>Lyst og mørkt tema</b> og mobil-layout.</p></div>

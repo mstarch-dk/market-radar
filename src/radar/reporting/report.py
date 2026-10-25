@@ -1,5 +1,13 @@
 """`radar report`: computes the dashboard and writes reports/dashboard.json (served by the web app) and
-reports/summary.json (read by the market brief and research skills), then saves the rank snapshots."""
+reports/summary.json (read by the market brief and research skills), then saves the rank snapshots.
+
+summary.json's top-level keys are a contract with the skills (`.claude/skills/*/SKILL.md`); change them only
+together. asof, regime, indicators, rotation, momentum_top10, momentum_new_entrants, momentum_dropped_out, me,
+portfolios, momentum_clusters, quality_top10, quality_new_entrants, quality_coverage, abtest, positioning_cot,
+leading_indicators, earnings_factset, valuation, revisions_regional, sentiment, stale_tickers, behind_tickers,
+coverage, and calendar: the coming weeks for your real portfolios and the watchlist (agenda.py, an AgendaView
+without `selection` and `generated`, counted from asof so the same data gives the same key; None when it could
+not be built)."""
 from __future__ import annotations
 
 import json
@@ -33,7 +41,7 @@ def _plain(row: dict) -> dict:
     return {k: v for k, v in row.items() if k not in ("gauge", "gauges", "val_gauges")}
 
 
-def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> dict:
+def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None, calendar: dict | None = None) -> dict:
     """The compact digest the skills read. Its keys are a contract: change them only together with the skills."""
     cov = d["coverage"]
     mom = d["momentum"]["regions"]
@@ -54,6 +62,7 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None) -> di
         "quality_new_entrants": {r["key"]: r["entrants"] for r in qual},
         "quality_coverage": {r["key"]: r["coverage"] for r in qual},
         "abtest": {"running": False},      # the forward A/B test's digest (abtest.summary), filled by add_abtest
+        "calendar": calendar,              # the coming weeks for your names (agenda.collect), see _calendar
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
@@ -89,6 +98,20 @@ def _portfolios() -> list[dict]:
     return performance.summary(Market.load())
 
 
+def _calendar(d: dict) -> dict | None:
+    """The calendar of your real portfolios and the watchlist over `calendar.days`, for the brief's *Kommende
+    uger*. Without the clock-dependent keys, so two builds on the same data agree; None (and an ops error) when it
+    can't be built, never an empty calendar that would read as "nothing coming"."""
+    from .. import agenda, userstore
+
+    try:
+        v = agenda.collect(Market.load(), d, userstore.portfolio_ids())
+    except Exception as e:  # noqa: BLE001 - the calendar is one key; the report itself is written
+        ops.event("error", "job", f"calendar summary: {type(e).__name__}: {e}", source="calendar", exc=e)
+        return None
+    return {k: v for k, v in v.items() if k not in ("selection", "generated")}
+
+
 def add_abtest(market: Market | None = None) -> None:
     """Put the forward A/B test's digest into summary.json: after the report, and again after the test's refresh
     has replayed the month's picks."""
@@ -109,7 +132,7 @@ def build() -> dict:
     REPORTS.mkdir(parents=True, exist_ok=True)
     out = REPORTS / inputs.DASHBOARD_FILE
     _write(out, d)
-    _write(REPORTS / "summary.json", summary(d, c.me, _portfolios()))
+    _write(REPORTS / "summary.json", summary(d, c.me, _portfolios(), _calendar(d)))
     # snapshots after comparing with the previous ones, under the data's date
     asof = date.fromisoformat(d["asof"])
     snapshot.save("rotation", c.rotation.rename(columns={"rs_score": "score"}), asof)

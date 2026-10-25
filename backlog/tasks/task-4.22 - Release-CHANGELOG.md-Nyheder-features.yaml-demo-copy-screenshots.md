@@ -1,7 +1,7 @@
 ---
 id: TASK-4.22
 title: 'Release: CHANGELOG.md, *Nyheder*, features.yaml, demo-copy screenshots'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -47,3 +47,9 @@ F5-22 (Release: `CHANGELOG.md`, *Nyheder*, `features.yaml`, demo-copy screenshot
 - [ ] #1 Definition of done (section 9) ticked
 - [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Done: CHANGELOG.md Unreleased, Nyheder (Næste version), features.yaml / shots.yaml / index.html entries for the calendar, the calendar shot taken in the demo copy. Open: the brochure PDF edition (every shot again, and X-ray and Quality & value are not in the brochure yet either: a /marketing run).
+<!-- SECTION:NOTES:END -->

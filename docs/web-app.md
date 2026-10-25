@@ -108,7 +108,7 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Calendar: `GET /api/calendar?portfolio=&tag=&scope=&days=` → `AgendaView` (`agenda.py`): earnings and ex-dividend
   items of held and watched stocks, open journal reviews and proposal time stops in `days` (default `calendar.days`),
   each with `reasons` (`key`, an English `text` with the number, `value`) and a `level` (high | normal | info); `soon`
-  lists the high ids within `soon_days`; `no_date` the stocks with no known date and why; `excluded_funds` the funds
+  lists the high ids within `soon_days` (also in the view); `no_date` the stocks with no known date and why; `excluded_funds` the funds
   left out. Item ids are stable (`kind:symbol:date`). Days count from the benchmark's last close, not the clock.
   Computed live under the price lock, cached per (selection, days, prices mtime, transactions version, calendar file,
   dashboard build, journal and proposals folders). Needs the dashboard (503 without one) and prices (503); included
@@ -152,11 +152,15 @@ use it too): the groups *Markets*, *Mine* and *System*, and the active group's p
 page last opened in it (remembered per browser). Ticker pages count as *Markets*; Home and the guide show the group
 row only.
 
-`/` (search and overview), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map
+`/` (search, overview and the *Soon* strip: the calendar's `soon` items for your real portfolios, the same
+request as `/calendar`'s default view, hidden when empty), `/regime`, `/rotation`, `/themes` (themes and factors), `/momentum`, `/discover` (heat map
 + screener over the discovery scan; market, colour, size and grouping in the URL as `mkt`, `color`, `size`, `by`;
 presets set the `d.*` table filters), `/positioning` (FactSet and regional revisions, valuation, OECD CLI, rates,
 CFTC, sentiment), `/me`, `/xray` (the portfolio X-ray: `?pf=` selection, header tiles, exposure tabs `?tab=` sector |
-region | currency with active-weight bars, risk shares, concentration, stress, factor tilts), `/views` (market views:
+region | currency with active-weight bars, risk shares, concentration, stress, factor tilts), `/calendar` (the
+calendar: `?pf=` selection, the next `soon_days` high items as cards, tabs `?tab=` agenda | month (ISO-week tables, a
+CSS month grid with ranges drawn across their days; layout in `lib/agenda.ts`), filters `?who=` holding | watch and
+`?kinds=`, no date known, notes), `/views` (market views:
 templates, editor, evidence), `/notebook` (briefs, research, journal; `?tab=`) and `/notebook/:kind/:name` (one document), `/portfolio` (your accounts only: account strip `?pf=<id>`, tabs
 `?tab=` positions | transactions | imports | accounts; a virtual selection redirects to /experiments), `/experiments`
 (virtual portfolios: list with the A/B test card, or one experiment `?pf=<id>` with tabs holdings | trades |

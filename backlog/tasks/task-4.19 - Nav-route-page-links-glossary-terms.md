@@ -1,7 +1,7 @@
 ---
 id: TASK-4.19
 title: Nav, route, page_links, glossary terms
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,6 +24,12 @@ F5-19 (Nav, route, `page_links`, glossary terms). PR step 5 of plans/F5-calendar
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_guide.py` page-link test passes
-- [ ] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_guide.py` page-link test passes
+- [x] #2 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Glossary: cal_level, cal_unconfirmed, cal_eps, cal_revision (gennemgangsniveau is the existing stop key). The glossary learned {{settings:…|pct}}.
+<!-- SECTION:NOTES:END -->

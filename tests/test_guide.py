@@ -77,7 +77,7 @@ def test_app_links_into_the_books_resolve():
 def test_the_glossary_quotes_settings_that_exist():
     glossary = (ROOT / "web" / "src" / "lib" / "glossary.ts").read_text(encoding="utf-8")
     values = guide.settings_text()
-    used = re.findall(r"\{\{settings:([\w.]+)\}\}", glossary)
+    used = re.findall(r"\{\{settings:([\w.]+)(?:\|pct)?\}\}", glossary)
     assert used, "the glossary quotes no settings"
     for key in used:
         assert key in values, f"glossary.ts: settings has no {key}"

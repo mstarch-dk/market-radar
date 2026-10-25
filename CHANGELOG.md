@@ -6,6 +6,22 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Calendar** (`/calendar`, under *Mine* after *X-ray*): the coming 35 days for what you hold and
+  watch. Earnings and ex-dividend dates of held and watched stocks, your open journal reviews and your proposals'
+  time stops, each with the reasons it is highlighted by stated rules (`calendar.highlight`: position size, price
+  near the review level, fading momentum, estimate cuts; how sure the date is) and a level (high, normal, info).
+  Yahoo's expected window is shown as a window, never as its first day; a stock with no known date is listed with
+  the reason, and funds are counted. Agenda by week and a month grid, held/watched and kind filters, any portfolio
+  selection. Days count from the last close, so the same data gives the same calendar.
+  - The dates come from a new update step that reads Yahoo's calendar for held and watched stocks every
+    `calendar.refresh.max_age_days` days (daily near a report) into `history/calendar.parquet` (history, kept
+    across versions), so a moved date is seen. About 8 Yahoo requests per name read.
+  - Home gets a *Soon* strip, *Holdings & watchlist* an `earnings in N d` flag; both are the same calendar.
+  - `radar calendar [NAME…] [--tag T] [--days N] [--json]` and `GET /api/calendar`.
+  - `summary.json` gains `calendar`, and the monthly brief a *Kommende uger* step from it; `/research` and
+    `/propose-portfolio` read a held or watched name's next report from `radar calendar --json`.
+  - New settings: `calendar:` (window, soon days, highlight thresholds, refresh schedule, what to include).
+
 - **Held funds are classified honestly in proposals' exposure tables.** A fund is looked through (a world fund
   with ACWI's weights, a sector fund with its sector, another fund with the sector weights in its cached Yahoo
   data) or shown as *fund: not looked through*. It is never filed under the region of its exchange or the

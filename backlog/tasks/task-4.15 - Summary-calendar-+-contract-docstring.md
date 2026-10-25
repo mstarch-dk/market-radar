@@ -1,7 +1,7 @@
 ---
 id: TASK-4.15
 title: Summary["calendar"] + contract docstring
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:00'
 labels:
@@ -24,7 +24,13 @@ F5-15 (`summary["calendar"]` + contract docstring). PR step 4 of plans/F5-calend
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `test_summary_calendar_key`
-- [ ] #2 `test_summary_deterministic`
-- [ ] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
+- [x] #1 `test_summary_calendar_key`
+- [x] #2 `test_summary_deterministic`
+- [x] #3 Green on uv run pytest -q, ruff, mypy, lint-imports; guide changes in the same PR
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+summary['calendar'] is agenda.collect for the real portfolios without selection and generated; None (and an ops error) when it can't be built. AgendaView gained soon_days (TASK-4.17) so the key carries it too.
+<!-- SECTION:NOTES:END -->

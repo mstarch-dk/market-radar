@@ -215,6 +215,18 @@ uv run radar xray --json                     # det hele som JSON
 
 Et tal, der ikke kan beregnes (en kurs mangler, en fond kan ikke ses igennem), vises som – og forklares i noterne nederst, aldrig som 0.
 
+### Kalenderen
+
+`radar calendar` viser de næste uger for det, du ejer og følger, som på [Calendar](/calendar): først de punkter, der er fremhævet de næste {{settings:calendar.soon_days}} dage, så en tabel pr. uge (dato, navn, ejet eller fulgt, niveau og grunde) og til sidst aktierne uden kendt dato. Navne og tags vælges som ved `radar xray`; uden navne er det dine rigtige porteføljer og din watchlist.
+
+```bash
+uv run radar calendar                        # dine rigtige porteføljer og watchlist
+uv run radar calendar "ASK" --days 14        # én portefølje, to uger frem
+uv run radar calendar --json                 # det hele som JSON, det samme som siden
+```
+
+Reglerne og hvor datoerne kommer fra, står i [Kalenderen](brugervejledning/kalender).
+
 ### Attribution mod ACWI
 
 `radar attribution` forklarer forskellen mellem de valgte porteføljers tidsvægtede afkast og ACWI's over en periode i DKK. Først afstemningen: forskellen er handel og gebyrer + segment-ETF'erne mod ACWI + det, der kan fordeles. Så fordelingen efter sektor og efter region (allokering, udvælgelse og samspil pr. segment, største først), valutaeffekten pr. valuta og faktorregressionen: alfa pr. år med t-tal, og hvor mange måneder mere det vil tage at nå t = 2. Navne, tags og `--scope` vælges som ved `radar xray`.
@@ -331,6 +343,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se mine porteføljer | `uv run radar portfolios list` |
 | se mit afkast mod ACWI | `uv run radar performance` |
 | se hvad mine beholdninger er eksponeret mod | `uv run radar xray` |
+| se de kommende regnskaber for det, jeg ejer og følger | `uv run radar calendar` |
 | se hvorfor jeg slog eller haltede efter ACWI | `uv run radar attribution` |
 | teste momentumscoren | `uv run radar study score` |
 | teste scorens regel over årtier | `uv run radar study longrun` |

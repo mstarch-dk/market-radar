@@ -126,12 +126,13 @@ def _estimate_reasons(row, cut: float) -> list[dict]:
     up, down = (None if row.get(k) is None or pd.isna(row.get(k)) else int(row.get(k))
                 for k in ("eps_up_30d", "eps_down_30d"))
     counts = f" ({down} down, {up} up)" if up is not None and down is not None else ""
+    # the text quotes the change only when the change itself passes the threshold; else it was the counts
     if (chg is not None and chg <= cut) or (up is not None and down is not None and down > up):
-        text = (f"the quarter's EPS estimate cut {-chg:.1%} in 30 days" if chg is not None and chg < 0
+        text = (f"the quarter's EPS estimate cut {-chg:.1%} in 30 days" if chg is not None and chg <= cut
                 else "more estimate cuts than raises in 30 days") + counts
         return [_reason("estimates_cut", text, chg)]
     if (chg is not None and chg >= -cut) or (up is not None and down is not None and up > down):
-        text = (f"the quarter's EPS estimate raised {chg:.1%} in 30 days" if chg is not None and chg > 0
+        text = (f"the quarter's EPS estimate raised {chg:.1%} in 30 days" if chg is not None and chg >= -cut
                 else "more estimate raises than cuts in 30 days") + counts
         return [_reason("estimates_raised", text, chg)]
     return []
@@ -232,8 +233,8 @@ def build(me_rows: list[dict], weights: dict[str, float], calendar: pd.DataFrame
     items.sort(key=lambda i: (i["date"], LEVELS.index(i["level"]), -(i["weight"] or 0), i["id"]))
     soon = [i["id"] for i in items if i["level"] == "high" and i["days"] <= cfg.soon_days]
     no_date.sort(key=lambda r: (r["status"] != "holding", r["symbol"]))
-    return {"today": today.isoformat(), "days": days, "items": items, "soon": soon, "no_date": no_date,
-            "excluded_funds": excluded_funds}
+    return {"today": today.isoformat(), "days": days, "soon_days": cfg.soon_days, "items": items, "soon": soon,
+            "no_date": no_date, "excluded_funds": excluded_funds}
 
 
 def _review_items(journal: list[dict], today: date, last_day: date) -> list[dict]:

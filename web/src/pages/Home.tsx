@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { regimeKind } from "../components/cells";
 import { Search } from "../components/Search";
+import { SoonStrip } from "../components/SoonStrip";
 import { tickerPath } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { date } from "../lib/format";
@@ -27,6 +28,7 @@ export function Home() {
           {regime.asof && <span className="muted"> (as of {date(regime.asof)})</span>}.</>}
       </p>
       <Search autoFocus />
+      <SoonStrip />
       {NAV.map((g) => (
         <div key={g.id}>
           <div className="section-title">{g.label}</div>

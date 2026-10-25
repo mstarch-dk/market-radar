@@ -761,6 +761,48 @@ dl.nb-facts dd { margin: 0; }
 .dbar .l i { background: var(--warn); border-radius: 2px 0 0 2px; }
 .dbar .r i { background: var(--accent); border-radius: 0 2px 2px 0; }
 
+/* calendar (pages/Calendar.tsx, components/AgendaList, MonthGrid, SoonStrip): level colours as in lib/agenda LEVEL_KIND */
+.cal-card { gap: 6px; border-left: 3px solid var(--line); }
+.cal-card.lv-high { border-left-color: var(--warn); }
+.cal-card.lv-normal { border-left-color: var(--accent); }
+.cal-card b { color: var(--ink); }
+.cal-src { display: block; }
+.reasons { margin-top: 0; gap: 4px; }
+.reasons .badge { font-size: 11px; white-space: normal; text-align: left; max-width: 100%; }
+.cal-soon { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 8px; }
+.cal-card { min-width: 0; }
+.cal-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 12px; }
+.cal-controls .page-tabs { margin: 0; }
+.cal-week h3 { margin: 16px 0 6px; }
+.cal-nodate { padding-left: 18px; }
+.cal-nodate li { margin: 3px 0; }
+.cal-months { display: grid; gap: 20px; }
+.cal-month h3 { margin: 0 0 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal-wd { font-size: 11px; color: var(--muted); padding: 2px 4px; }
+.cal-day { min-height: 64px; padding: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface);
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-day.out { background: transparent; border-style: dashed; }
+.cal-day.past { opacity: 0.55; }
+.cal-day.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-n { font-size: 11px; color: var(--muted); }
+.cal-dot { display: block; font-size: 11px; line-height: 16px; padding: 0 4px; border-radius: 3px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; color: var(--ink); background: var(--surface-2); }
+.cal-dot:hover { text-decoration: none; outline: 1px solid var(--accent); }
+.cal-dot.lv-high { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.cal-dot.lv-normal { background: var(--accent-bg); color: var(--accent); }
+.cal-dot.lv-info { background: transparent; border: 1px dashed var(--line); color: var(--ink-2); }
+/* a range is Yahoo's expected window, drawn lighter and running across its days */
+.cal-dot.range { opacity: 0.6; border-style: dashed; }
+.cal-dot.range.start, .cal-dot.range.mid { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -3px; }
+.cal-dot.range.end, .cal-dot.range.mid { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -3px; }
+.soon-strip { margin-top: 16px; }
+.soon-strip .section-title a { font-weight: 400; margin-left: 8px; }
+@media (max-width: 640px) {
+  .cal-day { min-height: 48px; }
+  .cal-dot { font-size: 10px; padding: 0 2px; }
+}
+
 /* the Evidence page */
 .ev-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
 .ev-chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent;

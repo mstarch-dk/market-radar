@@ -204,6 +204,17 @@ $$
 
 med daglige afkast $r$ i DKK, ECB's indlånsrente som $r_f$ (kronen følger euroen) og ACWI i DKK som $r_b$. Calmar er det årlige afkast divideret med det største fald. Over vinduer på 6 eller 12 måneder er tallene støjfyldte; de skal sammenlignes mellem varianterne på de samme datoer, ikke med langsigtede tal. To ting trækker resultatet i hver sin retning: at flytte pengene koster kurtage og, i frie midler, skat ved hvert salg; og universet er dagens, så de aktier, pengene flyttes til, er nogle, der overlevede. Det sidste får rotation til at se bedre ud, end den var.
 
+### Regnskaber og kursgab
+
+Et regnskab offentliggøres som regel før åbning eller efter lukning. Kursen reagerer derfor i ét spring fra den ene lukkekurs til den næste åbning, og et stop, der ligger 5 % under kursen, beskytter ikke mod et fald på 15 % fra den ene dag til den næste: ordren udløses på åbningskursen, langt under stoppet. Risikobudgettet ovenfor forudsætter, at stoppet kan eksekveres tæt på niveauet. Det gør det ikke hen over et regnskab.
+
+Det, du selv styrer før et regnskab, er altså to ting:
+
+- **Positionens størrelse**: hvor meget af porteføljen der står på spil, hvis kursen springer.
+- **Afstanden til gennemgangsniveauet**: ligger kursen tæt på, kan selv en almindelig reaktion føre den forbi.
+
+Det er netop to af de grunde, [kalenderen](brugervejledning/kalender#fremhævningsreglerne) fremhæver et kommende regnskab med: en beholdning på mindst {{settings:calendar.highlight.big_position|pct}} af porteføljen og en kurs inden for {{settings:calendar.highlight.near_level|pct}} af gennemgangsniveauet. Kalenderen siger ikke, hvad du skal gøre; den viser, hvor et kursgab ville betyde mest.
+
 ## Regneeksempel
 
 Eksemplet bruger ATR-tilstanden (`stops.mode: atr`, $k$ starter på 3, trin 0,5, budget 1 %, reward/risk 2); standarden er i dag gennemgangsniveauet ved 200-dages gennemsnittet.
@@ -231,7 +242,7 @@ Du købte en aktie for nogle måneder siden. Siden da er den højeste lukkekurs 
 
 ## Faldgruber og begrænsninger
 
-- **Kurshop.** Et stop er ikke en garanti. Efter et regnskab eller over en weekend kan aktien åbne langt under stoppet. Risikobudgettet holder kun, hvis stoppet kan eksekveres tæt på niveauet.
+- **Kurshop.** Et stop er ikke en garanti. Efter et regnskab eller over en weekend kan aktien åbne langt under stoppet. Risikobudgettet holder kun, hvis stoppet kan eksekveres tæt på niveauet. Se [Regnskaber og kursgab](#regnskaber-og-kursgab).
 - **Støj og whipsaw.** Et for tæt stop rammes af almindelige udsving. Det er grunden til volatilitetsskalering og til, at $k$ har en nedre grænse.
 - **Dagslukkekurser.** Radaren regner på lukkekurser; et stop-ordre hos en mægler udløses ofte på intradagkurs. De to kan give forskellige resultater på volatile dage.
 - **Valuta.** Stop og ATR er i aktiens egen valuta. Et fald i dollaren ændrer dit tab i kroner, men ikke stoppet.

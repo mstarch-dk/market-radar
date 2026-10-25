@@ -316,7 +316,8 @@ def calendar(names: list[str] = typer.Argument(None, help="Portfolio names (defa
 
     typer.echo(f"Calendar of {', '.join(v['selection']['names']) or 'no portfolios'}: {v['days']} days from "
                f"{v['today']}")
-    typer.echo(f"\nNext 7 days ({len(v['soon'])} to look at first)" if v["soon"] else "\nNext 7 days: nothing high")
+    nxt = f"Next {v['soon_days']} days"
+    typer.echo(f"\n{nxt} ({len(v['soon'])} to look at first)" if v["soon"] else f"\n{nxt}: nothing high")
     for k in v["soon"]:
         typer.echo(line(by_id[k]))
     week = None

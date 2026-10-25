@@ -1644,7 +1644,7 @@ export interface components {
         };
         /**
          * AgendaView
-         * @description `soon`: the ids of the high items within `calendar.soon_days`, in date order.
+         * @description `soon`: the ids of the high items within `soon_days` (`calendar.soon_days`), in date order.
          */
         AgendaView: {
             /** Asof */
@@ -1655,6 +1655,8 @@ export interface components {
             today: string;
             /** Days */
             days: number;
+            /** Soon Days */
+            soon_days: number;
             selection: components["schemas"]["AgendaSelection"];
             /** Items */
             items: components["schemas"]["AgendaItem"][];

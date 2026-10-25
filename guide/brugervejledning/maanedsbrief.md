@@ -20,9 +20,11 @@ Den committer intet og opretter ingen pull request. Briefen er din, og den ligge
 
 ## Hvad briefen indeholder
 
-Briefen er skrevet på dansk og har en fast opbygning: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine markedssyn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Den holder sig til 6–8 ting, der betyder noget, og hver påstand om nyheder har et kildelink. Manglende data skrives som manglende.
+Briefen er skrevet på dansk og har en fast opbygning: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine markedssyn mod data, din portefølje i den sammenhæng (med *Kommende uger*) og en kø af navne til `/research`. Den holder sig til 6–8 ting, der betyder noget, og hver påstand om nyheder har et kildelink. Manglende data skrives som manglende.
 
 Fordi den kører, hvor dine data er, får briefen det hele med: dine rigtige porteføljer og deres afkast mod ACWI, watchlist, markedssyn, Discover og dine noter.
+
+*Kommende uger* er de næste {{settings:calendar.days}} dage fra [Kalender](brugervejledning/kalender): regnskaber og udbyttedage for det, du ejer og følger, og dine egne gennemgangsdatoer. De fremhævede kommer først, med de samme grunde som på siden ("5,2 % af porteføljen", "ingen fast dato"), og for hver af dem skriver Claude kort, hvad markedet holder øje med i regnskabet. En aktie uden kendt dato står som "ingen dato kendt". Briefen anbefaler aldrig at handle før et regnskab.
 
 "Nye" momentumledere og "faldet ud" sammenlignes med radarens egne rangsnapshots i `history/snapshots/` i datamappen, som bygges op, hver gang radaren opdateres. Har du kun opdateret få gange, er der mindre at sammenligne med i starten.
 
