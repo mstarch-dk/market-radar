@@ -26,6 +26,15 @@ def job(kind: str):
         raise typer.Exit(1) from None
 
 
+@contextmanager
+def study_job():
+    """`job("study")` holding the study lock: one study at a time, from a terminal or the app (studyrun.py)."""
+    from .. import locks, studyrun
+
+    with job(studyrun.KIND) as log, locks.file_lock(studyrun.LOCK, timeout=0, what=studyrun.BUSY):
+        yield log
+
+
 def portfolio_ids(names: list[str] | None, tags: list[str] | None) -> list[int]:
     """Portfolio names (and tags) as ids; an unknown name stops the command."""
     from .. import userstore

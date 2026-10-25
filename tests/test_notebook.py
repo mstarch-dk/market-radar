@@ -5,6 +5,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
+from fakes import LOCAL
 from radar import api, notebook, paths
 from radar.api_models import NotebookDocument, NotebookListing
 
@@ -83,7 +84,7 @@ def test_missing_folders_are_empty(tmp_path, monkeypatch):
 
 
 def test_notebook_endpoints(folders):
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url=LOCAL)
     assert c.get("/api/notebook").json()["briefs"][0]["name"] == "2026-10-01"
     assert c.get("/api/notebook/research/NOVO-B.CO").json()["markdown"] == "# Novo Nordisk\n"
     assert c.get("/api/notebook/journal/..%2Fsecret").status_code == 404

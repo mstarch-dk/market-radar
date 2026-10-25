@@ -128,7 +128,16 @@ Python computes every number; the frontend only formats and draws. It is the rad
   per horizon with a t next to every mean, the verdicts and notes; the rule studies' headers; and `forward` (A/B test,
   paper trail, frozen proposals vs ACWI; `too_short` records are never averaged; null without prices, the cards still
   come back). Never 503. Cached until a report, the prices, a trade, a frozen proposal, the settings or the day
-  change. Its router is included last, after the calendar's.
+  change. Its router is included last, after the calendar's. Each header also has `run_key`, the key to run it by.
+- Running a study (`studies.py`, `studyrun.py`): `GET /api/studies/run` → `StudyRunStatus` (an `UpdateStatus` with
+  `study`, the running or last `run_key`); `POST /api/studies/run/{key}` starts the study's own command
+  (`python -m radar study …`, the command on its card) as a child process, 404 for an unknown key, 409 while a study
+  runs (in the app, or in a terminal: the `study.lock` in the cache), an update or a rebuild of the readings.
+  `DELETE /api/studies/run` cancels it (the job in the operations log is marked interrupted). `POST /api/update` and
+  `/api/report` are 409 while a study runs. The Evidence page's *Run the study* / *Run again* (`StudyRun.tsx`).
+- Requests that change something (not GET, HEAD, OPTIONS) are 403 unless the `Host` is this computer (127.0.0.1,
+  localhost, ::1) and an `Origin`, when sent, is too (`api/app.py` `_same_machine`): no other web site, and no DNS
+  rebinding, can post to the local app. Tests use `TestClient(api.app, base_url=LOCAL)` (`tests/fakes.py`).
 - Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every

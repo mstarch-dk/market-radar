@@ -7,7 +7,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 ```
 interfaces       api, cli
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
-                 reporting/, updater, xray
+                 reporting/, studyrun, updater, xray
 kernel           model/
 domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
                  userstore/
@@ -23,8 +23,10 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`) never imports `backtest/` and reads the studies' reports through
-`model/artifacts.py`.
+`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`, `studyrun`) never imports `backtest/` and reads the studies' reports through
+`model/artifacts.py`. When you run a study from the Evidence page, `studyrun.py` starts the study's own command
+(`python -m radar study …`) as a child process: the contract holds, the heavy work stays off the server, and the run
+can be cancelled.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
 `model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
@@ -133,7 +135,7 @@ for one.
 - `api/` + `api_models/`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md). `api/app.py`
   builds the app (lifespan, error handlers, the data-home gate and error-recording middlewares, the web app) from
   one `APIRouter` per page area (`setup`, `ticker`, `readings`, `operations`, `views`, `discover`, `holdings`,
-  `refresh`, `transactions`, `portfolios`, `docs`, `imports`, `xray`, `evidence`), included in a fixed order so the OpenAPI schema
+  `refresh`, `transactions`, `portfolios`, `docs`, `imports`, `xray`, `evidence`, `studies`), included in a fixed order so the OpenAPI schema
   doesn't move; `api/state.py` holds the price store, its re-entrant lock (`ensure`, `has_prices`) and the data
   home's gate; `api/common.py` what several routers share. `api_models/` has one module per area of the app
   (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs, xray, evidence), all re-exported
@@ -143,6 +145,9 @@ for one.
   the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
 
 ### Features
+- `studyrun.py`: the Evidence page's *Run* button. It runs one study at a time as a child process of its CLI
+  command (allow-listed from `model/artifacts.py`), with its log and a cancel. It shares `study.lock` with
+  `radar study …` in a terminal, and it doesn't run during an update or a rebuild.
 - `updater.py`: the update steps behind `radar update` / `run` and the app's *Update data* job. Each source is
   logged; a failure keeps its cache.
 - `reporting/`: the report build (see *The report's build*) and what it serves.

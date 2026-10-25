@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, api_models, paths
 from radar.reporting import dashboard, report
 from radar.sources import ingest
@@ -17,7 +18,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})   # Yahoo knows nothing new
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 @pytest.fixture
@@ -146,7 +147,8 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-4:] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
+    assert paths_[-6:] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution", "/api/studies/run",
+                           "/api/studies/run/{key}"]   # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -178,7 +180,8 @@ def test_calendar_api_contract(built, monkeypatch):
     empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
     assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-3:] == ["/api/calendar", "/api/evidence", "/api/attribution"]
+    assert paths_[-5:] == ["/api/calendar", "/api/evidence", "/api/attribution", "/api/studies/run",
+                           "/api/studies/run/{key}"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/calendar").status_code == 503

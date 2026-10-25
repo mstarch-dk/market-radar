@@ -21,6 +21,11 @@ class UpdateStatus(Strict):
     error: str | None = None
 
 
+class StudyRunStatus(UpdateStatus):
+    """A study run from the app (studyrun.py): an update's status and which study (a head's `run_key`)."""
+    study: str | None = None
+
+
 class OpsJob(Strict):
     id: int
     kind: str

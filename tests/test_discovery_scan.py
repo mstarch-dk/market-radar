@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 import world
 from conftest import FIXTURES
-from fakes import fake_yf
+from fakes import LOCAL, fake_yf
 from radar import api, paths, sourcelog, universe
 from radar.api_models import DiscoveryView
 from radar.config import discovery_config
@@ -61,7 +61,7 @@ def test_report_validates_and_marks_what_the_radar_already_tracks(tmp_data, monk
 def test_api_says_when_no_scan_has_run(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
     monkeypatch.setattr(scan, "discovery_config", lambda: CFG)
-    client = TestClient(api.app)
+    client = TestClient(api.app, base_url=LOCAL)
     r = client.get("/api/discover")
     assert r.status_code == 503 and "radar discover" in r.json()["detail"]["message"]
     _seed(tmp_data)

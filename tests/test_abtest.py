@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import abtest, api, userstore
 from radar.market import Market
 from radar.portfolios import simulate
@@ -143,7 +144,7 @@ def test_summary_digest(market, tmp_data):
 
 def test_api(market, monkeypatch):
     api.reset()
-    client = TestClient(api.app)
+    client = TestClient(api.app, base_url=LOCAL)
     assert client.get("/api/abtest").json()["running"] is False
     assert client.post("/api/abtest", json={"n": 15}).status_code == 422
     r = client.post("/api/abtest", json={"n": 3, "capital": 30000})

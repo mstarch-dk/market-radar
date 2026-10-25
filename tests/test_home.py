@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from fakes import LOCAL
 from radar import api, cli, manifest, paths, userstore
 from radar.datahome import home
 
@@ -135,7 +136,7 @@ def test_the_cli_asks_for_setup_first(tmp_path, unset):
 
 def test_the_app_shows_setup_until_a_folder_is_chosen(tmp_path, unset):
     old = _old_install(tmp_path / "old")
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url=LOCAL)
     r = c.get("/api/me")
     assert r.status_code == 409 and r.json()["detail"]["setup"] == "unset"
     assert c.get("/api/setup").json()["state"] == "unset"
@@ -152,7 +153,7 @@ def test_the_app_refuses_writes_to_newer_data(tmp_path, unset, monkeypatch):
     m = manifest.read_manifest(tmp_path / "h")
     manifest.write_manifest(tmp_path / "h", m | {"home_format": home.HOME_FORMAT + 1})
     api.reset()
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url=LOCAL)
     assert c.get("/api/portfolios").status_code == 200
     r = c.put("/api/watchlist/MSFT")
     assert r.status_code == 409 and "newer version" in r.json()["detail"]["read_only"]

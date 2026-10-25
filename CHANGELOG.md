@@ -6,6 +6,16 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Run the studies from the Evidence page.** Every study card and rule study now has a button: *Run the study*
+  when there is no report, *Run again* when it tested an older rule or has old data. The app runs the study's own
+  command (the one on the card) in the background as a child process, shows how long it has run and its log, and
+  can cancel it. One study at a time, shared with `radar study …` in a terminal (a new `study.lock`; a second run
+  stops with "Not started"), and never during an update or a rebuild. `GET`/`POST`/`DELETE /api/studies/run`.
+- **The local app refuses changing requests from other sites.** A POST, PUT or DELETE whose `Host` or `Origin`
+  isn't this computer gets 403, so a web page open in the browser can't start an update or a study (or reach the
+  app through DNS rebinding). The app's own pages and the CLI are unaffected.
+- `python -m radar` runs the command line, like `radar`.
+
 - **Calendar** (`/calendar`, under *Mine* after *X-ray*): the coming 35 days for what you hold and
   watch. Earnings and ex-dividend dates of held and watched stocks, your open journal reviews and your proposals'
   time stops, each with the reasons it is highlighted by stated rules (`calendar.highlight`: position size, price

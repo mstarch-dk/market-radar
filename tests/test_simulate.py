@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, userstore
 from radar.market import Market
 from radar.portfolios import fees, performance, simulate
@@ -128,7 +129,7 @@ def test_fork_through_the_api(market, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
     api.reset()
     dashboard.reset()
-    client = TestClient(api.app)
+    client = TestClient(api.app, base_url=LOCAL)
     client.get("/api/portfolios")                                                # moves the world's trade in
     main = next(p for p in client.get("/api/portfolios").json() if p["name"] == "Main")
     r = client.post(f"/api/portfolios/{main['id']}/fork", json={"name": "B", "date": IDX[200].date().isoformat()})

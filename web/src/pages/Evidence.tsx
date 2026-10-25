@@ -5,6 +5,7 @@ import { api, type EvidenceView, type ForwardGroup, type LongrunCard, type Longr
   type ScoreRow } from "../api/client";
 import { Loaded, PageHead } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { StudyRun } from "../components/StudyRun";
 import { Tabs, useTabParam } from "../components/Tabs";
 import { Term } from "../components/Term";
 import { Badge, KV } from "../components/ui";
@@ -40,8 +41,9 @@ function NotRun({ h }: { h: ReportHead }) {
   return (
     <div className="ev-notrun">
       <p>{h.status === "missing" ? "Not run yet." : <>The report can&apos;t be read: {h.reason}</>}</p>
-      <p className="small">Run it in a terminal in the radar&apos;s folder (it takes a few minutes):</p>
-      <pre className="ev-cmd"><code>uv run {h.command}</code></pre>
+      <p className="small">Run it here (from half a minute to an hour, one study at a time):</p>
+      <StudyRun h={h} />
+      <p className="small muted">Or in a terminal in the radar&apos;s folder: <code>uv run {h.command}</code></p>
     </div>
   );
 }
@@ -164,6 +166,7 @@ function ScoreCardView({ c, holdoutNow }: { c: ScoreCard; holdoutNow: string }) 
   return (
     <div className="card ev-card" id={`ev-score-${h.signal}`}>
       <h2>{h.label} <StatusBadge h={h} /></h2>
+      {s.numbers && <StudyRun h={h} />}
       {!s.numbers ? <NotRun h={h} /> : (
         <Greyed h={h}>
           <div className="grid">
@@ -273,6 +276,7 @@ function LongrunView({ c, holdoutNow }: { c: LongrunCard; holdoutNow: string | n
   return (
     <div className="card ev-card" id="ev-longrun">
       <h2>{h.label} <StatusBadge h={h} /></h2>
+      {s.numbers && <StudyRun h={h} />}
       {!s.numbers ? <NotRun h={h} /> : (
         <Greyed h={h}>
           <HeadKV h={h} extra={[["Holdout from", c.holdout_from ?? holdoutNow ?? "–", { help: "ev_holdout" }]]} />
@@ -372,6 +376,7 @@ const ruleCols: Col<ReportHead>[] = [
   { key: "asof", label: "Data to", align: "l", sort: (h) => h.data_asof, render: (h) => date(h.data_asof) },
   { key: "rule", label: "Rule", align: "l", sort: (h) => h.rule_hash, render: (h) => <code>{h.rule_hash ?? "–"}</code> },
   { key: "cmd", label: "Command", align: "l", csv: (h) => h.command, render: (h) => <code className="small">uv run {h.command}</code> },
+  { key: "run", label: "", align: "l", render: (h) => <StudyRun h={h} compact /> },
 ];
 
 /** The Evidence page: how well the scores have worked, from the study reports and the forward record. */

@@ -23,6 +23,20 @@ export function headStatus(h: Pick<ReportHead, "status" | "old_data" | "age_days
   }
 }
 
+/** The Run button on a study card: "Run the study" when there is no report to read, "Run again" when it tested
+ *  another rule or its data is old (the primary action then), and a plain "Run again" for a current report. */
+export function runAction(h: Pick<ReportHead, "status" | "old_data">): { label: string; primary: boolean } {
+  if (h.status === "missing" || h.status === "invalid") return { label: "Run the study", primary: true };
+  return { label: "Run again", primary: h.status === "stale" || h.old_data };
+}
+
+/** Minutes and seconds since `started` (ISO, local time): "4 min 05 s". */
+export function elapsed(started: string | null | undefined, now: number = Date.now()): string {
+  if (!started) return "";
+  const s = Math.max(0, Math.round((now - new Date(started).getTime()) / 1000));
+  return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
+}
+
 /** A t-statistic as shown next to its mean: "t +2.4"; "t n/a" when the mean exists but the report has no t for it
  *  (an older report, or too few dates), so a missing t never reads as fine; "" without a mean. */
 export function tText(mean: Maybe, t: Maybe, digits = 1): string {

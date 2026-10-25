@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from fakes import LOCAL
 from radar import api, net, ops, sourcelog, updater
 from radar.api_models import OpsJobDetail, OpsSummary
 from radar.reporting import coverage
@@ -121,7 +122,7 @@ def test_live_coverage_overlays_the_current_log(tmp_data):
 
 @pytest.fixture
 def client(tmp_data):
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def test_ops_endpoints(client):
@@ -150,7 +151,7 @@ def test_server_errors_are_recorded_but_not_user_errors(client, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("kaput")
     monkeypatch.setattr(ops, "jobs", boom)
-    c = TestClient(api.app, raise_server_exceptions=False)
+    c = TestClient(api.app, base_url=LOCAL, raise_server_exceptions=False)
     assert c.get("/api/ops/jobs").status_code == 500
     assert client.get("/api/ops/jobs/99").status_code == 404
     (ev,) = ops.events(kind="api")

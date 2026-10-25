@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { headStatus, meanWithT, strongT, tText } from "./evidence";
+import { elapsed, headStatus, meanWithT, runAction, strongT, tText } from "./evidence";
 
 describe("report status", () => {
   it("greys a report of another rule and keeps its numbers inside the card", () => {
@@ -44,5 +44,22 @@ describe("a mean next to its t", () => {
     expect(strongT(-2.1)).toBe(true);
     expect(strongT(1.9)).toBe(false);
     expect(strongT(null)).toBe(false);
+  });
+});
+
+describe("the Run button on a study card", () => {
+  it("runs a missing or unreadable study, and reruns a stale or old one as the main action", () => {
+    expect(runAction({ status: "missing", old_data: false })).toEqual({ label: "Run the study", primary: true });
+    expect(runAction({ status: "invalid", old_data: false })).toEqual({ label: "Run the study", primary: true });
+    expect(runAction({ status: "stale", old_data: false })).toEqual({ label: "Run again", primary: true });
+    expect(runAction({ status: "ok", old_data: true })).toEqual({ label: "Run again", primary: true });
+    expect(runAction({ status: "ok", old_data: false })).toEqual({ label: "Run again", primary: false });
+  });
+
+  it("shows the time a run has taken", () => {
+    const start = new Date(2026, 9, 25, 10, 0, 0);
+    const iso = `2026-10-25T10:00:00`;
+    expect(elapsed(iso, start.getTime() + 245_000)).toBe("4 min 05 s");
+    expect(elapsed(null)).toBe("");
   });
 });

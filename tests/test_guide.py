@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from fakes import LOCAL
 from radar import api, guide
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,7 +108,7 @@ def test_placeholders_format_danish():
 
 @pytest.fixture
 def client():
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def test_guide_endpoints(client):

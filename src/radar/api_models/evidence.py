@@ -18,6 +18,7 @@ class ReportHead(Strict):
     status: ReportStatus
     reason: str | None = None
     command: str
+    run_key: str                 # what POST /api/studies/run/{key} runs: this report's command
     created: str | None = None
     data_asof: str | None = None
     age_days: int | None = None

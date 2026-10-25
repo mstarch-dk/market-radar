@@ -3,6 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api
 from radar.reporting import dashboard, report
 from radar.sources import ingest
@@ -14,7 +15,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def test_summary_rows(client):

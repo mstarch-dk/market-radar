@@ -164,7 +164,7 @@ Med `--asof today` rangeres kurven ved den forrige lukkekurs og købes ved den s
 
 ## Evidens-siden
 
-Siden [Evidence](/evidence) under *Markets* viser resultaterne af testene ovenfor uden at køre noget. Den læser de rapporter, kommandoerne har skrevet, og papirsporets, A/B-testens og porteføljeforslagenes porteføljer. Er en test ikke kørt, står det der. Samme indhold får du i terminalen med `uv run radar evidence` (eller `--json`).
+Siden [Evidence](/evidence) under *Markets* viser resultaterne af testene ovenfor. Den regner ikke selv, men læser de rapporter, kommandoerne har skrevet, og papirsporets, A/B-testens og porteføljeforslagenes porteføljer. Er en test ikke kørt, står det der, og du kan starte den fra siden (se [Kør en test fra siden](#kør-en-test-fra-siden)). Samme indhold får du i terminalen med `uv run radar evidence` (eller `--json`).
 
 ### Status for hver rapport
 
@@ -175,8 +175,24 @@ Siden [Evidence](/evidence) under *Markets* viser resultaterne af testene ovenfo
 | *current* | Testet med reglen, som den er i dag, på data der ikke er for gamle |
 | *old data* | Samme regel, men dataene er ældre end {{settings:evidence.max_age_days.score}} dage ({{settings:evidence.max_age_days.longrun}} for testen over årtier). Tallene gælder stadig reglen, men markedet er gået videre |
 | *older rule* | Testet med en anden regel end dagens (se reglens fingeraftryk under [Testen over alle måneder](#testen-over-alle-måneder)), eller fra før rapporterne gemte reglen. Kortet er gråt, og tallene står kun inde i det |
-| *not run yet* | Ingen rapport. Kortet viser kommandoen, der laver den |
+| *not run yet* | Ingen rapport. Kortet har knappen *Run the study* og viser kommandoen, der laver den |
 | *unreadable* | Rapporten kan ikke læses, fx fordi en nyere version har skrevet den. Kør testen igen |
+
+### Kør en test fra siden
+
+Hvert kort og hver regeltest har en knap, der kører testen med de samme indstillinger som kommandoen på kortet:
+
+- *Run the study*, når der ingen rapport er.
+- *Run again*, når rapporten er *older rule* eller *old data* (fremhævet), og ellers som almindelig knap.
+
+Appen kører kommandoen for dig i baggrunden, så du ikke behøver en terminal. Mens den kører, står der, hvor længe den har kørt, og hvad den er i gang med. Du kan bruge resten af appen imens. Når testen er færdig, viser kortet den nye rapport. *What it did* viser hele loggen, og jobbet står også på siden [Operations](/ops).
+
+- **Én ad gangen.** Kun én test kører ad gangen, også hvis den anden er startet i en terminal. De andre knapper er slået fra imens.
+- **Ikke under en opdatering.** En test kan ikke startes, mens *Update data* eller en genberegning kører, og omvendt, fordi testen læser de kurser, opdateringen skriver.
+- **Tiden.** Testene tager fra et halvt minut (testen over årtier) til 30–60 minutter (pengene fra et salg). Testen over alle måneder og stopreglens varianter tager 10–20 minutter.
+- **Afbryd.** *Cancel* stopper testen. Kortet beholder så den forrige rapport.
+
+Vil du ændre indstillingerne for en kørsel, fx kun nogle horisonter eller `--exits 6`, så brug kommandoerne i terminalen som beskrevet ovenfor.
 
 ### Scorerne
 

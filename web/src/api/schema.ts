@@ -724,7 +724,8 @@ export interface paths {
         put?: never;
         /**
          * Start Update
-         * @description Start downloading new data and rebuilding the dashboard in the background (one at a time).
+         * @description Start downloading new data and rebuilding the dashboard in the background (one at a time). 409 while a
+         *     study started from the app runs (it reads the prices the update rewrites).
          */
         post: operations["start_update_api_update_post"];
         delete?: never;
@@ -1422,6 +1423,51 @@ export interface paths {
         get: operations["get_attribution_api_attribution_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Study Status
+         * @description The study started from the app: which one, its status and log lines (the command's own progress).
+         */
+        get: operations["study_status_api_studies_run_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Study
+         * @description Stop the running study; its report keeps the last finished run's numbers. 409 if none runs.
+         */
+        delete: operations["cancel_study_api_studies_run_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/studies/run/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Study
+         * @description Start the study `key` (an Evidence head's `run_key`) in the background: 404 for an unknown study, 409
+         *     while a study (in the app or a terminal), an update or a rebuild of the readings runs.
+         */
+        post: operations["start_study_api_studies_run__key__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5074,6 +5120,8 @@ export interface components {
             reason?: string | null;
             /** Command */
             command: string;
+            /** Run Key */
+            run_key: string;
             /** Created */
             created?: string | null;
             /** Data Asof */
@@ -5719,6 +5767,28 @@ export interface components {
             missing: string[];
             /** Note */
             note?: string | null;
+        };
+        /**
+         * StudyRunStatus
+         * @description A study run from the app (studyrun.py): an update's status and which study (a head's `run_key`).
+         */
+        StudyRunStatus: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "idle" | "running" | "done" | "failed";
+            /** Started */
+            started?: string | null;
+            /** Finished */
+            finished?: string | null;
+            /** Log */
+            log: string[];
+            progress?: components["schemas"]["UpdateProgress"] | null;
+            /** Error */
+            error?: string | null;
+            /** Study */
+            study?: string | null;
         };
         /** SurvivorshipGauge */
         SurvivorshipGauge: {
@@ -8950,6 +9020,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttributionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    study_status_api_studies_run_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyRunStatus"];
+                };
+            };
+        };
+    };
+    cancel_study_api_studies_run_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyRunStatus"];
+                };
+            };
+        };
+    };
+    start_study_api_studies_run__key__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyRunStatus"];
                 };
             };
             /** @description Validation Error */
