@@ -5,9 +5,14 @@ import { Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { LineChart } from "../components/LineChart";
 import { usePortfolioSel } from "../components/PortfolioPicker";
+import { Tabs, useTabParam } from "../components/Tabs";
 import { Badge } from "../components/ui";
 import { date, num } from "../lib/format";
 import { DEFAULT_SEL, formatSel, isDefaultSel, type PortfolioSel } from "../lib/portfolioSel";
+import { AttributionTab } from "./Attribution";
+
+type Tab = "returns" | "attribution";
+const TABS: [Tab, string][] = [["returns", "Returns"], ["attribution", "Attribution"]];
 
 const p = (r: CompareRow, k: string) => r.stats?.periods[k];
 const cols: Col<CompareRow>[] = [
@@ -64,6 +69,7 @@ function Lines({ sel, onChange }: { sel: PortfolioSel; onChange: (s: PortfolioSe
 /** Portfolio returns over time in DKK, against ACWI: real and virtual portfolios, and tag groups for A/B tests. */
 export function Performance() {
   const [sel, setSel] = usePortfolioSel();
+  const [tab, setTab] = useTabParam(TABS.map(([t]) => t), "returns");
   const [params, setParams] = useSearchParams();
   const start = params.get("from") ?? "";
   const setStart = (v: string) => setParams((p) => {
@@ -83,12 +89,15 @@ export function Performance() {
             Tick a tag to pool its portfolios into one line: two tags make an A/B test. A missing price or exchange rate
             leaves a gap, never a zero. Analysis, not advice.
           </PageHead>
+          <Tabs tabs={TABS} value={tab} onChange={setTab} label="Returns or attribution" />
           <Lines sel={sel} onChange={setSel} />
           <p className="small">
-            <label>From <input type="date" value={start || d.start || ""} onChange={(e) => setStart(e.target.value)} /></label>
-            {start && <button type="button" className="linkish" onClick={() => setStart("")}>the common start</button>}
+            <label>From <input type="date" value={start || (tab === "returns" ? d.start : "") || ""}
+              onChange={(e) => setStart(e.target.value)} /></label>
+            {start && <button type="button" className="linkish" onClick={() => setStart("")}>
+              {tab === "returns" ? "the common start" : "the whole history"}</button>}
           </p>
-          {d.rows.length === 0
+          {tab === "attribution" ? <AttributionTab sel={sel} start={start} /> : d.rows.length === 0
             ? <p className="note">Nothing to compare yet. <Link to="/portfolio">Add trades on the Portfolio page</Link>, or tick a portfolio above.</p>
             : (
               <>
