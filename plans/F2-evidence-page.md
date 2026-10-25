@@ -311,7 +311,8 @@ applied:
   is truthful (we don't know what it tested); the release notes say to re-run each study once.
 - The forward scoreboard shows cohort means without a t (overlapping windows, small counts), and says why. The
   acceptance criterion "t next to every mean" applies to the study cards, where every mean has one.
-- The page lives in *Markets* (it is about the scores shown there), not *System*.
+- The page lives in *Markets* after *Quality & value* (it is about the scores shown there). That makes eight pages in
+  the group, so the nav's limit per group (`lib/nav.test.ts`) goes from seven to eight.
 - Running a study from the UI stays a later task (TASK-2.8): minutes of CPU, and the review suggests an ops job
   refused while a report build holds the lock (`locks.py`); the card shows the command until then.
 

@@ -11,6 +11,8 @@ Hvor god er [momentumscoren](laerebog/momentumscore) egentlig til at finde aktie
 
 Det hele er simulering og analyse, ikke rådgivning. Kurvene lander i virtuelle porteføljer og tæller aldrig som dine.
 
+Siden [Evidence](/evidence) samler svarene ét sted: testene af alle fire scorer, testen over årtier og resultaterne fremad mod ACWI. Se [Evidens-siden](#evidens-siden) nederst.
+
 ## Testen over alle måneder
 
 ```
@@ -159,3 +161,50 @@ uv run radar performance --tag picks-live
 ```
 
 Med `--asof today` rangeres kurven ved den forrige lukkekurs og købes ved den seneste, så intet købes til en kurs, der ikke var kendt.
+
+## Evidens-siden
+
+Siden [Evidence](/evidence) under *Markets* viser resultaterne af testene ovenfor uden at køre noget. Den læser de rapporter, kommandoerne har skrevet, og papirsporets, A/B-testens og porteføljeforslagenes porteføljer. Er en test ikke kørt, står det der. Samme indhold får du i terminalen med `uv run radar evidence` (eller `--json`).
+
+### Status for hver rapport
+
+Øverst står en række med én knap pr. rapport. Farven og ordet siger, hvor meget du kan stole på tallene:
+
+| Ordet | Betyder |
+|---|---|
+| *current* | Testet med reglen, som den er i dag, på data der ikke er for gamle |
+| *old data* | Samme regel, men dataene er ældre end {{settings:evidence.max_age_days.score}} dage ({{settings:evidence.max_age_days.longrun}} for testen over årtier). Tallene gælder stadig reglen, men markedet er gået videre |
+| *older rule* | Testet med en anden regel end dagens (se reglens fingeraftryk under [Testen over alle måneder](#testen-over-alle-måneder)), eller fra før rapporterne gemte reglen. Kortet er gråt, og tallene står kun inde i det |
+| *not run yet* | Ingen rapport. Kortet viser kommandoen, der laver den |
+| *unreadable* | Rapporten kan ikke læses, fx fordi en nyere version har skrevet den. Kør testen igen |
+
+### Scorerne
+
+Én fane pr. score: momentum, kvalitet, værdi og K+V. Hvert kort viser:
+
+- **Hovedet**: hvornår testen blev kørt, de seneste data, reglens fingeraftryk, universet, antal prøvede varianter og holdout-datoen.
+- **Scoren pr. horisont** over alle datoer: IC, andelen af datoer med positiv IC, de fem kvintiler som små søjler, Q5−Q1, de bedste N mod gennemsnitsaktien og de bedste N i DKK mod ACWI, og hvor ofte de slog ACWI.
+- **Før og i holdout-perioden** for de samme tal. Holdout-perioden begynder {{settings:backtest.study_holdout_from}}. Har rapporten en anden dato, er den testet med en anden regel.
+- **Varianterne** og dommen over hver af dem, foldet sammen under tabellen.
+
+Ved hvert gennemsnit står dets t-tal, fx *0,045 t +2,4*. Et t-tal på 2 eller mere (positivt eller negativt) er fremhævet. Står der *t n/a*, har rapporten intet t-tal for gennemsnittet: den er fra før det blev gemt, eller bygger på færre end tre datoer. Det er aldrig det samme som et godt resultat. Kør testen igen for at få det.
+
+### Momentum over årtier
+
+Ét kort for `radar study longrun` med en fane pr. panel (brancher og lande): scoren pr. horisont over alle måneder og i holdout-perioden (fra {{settings:longrun.holdout_from}}), med de samme t-tal, delt op pr. årti og i og uden for recessioner. Derunder målingen af survivorship bias og faktorernes basisrater. Et panel, der ikke kunne testes, står med grunden.
+
+### Resultaterne fremad
+
+Tre tabeller med resultater, der er valgt, før afkastet var kendt, hver mod ACWI over de samme dage:
+
+- **A/B-testen**: kvalitet + værdi, momentum og 50/50 som virtuelle porteføljer. En kurv, der har kørt kortere end {{settings:evidence.forward_min_months}} måneder, står som *too short*.
+- **Papirsporet** (`picks-live`): hver måneds kurv fra den første købsdag. En kurv yngre end {{settings:evidence.cohort_age_months}} måneder står som *too short*. Gennemsnittet vises fra {{settings:evidence.cohort_min}} kurve, der er gamle nok.
+- **De frosne porteføljeforslag**: hvert forslags valg fra dets dag. Et forslag yngre end {{settings:evidence.cohort_age_months}} måneder står som *too short*, og gennemsnittet vises fra {{settings:propose.review_min}} forslag.
+
+En række markeret *too short* står med sine tal, men er gråtonet, tæller ikke med i gennemsnittet og sorteres sidst. Gennemsnittene har intet t-tal, fordi perioderne overlapper og der er få af dem; se [Test af momentumscoren](laerebog/test-af-scoren#fremad-uden-t-tal). Uden kurser i radaren mangler tabellerne, mens kortene over testene stadig vises.
+
+### Regeltestene
+
+Nederst står status for testene af forslagsreglen (`radar study propose`), stopreglens varianter (`radar study exits`) og pengene fra et salg (`radar study redeploy`). Deres tal står på de sider, der bruger dem. Kun forslagsreglen gemmer sin regel, så kun den kan stå som *older rule*.
+
+> **Bemærk:** Siden viser, hvad testene fandt, ikke hvad du skal gøre. Ingen af tallene er en forudsigelse, og et godt resultat i fortiden er ingen garanti for fremtiden.

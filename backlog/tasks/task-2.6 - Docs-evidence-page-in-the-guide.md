@@ -1,9 +1,10 @@
 ---
 id: TASK-2.6
 title: 'Docs: evidence page in the guide'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:51'
+updated_date: '2026-10-25 17:26'
 labels:
   - docs
 dependencies:
@@ -23,6 +24,6 @@ brugervejledning/scoretest.md gets a section on the page; laerebog/test-af-score
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 uv run pytest -q tests/test_guide.py passes
-- [ ] #2 Every threshold quoted with a settings placeholder
+- [x] #1 uv run pytest -q tests/test_guide.py passes
+- [x] #2 Every threshold quoted with a settings placeholder
 <!-- AC:END -->

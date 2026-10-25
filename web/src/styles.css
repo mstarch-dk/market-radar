@@ -791,3 +791,28 @@ dl.nb-facts dd { margin: 0; }
   .cal-day { min-height: 48px; }
   .cal-dot { font-size: 10px; padding: 0 2px; }
 }
+
+/* the Evidence page */
+.ev-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
+.ev-chip { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  color: var(--ink); cursor: pointer; }
+.ev-chip small { color: var(--muted); margin-left: 4px; }
+.ev-chip.pos { border-color: var(--pos); }
+.ev-chip.warn { border-color: var(--warn); }
+.ev-chip.neg { border-color: var(--neg); }
+.ev-chip.na { border-style: dashed; }
+.ev-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; vertical-align: middle; border: 1px solid var(--muted); }
+.ev-dot.pos { background: var(--pos); border-color: var(--pos); }
+.ev-dot.warn { background: var(--warn); border-color: var(--warn); }
+.ev-dot.neg { background: var(--neg); border-color: var(--neg); }
+.ev-card h2 .badge { margin-left: 8px; text-transform: none; letter-spacing: 0; }
+.ev-mt { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ev-t { color: var(--muted); font-size: 11px; }
+.ev-t.strong { color: var(--ink); font-weight: 600; }
+.ev-stale { opacity: 0.5; filter: grayscale(1); }
+.ev-notrun p { margin: 6px 0; }
+.ev-cmd { display: inline-block; margin: 4px 0; padding: 6px 10px; border-radius: var(--radius); background: var(--accent-bg); font-size: 13px; user-select: all; }
+.ev-q { vertical-align: middle; }
+.ev-q-axis { stroke: var(--line); stroke-width: 1; }
+.ev-q rect.pos { fill: var(--accent); }
+.ev-q rect.neg { fill: var(--warn); }

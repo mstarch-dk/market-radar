@@ -122,6 +122,7 @@ page_links:
   /themes: brugervejledning/temaer-og-faktorer
   /momentum: brugervejledning/momentum
   /quality: brugervejledning/kvalitet-og-vaerdi
+  /evidence: brugervejledning/scoretest
   /discover: brugervejledning/discover
   /positioning: brugervejledning/positionering
   /me: brugervejledning/beholdninger
@@ -244,6 +245,17 @@ glossary_links:
   xray_vol: laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage
   xray_beta: laerebog/beta-og-alfa#beta
   xray_te: laerebog/beta-og-alfa#tracking-error-og-aktiv-risiko
+  ev_ic: laerebog/test-af-scoren#informationskoefficienten-ic
+  ev_nw_t: laerebog/test-af-scoren#t-tal-med-newey-west
+  ev_quintiles: laerebog/test-af-scoren#kvintiler-og-spredning
+  ev_spread: laerebog/test-af-scoren#kvintiler-og-spredning
+  ev_holdout: laerebog/test-af-scoren#overfitting-og-holdout
+  ev_variants: laerebog/test-af-scoren#overfitting-og-holdout
+  ev_verdict: laerebog/test-af-scoren#sådan-gør-radaren
+  ev_rule: brugervejledning/scoretest#status-for-hver-rapport
+  ev_survivorship: brugervejledning/scoretest#testen-over-årtier
+  ev_forward: laerebog/test-af-scoren#fremad-uden-t-tal
+  ev_too_short: brugervejledning/scoretest#resultaterne-fremad
   xray_div_ratio: laerebog/diversifikation#diversifikationsratio
   xray_coverage: brugervejledning/xray#dækning-hvad-tallene-hviler-på
   xray_share_total: laerebog/diversifikation#risikobidrag-og-mctr

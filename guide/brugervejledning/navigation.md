@@ -14,7 +14,7 @@ Under topbjælken er menuen i to rækker. Den øverste har tre grupper, og den n
 
 | Gruppe | Sider |
 |---|---|
-| *Markets* | *Regime*, *Sector rotation*, *Themes & factors*, *Momentum*, *Quality & value*, *Discover*, *Positioning & cycle* |
+| *Markets* | *Regime*, *Sector rotation*, *Themes & factors*, *Momentum*, *Quality & value*, *Evidence*, *Discover*, *Positioning & cycle* |
 | *Mine* | *Holdings & watchlist*, *X-ray*, *Calendar*, *Portfolio*, *Returns*, *Experiments*, *Market views*, *Notebook* |
 | *System* | *Data & coverage*, *Operations* |
 

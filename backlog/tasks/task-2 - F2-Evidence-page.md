@@ -4,7 +4,7 @@ title: F2 Evidence page
 status: In Progress
 assignee: []
 created_date: '2026-10-25 14:50'
-updated_date: '2026-10-25 15:03'
+updated_date: '2026-10-25 17:40'
 labels:
   - feature
   - evidence
@@ -24,9 +24,9 @@ The momentum, quality, value and K+V studies in the app: IC with t, quintile spr
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 One card per score study and the long-run study, each with its age, rule hash and staleness
-- [ ] #2 A forward scoreboard from existing data
-- [ ] #3 A missing study shows 'not run yet' with the command; a stale one is greyed with 'older rule', never mixed with current numbers
-- [ ] #4 t-stats next to every mean; the holdout start quoted from settings
-- [ ] #5 Available as GET /api/evidence and the /evidence page
+- [x] #1 One card per score study and the long-run study, each with its age, rule hash and staleness
+- [x] #2 A forward scoreboard from existing data
+- [x] #3 A missing study shows 'not run yet' with the command; a stale one is greyed with 'older rule', never mixed with current numbers
+- [x] #4 t-stats next to every mean; the holdout start quoted from settings
+- [x] #5 Available as GET /api/evidence and the /evidence page
 <!-- AC:END -->

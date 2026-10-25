@@ -72,6 +72,12 @@ Prøver man ti varianter af scoren, vil én af dem næsten altid se bedre ud, og
 
 En ændring af scoren i appen er en separat beslutning: en post i journalen og en ændring af indstillinger og vejledning. Testen ændrer aldrig noget selv.
 
+Resultaterne af alle fire scorer, testen over årtier og resultaterne fremad står på siden [Evidence](/evidence); se [Evidens-siden](brugervejledning/scoretest#evidens-siden). Hver rapport gemmer et fingeraftryk af reglen, den testede: de indstillinger, tallene afhænger af, og scorens version. Ændres en af dem, står rapporten som en ældre regel, indtil testen køres igen.
+
+### Fremad uden t-tal
+
+Papirsporet, A/B-testen og de frosne porteføljeforslag måler hver kurv fra dens egen dag til i dag. En kurv fra marts og en fra april deler alle månederne fra april, så deres resultater er langt fra uafhængige. Et almindeligt t-tal for gennemsnittet ville tælle dem som uafhængige og overvurdere, hvor sikkert resultatet er. Med få kurve hjælper Newey-West heller ikke meget, fordi korrektionen selv skal skønnes ud fra de samme få tal. Siden viser derfor antallet og andelen, der slog ACWI, uden t-tal, og en kurv tæller først med, når den har en vis alder. Først når papirsporet har kørt i flere år, siger gennemsnittet noget, og så er det den reneste test af scoren, radaren har.
+
 ## Regneeksempel
 
 ### Én dato
