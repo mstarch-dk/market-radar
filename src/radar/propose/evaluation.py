@@ -95,6 +95,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     """Everything the memo needs for a frozen picks file: sizing, constraints, exposures, risk, the drawdown three
     ways, the modelled return, the alternatives A0-A6 and the decision rule."""
     c = rules.cfg()
+    rcov = typed().risk.covariance
     m = picks_file.check(doc).meta
     name, amount = m.portfolio, m.amount
     tilt, mode, horizon, weighting = m.tilt, m.mode, m.horizon, m.weighting
@@ -125,9 +126,9 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
         after[t] = after.get(t, 0.0) + v
     every = list(dict.fromkeys([*after, *tickers, bench, *(scored.index[:60])]))
     meta = exposure.ticker_meta(every, ctx.prices)
-    weeks = c.history_weeks
+    weeks = rcov.history_weeks
     R = ctx.prices.weekly(every + [f for f in typed().risk.factors if f in market.closes], weeks)
-    cov = riskmodel.shrunk_cov(R.reindex(columns=[t for t in every if t in R]), c.shrink, c.min_weeks)
+    cov = riskmodel.shrunk_cov(R.reindex(columns=[t for t in every if t in R]), rcov.shrink, rcov.min_weeks)
 
     # constraints
     base = draft.holdings_base(ctx, tickers)
@@ -156,7 +157,7 @@ def evaluate(market: Market, doc: dict, max_position: float | None = None, toler
     hv = sv.get(horizon) or drift.study_view(drift.load_study(), tilt, n, horizon, ctx.regime, c, ctx.trend)
     draws = 1000 if light else None
     prop = alternative_metrics(new, ctx, cov, R, horizon, hv["drift_gross"], cost_pct, c, vals, draws)
-    st = riskmodel.stress(new, ctx.prices, bench, c)
+    st = riskmodel.stress(new, ctx.prices, bench)
     kept = (hv.get("kept") or {}).get("all") or {}
     lenses: dict[str, Any] = {"study": {"median": kept.get("dd_median"), "p10": kept.get("dd_p10"), "dates": kept.get("dates")},
               "bootstrap": (prop["bootstrap"] or {}).get("max_dd"),
@@ -237,6 +238,7 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
                  vals: dict[str, float], meta: pd.DataFrame, c: Propose) -> dict:
     """A0-A6 on the same metrics."""
     bench = tracked.benchmark()
+    rcov = typed().risk.covariance
     study = drift.load_study()
     out = {}
 
@@ -244,10 +246,10 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
         # names outside the covariance; one already in R had too few weeks for it and isn't fetched again
         missing = [t for t in values if t not in cov.index and t not in R and t not in exposure.look_through()]
         if missing:
-            more = ctx.prices.weekly(missing, c.history_weeks)
+            more = ctx.prices.weekly(missing, rcov.history_weeks)
             R2 = pd.concat([R, more], axis=1)
             cv = riskmodel.shrunk_cov(R2.reindex(columns=[x for x in dict.fromkeys([*cov.index, *missing]) if x in R2]),
-                            c.shrink, c.min_weeks)
+                            rcov.shrink, rcov.min_weeks)
         else:
             R2, cv = R, cov
         mt = alternative_metrics(values, ctx, cv, R2, horizon, drift, cost, c, vals, draws)
@@ -274,8 +276,8 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
         ch, _, szk = draft.rule_basket(ctx, scored, amount, k, mode, max_position, weighting)
         v = {r["ticker"]: r["value_dkk"] for r in szk["rows"] if r["value_dkk"]}
         rk_ = riskmodel.ex_ante_risk(v, cov if all(t in cov.index for t in v) else riskmodel.shrunk_cov(
-            pd.concat([R, ctx.prices.weekly([t for t in v if t not in R], c.history_weeks)], axis=1),
-            c.shrink, c.min_weeks), bench)
+            pd.concat([R, ctx.prices.weekly([t for t in v if t not in R], rcov.history_weeks)], axis=1),
+            rcov.shrink, rcov.min_weeks), bench)
         kv = drift.study_view(study, tilt, k, horizon, ctx.regime, c, ctx.trend)
         frontier.append({"n": k, "tickers": [x["ticker"] for x in ch], "cost_pct": szk["roundtrip_pct"],
                          "vol_ann": rk_["vol_ann"], "te_ann": rk_["te_ann"], "drift_gross": kv["drift_gross"],

@@ -1,7 +1,7 @@
 ---
 id: TASK-1.2
 title: 'Move the risk-model settings from propose: to risk:'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -24,7 +24,7 @@ Plan step 2 (section 4.2). Move history_weeks/min_weeks/shrink to risk.covarianc
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Rule hash of the shipped settings unchanged (test)
-- [ ] #2 A proposal's numbers unchanged on the test world
-- [ ] #3 An old propose.stress or propose.look_through key fails on load, naming the key
+- [x] #1 Rule hash of the shipped settings unchanged (test)
+- [x] #2 A proposal's numbers unchanged on the test world
+- [x] #3 An old propose.stress or propose.look_through key fails on load, naming the key
 <!-- AC:END -->

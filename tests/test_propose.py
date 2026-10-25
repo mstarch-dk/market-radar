@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +17,7 @@ import world
 from conftest import with_settings
 from radar import paths, propose, universe, userstore
 from radar.config import settings
-from radar.config_schema import Propose
+from radar.config_schema import Propose, StressWindow
 from radar.market import Market
 from radar.model import artifacts
 from radar.portfolios import fees
@@ -71,6 +72,7 @@ def market(tmp_data, monkeypatch):
         tmp_data / "sectors.csv", index=False)
     c = with_settings(monkeypatch, propose={"gates": {"min_history_weeks": 40}, "bootstrap": {"draws": 400},
                                             "min_weeks": 20, "study_ns": [2, 3]},
+                      risk={"covariance": {"min_weeks": 20}},
                       backtest={"study_min_names": 4, "fill": "next", "fee_bps": 10})
     # ACWI's weights from the trimmed real file
     df = constituents.parse_acwi_holdings((FIX / "ishares_ssac_holdings.csv").read_text(encoding="utf-8"), min_rows=10)
@@ -308,9 +310,9 @@ def test_bootstrap_is_seeded_and_drawdowns_are_never_positive(market):
 
 def test_stress_window_without_prices_is_marked(market):
     pr = Prices(market)
-    c = _pc(stress=[{"key": "old", "label": "Before the data", "start": "2001-01-02", "end": "2001-03-01"},
-                   {"key": "in", "label": "In the data", "start": IDX[100].date(), "end": IDX[150].date()}])
-    old, inside = stress({"S1": 10_000, "S3": 10_000}, pr, "ACWI", c)
+    windows = [StressWindow(key="old", label="Before the data", start=date(2001, 1, 2), end=date(2001, 3, 1)),
+               StressWindow(key="in", label="In the data", start=IDX[100].date(), end=IDX[150].date())]
+    old, inside = stress({"S1": 10_000, "S3": 10_000}, pr, "ACWI", windows)
     assert old["ret"] is None and old["coverage"] == 0 and "not replayed" in old["note"]
     assert inside["coverage"] == 1 and inside["max_dd"] <= 0 and inside["acwi_ret"] is not None
 
@@ -367,6 +369,16 @@ def test_study_view_haircut_regime_and_staleness(market):
     bad = artifacts.Loaded("propose-study", "invalid", reason="propose-study.json can't be read")
     v = propose.study_view(bad, "mix", 5, 6, None, c)
     assert v["drift_gross"] is None and v["note"] == "propose-study.json can't be read"     # said, never empty
+
+
+def test_rule_hash_unchanged_by_settings_move():
+    """The risk model's keys that moved to risk: were never part of the rule: with them back under propose: the
+    shipped rule's hash is the same, so no stored proposal or study goes stale."""
+    section = settings()["propose"]
+    r = settings()["risk"]
+    old = section | {"history_weeks": r["covariance"]["history_weeks"], "shrink": r["covariance"]["shrink"],
+                     "stress": r["stress"], "look_through": r["world_funds"]}
+    assert propose.rule_hash(old) == propose.rule_hash(section)
 
 
 def test_rule_hash_moves_with_the_rule_only(market):

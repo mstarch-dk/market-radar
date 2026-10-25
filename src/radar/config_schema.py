@@ -51,11 +51,34 @@ class Backtest(_Section):
     random_baskets: int
 
 
+class StressWindow(_Section):
+    key: str
+    label: str
+    start: date
+    end: date
+
+
+class _Covariance(_Section):
+    history_weeks: int
+    min_weeks: int
+    shrink: float
+
+
+class _Xray(_Section):
+    min_coverage: float
+    warn_coverage: float
+    pair_corr: float
+
+
 class Risk(_Section):
     windows: dict[str, int]
     min_weeks: int
     factors: list[str]
     budget: float
+    covariance: _Covariance
+    world_funds: list[str]
+    stress: list[StressWindow]
+    xray: _Xray
 
 
 class _Tilt(_Section):
@@ -110,13 +133,6 @@ class _Bootstrap(_Section):
     ewma_lambda: float
 
 
-class _Stress(_Section):
-    key: str
-    label: str
-    start: date
-    end: date
-
-
 class _Filler(_Section):
     ticker: str
     model: str
@@ -141,15 +157,12 @@ class Propose(_Section):
     study_cost_bps: float
     horizons: list[int]
     study_ns: list[int]
-    history_weeks: int
     min_weeks: int
-    shrink: float
     acwi_drift_annual: float
     survivorship_haircut: float
     haircut_from_gauge: bool
     prior: _Prior
     bootstrap: _Bootstrap
-    stress: list[_Stress]
     min_edge: float
     min_regime_dates: int
     max_swaps: int
@@ -157,7 +170,6 @@ class Propose(_Section):
     ask_deposit_cap: float | None
     ask_cap_year: int | None
     etf_filler: _Filler
-    look_through: list[str]
     review_min: int
 
 

@@ -119,9 +119,8 @@ propose:                   # src/radar/propose.py: `radar propose` and /propose-
   # --- the model
   horizons: [3, 6]         # months
   study_ns: [3, 5, 8]      # basket sizes the rule study tests
-  history_weeks: 156       # weekly DKK returns for the covariance and the bootstrap
-  min_weeks: 26
-  shrink: 0.3              # covariance: this share pulled towards a constant-correlation matrix
+  min_weeks: 26            # the bootstrap and the pool's correlation with the portfolio: fewer joint weeks, none
+                           # (the covariance's own settings are under risk.covariance)
   acwi_drift_annual: 0.06  # an assumption, not a forecast: ACWI's expected return a year, to centre the bootstrap
   survivorship_haircut: 0.3  # share of a positive study excess taken off (today's universe flatters the past)
   haircut_from_gauge: true # a larger haircut when `radar study longrun`'s survivorship gauge implies one (never smaller)
@@ -138,11 +137,6 @@ propose:                   # src/radar/propose.py: `radar propose` and /propose-
     trend_months: 10       # the prior in today's trend (ACWI vs its 10-month average) when that split has ...
     min_trend_eff_n: 20    # ... at least this many independent periods
   bootstrap: {draws: 5000, block_weeks: 4, seed: 7, ewma_lambda: 0.94}
-  stress:                  # historical episodes replayed on today's weights (only where the price history covers them)
-    - {key: covid, label: "Covid crash", start: 2020-02-19, end: 2020-03-23}
-    - {key: rates2022, label: "2022 rate shock", start: 2022-01-03, end: 2022-10-12}
-    - {key: unwind2024, label: "Summer 2024 momentum unwind", start: 2024-07-10, end: 2024-08-05}
-    - {key: tariffs2025, label: "2025 tariff shock", start: 2025-02-19, end: 2025-04-08}
   # --- the decision rule (pre-committed)
   min_edge: 0.01           # modelled excess over ACWI after costs, over the horizon, needed to propose stocks
   min_regime_dates: 12     # use the regime's own study figures only with this many dates in that regime
@@ -152,8 +146,6 @@ propose:                   # src/radar/propose.py: `radar propose` and /propose-
   ask_deposit_cap: null    # aktiesparekonto: the year's deposit ceiling in DKK (fill in from skat.dk; null = not checked)
   ask_cap_year: null
   etf_filler: {ticker: SSAC.L, model: ACWI, name: "iShares MSCI ACWI UCITS (Acc)", isin: IE00B6R52259, min_dkk: 3000}
-  look_through: [IWDA.AS, IWDA.L, SWDA.L, EUNL.DE, VWCE.DE, VWRL.AS, VWRL.L, ISAC.L, SPYI.DE]  # broad world funds
-                           # counted with ACWI's weights (an approximation: MSCI World leaves out emerging markets)
   review_min: 6            # `radar propose review`: fewer proposals than this are too few to judge anything by
 
 risk:                      # signals/risk.py: weekly returns in DKK
@@ -161,6 +153,22 @@ risk:                      # signals/risk.py: weekly returns in DKK
   min_weeks: 26            # fewer weeks: no statistic (null), never a guess
   factors: [MTUM, VLUE, QUAL, USMV]   # factor ETFs for attribution (as tilts vs ACWI); only those with prices are used
   budget: 0.01             # risk budget: position size at which hitting the rule stop costs 1% of the portfolio
+  # --- the risk model of a set of holdings (portfolios/riskmodel.py): proposals and the portfolio X-ray share it
+  covariance:              # weekly DKK returns of the holdings and ACWI
+    history_weeks: 156
+    min_weeks: 26          # a name with fewer weeks is left out of the model (listed as missing)
+    shrink: 0.3            # this share pulled towards a constant-correlation matrix
+  world_funds: [IWDA.AS, IWDA.L, SWDA.L, EUNL.DE, VWCE.DE, VWRL.AS, VWRL.L, ISAC.L, SPYI.DE]  # broad world funds
+                           # counted with ACWI's weights (an approximation: MSCI World leaves out emerging markets)
+  stress:                  # historical episodes replayed on today's weights (only where the price history covers them)
+    - {key: covid, label: "Covid crash", start: 2020-02-19, end: 2020-03-23}
+    - {key: rates2022, label: "2022 rate shock", start: 2022-01-03, end: 2022-10-12}
+    - {key: unwind2024, label: "Summer 2024 momentum unwind", start: 2024-07-10, end: 2024-08-05}
+    - {key: tariffs2025, label: "2025 tariff shock", start: 2025-02-19, end: 2025-04-08}
+  xray:                    # the portfolio X-ray
+    min_coverage: 0.5      # below this share of invested value in the risk model: no risk figures, only a note
+    warn_coverage: 0.8     # below this: the figures are shown with a coverage warning
+    pair_corr: 0.7         # pairs of holdings above this weekly correlation are listed as moving together
 
 analyst:
   max_age_days: 7          # re-fetch Yahoo consensus for holdings/watchlist after this

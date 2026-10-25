@@ -103,6 +103,11 @@ def test_the_shipped_settings_have_the_shape_the_code_reads():
     (lambda c: c["stops"].update(mode="sideways"), "stops.mode:"),
     (lambda c: c["propose"]["bootstrap"].update(draws="many"), "propose.bootstrap.draws:"),
     (lambda c: c["risk"].pop("factors"), "risk.factors: missing"),
+    # the risk model's keys moved from propose: to risk:; a file with the old ones says which
+    (lambda c: c["propose"].update(stress=[]), "propose.stress: unknown key"),
+    (lambda c: c["propose"].update(look_through=[]), "propose.look_through: unknown key"),
+    (lambda c: c["propose"].update(shrink=0.3), "propose.shrink: unknown key"),
+    (lambda c: c["propose"].update(history_weeks=156), "propose.history_weeks: unknown key"),
 ])
 def test_a_bad_setting_fails_at_load_naming_the_key(edit, says):
     from radar import config_schema
