@@ -129,6 +129,11 @@ Always run Python through uv; the frontend uses pnpm.
   weights by sector, region and currency against ACWI, ex-ante risk (vol, beta, tracking error, coverage) with the top
   five risk contributors, realised 1-year vol and drawdown, concentration and correlated pairs, the stress windows and
   the notes. `--json` prints the `XrayView` dict, the same as `GET /api/xray`.
+- `uv run radar calendar [NAME…] [--tag T] [--scope real|virtual|all] [--days N] [--json]`: the calendar
+  (`agenda.py`) of the chosen portfolios (default: your real ones): the high items of the next `calendar.soon_days`,
+  then every item by week (earnings and ex-dividend dates of held and watched stocks, journal reviews, proposal time
+  stops) with its reasons, the stocks with no known earnings date and the notes. Needs a built dashboard. `--json`
+  prints the `AgendaView` dict, the same as `GET /api/calendar`.
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: a Yahoo Finance export into the store (it replaces the
   previous Yahoo import; manual and broker trades are kept). Unknown transaction types are skipped with a warning.
 - Watchlist: add or remove from any ticker page in the web app (stored in `radar.db` in the data folder, survives

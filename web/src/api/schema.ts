@@ -1362,6 +1362,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calendar
+         * @description Earnings and ex-dividend dates of the held and watched stocks of the chosen portfolios (default: your real
+         *     ones), your open journal reviews and the proposals' time stops, each with the reasons it is highlighted and a
+         *     level, counted from the last close. Stocks with no known date are listed; funds are counted.
+         */
+        get: operations["get_calendar_api_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1464,6 +1486,140 @@ export interface components {
             rebalances: components["schemas"]["AbRebalance"][];
             /** Next Due */
             next_due?: string | null;
+            /** Notes */
+            notes: string[];
+        };
+        /**
+         * AgendaEarnings
+         * @description How sure the date is: `is_range` is Yahoo's expected window (date to date_end), `source` yahoo_detail (the
+         *     ticker's calendar) or yahoo_screener (the weekly snapshot), `read_on` the day it was read. The consensus is
+         *     for the quarter being reported.
+         */
+        AgendaEarnings: {
+            /** Is Range */
+            is_range: boolean;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "yahoo_detail" | "yahoo_screener";
+            /** Read On */
+            read_on?: string | null;
+            /** Moved From */
+            moved_from?: string | null;
+            /** Eps Avg */
+            eps_avg?: number | null;
+            /** Eps Low */
+            eps_low?: number | null;
+            /** Eps High */
+            eps_high?: number | null;
+            /** Rev Avg */
+            rev_avg?: number | null;
+        };
+        /**
+         * AgendaItem
+         * @description One dated item. `days` is counted from the as-of date (negative: a window under way, or an overdue review);
+         *     `weight` is a holding's share of the invested value; `id` is stable (kind:symbol:date).
+         */
+        AgendaItem: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "earnings" | "ex_dividend" | "review" | "time_stop";
+            /** Date */
+            date: string;
+            /** Date End */
+            date_end?: string | null;
+            /** Days */
+            days: number;
+            /** Symbol */
+            symbol?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "holding" | "watch" | "own";
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "high" | "normal" | "info";
+            /** Weight */
+            weight?: number | null;
+            /** Reasons */
+            reasons: components["schemas"]["AgendaReason"][];
+            earnings?: components["schemas"]["AgendaEarnings"] | null;
+            /** Link */
+            link: string;
+        };
+        /**
+         * AgendaNoDate
+         * @description A held or watched stock with no known earnings date, and why.
+         */
+        AgendaNoDate: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "holding" | "watch";
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * AgendaReason
+         * @description Why an item stands out: a stated rule (`key`), its text with the number in it, and the number.
+         */
+        AgendaReason: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "held" | "big_position" | "near_level" | "momentum_weak" | "estimates_cut" | "estimates_raised" | "unconfirmed" | "moved" | "stale_date" | "ex_dividend" | "review_due" | "time_stop" | "exit_status";
+            /** Text */
+            text: string;
+            /** Value */
+            value?: number | null;
+        };
+        /** AgendaSelection */
+        AgendaSelection: {
+            /** Ids */
+            ids: number[];
+            /** Names */
+            names: string[];
+            /** Scope */
+            scope?: string | null;
+        };
+        /**
+         * AgendaView
+         * @description `soon`: the ids of the high items within `calendar.soon_days`, in date order.
+         */
+        AgendaView: {
+            /** Asof */
+            asof: string;
+            /** Generated */
+            generated: string;
+            /** Today */
+            today: string;
+            /** Days */
+            days: number;
+            selection: components["schemas"]["AgendaSelection"];
+            /** Items */
+            items: components["schemas"]["AgendaItem"][];
+            /** Soon */
+            soon: string[];
+            /** No Date */
+            no_date: components["schemas"]["AgendaNoDate"][];
+            /** Excluded Funds */
+            excluded_funds: number;
             /** Notes */
             notes: string[];
         };
@@ -1608,10 +1764,27 @@ export interface components {
         Calendar: {
             /** Next Earnings */
             next_earnings?: string | null;
+            /** Earnings Start */
+            earnings_start?: string | null;
+            /** Earnings End */
+            earnings_end?: string | null;
+            /**
+             * Is Range
+             * @default false
+             */
+            is_range: boolean;
             /** Eps Estimate */
             eps_estimate?: number | null;
+            /** Eps Low */
+            eps_low?: number | null;
+            /** Eps High */
+            eps_high?: number | null;
             /** Revenue Estimate */
             revenue_estimate?: number | null;
+            /** Revenue Low */
+            revenue_low?: number | null;
+            /** Revenue High */
+            revenue_high?: number | null;
             /** Ex Dividend */
             ex_dividend?: string | null;
             /** Dividend Date */
@@ -8038,6 +8211,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["XrayView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_calendar_api_calendar_get: {
+        parameters: {
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+                /** @description Window in days; default calendar.days */
+                days?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgendaView"];
                 };
             };
             /** @description Validation Error */

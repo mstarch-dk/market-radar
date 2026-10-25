@@ -115,6 +115,8 @@ def update_external(log: Log = print) -> None:
         "valuation_etfs": ("ETF valuation (Yahoo fund data)", lambda: valuation.update_etfs(universe.etf_tickers())),
         "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)",
                              lambda: valuation.update_stocks(stocks)),
+        "calendar": ("Earnings calendar (holdings and watchlist)",
+                     lambda: external.update_calendar(mine, **typed().calendar.refresh.model_dump())),
         # after the valuation snapshot: it names each stock's reporting currency and next earnings date
         "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)",
                                lambda: edgar.update_edgar(stocks, userstore.sec_contact())),

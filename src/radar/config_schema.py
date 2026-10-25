@@ -226,6 +226,33 @@ class Analyst(_Section):
     max_age_days: int
 
 
+class CalendarRefresh(_Section):
+    max_age_days: float
+    near_days: int
+    near_max_age_hours: float
+
+
+class CalendarInclude(_Section):
+    watchlist: bool
+    ex_dividend: bool
+    reviews: bool
+
+
+class CalendarHighlight(_Section):
+    big_position: float
+    near_level: float
+    revision_cut: float
+
+
+class Calendar(_Section):
+    days: int
+    soon_days: int
+    stale_days: int
+    include: CalendarInclude
+    highlight: CalendarHighlight
+    refresh: CalendarRefresh
+
+
 class Coverage(_Section):
     max_age: dict[str, int]                     # source -> days behind the report's as-of date before it is stale
     blind_spots: list[str]
@@ -413,6 +440,7 @@ class Settings(_Section):
     propose: Propose
     risk: Risk
     analyst: Analyst
+    calendar: Calendar
     coverage: Coverage
     network: Network
     factors: Factors

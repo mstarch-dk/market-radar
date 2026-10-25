@@ -74,6 +74,7 @@ De grå mærker i *Flags* er regler, der beskriver tilstanden. Hvilke der kan fo
 | *near 52w high* | alle | Mindre end 3 % fra 52-ugers høj (grænsen ligger i koden) |
 | *RS line at 52w high* | alle | Kursen divideret med ACWI (begge i DKK) har sat en ny 52-ugers top inden for de seneste 5 handelsdage. Den relative styrke topper ofte før kursen (grænsen ligger i koden) |
 | *golden cross* / *death cross* | alle | 50-dages gennemsnit er krydset over / under 200-dages inden for de seneste 20 handelsdage (grænsen ligger i koden). Det er en beskrivelse af trenden, ikke et signal; se [Trend og glidende gennemsnit](laerebog/trend) |
+| *earnings in N d* / *earnings today* | beholdninger, watchlist | Aktien aflægger regnskab inden for {{settings:calendar.soon_days}} dage efter Yahoos dato eller forventede vindue (ikke bekræftet af selskabet). Samme dato som i kalenderen (`radar calendar`) |
 | *no data* | alle | Ingen kurs |
 
 De røde mærker kommer fra niveauet: *near review level* og *below review level*, *above highest analyst target* og, med ATR-stoppet, *near stop*, *stop hit*, *near target* og *stop breached* + dato (et brud inden for den seneste måned).

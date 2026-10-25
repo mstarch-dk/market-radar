@@ -45,6 +45,7 @@ Grænserne står i `config/settings.yaml` under `coverage.max_age`. Med de nuvæ
 | Indtjeningsrevisioner (FactSet) | {{settings:coverage.max_age.factset}} |
 | OECD's ledende indikatorer | {{settings:coverage.max_age.oecd}} |
 | Analytikerkonsensus (Yahoo) | {{settings:coverage.max_age.analyst}} |
+| Regnskabskalender, beholdninger og watchlist (Yahoo) | {{settings:coverage.max_age.calendar}} |
 | Værdiansættelse, aktier og ETF'er | {{settings:coverage.max_age.valuation_stocks}} og {{settings:coverage.max_age.valuation_etfs}} |
 | Shiller CAPE og risikopræmie (ERP) | {{settings:coverage.max_age.cape}} og {{settings:coverage.max_age.erp}} |
 | Euroområdets renter (ECB) | {{settings:coverage.max_age.ecb}} |

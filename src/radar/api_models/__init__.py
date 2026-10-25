@@ -5,6 +5,17 @@ One module per area of the app; every model is re-exported here, so `from radar.
 reads any of them."""
 from __future__ import annotations
 
+from .agenda import (
+    AgendaEarnings,
+    AgendaItem,
+    AgendaKind,
+    AgendaLevel,
+    AgendaNoDate,
+    AgendaReason,
+    AgendaSelection,
+    AgendaView,
+    ReasonKey,
+)
 from .common import (
     FundValuation,
     Gauge,
@@ -286,4 +297,6 @@ __all__ = [
     "NotebookKind", "JournalMeta", "NotebookEntry", "NotebookListing", "NotebookDocument",
     "FundClass", "XraySelection", "Unvalued", "XrayTotals", "ExposureRow", "ExposureDim", "XrayExposure", "XrayClass", "RiskPosition",
     "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "ScoreTilt", "XrayView",
+    "AgendaKind", "AgendaLevel", "ReasonKey", "AgendaReason", "AgendaEarnings", "AgendaItem", "AgendaNoDate",
+    "AgendaSelection", "AgendaView",
 ]

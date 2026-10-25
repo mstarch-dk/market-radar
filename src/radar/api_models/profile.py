@@ -225,8 +225,15 @@ class Eps(Strict):
 
 class Calendar(Strict):
     next_earnings: str | None = None
+    earnings_start: str | None = None
+    earnings_end: str | None = None
+    is_range: bool = False
     eps_estimate: Num = None
+    eps_low: Num = None
+    eps_high: Num = None
     revenue_estimate: Num = None
+    revenue_low: Num = None
+    revenue_high: Num = None
     ex_dividend: str | None = None
     dividend_date: str | None = None
 

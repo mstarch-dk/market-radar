@@ -42,8 +42,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `GET /api/tickers`: every tracked symbol in brief (price, 1d/1m/3m, score or quadrant, 6-month weekly sparkline,
   your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime
-  for the stop levels come from the dashboard).
-- A portfolio selection on `/api/me`, `/api/xray`, `/api/portfolio/transactions`, `/positions` and `/export.csv`:
+  for the stop levels come from the dashboard). A stock reporting within `calendar.soon_days` gets an
+  `earnings in N d` flag from the same `agenda.build` as the calendar.
+- A portfolio selection on `/api/me`, `/api/xray`, `/api/calendar`, `/api/portfolio/transactions`, `/positions` and `/export.csv`:
   `portfolio` (ids, repeatable), `tag` (repeatable) or `scope` (real | virtual | all); none means your real
   portfolios. The web app keeps it in the URL as `?pf=` (`real`, `3,5`, `tag:sim-a`).
 - Market views: `GET /api/views` (views with evidence, templates, vocabulary), `POST /api/views`, `PUT` / `DELETE
@@ -104,6 +105,14 @@ Python computes every number; the frontend only formats and draws. It is the rad
   left out and listed) and notes. Computed live under the price lock; cached per (selection, prices mtime, transactions
   version, fund-detail cache). An empty selection is a view with empty tables and a note; no prices at all is 503. Its
   router is included last in `api/app.py`, so the OpenAPI order of the others stays put.
+- Calendar: `GET /api/calendar?portfolio=&tag=&scope=&days=` → `AgendaView` (`agenda.py`): earnings and ex-dividend
+  items of held and watched stocks, open journal reviews and proposal time stops in `days` (default `calendar.days`),
+  each with `reasons` (`key`, an English `text` with the number, `value`) and a `level` (high | normal | info); `soon`
+  lists the high ids within `soon_days`; `no_date` the stocks with no known date and why; `excluded_funds` the funds
+  left out. Item ids are stable (`kind:symbol:date`). Days count from the benchmark's last close, not the clock.
+  Computed live under the price lock, cached per (selection, days, prices mtime, transactions version, calendar file,
+  dashboard build, journal and proposals folders). Needs the dashboard (503 without one) and prices (503); included
+  after the X-ray's router.
 - Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every
