@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import typed
-from ..config_schema import Propose
+from ..config_schema import StressWindow
 from ..signals.risk import deepest_drawdown
 from ..sources import tracked
 from . import exposure
@@ -92,12 +92,13 @@ def weekly_returns(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.
     return out.dropna()
 
 
-def stress(values: dict[str, float], prices: Prices, bench: str, c: Propose | None = None) -> list[dict]:
-    """Today's DKK weights through each stress window (daily DKK closes), where the price history covers it."""
-    c = c or typed().propose
+def stress(values: dict[str, float], prices: Prices, bench: str,
+           windows: list[StressWindow] | None = None) -> list[dict]:
+    """Today's DKK weights through each stress window (settings risk.stress; daily DKK closes), where the price
+    history covers it."""
     lt = exposure.look_through()
     out = []
-    for e in c.stress:
+    for e in typed().risk.stress if windows is None else windows:
         s, t1 = pd.Timestamp(e.start), pd.Timestamp(e.end)
         rec = {"key": e.key, "label": e.label, "start": s.date().isoformat(), "end": t1.date().isoformat(),
                "coverage": None, "ret": None, "max_dd": None, "acwi_ret": None, "acwi_max_dd": None, "missing": []}
@@ -149,5 +150,5 @@ def factor_tilts(values: dict[str, float], R: pd.DataFrame, market: Market) -> d
         return None
     tilts = {f: R[f] for f in typed().risk.factors if f in R}
     rf = market.fred().get("DGS3MO")   # None without the series: raw returns, said by alpha_basis
-    c = typed().propose
-    return rk.factor_loadings(rp, R[bench], tilts, rf, c.history_weeks, c.min_weeks)
+    cv = typed().risk.covariance
+    return rk.factor_loadings(rp, R[bench], tilts, rf, cv.history_weeks, cv.min_weeks)

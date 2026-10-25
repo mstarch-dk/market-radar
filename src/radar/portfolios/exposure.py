@@ -43,10 +43,10 @@ def _sector_etf_map() -> dict[str, str]:
 
 def look_through() -> set[str]:
     """Tickers counted with ACWI's own weights: ACWI, its UCITS share classes, the filler and broad world funds
-    (settings propose.look_through)."""
-    c = typed().propose
-    named = {tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), c.etf_filler.ticker,
-             c.etf_filler.model, *c.look_through}
+    (settings risk.world_funds)."""
+    c = typed()
+    named = {tracked.benchmark(), (universe_config().get("benchmark") or {}).get("ucits"), c.propose.etf_filler.ticker,
+             c.propose.etf_filler.model, *c.risk.world_funds}
     return {t for t in named if t is not None}
 
 

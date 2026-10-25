@@ -141,6 +141,16 @@ Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simuler
 | `risk.min_weeks` | {{settings:risk.min_weeks}} | Færre uger giver ingen statistik (tomt, aldrig et gæt) |
 | `risk.factors` | {{settings:risk.factors}} | Faktor-ETF'er til faktortilt (som afvigelse fra ACWI) |
 | `risk.budget` | {{settings:risk.budget|pct}} | Risikobudget: positionsstørrelsen, hvor et fald til stoppet koster dette af porteføljen |
+| `risk.covariance.history_weeks` | {{settings:risk.covariance.history_weeks}} uger | Risikomodellen for et sæt beholdninger (porteføljeforslag og porteføljens røntgen): ugentlige afkast i DKK, som kovariansen regnes på |
+| `risk.covariance.min_weeks` | {{settings:risk.covariance.min_weeks}} | Et papir med færre uger er ikke med i risikomodellen; det står som manglende, aldrig som nul risiko |
+| `risk.covariance.shrink` | {{settings:risk.covariance.shrink}} | Den andel, kovariansen trækkes mod en matrix med samme korrelation mellem alle par |
+| `risk.world_funds` | {{settings:risk.world_funds}} | Brede verdensfonde, der regnes med ACWI's vægte (en tilnærmelse: MSCI World udelader emerging markets) |
+| `risk.stress` | | Historiske perioder (Covid-krakket, rentechokket i 2022, momentum-tilbageslaget i sommeren 2024, toldchokket i 2025), som dagens vægte afspilles igennem, hvor kurshistorikken dækker dem |
+| `risk.xray.min_coverage` | {{settings:risk.xray.min_coverage|pct}} | Porteføljens røntgen: under denne andel af den investerede værdi i risikomodellen vises ingen risikotal, kun en note |
+| `risk.xray.warn_coverage` | {{settings:risk.xray.warn_coverage|pct}} | Under denne andel vises risikotallene med en advarsel om dækningen |
+| `risk.xray.pair_corr` | {{settings:risk.xray.pair_corr}} | Par af beholdninger med en ugentlig korrelation over dette vises som papirer, der bevæger sig sammen |
+
+Nøglerne `covariance`, `world_funds` og `stress` lå tidligere under `propose:` (som `history_weeks`, `min_weeks`, `shrink`, `look_through` og `stress`). Har du ændret dem der, så flyt dine værdier hertil; en gammel nøgle under `propose:` giver en fejl ved start, der nævner den. `propose.min_weeks` er blevet: den gælder bootstrappen og puljens korrelation med porteføljen.
 
 Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 
