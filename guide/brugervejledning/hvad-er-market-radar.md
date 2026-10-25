@@ -47,6 +47,7 @@ Fanerne øverst i appen følger rækkefølgen ovenfor. Her er hvad hver side gø
 | *Positioning & cycle* | Indtjeningsrevisioner, værdiansættelse, OECD-cyklus, renter, futurespositionering og sentiment | [Positionering og cyklus](brugervejledning/positionering) |
 | *Holdings & watchlist* | Dine positioner i DKK mod ACWI, stop og kursmål | [Mine beholdninger og watchlist](brugervejledning/beholdninger) |
 | *X-ray* | Porteføljens eksponering mod ACWI efter sektor, region og valuta, og hvor risikoen sidder | [Røntgen af porteføljen](brugervejledning/xray) |
+| *Calendar* | Regnskaber, udbyttedage og dine egne datoer de næste uger for det, du ejer og følger, med hvorfor hvert punkt er fremhævet | [Kalenderen](brugervejledning/kalender) |
 | *Market views* | Dine egne markedssyn, holdt op mod data | [Mine markedssyn](brugervejledning/markedssyn) |
 | *Notebook* | Briefs, research-notater, sammenligninger og din beslutningsjournal | [Notesbogen](brugervejledning/notesbog) |
 | *Portfolio* | Dine konti: positioner, handler, import og kurtageskemaer | [Portefølje](brugervejledning/portefolje) |

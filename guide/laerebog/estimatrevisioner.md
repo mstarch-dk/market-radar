@@ -93,6 +93,17 @@ For dine beholdninger og din watchlist henter radaren Yahoos konsensus for kursm
 
 Tickerprofilen viser desuden Yahoos egen revisionstrend: konsensus-EPS i dag mod for 7, 30 og 90 dage siden pr. periode og antal op- og nedjusteringer de seneste 30 dage. Ændringen beregnes kun mellem to positive skøn.
 
+### Regnskaber i kalenderen
+
+[Kalenderen](brugervejledning/kalender) viser for hvert regnskab, du ejer eller følger, hvordan konsensus for *det kvartal, der skal aflægges*, har bevæget sig de seneste 30 dage (Yahoos revisionstrend, periode `0q`, fra samme læsning som datoen):
+
+- **Nedjusteret** (*estimates_cut*): EPS-skønnet er ændret med {{settings:calendar.highlight.revision_cut|pct}} eller mere, eller flere analytikere har sænket end hævet skønnet.
+- **Opjusteret** (*estimates_raised*): spejlbilledet.
+
+En nedjustering af en beholdning få dage før regnskabet er en af grundene til, at kalenderen fremhæver regnskabet som *high*. En opjustering vises som grund, men hæver aldrig niveauet.
+
+Hvorfor revisioner lige før et regnskab er værd at se: de er autokorrelerede (se ovenfor), så et skøn, der falder ind mod regnskabet, siger noget om, hvad analytikerne hører fra selskabet og branchen. Og PEAD viser, at kursen ofte fortsætter i retning af overraskelsen efter regnskabet. Men overraskelsen måles mod konsensus på dagen: når skønnet allerede er skåret, er barren lavere, og et regnskab "over forventning" kan komme efter en nedjustering. Kalenderen viser derfor revisionen som en grund til at kigge efter, aldrig som en stemme for eller imod aktien.
+
 ## Regneeksempel
 
 > **Eksempel:** Tre situationer. Tallene er opfundne.

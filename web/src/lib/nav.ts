@@ -20,6 +20,7 @@ export const NAV: NavGroup[] = [
     id: "mine", label: "Mine", pages: [
       { path: "/me", label: "Holdings & watchlist", blurb: "Returns vs ACWI, flags, stops and targets" },
       { path: "/xray", label: "X-ray", blurb: "What you're exposed to and where the risk sits, vs ACWI" },
+      { path: "/calendar", label: "Calendar", blurb: "Reports and dates coming up for what you hold and watch" },
       { path: "/portfolio", label: "Portfolio", blurb: "Your accounts: positions, transactions, imports" },
       { path: "/returns", label: "Returns", blurb: "Returns over time vs ACWI, A/B comparisons" },
       { path: "/experiments", label: "Experiments", blurb: "Virtual portfolios: A/B tests, simulations, forks" },

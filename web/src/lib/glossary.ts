@@ -120,6 +120,10 @@ export const GLOSSARY = {
   ops_latency: "How long requests took: p50 = half were faster (the typical request), p95 = 95% were faster (the slow tail). Includes retries' own time, not the waits between them.",
   ops_budget: "Requests to this site today against its soft daily budget (settings.yaml network.hosts). Going over is only a warning, never a block.",
   ops_kind: "source: a data source updated or failed. parse: it answered, but not in the expected shape (often a changed layout). api: a server error in the app. job: an update or scan stopped. throttle: a site paused, resumed or over budget. doctor: a health check.",
+  cal_level: "How much an item asks for a look, by stated rules. High: a stock you hold reports within {{settings:calendar.soon_days}} days and is at least {{settings:calendar.highlight.big_position|pct}} of the invested value, is within {{settings:calendar.highlight.near_level|pct}} of its review level, is losing momentum, or has its estimate cut; or a proposal pick's exit check says Triggered. Normal: other held reports and your own review dates. Info: watched names, ex-dividend dates. Never a reason to buy or sell.",
+  cal_unconfirmed: "Yahoo's dates are what it expects, not dates the company has confirmed. When Yahoo gives two dates, the report is expected in that window, and the calendar shows the whole window, never its first day.",
+  cal_eps: "The consensus EPS estimate for the quarter being reported (Yahoo), with the lowest and highest analyst estimate on hover.",
+  cal_revision: "Estimate revision: how the consensus EPS estimate for the quarter has changed over the last 30 days. A cut of {{settings:calendar.highlight.revision_cut|pct}} or more, or more analysts cutting than raising, is shown as a reason; a raise is shown but never raises the level.",
   xray_active: "Active weight: the portfolio's weight in this sector, region or currency minus ACWI's. +5% = five percentage points more than the world index; the bar grows right for overweight, left for underweight. Blank for funds that aren't looked through.",
   xray_class: "How a held name is placed. World fund: counted with ACWI's own weights (settings risk.world_funds; an MSCI World fund leaves out emerging markets, so this is an approximation). Sector fund: its sector (and its region when the radar lists it). Fund (Yahoo's sector weights): looked through by sector from Yahoo's cached fund data, not by region or currency. Fund, not looked through: no usable data, so it is its own bucket, never spread out by guesswork.",
   xray_vol: "Ex-ante volatility: how much the portfolio would swing in a year with today's weights, estimated from the holdings' weekly DKK returns over the last {{settings:risk.covariance.history_weeks}} weeks (a covariance shrunk towards constant correlation). A measure of risk, not a forecast of return.",
@@ -139,7 +143,15 @@ export const GLOSSARY = {
 
 /** A term's hover text, with each `{{settings:…}}` filled in from settings.yaml's values (the guide tree serves them;
  *  "–" until they have loaded). tests/test_guide.py checks every key exists. */
+/** A setting as the hover help quotes it: as written, or with `|pct` a fraction as a percentage (0.05 → "5%"). */
+function quote(raw: string | undefined, fmt: string | undefined): string {
+  if (raw === undefined) return "–";
+  const n = Number(raw);
+  return fmt === "pct" && Number.isFinite(n) ? `${+(n * 100).toFixed(2)}%` : raw;
+}
+
 export const glossary = (k: string | undefined, settings?: Record<string, string>): string | undefined =>
   k && k in GLOSSARY
-    ? GLOSSARY[k as GlossaryKey].replace(/\{\{settings:([\w.]+)\}\}/g, (_, key: string) => settings?.[key] ?? "–")
+    ? GLOSSARY[k as GlossaryKey].replace(/\{\{settings:([\w.]+)(?:\|(pct))?\}\}/g,
+      (_, key: string, fmt?: string) => quote(settings?.[key], fmt))
     : undefined;

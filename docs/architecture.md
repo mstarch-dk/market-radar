@@ -102,7 +102,9 @@ live by the API instead (the holdings table, the regime re-vote, coverage).
 - `dashboard.json` carries `build: {format, inputs}`: a format number (bump it when a section is added or changed)
   and the mtime of each file the build read. The server rebuilds an older format at start; a changed input only
   shows a *Rebuild* banner, since a build saves snapshots.
-- `summary.json` is a contract with the skills: its keys don't change without them.
+- `summary.json` is a contract with the skills: its keys (listed in `reporting/report.py`'s docstring) don't change
+  without them. `calendar` is `agenda.collect` for your real portfolios without `selection` and `generated`, so it is
+  the same for the same data.
 
 ## Study reports
 The study reports production code reads have a pydantic model for the parts it consumes (`model/artifacts.py`):

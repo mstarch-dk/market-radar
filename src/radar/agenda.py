@@ -232,8 +232,8 @@ def build(me_rows: list[dict], weights: dict[str, float], calendar: pd.DataFrame
     items.sort(key=lambda i: (i["date"], LEVELS.index(i["level"]), -(i["weight"] or 0), i["id"]))
     soon = [i["id"] for i in items if i["level"] == "high" and i["days"] <= cfg.soon_days]
     no_date.sort(key=lambda r: (r["status"] != "holding", r["symbol"]))
-    return {"today": today.isoformat(), "days": days, "items": items, "soon": soon, "no_date": no_date,
-            "excluded_funds": excluded_funds}
+    return {"today": today.isoformat(), "days": days, "soon_days": cfg.soon_days, "items": items, "soon": soon,
+            "no_date": no_date, "excluded_funds": excluded_funds}
 
 
 def _review_items(journal: list[dict], today: date, last_day: date) -> list[dict]:

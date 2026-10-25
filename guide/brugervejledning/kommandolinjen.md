@@ -215,6 +215,18 @@ uv run radar xray --json                     # det hele som JSON
 
 Et tal, der ikke kan beregnes (en kurs mangler, en fond kan ikke ses igennem), vises som – og forklares i noterne nederst, aldrig som 0.
 
+### Kalenderen
+
+`radar calendar` viser de næste uger for det, du ejer og følger, som på [Calendar](/calendar): først de punkter, der er fremhævet de næste {{settings:calendar.soon_days}} dage, så en tabel pr. uge (dato, navn, ejet eller fulgt, niveau og grunde) og til sidst aktierne uden kendt dato. Navne og tags vælges som ved `radar xray`; uden navne er det dine rigtige porteføljer og din watchlist.
+
+```bash
+uv run radar calendar                        # dine rigtige porteføljer og watchlist
+uv run radar calendar "ASK" --days 14        # én portefølje, to uger frem
+uv run radar calendar --json                 # det hele som JSON, det samme som siden
+```
+
+Reglerne og hvor datoerne kommer fra, står i [Kalenderen](brugervejledning/kalender).
+
 ### Simulér stop og take-profit
 
 `radar sim exits` afspiller dine rigtige handler med radarens stop og take-profit fulgt, dag for dag, ind i virtuelle porteføljer. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
@@ -314,6 +326,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se mine porteføljer | `uv run radar portfolios list` |
 | se mit afkast mod ACWI | `uv run radar performance` |
 | se hvad mine beholdninger er eksponeret mod | `uv run radar xray` |
+| se de kommende regnskaber for det, jeg ejer og følger | `uv run radar calendar` |
 | teste momentumscoren | `uv run radar study score` |
 | teste scorens regel over årtier | `uv run radar study longrun` |
 | teste varianter af stopreglen | `uv run radar study exits` |

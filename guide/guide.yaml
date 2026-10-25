@@ -28,6 +28,7 @@ books:
           - {slug: tickerprofil, title: Tickerprofilen}
           - {slug: beholdninger, title: Mine beholdninger og watchlist}
           - {slug: xray, title: Røntgen af porteføljen}
+          - {slug: kalender, title: Kalenderen}
           - {slug: portefolje, title: "Portefølje: handler, kontanter og import"}
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
@@ -125,6 +126,7 @@ page_links:
   /positioning: brugervejledning/positionering
   /me: brugervejledning/beholdninger
   /xray: brugervejledning/xray
+  /calendar: brugervejledning/kalender
   /views: brugervejledning/markedssyn
   /notebook: brugervejledning/notesbog
   /portfolio: brugervejledning/portefolje
@@ -233,6 +235,10 @@ glossary_links:
   pb: laerebog/kvalitetsscore#banker-og-forsikringsselskaber
   ab_test: brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum
   ab_corr: laerebog/diversifikation#værdi-og-momentum-side-om-side
+  cal_level: brugervejledning/kalender#fremhævningsreglerne
+  cal_unconfirmed: brugervejledning/kalender#hvor-datoerne-kommer-fra
+  cal_eps: laerebog/estimatrevisioner#regnskaber-i-kalenderen
+  cal_revision: laerebog/estimatrevisioner#regnskaber-i-kalenderen
   xray_active: brugervejledning/xray#eksponering-mod-acwi
   xray_class: brugervejledning/xray#sådan-placeres-fondene
   xray_vol: laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage

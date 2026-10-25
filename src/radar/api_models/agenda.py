@@ -66,11 +66,12 @@ class AgendaSelection(Strict):
 
 
 class AgendaView(Strict):
-    """`soon`: the ids of the high items within `calendar.soon_days`, in date order."""
+    """`soon`: the ids of the high items within `soon_days` (`calendar.soon_days`), in date order."""
     asof: str
     generated: str
     today: str
     days: int
+    soon_days: int
     selection: AgendaSelection
     items: list[AgendaItem]
     soon: list[str]
