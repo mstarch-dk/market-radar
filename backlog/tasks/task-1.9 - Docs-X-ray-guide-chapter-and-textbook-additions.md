@@ -1,7 +1,7 @@
 ---
 id: TASK-1.9
 title: 'Docs: X-ray guide chapter and textbook additions'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -22,6 +22,6 @@ Plan step 6 (section 7). New guide chapter brugervejledning/xray.md in guide.yam
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 uv run pytest -q tests/test_guide.py passes
-- [ ] #2 Every new threshold quoted with a settings placeholder
+- [x] #1 uv run pytest -q tests/test_guide.py passes
+- [x] #2 Every new threshold quoted with a settings placeholder
 <!-- AC:END -->

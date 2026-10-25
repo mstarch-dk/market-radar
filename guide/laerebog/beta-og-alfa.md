@@ -98,6 +98,33 @@ Akademiske faktorer er lang-korte porteføljer, som en privat investor ikke kan 
 
 Faktor-ETF'er korrelerer indbyrdes (kvalitet og lav volatilitet ligner hinanden; momentum skifter karakter med markedet), så de enkelte koefficienter er usikre, selv når modellen samlet forklarer meget. Det kaldes multikollinearitet. Se på t-værdierne, ikke kun på koefficienterne.
 
+### Tracking error og aktiv risiko
+
+Beta siger, hvor meget en portefølje følger markedet. **Tracking error** (TE) siger, hvor meget den afviger fra det: standardafvigelsen af merafkastet mod benchmarket. Med vægtene $w$, kovariansmatricen $\Sigma$ og benchmarket som et kort ben på $-1$ er den **aktive vektor** $a = (w, -1)$, og
+
+$$
+TE = \sqrt{a^\top \Sigma a} = \sqrt{w^\top \Sigma w - 2\,w^\top \Sigma_{\cdot b} + \sigma_b^2}
+$$
+
+hvor $\Sigma_{\cdot b}$ er papirernes kovarians med benchmarket. En indeksfond har en TE nær 0; en bred aktiv fond typisk 2–6 %; en koncentreret portefølje af enkeltaktier 8 % eller mere. En høj TE er hverken godt eller dårligt, men den betyder, at afkastet kan ligge langt fra indeksets i begge retninger.
+
+Den aktive risiko kan deles op som den samlede risiko i [Diversifikation og korrelation](laerebog/diversifikation#risikobidrag-og-mctr):
+
+$$
+\text{andel}_i = \frac{a_i (\Sigma a)_i}{a^\top \Sigma a}, \qquad \sum_i \text{andel}_i = 1
+$$
+
+summen taget over beholdningerne og benchmarkets ben. En negativ andel betyder, at positionen sænker TE: den udligner noget af de andre væddemål mod indekset. Ejer du fx en verdensfond ved siden af nogle få aktier, trækker fonden porteføljen tilbage mod ACWI.
+
+### Ex ante og realiseret
+
+Risiko kan måles på to måder, og de svarer på hvert sit spørgsmål:
+
+- **Ex ante** (forventet): dagens vægte lagt på fortidens afkast, $\sqrt{w^\top \Sigma w}$. Den beskriver den portefølje, du har nu.
+- **Realiseret**: standardafvigelsen af det afkast, porteføljen faktisk havde. Den beskriver de porteføljer, du har haft undervejs.
+
+Har du handlet meget, kan de være langt fra hinanden. Ex ante er bedst til at vurdere risikoen fremad; men den antager, at fremtidens kovarianser ligner fortidens, og at vægtene ligger stille.
+
 ## Sådan gør radaren
 
 Radaren har to betaer. Den grundige står i kortet *Risk vs ACWI (DKK, weekly)* på tickerprofilen (se [Tickerprofilen](brugervejledning/tickerprofil)); den simple står i kortet med tekniske indikatorer.
@@ -125,6 +152,13 @@ Radaren har to betaer. Den grundige står i kortet *Risk vs ACWI (DKK, weekly)* 
 
 Datakonventionerne nævner et eksempel: energisektor-ETF'en XLE havde engang en 1-års beta på −0,9, mens 3-årsbetaen var +0,45. Det er et godt argument for altid at se de to vinduer side om side.
 
+**For hele porteføljen** viser siden [X-ray](/xray) (se [Røntgen af porteføljen](brugervejledning/xray)) beta, tracking error og hver positions andel af den aktive risiko, beregnet ex ante med dagens vægte (`portfolios/riskmodel.py`):
+
+- Kovariansen er den krympede ugentlige DKK-kovarians over {{settings:risk.covariance.history_weeks}} uger af beholdningerne og ACWI (se [Porteføljeforslag](laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage)). Beta er $w^\top \Sigma_{\cdot b} / \sigma_b^2$ og TE formlen ovenfor, begge annualiseret med 52 uger.
+- ACWI-benet i den aktive vektor er det, du ejer af ACWI-fonden selv (og af en verdensfond uden egne kurser, som så regnes med ACWI's), minus indekset. Dets andel af den aktive risiko vises under tabellen. En verdensfond med egne kurser er en position for sig, med en lav andel, fordi den ligner indekset.
+- Ved siden af står den realiserede volatilitet og det dybeste fald det seneste år for det tidsvægtede indeks af det, du faktisk ejede (se [Tidsvægtet og pengevægtet afkast](laerebog/twr-og-mwr)).
+- Faktortilt for porteføljen regnes som for en enkelt aktie ovenfor, på porteføljens ugentlige afkast med dagens vægte, men uden sektor-ETF.
+
 ## Regneeksempel
 
 En aktie har over 52 uger en ugentlig volatilitet på 4 %, ACWI har 2 %, og korrelationen er 0,6. Lad os sige, at regressionens skæring er 0,1 % om ugen.
@@ -146,6 +180,16 @@ Kortet ville vise noget i retning af *1,20 ± 0,23 (0,36)*. Et 95 %-interval er 
 **Alfa.** Årligt: $0.1\,\% \cdot 52 = 5.2\,\%$. Standardfejlen på den ugentlige skæring er cirka $3.2\,\% / \sqrt{52} = 0.44\,\%$, så $t \approx 0.1/0.44 \approx 0.23$. En årlig alfa på 5,2 % lyder af noget, men en t-værdi på 0,23 betyder, at den ikke kan skelnes fra held. For at nå $t = 2$ med ét års data skulle den ugentlige skæring være cirka 0,89 %, svarende til 46 % om året. Over tre år kræves stadig omkring $2 \cdot 23.1\,\% / \sqrt{3} \approx 27\,\%$ om året.
 
 **Downside beta.** Antag, at ACWI faldt i 22 af de 52 uger, og at regressionen på netop de uger giver en hældning på 1,5. Så forstærker aktien markedets dårlige uger mere end dens almindelige beta på 1,2 antyder. Med kun 22 observationer er standardfejlen på downside beta dog endnu større end på den almindelige beta.
+
+### Tracking error for en lille satellit
+
+En portefølje har 95 % i en ACWI-fond og 5 % i én aktie med $\sigma_a = 60\,\%$ og korrelation $\rho = 0.6$ med ACWI ($\sigma_b = 15\,\%$). Den aktive vektor er $+0.05$ i aktien og $0.95 - 1 = -0.05$ i ACWI, så merafkastet er $0.05\,(r_a - r_b)$:
+
+$$
+TE = 0.05\sqrt{\sigma_a^2 + \sigma_b^2 - 2\rho\,\sigma_a\sigma_b} = 0.05\sqrt{0.36 + 0.0225 - 0.108} = 0.05 \cdot 0.524 \approx 2.6\,\%
+$$
+
+Fordelingen af den aktive varians $a^\top \Sigma a \approx 0.000686$: aktiens bidrag er $0.05\,(0.05 \cdot 0.36 - 0.05 \cdot 0.054) = 0.000765$, altså cirka 111 %, og ACWI-benets er $-0.05\,(0.05 \cdot 0.054 - 0.05 \cdot 0.0225) \approx -0.000079$, cirka −11 %. Benets andel er negativ, fordi det at eje lidt mindre end hele indekset samvarierer med aktien og trækker en smule af dens afvigelse tilbage. Summen er 100 %.
 
 ## Faldgruber og begrænsninger
 

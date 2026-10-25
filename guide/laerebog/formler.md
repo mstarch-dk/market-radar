@@ -189,6 +189,29 @@ $$
 \sigma_p^2 = w_1^2\sigma_1^2 + w_2^2\sigma_2^2 + 2 w_1 w_2 \rho_{12}\sigma_1\sigma_2
 $$
 
+Porteføljens risiko med dagens vægte ([Porteføljeforslag](laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage), [Røntgen af porteføljen](brugervejledning/xray)); $S$ er den målte ugentlige kovarians, $F$ samme volatiliteter med én fælles korrelation, $b$ ACWI:
+
+$$
+\hat\Sigma = \delta F + (1-\delta) S, \qquad
+\sigma_p = \sqrt{52\, w^\top \hat\Sigma w}, \qquad
+\beta_p = \frac{w^\top \hat\Sigma_{\cdot b}}{\hat\sigma_b^2}, \qquad
+TE = \sqrt{52\,(w^\top \hat\Sigma w - 2\,w^\top \hat\Sigma_{\cdot b} + \hat\sigma_b^2)}
+$$
+
+Risikobidrag, marginalt risikobidrag og andel af den aktive risiko med $a = (w, -1)$ ([Diversifikation og korrelation](laerebog/diversifikation#risikobidrag-og-mctr), [Beta, alfa og faktorer](laerebog/beta-og-alfa#tracking-error-og-aktiv-risiko)):
+
+$$
+\text{andel}_i = \frac{w_i (\hat\Sigma w)_i}{w^\top \hat\Sigma w}, \qquad
+\text{MCTR}_i = \frac{(\hat\Sigma w)_i}{\sqrt{w^\top \hat\Sigma w}}\sqrt{52}, \qquad
+\text{aktiv andel}_i = \frac{a_i (\hat\Sigma a)_i}{a^\top \hat\Sigma a}
+$$
+
+Diversifikationsratio og effektivt antal positioner:
+
+$$
+DR = \frac{\sum_i w_i \sigma_i}{\sigma_p}, \qquad N_{\text{eff}} = \frac{1}{\sum_i w_i^2}
+$$
+
 ## Stop og positionsstørrelse
 
 Se [Stop-loss, take-profit og positionsstørrelse](laerebog/stop-og-storrelse). Stop og take-profit med bredden $k$ (start {{settings:stops.k_base}}, mellem {{settings:stops.k_min}} og {{settings:stops.k_max}}):
