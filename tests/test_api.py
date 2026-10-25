@@ -146,11 +146,32 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-1] == "/api/xray"
+    assert paths_[-2:] == ["/api/xray", "/api/evidence"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
     assert gone.status_code == 503 and "radar update" in gone.json()["detail"]["message"]
+
+
+def test_evidence_api_contract(client, monkeypatch):
+    """GET /api/evidence validates against EvidenceView with no reports run (every card says so), is cached until
+    something it reads changes, and without prices still answers with the study cards and no scoreboard."""
+    from radar.model import artifacts
+
+    r = client.get("/api/evidence")
+    assert r.status_code == 200, r.json()
+    v = api_models.EvidenceView.model_validate(r.json())
+    assert [c.head.status for c in v.scores] == ["missing"] * 4 and v.longrun.head.status == "missing"
+    assert v.forward is not None and not v.forward.proposals.running
+    assert client.get("/api/evidence").json()["generated"] == r.json()["generated"]       # cached
+    artifacts.write("exit-study", {"generated": "2026-10-16T20:00:00", "asof": "2026-10-16"}, data_asof="2026-10-16")
+    again = api_models.EvidenceView.model_validate(client.get("/api/evidence").json())
+    assert again.rules[1].status == "ok"                                                  # a new report is read
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    gone = client.get("/api/evidence")
+    assert gone.status_code == 200 and gone.json()["forward"] is None
+    assert len(gone.json()["scores"]) == 4 and "radar run" in gone.json()["notes"][0]
 
 
 def test_watchlist_add_and_remove(client):

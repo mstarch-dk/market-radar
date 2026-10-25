@@ -1,10 +1,10 @@
 ---
 id: TASK-2.4
 title: 'API and CLI: EvidenceView, GET /api/evidence, radar evidence'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:51'
-updated_date: '2026-10-25 15:01'
+updated_date: '2026-10-25 15:44'
 labels:
   - feature
 dependencies:
@@ -24,7 +24,7 @@ api_models/evidence.py strict views, api/evidence.py router with GET /api/eviden
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Strict view; missing fields are null
-- [ ] #2 TypeScript types regenerated and pnpm -C web test passes
-- [ ] #3 radar evidence --json prints valid JSON on the test world
+- [x] #1 Strict view; missing fields are null
+- [x] #2 TypeScript types regenerated and pnpm -C web test passes
+- [x] #3 radar evidence --json prints valid JSON on the test world
 <!-- AC:END -->

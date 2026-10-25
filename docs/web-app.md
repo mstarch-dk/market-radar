@@ -104,6 +104,13 @@ Python computes every number; the frontend only formats and draws. It is the rad
   left out and listed) and notes. Computed live under the price lock; cached per (selection, prices mtime, transactions
   version, fund-detail cache). An empty selection is a view with empty tables and a note; no prices at all is 503. Its
   router is included last in `api/app.py`, so the OpenAPI order of the others stays put.
+- Evidence: `GET /api/evidence` → `EvidenceView` (`evidence.py`): a card per score study (momentum, quality, value,
+  K+V) and the long-run study, each with its header (`status` ok | stale | missing | invalid, the reason and the
+  command, `data_asof`, `age_days`, `old_data` past `evidence.max_age_days`, the rule tested and today's), the baseline
+  per horizon with a t next to every mean, the verdicts and notes; the rule studies' headers; and `forward` (A/B test,
+  paper trail, frozen proposals vs ACWI; `too_short` records are never averaged; null without prices, the cards still
+  come back). Never 503. Cached until a report, the prices, a trade, a frozen proposal, the settings or the day
+  change. Its router is included last.
 - Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every

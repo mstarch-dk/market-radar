@@ -70,6 +70,27 @@ from .docs import (
     NotebookKind,
     NotebookListing,
 )
+from .evidence import (
+    BaseRateRow,
+    EvidenceForward,
+    EvidenceView,
+    ForwardCohort,
+    ForwardGroup,
+    ForwardRecord,
+    LongrunCard,
+    LongrunHorizon,
+    LongrunPanelCard,
+    LongrunPart,
+    LongrunRow,
+    ReportHead,
+    ReportStatus,
+    ScoreCard,
+    ScoreHorizon,
+    ScoreRow,
+    ScoreUniverse,
+    SurvivorshipGauge,
+    VariantVerdict,
+)
 from .home import (
     BackupRow,
     DataFolder,
@@ -286,4 +307,7 @@ __all__ = [
     "NotebookKind", "JournalMeta", "NotebookEntry", "NotebookListing", "NotebookDocument",
     "FundClass", "XraySelection", "Unvalued", "XrayTotals", "ExposureRow", "ExposureDim", "XrayExposure", "XrayClass", "RiskPosition",
     "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "ScoreTilt", "XrayView",
+    "ReportStatus", "ReportHead", "ScoreRow", "ScoreHorizon", "VariantVerdict", "ScoreUniverse", "ScoreCard",
+    "LongrunRow", "LongrunHorizon", "LongrunPart", "LongrunPanelCard", "SurvivorshipGauge", "BaseRateRow",
+    "LongrunCard", "ForwardRecord", "ForwardCohort", "ForwardGroup", "EvidenceForward", "EvidenceView",
 ]

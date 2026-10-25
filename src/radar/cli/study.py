@@ -389,3 +389,81 @@ def _print_propose(rep: a.ProposeStudy) -> None:
     typer.echo("\nExcess: over ACWI in DKK after costs. Read the effective N: overlapping windows. Caveat: "
                + (rep.caveats[0] if rep.caveats else "–"))
     typer.echo("Report: reports/propose-study.json")
+
+
+@app.command()
+def evidence(as_json: bool = typer.Option(False, "--json", help="The EvidenceView as JSON (for the skills)")):
+    """The Evidence page on the command line: each study report's status, age and rule, the scores' IC with t over
+    all dates and the holdout, and the forward record (A/B test, paper trail, frozen proposals vs ACWI). Analysis,
+    not advice."""
+    from .. import evidence as ev
+    from ..portfolios import trades
+
+    trades.ensure_migrated()
+    try:
+        market = Market.load()
+    except SystemExit:                           # no prices yet: the studies still show, the scoreboard doesn't
+        market = None
+    v = ev.build(market)
+    if as_json:
+        typer.echo(to_json(v, indent=1))
+        return
+    _print_evidence(v)
+
+
+def _status(h: dict) -> str:
+    if h["status"] == "ok":
+        return f"ok, data to {h['data_asof']}" + (f" ({h['age_days']} days old)" if h["old_data"] else "")
+    if h["status"] == "stale":
+        return f"older rule ({h['rule_hash'] or 'not recorded'}, today's {h['rule_hash_now']}): run `{h['command']}`"
+    return f"{'not run yet' if h['status'] == 'missing' else 'unreadable'}: run `{h['command']}`"
+
+
+def _print_evidence(v: dict) -> None:
+    typer.echo(f"Study reports (holdout from {v['holdout_from']}):")
+    for card in v["scores"]:
+        h = card["head"]
+        typer.echo(f"\n{h['label']}: {_status(h)}")
+        if h["status"] not in ("ok", "stale"):
+            continue
+        for x in card["horizons"]:
+            al, ho = x["all"] or {}, x["holdout"] or {}
+            typer.echo(f"  {x['h']:>2}m  IC {fmt_num(al.get('ic_mean'))} (t {fmt_num(al.get('ic_t'), '+.1f')}), "
+                       f"holdout {fmt_num(ho.get('ic_mean'))} (t {fmt_num(ho.get('ic_t'), '+.1f')}); top "
+                       f"{card['n_top'] or 'N'} vs ACWI {fmt_pct(al.get('top_vs_acwi'))} "
+                       f"(t {fmt_num(al.get('top_vs_acwi_t'), '+.1f')})")
+        for n in card["notes"]:
+            typer.echo(f"  {n}")
+    lr = v["longrun"]
+    typer.echo(f"\n{lr['head']['label']}: {_status(lr['head'])}")
+    for p in lr["panels"]:
+        if p["error"]:
+            typer.echo(f"  {p['key']}: not studied ({p['error']})")
+            continue
+        six = next((x for x in p["horizons"] if x["h"] == 6), p["horizons"][0] if p["horizons"] else None)
+        if six:
+            al, ho = six["all"] or {}, six["holdout"] or {}
+            typer.echo(f"  {p['label']}: {six['h']}m IC {fmt_num(al.get('ic_mean'))} (t "
+                       f"{fmt_num(al.get('ic_t'), '+.1f')}), holdout {fmt_num(ho.get('ic_mean'))} (t "
+                       f"{fmt_num(ho.get('ic_t'), '+.1f')}), {p['months']} months")
+    typer.echo("")
+    for h in v["rules"]:
+        typer.echo(f"{h['label']}: {_status(h)}")
+    fwd = v["forward"]
+    if fwd is None:
+        typer.echo("\n" + " ".join(v["notes"]))
+        return
+    for key, title in (("abtest", "A/B test"), ("paper_trail", "Paper trail (picks-live)"),
+                       ("proposals", "Frozen proposals")):
+        g = fwd[key]
+        typer.echo(f"\n{title}:" + ("" if g["running"] else f" {g['note']}"))
+        for r in g["records"]:
+            short = "  (too short)" if r["too_short"] else ""
+            typer.echo(f"  {r['label']:<28} since {r['start'] or '–'}: {fmt_pct(r['ret'])} vs ACWI "
+                       f"{fmt_pct(r['acwi'])}, excess {fmt_pct(r['excess'])}{short}")
+        c = g["cohort"]
+        if c:
+            typer.echo(f"  mean excess {fmt_pct(c['mean_excess'])}, ahead of ACWI {fmt_pct(c['beat_acwi'], False)} "
+                       f"over {c['count']} (no t: overlapping windows)" if c["enough"] else f"  {c['note']}")
+        if g["running"] and g["note"]:
+            typer.echo(f"  {g['note']}")

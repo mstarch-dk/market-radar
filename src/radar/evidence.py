@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from . import abtest
-from .config import typed
+from . import abtest, userstore
+from .config import settings, typed
 from .model import artifacts as art
 from .model.stats import mean
 from .portfolios import performance, simulate
@@ -257,6 +257,31 @@ def forward_proposals(market: Market) -> dict:
 def forward(market: Market, today: date) -> dict:
     return {"abtest": forward_abtest(market, today), "paper_trail": forward_paper_trail(market),
             "proposals": forward_proposals(market)}
+
+
+_cache: dict = {}
+
+
+def _stamp(f) -> tuple:
+    try:
+        st = f.stat()
+    except FileNotFoundError:
+        return (str(f), None)
+    return (str(f), st.st_mtime_ns, st.st_size)
+
+
+def cached(market: Market | None, today: date | None = None) -> dict:
+    """`build`, kept until a study report, the prices, a trade, a frozen proposal, the settings or the day change."""
+    today = today or date.today()
+    reports = [art.path("score-study", s.file) for s in art.SCORE_SIGNALS.values()]
+    reports += [art.path(n) for n in ("longrun-study", *(n for n, _ in RULE_STUDIES))]
+    frozen = sorted(_stamp(f) for f in rules.PROPOSALS.glob("*.json")) if rules.PROPOSALS.exists() else []
+    key = (tuple(_stamp(f) for f in reports), tuple(frozen), market.mtime if market is not None else None,
+           userstore.transactions_version(), id(settings()), today)
+    if key not in _cache:
+        _cache.clear()
+        _cache[key] = build(market, today)
+    return _cache[key]
 
 
 def build(market: Market | None, today: date | None = None) -> dict:

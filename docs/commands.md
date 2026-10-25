@@ -122,6 +122,11 @@ Always run Python through uv; the frontend uses pnpm.
   exits, in DKK vs ACWI after costs: mean, median, 10/90 %, Newey-West t, effective N, hit rate, drawdowns, holdout
   and regime splits, the composite's IC, turnover. Writes `reports/propose-study.json` with the rule's settings hash
   (a changed rule makes it stale). Value and mix: US stocks only.
+- `uv run radar evidence [--json]`: the Evidence page on the command line (`evidence.py`): each study report's status
+  (ok, older rule, not run yet, unreadable), age and rule; each score's IC with t over all dates and the holdout and
+  the top N vs ACWI with t; the long-run panels; and the forward record (A/B test, `picks-live` baskets, frozen
+  proposals vs ACWI, records too young marked *too short*). It reads the reports and never runs a study. `--json`
+  prints the `EvidenceView` dict, the same as `GET /api/evidence`.
 - `uv run radar performance [NAME…] [--tag T] [--start D] [--json]`: returns over time in DKK vs ACWI (TWR, MWR,
   drawdown) from a common start; tags pool their portfolios into one line.
 - `uv run radar xray [NAME…] [--tag T] [--scope real|virtual|all] [--json]`: the portfolio X-ray (`xray.py`) of the

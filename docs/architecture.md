@@ -131,10 +131,11 @@ for one.
 - `api/` + `api_models/`: FastAPI with strict Pydantic response models; see [web-app.md](web-app.md). `api/app.py`
   builds the app (lifespan, error handlers, the data-home gate and error-recording middlewares, the web app) from
   one `APIRouter` per page area (`setup`, `ticker`, `readings`, `operations`, `views`, `discover`, `holdings`,
-  `refresh`, `transactions`, `portfolios`, `docs`, `imports`), included in a fixed order so the OpenAPI schema
+  `refresh`, `transactions`, `portfolios`, `docs`, `imports`, `xray`, `evidence`), included in a fixed order so the OpenAPI schema
   doesn't move; `api/state.py` holds the price store, its re-entrant lock (`ensure`, `has_prices`) and the data
   home's gate; `api/common.py` what several routers share. `api_models/` has one module per area of the app
-  (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs), all re-exported by the package.
+  (common, profile, dashboard, positioning, portfolios, tx, views, ops, home, docs, xray, evidence), all re-exported
+  by the package.
 - `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
   the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
   the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
