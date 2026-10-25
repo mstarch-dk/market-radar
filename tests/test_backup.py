@@ -6,7 +6,8 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import pytest
 
-from radar import backup, home, manifest, paths, userstore
+from radar import manifest, paths, userstore
+from radar.datahome import backup, home
 
 pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
 

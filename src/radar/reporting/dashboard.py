@@ -10,20 +10,21 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import coverage, mine, snapshot, universe
-from .config import CONFIG, settings, typed, universe_config
-from .fundamentals import context as fcontext
-from .fundamentals import store as fstore
-from .jsonsafe import clean as _clean
-from .model.inputs import DASHBOARD_FILE as FILE_NAME
-from .model.inputs import effective_votes
-from .paths import FRED_FILE, PRICES_FILE, REPORTS
-from .portfolios import trades
-from .signals import gauges as gz
-from .signals import momentum, regime, rotation
-from .signals import valuation as sv
-from .sources import external, positive_list, sentiment, tracked, valuation
-from .sources.ingest import load_fred, load_prices, wide
+from .. import mine, snapshot, universe
+from ..config import CONFIG, settings, typed, universe_config
+from ..fundamentals import context as fcontext
+from ..fundamentals import store as fstore
+from ..jsonsafe import clean as _clean
+from ..model.inputs import DASHBOARD_FILE as FILE_NAME
+from ..model.inputs import effective_votes
+from ..paths import FRED_FILE, PRICES_FILE, REPORTS
+from ..portfolios import trades
+from ..signals import gauges as gz
+from ..signals import momentum, regime, rotation
+from ..signals import valuation as sv
+from ..sources import external, positive_list, sentiment, tracked, valuation
+from ..sources.ingest import load_fred, load_prices, wide
+from . import coverage
 
 # dashboard.json's shape: bump it when a section is added or changed, so the app rebuilds an older one at start
 # (a no-network build) instead of answering 503 until the next update
@@ -437,7 +438,7 @@ def check(d: dict) -> None:
     mismatch."""
     from pydantic import ValidationError
 
-    from . import api_models
+    from .. import api_models
 
     data = _clean(d)
     head = {"asof": data["asof"], "generated": data["generated"], "age_days": 0, "stale": False}   # the API adds these

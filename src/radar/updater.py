@@ -11,11 +11,12 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from . import locks, ops, report, sourcelog, universe, userstore
+from . import locks, ops, sourcelog, universe, userstore
 from .config import typed
 from .fundamentals import edgar, yahoo
 from .market import Market
 from .paths import CACHE
+from .reporting import report
 from .sources import external, factors, ingest, sentiment, tracked, valuation
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
@@ -147,7 +148,7 @@ def _abtest(log: Log) -> None:
         with ops.context(source="abtest"):
             m = Market.load()
             abtest.refresh(m, log=log)
-            from . import report
+            from .reporting import report
 
             report.add_abtest(m)
     except Exception as e:  # noqa: BLE001
@@ -211,7 +212,7 @@ class UpdateJob:
 
 def _daily_backup(log: Log) -> None:
     """Today's backup, if the app has been open since before today (it is also taken at start)."""
-    from . import backup
+    from .datahome import backup
 
     try:
         if (b := backup.daily()):

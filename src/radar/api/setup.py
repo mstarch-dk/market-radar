@@ -7,10 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 
-from .. import (
-    home,
-    paths,
-)
+from .. import paths
 from ..api_models import (
     BackupRow,
     DataHome,
@@ -25,6 +22,7 @@ from ..api_models import (
     UpdateCheck,
     UpdateCheckIn,
 )
+from ..datahome import home
 from . import state
 
 router = APIRouter()
@@ -71,7 +69,7 @@ def setup(body: SetupIn) -> dict:
 
 
 def _folders() -> list[dict]:
-    from .. import home as h
+    from ..datahome import home as h
 
     loc = paths.locations()
     shown = ("data", "notes", "research", "journal", "briefs", "exports", "backups", "history", "cache")
@@ -87,7 +85,7 @@ def _folders() -> list[dict]:
 @router.get("/api/data-home", response_model=DataHome)
 def data_home() -> dict:
     """Where your data, the history and the market data are; the backups and the second backup folder."""
-    from .. import backup
+    from ..datahome import backup
 
     m = backup.mirror() if backup.is_home() else None
     return {"status": home.status(), "folders": _folders(), "backups": backup.listing() if backup.is_home() else [],
@@ -96,7 +94,7 @@ def data_home() -> dict:
 
 @router.post("/api/data-home/backup", response_model=BackupRow)
 def data_home_backup() -> dict:
-    from .. import backup
+    from ..datahome import backup
 
     try:
         f = backup.create("manual")
@@ -108,7 +106,7 @@ def data_home_backup() -> dict:
 @router.put("/api/data-home/mirror", response_model=DataHome)
 def data_home_mirror(body: MirrorIn) -> dict:
     """Set (or clear) the second folder every backup is copied to."""
-    from .. import backup
+    from ..datahome import backup
 
     try:
         backup.set_mirror(Path(body.path) if body.path else None)
@@ -120,7 +118,7 @@ def data_home_mirror(body: MirrorIn) -> dict:
 @router.post("/api/data-home/restore", response_model=RestoreResult)
 def data_home_restore(body: RestoreIn) -> dict:
     """Put one of the listed backups back (what is there now is backed up first)."""
-    from .. import backup
+    from ..datahome import backup
 
     m = backup.mirror()
     known = {r["name"]: r["path"] for r in [*backup.listing(), *(backup.listing(m) if m else [])]}
@@ -171,7 +169,7 @@ def put_updates(body: UpdateCheckIn) -> dict:
 @router.get("/api/data-home/export", include_in_schema=False)
 def data_home_export() -> Response:
     """Everything of yours in open formats, as a zip download (export.py)."""
-    from .. import export
+    from ..datahome import export
 
     name = f"market-radar-export-{date.today().isoformat()}.zip"
     return Response(export.build(), media_type="application/zip",

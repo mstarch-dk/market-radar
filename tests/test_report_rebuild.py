@@ -9,8 +9,9 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import world
-from radar import api, cli, dashboard, locks, report, updater
+from radar import api, cli, locks, updater
 from radar.fundamentals.store import YAHOO_FILE  # the synthetic world keeps its prices in memory; this one is on disk
+from radar.reporting import dashboard, report
 from radar.sources import ingest
 from test_updater import held  # noqa: F401 - the fixture
 

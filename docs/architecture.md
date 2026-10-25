@@ -6,11 +6,10 @@ and its docstrings do. The method behind each reading is explained for users in 
 ## Layers
 ```
 interfaces       api, cli
-features         abtest, api_models/, backtest/, coverage, dashboard, health, mine, profile, propose/, report,
-                 tickers, updater
+features         abtest, api_models/, backtest/, health, mine, profile, propose/, reporting/, updater
 kernel           model/
-domain           backup, export, guide, home, importers/, market, market_views, notebook, portfolios/, snapshot,
-                 universe, userstore/
+domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
+                 userstore/
 data sources     discovery/, fundamentals/, sources/, updates
 pure readings    signals/
 infrastructure   config, config_schema, guard, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
@@ -68,12 +67,12 @@ Nothing the user owns lives in the install folder (`config.ROOT` holds app files
   install folder (portable mode, used by the marketing demo), then the pointer file in
   `platformdirs.user_config_dir("MarketRadar")`. The pointer lives outside install folder and home, so every
   unzipped version finds the data; it is never written under an env var or in portable mode.
-- Moving in: `home.py` finds an older install's data only in this install folder and its siblings (never wider:
+- Moving in: `datahome/home.py` finds an older install's data only in this install folder and its siblings (never wider:
   macOS privacy prompts), copies it with checks (SQLite backup API, row counts, integrity check, SHA-256 per file),
   stages it beside the new home and renames it into place. The old folder only gets `MOVED.txt`.
 - **Downgrade guard**: a home or a `radar.db` newer than this code knows is read-only: the API answers 409 to every
   write, the CLI refuses.
-- **Migrations**: the schema's (`userstore/`) and the layout's (`home.py`) are append-only and forward-only; a
+- **Migrations**: the schema's (`userstore/`) and the layout's (`datahome/home.py`) are append-only and forward-only; a
   step never deletes user data (it copies or renames) and a released step is never edited. Both run after a
   backup. Cache formats may change freely: the cache is rebuilt, never migrated.
 - Without a home the API serves only setup, the guide and the doctor, the web app shows the setup screen, and the
@@ -133,8 +132,12 @@ change to the model and to its schema version.
 ### Features
 - `updater.py`: the update steps behind `radar update` / `run` and the app's *Update data* job. Each source is
   logged; a failure keeps its cache.
-- `report.py`, `dashboard.py`: the report build (see *The report's build*); `dashboard.py` computes every
-  market-wide reading as data, without side effects.
+- `reporting/`: the report build (see *The report's build*) and what it serves.
+  - `report.py`: builds `dashboard.json` and `summary.json`, saves the snapshots, refreshes the A/B test.
+  - `dashboard.py`: computes every market-wide reading as data, without side effects.
+  - `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown
+    but don't vote.
+  - `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
 - `mine.py`: the holdings, watchlist and sold table (DKK return vs a shadow ACWI position, flags, stop levels).
 - `profile.py`: one ticker's full profile and several side by side with ACWI (`radar info`, `/compare`).
   `load_inputs` reads everything a profile needs from outside (prices, the Yahoo detail, your holdings, config,
@@ -143,9 +146,6 @@ change to the model and to its schema version.
   from hand-made inputs, and `build` only loads, calls them in order and checks the result. A new section reads
   what it needs through a new `ProfileInputs` field, not inside the section. (The risk section still goes
   through `risk_section`, which reads the risk settings, the benchmark's currency and FRED itself.)
-- `tickers.py`: a compact summary of every tracked ticker for the web app's hover cards.
-- `coverage.py`: per-source freshness, coverage and blind spots, from the source log. Stale sources are shown but
-  don't vote.
 - `health.py`: `radar doctor`, each check with what it found and what to do.
 - `abtest.py`: the forward A/B test of three score strategies as virtual portfolios. Its monthly picks are
   appended and never changed; a failed refresh is logged and never stops the report.
@@ -184,10 +184,11 @@ change to the model and to its schema version.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
-- `home.py`: the data folder's status, setup, moving in and layout migrations (see *Where data lives*).
-- `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
-  a restore verifies, backs up first and swaps part by part.
-- `export.py`: the open-format export and the holdings bundle.
+- `datahome/`: the data folder (see *Where data lives*).
+  - `home.py`: its status, setup, moving in and layout migrations.
+  - `backup.py`: zips of the data folder with a manifest and checksums, kept on a schedule, optionally mirrored;
+    a restore verifies, backs up first and swaps part by part.
+  - `export.py`: the open-format export and the holdings bundle.
 - `guide.py`: the Danish books in `guide/`, reached only through `guide/guide.yaml`, with settings placeholders.
 - `notebook.py`: a read-only view of what the skills write (briefs, research, journal), with review dates.
 

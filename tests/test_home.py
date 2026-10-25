@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from radar import api, cli, home, manifest, paths, userstore
+from radar import api, cli, manifest, paths, userstore
+from radar.datahome import home
 
 pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI
 
@@ -158,7 +159,7 @@ def test_the_app_refuses_writes_to_newer_data(tmp_path, unset, monkeypatch):
 
 
 def test_a_layout_change_runs_once_after_the_backup(tmp_path, unset, monkeypatch):
-    from radar import backup
+    from radar.datahome import backup
 
     home.create(tmp_path / "h", tmp_path / "c")
     moved = []

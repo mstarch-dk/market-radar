@@ -10,8 +10,9 @@ import pytest
 
 from conftest import FIXTURES
 from fakes import fake_yf
-from radar import config, coverage, sourcelog
+from radar import config, sourcelog
 from radar.discovery import scan, sources
+from radar.reporting import coverage
 from radar.signals import regime
 from radar.signals import valuation as sv
 from radar.sources import external, sentiment, valuation

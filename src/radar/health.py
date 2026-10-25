@@ -46,7 +46,7 @@ def checks(offline: bool = False) -> list[dict]:
                       "built" if dist.exists() else "web/dist is missing",
                       "Download the release zip (it includes the built app), or build it: pnpm -C web install && pnpm -C web build."))
 
-    from . import home
+    from .datahome import home
 
     st = home.status()
     if st["state"] == "unset":

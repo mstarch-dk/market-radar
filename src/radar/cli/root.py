@@ -35,8 +35,8 @@ def _root(ctx: typer.Context,
     """Every command but the FREE ones needs a usable data folder: set up, present, and not from a newer version."""
     from pathlib import Path
 
-    from .. import home as homes
     from .. import paths
+    from ..datahome import home as homes
 
     utf8_console()
     if home:
@@ -59,8 +59,9 @@ def _root(ctx: typer.Context,
 
 def _first_use_of_version() -> None:
     """A new app version's first use of the data: back it up, then record the version."""
-    from .. import backup, manifest, paths
-    from .. import home as homes
+    from .. import manifest, paths
+    from ..datahome import backup
+    from ..datahome import home as homes
 
     if backup.before_upgrade():
         typer.echo(f"First use of Market Radar {manifest.app_version()} with this data: backed up first.")

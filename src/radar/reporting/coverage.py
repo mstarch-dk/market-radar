@@ -11,10 +11,10 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from . import paths, sourcelog
-from .config import POSITIVE_LIST_FILE
-from .paths import CACHE
-from .portfolios import trades
+from .. import paths, sourcelog
+from ..config import POSITIVE_LIST_FILE
+from ..paths import CACHE
+from ..portfolios import trades
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
 NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
@@ -194,7 +194,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
 
     # your portfolio (the transaction store)
     if not holdings.empty:
-        from . import userstore
+        from .. import userstore
 
         counts = holdings["status"].value_counts()
         tx = trades.transactions()
@@ -227,7 +227,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
 def discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
     """The separate discovery scan: how many names, and how old its universe and prices are (missing until the
     first `radar discover`)."""
-    from .discovery import scan
+    from ..discovery import scan
 
     uni = scan.load_universe()
     by_market = ", ".join(f"{n} {m}" for m, n in uni["market"].value_counts().items()) if not uni.empty else ""
@@ -244,7 +244,7 @@ def discovery_rows(today: date, max_age: dict, log: dict) -> list[dict]:
 
 def valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
     """The valuation snapshots, the market's valuation (CAPE, ERP), euro-area rates and the sentiment series."""
-    from .sources import external, sentiment, valuation
+    from ..sources import external, sentiment, valuation
 
     rows = []
     st = valuation.load_stocks()
@@ -282,8 +282,8 @@ def valuation_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]
 def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[str]) -> list[dict]:
     """Financial statements: how many companies have them and when they were fetched. Each company is fetched on
     its own schedule, so the source's age is its newest fetch; the oldest fetch is in the detail."""
-    from . import universe, userstore
-    from .fundamentals import edgar, schedule, yahoo
+    from .. import universe, userstore
+    from ..fundamentals import edgar, schedule, yahoo
 
     rows = []
     for key, path, names, label in (("fundamentals_edgar", edgar.LOG_FILE, edgar.us_tickers(universe.tracked_stocks()), "US stocks"),
@@ -302,7 +302,7 @@ def _fundamentals_rows(ref: date, max_age: dict, log: dict, stock_tickers: list[
 def _factors_rows(ref: date, max_age: dict, log: dict) -> list[dict]:
     """The long histories: when they were fetched (the sources themselves lag months: French about two, JKP up to a
     year), and the last month in each."""
-    from .sources import factors
+    from ..sources import factors
 
     d = factors.load()
     last = factors.asof(d)

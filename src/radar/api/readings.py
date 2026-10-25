@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from .. import (
-    dashboard,
-    updater,
-    userstore,
-)
+from .. import updater, userstore
 from ..api_models import (
     CoverageView,
     MomentumView,
@@ -21,6 +17,7 @@ from ..api_models import (
     VotesIn,
 )
 from ..model import inputs
+from ..reporting import dashboard
 from .common import (
     dashboard_or_503,
     reading,
@@ -95,6 +92,6 @@ def get_positioning() -> dict:
 def get_coverage() -> dict:
     """The coverage section, with each source's last attempt and error read live from sources.json (a
     failure after the last report build shows at once)."""
-    from .. import coverage
+    from ..reporting import coverage
 
     return coverage.live(reading("coverage"))

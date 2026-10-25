@@ -72,7 +72,8 @@ def fixture(name: str, legacy: bool = False) -> Path:
     sys.path.insert(0, str(ROOT / "src"))
     import pandas as pd
 
-    from radar import home, manifest, paths, userstore
+    from radar import manifest, paths, userstore
+    from radar.datahome import home
 
     target = FIXTURES / name
     if target.exists():

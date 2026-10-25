@@ -13,12 +13,13 @@ from typing import Any
 
 import pandas as pd
 
-from . import dashboard, mine, money, universe
+from . import mine, money, universe
 from .config import settings, typed, universe_config
 from .jsonsafe import clean
 from .market import Market
 from .model import inputs
 from .portfolios import trades
+from .reporting import dashboard
 from .signals import gauges as gz
 from .signals import levels, momentum, risk, rotation, technicals
 from .signals.score import score_vs

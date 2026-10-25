@@ -13,7 +13,9 @@ import pytest
 from typer.testing import CliRunner
 
 import world
-from radar import cli, home, report, userstore
+from radar import cli, userstore
+from radar.datahome import home
+from radar.reporting import report
 from world import IDX
 
 

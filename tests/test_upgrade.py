@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from radar import backup, export, home, manifest, paths, userstore
+from radar import manifest, paths, userstore
+from radar.datahome import backup, export, home
 from radar.portfolios import trades
 
 pytestmark = pytest.mark.os          # file replacing, locks and paths: also run on Windows and macOS in CI

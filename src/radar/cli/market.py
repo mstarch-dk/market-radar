@@ -29,7 +29,8 @@ def build_report():
 @app.command()
 def run(refresh_constituents: bool = False):
     """update + report."""
-    from .. import backup, updater
+    from .. import updater
+    from ..datahome import backup
 
     with job("cli_run") as log:
         if (b := backup.daily()):

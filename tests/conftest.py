@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 from hypothesis import settings
 
-from radar import coverage, net, paths
+from radar import net, paths
+from radar.reporting import coverage
 from radar.sources import positive_list
 
 pytest_plugins = ["pytester"]  # tests/test_offline.py runs a nested session
@@ -20,8 +21,8 @@ settings.register_profile("radar", deadline=None)
 settings.load_profile("radar")
 
 
-CACHED = ("radar.api", "radar.dashboard", "radar.portfolios.performance", "radar.fundamentals.context",
-          "radar.sources.valuation", "radar.tickers", "radar.market_views")
+CACHED = ("radar.api", "radar.reporting.dashboard", "radar.portfolios.performance", "radar.fundamentals.context",
+          "radar.sources.valuation", "radar.reporting.tickers", "radar.market_views")
 
 
 def reset_caches() -> None:

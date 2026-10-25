@@ -4,9 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
-from radar import api, dashboard, userstore
+from radar import api, userstore
 from radar.api_models import FeePreset
 from radar.portfolios import fees
+from radar.reporting import dashboard
 from radar.sources import ingest
 from world import IDX
 

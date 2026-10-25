@@ -5,9 +5,10 @@ import pandas as pd
 import pytest
 
 from conftest import with_settings
-from radar import dashboard, paths, universe
+from radar import paths, universe
 from radar.market import Market
 from radar.mine import vs_shadow
+from radar.reporting import dashboard
 from radar.signals.score import score_vs
 from radar.sources import fxrates, ingest, tracked
 
