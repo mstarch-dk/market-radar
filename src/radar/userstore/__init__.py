@@ -1,6 +1,7 @@
 """Your own stateful data in radar.db in the data folder (SQLite; never committed): portfolios (real and virtual,
 with tags), transactions (the source of truth), imports, sim_runs, symbol_map, watchlist edits, meta and market
-views. It is the one place that decides which portfolios count as yours.
+views, and the tax estimate's persons, instruments and openings. It is the one place that decides which
+portfolios count as yours.
 
 The rules: docs/data-conventions.md, *Your portfolios*; the migrations: docs/architecture.md, *Where data lives*.
 """
@@ -167,6 +168,42 @@ MIGRATIONS = [
      "ALTER TABLE imports ADD COLUMN backup TEXT"),
     # a broker fee schedule per portfolio (JSON; fees.py), to estimate a trade's commission while it is typed
     "ALTER TABLE portfolios ADD COLUMN fee_schedule TEXT",
+    # the tax estimate (tax.py): who owns each real account (SKAT's average is per person over their frie midler),
+    # each symbol's ISIN and tax class, and the losses carried in from before the history. "Me" owns every real
+    # portfolio until told otherwise.
+    ("""CREATE TABLE tax_persons (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         name TEXT NOT NULL UNIQUE CHECK (length(trim(name)) > 0),
+         capital_income_rate REAL CHECK (capital_income_rate IS NULL OR (capital_income_rate >= 0
+                                                                         AND capital_income_rate <= 1)),
+         note TEXT,
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL)""",
+     "ALTER TABLE portfolios ADD COLUMN tax_person_id INTEGER REFERENCES tax_persons(id) ON DELETE SET NULL",
+     """INSERT INTO tax_persons (name, note, created_at, updated_at)
+         VALUES ('Me', 'Owns every real account until you say otherwise', datetime('now'), datetime('now'))""",
+     "UPDATE portfolios SET tax_person_id = (SELECT MIN(id) FROM tax_persons) WHERE mode = 'real'",
+     """CREATE TABLE instruments (
+         symbol TEXT PRIMARY KEY,
+         isin TEXT,
+         tax_class TEXT CHECK (tax_class IS NULL OR tax_class IN ('stock', 'pl_fund', 'fund', 'dk_distributing')),
+         source TEXT NOT NULL CHECK (source IN ('manual', 'import', 'universe', 'discovery')),
+         note TEXT,
+         updated_at TEXT NOT NULL)""",
+     """CREATE TABLE tax_openings (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         year INTEGER NOT NULL CHECK (year BETWEEN 1990 AND 2100),
+         pool TEXT NOT NULL CHECK (pool IN ('ask_negative_tax', 'pension_negative_tax', 'listed_loss',
+                                            'negative_share_income')),
+         portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
+         tax_person_id INTEGER REFERENCES tax_persons(id) ON DELETE CASCADE,
+         amount REAL NOT NULL CHECK (amount > 0),
+         note TEXT,
+         created_at TEXT NOT NULL,
+         CHECK ((pool IN ('ask_negative_tax', 'pension_negative_tax') AND portfolio_id IS NOT NULL
+                 AND tax_person_id IS NULL)
+             OR (pool IN ('listed_loss', 'negative_share_income') AND tax_person_id IS NOT NULL
+                 AND portfolio_id IS NULL)))"""),
 ]
 
 
@@ -375,7 +412,12 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
         vals["params"] = json.dumps(p["params"]) if p["params"] is not None else None
     if "fee_schedule" in p:                        # None clears it
         vals["fee_schedule"] = json.dumps(p["fee_schedule"]) if p["fee_schedule"] else None
+    if "tax_person_id" in p:                       # None: nobody (no tax estimate for the account)
+        vals["tax_person_id"] = p["tax_person_id"]
     with closing(connect()) as con, con:
+        if vals.get("tax_person_id") is not None and not con.execute(
+                "SELECT 1 FROM tax_persons WHERE id = ?", (vals["tax_person_id"],)).fetchone():
+            raise ValueError(f"no tax person with id {vals['tax_person_id']}")
         if "name" in vals and con.execute("SELECT 1 FROM portfolios WHERE name = ? AND id IS NOT ?",
                                           (vals["name"], pid)).fetchone():
             raise NameTaken(f"there is already a portfolio called {vals['name']}")
@@ -385,6 +427,9 @@ def save_portfolio(p: dict, pid: int | None = None) -> int:
         if pid is None:
             if "name" not in vals:
                 raise ValueError("a portfolio needs a name")
+            if "tax_person_id" not in p and vals.get("mode", "real") == "real":
+                first = con.execute("SELECT MIN(id) AS id FROM tax_persons").fetchone()
+                vals["tax_person_id"] = first["id"] if first else None
             cols = list(vals) + ["created_at", "updated_at"]
             pid = new_id(con.execute(f"INSERT INTO portfolios ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
                               (*vals.values(), now, now)))
@@ -546,6 +591,167 @@ def import_portfolios_json(text: str) -> int:
         if p.get("is_default"):
             set_default_portfolio(pid)
     return len(rows)
+
+
+# ---------------- tax: persons, instruments, openings ----------------
+
+TAX_CLASSES = ("stock", "pl_fund", "fund", "dk_distributing")
+INSTRUMENT_SOURCES = ("manual", "import", "universe", "discovery")   # a manual row is never overwritten by the rest
+OPENING_POOLS = {"ask_negative_tax": "portfolio", "pension_negative_tax": "portfolio",
+                 "listed_loss": "person", "negative_share_income": "person"}
+ISIN = re.compile(r"[A-Z]{2}[A-Z0-9]{9}[0-9]")
+
+
+def tax_persons() -> list[dict]:
+    """The tax persons with the portfolios each owns ([] without a database)."""
+    if not exists():
+        return []
+    with closing(connect()) as con:
+        out = [dict(r) for r in con.execute("SELECT * FROM tax_persons ORDER BY id")]
+        for p in out:
+            p["portfolio_ids"] = [r[0] for r in con.execute(
+                "SELECT id FROM portfolios WHERE tax_person_id = ? ORDER BY id", (p["id"],))]
+        return out
+
+
+def save_tax_person(p: dict, pid: int | None = None) -> int:
+    """Add a tax person or update one (name, capital_income_rate as a fraction or None, note)."""
+    vals = {k: p[k] for k in ("name", "capital_income_rate", "note") if k in p}
+    if "name" in vals:
+        vals["name"] = (vals["name"] or "").strip()
+        if not vals["name"]:
+            raise ValueError("a tax person needs a name")
+    rate = vals.get("capital_income_rate")
+    if rate is not None and not 0 <= float(rate) <= 1:
+        raise ValueError("capital_income_rate is a fraction between 0 and 1 (0.37 for 37 %)")
+    now = timestamp()
+    with closing(connect()) as con, con:
+        if "name" in vals and con.execute("SELECT 1 FROM tax_persons WHERE name = ? AND id IS NOT ?",
+                                          (vals["name"], pid)).fetchone():
+            raise NameTaken(f"there is already a tax person called {vals['name']}")
+        if pid is None:
+            if "name" not in vals:
+                raise ValueError("a tax person needs a name")
+            cols = list(vals) + ["created_at", "updated_at"]
+            return new_id(con.execute(f"INSERT INTO tax_persons ({', '.join(cols)}) VALUES "
+                                      f"({', '.join('?' * len(cols))})", (*vals.values(), now, now)))
+        if vals:
+            con.execute(f"UPDATE tax_persons SET {', '.join(f'{k} = ?' for k in vals)}, updated_at = ? WHERE id = ?",
+                        (*vals.values(), now, pid))
+        return int(pid)
+
+
+def instruments() -> dict[str, dict]:
+    """symbol -> {isin, tax_class, source, note} ({} without a database)."""
+    if not exists():
+        return {}
+    with closing(connect()) as con:
+        return {r["symbol"]: dict(r) for r in con.execute("SELECT * FROM instruments ORDER BY symbol")}
+
+
+def save_instrument(symbol: str, source: str = "manual", **fields) -> bool:
+    """Set a symbol's `isin`, `tax_class` (None = decided automatically) or `note`. A row set by hand (`manual`) is
+    never overwritten by an automatic fill. True when something was written."""
+    if source not in INSTRUMENT_SOURCES:
+        raise ValueError(f"source must be one of {', '.join(INSTRUMENT_SOURCES)}")
+    sym = symbol.strip().upper()
+    vals = {k: fields[k] for k in ("isin", "tax_class", "note") if k in fields}
+    if vals.get("tax_class") is not None and vals["tax_class"] not in TAX_CLASSES:
+        raise ValueError(f"tax_class must be one of {', '.join(TAX_CLASSES)}")
+    if vals.get("isin"):
+        vals["isin"] = vals["isin"].strip().upper()
+        if not ISIN.fullmatch(vals["isin"]):
+            raise ValueError(f"{vals['isin']} isn't an ISIN (two letters, nine letters or digits, a check digit)")
+    with closing(connect()) as con, con:
+        row = con.execute("SELECT source FROM instruments WHERE symbol = ?", (sym,)).fetchone()
+        if row and row["source"] == "manual" and source != "manual":
+            return False
+        if row:
+            sets = [f"{k} = ?" for k in vals] + ["source = ?", "updated_at = ?"]
+            con.execute(f"UPDATE instruments SET {', '.join(sets)} WHERE symbol = ?",
+                        (*vals.values(), source, timestamp(), sym))
+        else:
+            cols = ["symbol", *vals, "source", "updated_at"]
+            con.execute(f"INSERT INTO instruments ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                        (sym, *vals.values(), source, timestamp()))
+        return True
+
+
+def symbol_isins() -> dict[str, str]:
+    """symbol -> ISIN from the symbol map: what a broker import matched (an ISIN key mapped to a symbol)."""
+    if not exists():
+        return {}
+    with closing(connect()) as con:
+        return {r["symbol"]: r["ext"] for r in con.execute("SELECT ext, symbol FROM symbol_map ORDER BY updated_at")
+                if ISIN.fullmatch(r["ext"])}
+
+
+def tax_openings() -> list[dict]:
+    if not exists():
+        return []
+    with closing(connect()) as con:
+        return [dict(r) for r in con.execute("SELECT * FROM tax_openings ORDER BY year, pool, id")]
+
+
+def add_tax_opening(row: dict) -> int:
+    """A loss carried into `year` from before the history, in DKK: an ASK's or pension account's negative tax (by
+    `portfolio_id`), or a person's listed-share loss or negative share income (by `tax_person_id`)."""
+    pool = row.get("pool")
+    if pool not in OPENING_POOLS:
+        raise ValueError(f"pool must be one of {', '.join(OPENING_POOLS)}")
+    owner = "portfolio_id" if OPENING_POOLS[pool] == "portfolio" else "tax_person_id"
+    if row.get(owner) is None:
+        raise ValueError(f"a {pool} opening needs {owner}")
+    if not row.get("amount") or float(row["amount"]) <= 0:
+        raise ValueError("an opening is a positive amount in DKK")
+    with closing(connect()) as con, con:
+        return new_id(con.execute(
+            f"INSERT INTO tax_openings (year, pool, {owner}, amount, note, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (int(row["year"]), pool, int(row[owner]), float(row["amount"]), row.get("note"), timestamp())))
+
+
+def delete_tax_opening(oid: int) -> bool:
+    with closing(connect()) as con, con:
+        return con.execute("DELETE FROM tax_openings WHERE id = ?", (oid,)).rowcount > 0
+
+
+def export_tax_json() -> str:
+    """Tax persons (with the portfolios they own, by name), instruments and openings, for the export."""
+    names = {p["id"]: p["name"] for p in portfolios()}
+    persons = tax_persons()
+    pname = {p["id"]: p["name"] for p in persons}
+    return dumps({
+        "persons": [{"name": p["name"], "capital_income_rate": p["capital_income_rate"], "note": p["note"],
+                     "portfolios": [names[i] for i in p["portfolio_ids"] if i in names]} for p in persons],
+        "instruments": [{k: v for k, v in r.items() if k != "updated_at"} for r in instruments().values()],
+        "openings": [{"year": o["year"], "pool": o["pool"], "amount": o["amount"], "note": o["note"],
+                      "portfolio": names.get(o["portfolio_id"]), "person": pname.get(o["tax_person_id"])}
+                     for o in tax_openings()],
+    }, indent=1, ensure_ascii=False)
+
+
+def import_tax_json(text: str) -> int:
+    """An export's tax.json read back: persons by name (and the portfolios they own), instruments, openings (one
+    already there isn't added twice). Returns the number of rows read."""
+    d = json.loads(text)
+    by_name = {p["name"]: p["id"] for p in tax_persons()}
+    for p in d.get("persons", []):
+        pid = save_tax_person({k: p.get(k) for k in ("name", "capital_income_rate", "note")}, by_name.get(p["name"]))
+        by_name[p["name"]] = pid
+        for name in p.get("portfolios", []):
+            found = portfolio_by_name(name)
+            if found:
+                save_portfolio({"tax_person_id": pid}, found["id"])
+    for r in d.get("instruments", []):
+        save_instrument(r["symbol"], r.get("source") or "manual", **{k: r.get(k) for k in ("isin", "tax_class", "note")})
+    have = {(o["year"], o["pool"], o["portfolio_id"], o["tax_person_id"], o["amount"]) for o in tax_openings()}
+    for o in d.get("openings", []):
+        pf = portfolio_by_name(o.get("portfolio")) if o.get("portfolio") else None
+        row = {"year": o["year"], "pool": o["pool"], "amount": o["amount"], "note": o.get("note"),
+               "portfolio_id": pf["id"] if pf else None, "tax_person_id": by_name.get(o.get("person") or "")}
+        if (row["year"], row["pool"], row["portfolio_id"], row["tax_person_id"], row["amount"]) not in have:
+            add_tax_opening(row)
+    return len(d.get("persons", [])) + len(d.get("instruments", [])) + len(d.get("openings", []))
 
 
 # ---------------- transactions ----------------

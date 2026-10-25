@@ -169,6 +169,9 @@ glossary_links:
   rs_mom: laerebog/rrg#rs-momentum
   ucits: laerebog/rotation-og-cyklus#ucits-tvillinger-og-positivlisten
   positive_list: laerebog/skat#positivlisten
+  tax_share_income: laerebog/skat#aktieindkomst-og-kapitalindkomst
+  tax_lager: laerebog/skat#realisations--og-lagerbeskatning
+  tax_pool: laerebog/skat#aktiesparekontoen
   signal: laerebog/afstemningsmodellen#status-for-en-række
   not_voting: laerebog/afstemningsmodellen#grupper-der-kan-slås-fra
   max_age: laerebog/afstemningsmodellen#friskhed

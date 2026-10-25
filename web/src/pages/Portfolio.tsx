@@ -8,11 +8,12 @@ import { usePortfolioSel } from "../components/PortfolioPicker";
 import { AccountsPanel, KINDS } from "../components/PortfoliosPanel";
 import { describeTx, posCols, txCols } from "../components/portfolioTables";
 import { Tabs, useTabParam } from "../components/Tabs";
+import { TaxTab } from "../components/TaxTab";
 import { PORTFOLIO_KEYS, TxForm } from "../components/TxForm";
 import { num } from "../lib/format";
 import { DEFAULT_SEL, formatSel, isDefaultSel, type PortfolioSel } from "../lib/portfolioSel";
 
-const TABS = ["positions", "transactions", "imports", "accounts"] as const;
+const TABS = ["positions", "transactions", "imports", "accounts", "tax"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Trades that came in before portfolios sit in "Main": a nudge to move them into the right account. */
@@ -98,7 +99,7 @@ export function Portfolio() {
   const p = pos.data;
   const openForm = (f: { edit: TxRow | null; type?: TxIn["type"] }) => { setForm(f); setTab("transactions"); };
   const counts: Record<Tab, number | null> = { positions: p?.total.length ?? null, transactions: tx.data?.length ?? null,
-    imports: null, accounts: accounts.length };
+    imports: null, accounts: accounts.length, tax: null };
 
   return (
     <>
@@ -116,6 +117,7 @@ export function Portfolio() {
         ["transactions", <>Transactions{counts.transactions != null && <span className="muted"> {counts.transactions}</span>}</>],
         ["imports", "Imports"],
         ["accounts", <>Accounts<span className="muted"> {counts.accounts}</span></>],
+        ["tax", "Tax"],
       ]} />
 
       {tab === "positions" && (
@@ -206,6 +208,7 @@ export function Portfolio() {
       )}
 
       {tab === "accounts" && <section className="group"><AccountsPanel /></section>}
+      {tab === "tax" && portfolios && <TaxTab portfolios={portfolios} />}
     </>
   );
 }

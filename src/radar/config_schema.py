@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 class _Section(BaseModel):
@@ -167,8 +167,6 @@ class Propose(_Section):
     min_regime_dates: int
     max_swaps: int
     frontier_knee: float
-    ask_deposit_cap: float | None
-    ask_cap_year: int | None
     etf_filler: _Filler
     review_min: int
 
@@ -485,8 +483,12 @@ class SettingsError(ValueError):
 
 def check(raw: dict, source: str = "config/settings.yaml") -> Settings:
     """The checked settings; SettingsError naming every key that is missing, unknown (a typo?) or of the wrong type."""
+    return _validate(Settings, raw, source)
+
+
+def _validate(model, raw: dict, source: str):
     try:
-        return Settings.model_validate(raw)
+        return model.model_validate(raw)
     except ValidationError as e:
         problems = []
         for err in e.errors():
@@ -494,3 +496,47 @@ def check(raw: dict, source: str = "config/settings.yaml") -> Settings:
             what = {"missing": "missing", "extra_forbidden": "unknown key (a typo?)"}.get(err["type"], err["msg"])
             problems.append(f"{where}: {what}")
         raise SettingsError(f"{source} is invalid: " + "; ".join(problems)) from None
+
+
+# ---------------- config/tax_dk.yaml ----------------
+
+class _ShareIncome(_Section):
+    low_rate: float = Field(ge=0, le=1)
+    high_rate: float = Field(ge=0, le=1)
+    progression_limit: float = Field(gt=0)
+    source: str
+
+
+class _AskRules(_Section):
+    rate: float = Field(ge=0, le=1)
+    deposit_cap: float = Field(gt=0)
+    source: str
+
+
+class _PensionRules(_Section):
+    pal_rate: float = Field(ge=0, le=1)
+    source: str
+
+
+class _LossRules(_Section):
+    listed_offsets: list[Literal["realised", "dividends", "pl_lager"]]
+    pl_lager: Literal["share_income"]
+    source: str
+
+
+class TaxYear(_Section):
+    """One income year's rules, every number from its source (config/tax_dk.yaml)."""
+    verified: date | None = None
+    share_income: _ShareIncome
+    ask: _AskRules
+    pension: _PensionRules
+    losses: _LossRules
+
+
+class TaxRules(_Section):
+    years: dict[int, TaxYear]
+
+
+def check_tax(raw: dict, source: str = "config/tax_dk.yaml") -> TaxRules:
+    """The checked tax rules; SettingsError naming every key that is missing, unknown or of the wrong type."""
+    return _validate(TaxRules, raw, source)

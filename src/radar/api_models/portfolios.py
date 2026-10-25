@@ -85,6 +85,7 @@ class Portfolio(Strict):
     strategy: str | None = None
     params: dict[str, Any] | None = None
     fee_schedule: FeeSchedule | None = None
+    tax_person_id: int | None = None       # who owns the account for the tax estimate (none: no estimate)
     note: str | None = None
     archived: bool
     tags: list[str]
@@ -105,6 +106,7 @@ class PortfolioIn(Strict):
     archived: bool = False
     tags: list[str] = []
     fee_schedule: FeeSchedule | None = None    # left out: kept as it is; null: removed
+    tax_person_id: int | None = None           # left out: kept as it is; null: nobody
 
 
 class TagsIn(Strict):

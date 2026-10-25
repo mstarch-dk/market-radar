@@ -1,0 +1,44 @@
+# Danish tax rules per income year (portfolios/taxrules.py, model/tax.py): typed in by hand from skat.dk and the
+# tax ministry, each with its source and the day it was checked. An estimate, not tax advice: the årsopgørelse wins.
+# A year without a block, or without `verified`, gives "no rules for <year>": the engine never reuses another
+# year's numbers. Add a year by copying the last block and checking every number against its source.
+years:
+  2025:
+    verified: "2026-10-25"
+    share_income:                       # aktieindkomst, per person (the spouse transfer isn't modelled)
+      low_rate: 0.27
+      high_rate: 0.42
+      progression_limit: 67500          # DKK; doubled for spouses, not modelled
+      source: https://skat.dk/en-us/individuals/shares-and-securities/buying-and-selling-shares-and-securities
+    ask:                                # aktiesparekonto
+      rate: 0.17
+      deposit_cap: 166200               # DKK for the calendar year, tested against the value on 31 Dec before
+      source: https://skat.dk/borger/aktier-og-andre-vaerdipapirer/aktiesparekonto
+    pension:
+      pal_rate: 0.153
+      source: https://skat.dk/borger/pension-og-efterloen/skat-af-pensionsafkast
+    losses:
+      # What a realised loss on listed shares may offset (ABL § 13 A): dividends and gains on other listed shares,
+      # positive-list funds (listed, lager) counted among them. A loss left over is carried forward per person.
+      listed_offsets: [realised, dividends, pl_lager]
+      # A lager loss on a positive-list fund (ABL § 19) is deducted in share income as it stands.
+      pl_lager: share_income
+      source: https://info.skat.dk/data.aspx?oid=1946263
+  2026:
+    verified: "2026-10-25"
+    share_income:
+      low_rate: 0.27
+      high_rate: 0.42
+      progression_limit: 79400
+      source: https://skat.dk/en-us/individuals/shares-and-securities/buying-and-selling-shares-and-securities
+    ask:
+      rate: 0.17
+      deposit_cap: 174200
+      source: https://skat.dk/borger/aktier-og-andre-vaerdipapirer/aktiesparekonto
+    pension:
+      pal_rate: 0.153
+      source: https://skat.dk/borger/pension-og-efterloen/skat-af-pensionsafkast
+    losses:
+      listed_offsets: [realised, dividends, pl_lager]
+      pl_lager: share_income
+      source: https://info.skat.dk/data.aspx?oid=1946263

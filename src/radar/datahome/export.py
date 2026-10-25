@@ -6,6 +6,7 @@ or leaving. Unlike a backup (backup.py: an exact copy for this app to restore), 
     views.json           your market views with exposures and indicators
     watchlist.csv        the watchlist edits made in the app
     regime_votes.json    which indicator groups vote in the regime
+    tax.json             the tax estimate's persons (and the portfolios they own), instruments and openings
     notes/ briefs/ research/ journal/   your Markdown documents
     EXPORT.md            what every file and column holds
     export.json          export format, date, app version
@@ -36,6 +37,7 @@ YAHOO_WATCH = "yahoo_watch.json"
 VIEWS = "views.json"
 PORTFOLIOS = "portfolios.json"
 VOTES = "regime_votes.json"
+TAX = "tax.json"
 LEGACY_FILES = ("holdings.csv", "transactions.csv")   # bundles made before the transaction store
 DOCS = ("notes", "briefs", "research", "journal")
 
@@ -50,6 +52,7 @@ Made {created} by Market Radar {version}. Export format {fmt}.
 | `views.json` | Your market views: statement, conviction 1–5, horizon, rationale, what would prove it wrong, exposures and indicators. |
 | `watchlist.csv` | Symbols added to (`add`) or removed from (`remove`) the watchlist in the app. |
 | `regime_votes.json` | Which switchable indicator groups count in the regime vote. |
+| `tax.json` | The tax estimate's inputs: tax persons (with a capital-income rate and the portfolios each owns), each symbol's ISIN and tax class, and the losses carried in from before the history. |
 | `notes/`, `briefs/`, `research/`, `journal/` | Your documents as Markdown. |
 
 ## transactions.csv
@@ -77,7 +80,7 @@ Analysis, not advice. The market data itself is not exported: it belongs to its 
 
 
 def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str = BUNDLE_TX) -> None:
-    """Write the portfolio part: portfolios, their transactions, watchlists, views and vote choices."""
+    """Write the portfolio part: portfolios, their transactions, watchlists, views, vote choices and the tax inputs."""
     universe_migrated()
     scope = "all" if include_virtual else "real"
     z.writestr(PORTFOLIOS, userstore.export_portfolios_json(scope))
@@ -87,6 +90,7 @@ def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str
     z.writestr(YAHOO_WATCH, dumps(userstore.meta_get("yahoo_watch", [])))
     z.writestr(VIEWS, viewstore.export_views_json())
     z.writestr(VOTES, dumps(userstore.meta_get("regime_votes", {})))
+    z.writestr(TAX, userstore.export_tax_json())
 
 
 def universe_migrated() -> None:
@@ -118,6 +122,7 @@ def restore_holdings(z: zipfile.ZipFile, reason: str = "before-unbundle") -> dic
     if VOTES in names:
         userstore.meta_set("regime_votes", json.loads(z.read(VOTES)))
     out["views"] = viewstore.import_views_json(z.read(VIEWS).decode("utf-8")) if VIEWS in names else 0
+    out["tax"] = userstore.import_tax_json(z.read(TAX).decode("utf-8")) if TAX in names else 0
     return out
 
 

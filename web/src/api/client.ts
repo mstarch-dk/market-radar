@@ -73,6 +73,16 @@ export type AgendaView = S["AgendaView"];
 export type AgendaItem = S["AgendaItem"];
 export type EvidenceView = S["EvidenceView"];
 export type AttributionView = S["AttributionView"];
+export type TaxYearView = S["TaxYearView"];
+export type TaxPerson = S["TaxPerson"];
+export type TaxAccount = S["TaxAccount"];
+export type TaxUnknown = S["TaxUnknown"];
+export type TaxPersonView = S["TaxPersonView"];
+export type TaxPersonIn = S["TaxPersonIn"];
+export type InstrumentIn = S["InstrumentIn"];
+export type InstrumentView = S["InstrumentView"];
+export type TaxOpeningIn = S["TaxOpeningIn"];
+export type TaxOpeningView = S["TaxOpeningView"];
 export type ReportHead = S["ReportHead"];
 export type ScoreCard = S["ScoreCard"];
 export type ScoreRow = S["ScoreRow"];
@@ -217,6 +227,14 @@ export const api = {
     get<AttributionView>(withSel(start ? `/api/attribution?start=${enc(start)}` : "/api/attribution", sel)),
   priceCheck: (symbol: string, date: string) =>
     get<PriceCheck>(`/api/portfolio/price-check?symbol=${enc(symbol)}&date=${enc(date)}`),
+  tax: (year: number) => get<TaxYearView>(`/api/tax?year=${year}`),
+  taxPersons: () => get<TaxPersonView[]>("/api/tax/persons"),
+  editTaxPerson: (id: number, p: TaxPersonIn) => get<TaxPersonView>(`/api/tax/persons/${id}`, "PUT", json(p), "application/json"),
+  setInstrument: (symbol: string, i: InstrumentIn) =>
+    get<InstrumentView>(`/api/tax/instruments/${enc(symbol)}`, "PUT", json(i), "application/json"),
+  taxOpenings: () => get<TaxOpeningView[]>("/api/tax/openings"),
+  addTaxOpening: (o: TaxOpeningIn) => get<TaxOpeningView>("/api/tax/openings", "POST", json(o), "application/json"),
+  deleteTaxOpening: (id: number) => get<number>(`/api/tax/openings/${id}`, "DELETE"),
   portfolios: () => get<Portfolio[]>("/api/portfolios"),
   addPortfolio: (p: PortfolioIn) => get<Portfolio>("/api/portfolios", "POST", json(p), "application/json"),
   editPortfolio: (id: number, p: PortfolioIn) => get<Portfolio>(`/api/portfolios/${id}`, "PUT", json(p), "application/json"),
