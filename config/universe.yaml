@@ -47,6 +47,30 @@ sector_etfs:
       Lodging: EXV9.DE
       Restaurants: EXV9.DE
 
+# Attribution vs ACWI (portfolios/segments.py, plans/F4-attribution.md): the ETFs that stand in for ACWI's segments,
+# since ACWI's own sector and region returns aren't free. Prices only; nothing here is shown as a group.
+attribution:
+  sectors:                           # MSCI World sector UCITS (Xtrackers 1C, accumulating, Xetra, from 2016-04)
+    Technology: XDWT.DE
+    Healthcare: XDWH.DE
+    Financial Services: XDWF.DE      # from 2017-04
+    Industrials: XDWI.DE
+    Consumer Cyclical: XDWC.DE
+    Consumer Defensive: XDWS.DE
+    Energy: XDW0.DE
+    Basic Materials: XDWM.DE
+    Utilities: XDWU.DE
+    Communication Services: XWTS.DE  # the sector has its present form since 2018-09
+    Real Estate: SPYJ.DE             # SPDR Dow Jones Global Real Estate: no MSCI World real estate UCITS on Yahoo
+  sector_fallback: us                # before a proxy's first price: that sector in sector_etfs.us
+  regions:                           # country ETFs, mixed by ACWI's country weights inside each region
+    us: {United States: SPY}
+    nordic: {Denmark: EDEN, Sweden: EWD, Norway: ENOR, Finland: EFNL}
+    europe: {United Kingdom: EWU, Germany: EWG, Switzerland: EWL, Ireland: EIRL, France: EWQ, Netherlands: EWN,
+             Spain: EWP, Italy: EWI}
+    asia: {Japan: EWJ, Taiwan: EWT, Korea: EWY, China: MCHI, Singapore: EWS, Hong Kong: EWH, India: INDA}
+    other: {Canada: EWC, Australia: EWA, South Africa: EZA, Israel: EIS, Mexico: EWW}
+
 etf_groups:
   us_sectors:
     label: US sectors

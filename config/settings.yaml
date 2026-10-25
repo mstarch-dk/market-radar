@@ -179,6 +179,20 @@ risk:                      # signals/risk.py: weekly returns in DKK
 analyst:
   max_age_days: 7          # re-fetch Yahoo consensus for holdings/watchlist after this
 
+calendar:                  # earnings dates of what you hold or watch (sources/external.py update_calendar, agenda.py)
+  days: 35                 # the calendar's window (the monthly brief's too)
+  soon_days: 7             # "the next 7 days" and the earnings-in-N-days flag
+  stale_days: 10           # a read older than this doesn't set the date while the weekly screener has one
+  include: {watchlist: true, ex_dividend: true, reviews: true}
+  highlight:
+    big_position: 0.05     # a holding at least this share of the selection's invested value
+    near_level: 0.05       # last close within this distance of the review level (stop), above or below
+    revision_cut: -0.02    # the quarter's EPS estimate changed by this or less over 30 days: a cut (the mirror: raised)
+  refresh:
+    max_age_days: 3        # read Yahoo's calendar again after this
+    near_days: 14          # ... and, with a report this close,
+    near_max_age_hours: 20 # after this many hours
+
 coverage:                  # data transparency (coverage.py, "Data & coverage" tab)
   max_age:                 # days behind the report's as-of date before a source is stale and stops counting
     prices: 7
@@ -187,6 +201,7 @@ coverage:                  # data transparency (coverage.py, "Data & coverage" t
     factset: 14            # weekly
     oecd: 75               # monthly, published with a ~2-month lag
     analyst: 21            # Yahoo consensus used for take-profit levels
+    calendar: 7            # earnings dates of holdings/watchlist (read every few days, daily near a report)
     discovery_universe: 45 # the discovery scan's list of names (re-built monthly)
     discovery_prices: 10   # the discovery scan's prices (run it weekly)
     valuation_stocks: 10   # weekly P/E and EPS-estimate snapshot (Yahoo screener)
@@ -290,6 +305,10 @@ longrun:                   # src/radar/backtest/longrun.py: `radar study longrun
     "Value theme, developed (JKP)": [jkp:themes_developed, value]
     "Value theme, world ex US (JKP)": [jkp:themes_world_ex_us, value]
     "Quality theme, developed (JKP)": [jkp:themes_developed, quality]
+
+attribution:               # attribution vs ACWI (plans/F4-attribution.md): benchmark segments in portfolios/segments.py
+  snapshot_days: 6         # ACWI's holdings are fetched again when older than this, for the weekly weights snapshot
+  min_proxy_coverage: 0.8  # share of a region's ACWI weight its country ETFs must cover, else its return is missing
 
 updates:                   # src/radar/updates.py: the check for a new version (off until switched on in the app)
   repo: mstarch-dk/market-radar   # the public repo's "owner/name" on GitHub; null: nothing to check

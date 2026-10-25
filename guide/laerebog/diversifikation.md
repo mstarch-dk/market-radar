@@ -70,6 +70,24 @@ $$
 
 Ti lige store positioner giver $N_{eff} = 10$. Har den største 40 %, falder tallet hurtigt. $N_{eff}$ ser kun på vægte, ikke på korrelationer, så ti energiaktier tæller som ti.
 
+### Risikobidrag og MCTR
+
+Vægten siger, hvor mange penge der står i en position, ikke hvor meget af udsvingene den står for. Med kovariansmatricen $\Sigma$ og vægtene $w$ er porteføljens varians $\sigma_p^2 = w^\top \Sigma w$, og den kan deles op i ét bidrag pr. position:
+
+$$
+\sigma_p^2 = \sum_i w_i (\Sigma w)_i, \qquad \text{andel}_i = \frac{w_i (\Sigma w)_i}{w^\top \Sigma w}
+$$
+
+$(\Sigma w)_i$ er positionens kovarians med hele porteføljen. Andelene summerer til 100 %. En volatil position, der svinger i takt med resten, får en andel langt over sin vægt; en position, der svinger mod resten, kan få en negativ andel.
+
+Det **marginale risikobidrag** (MCTR, *marginal contribution to total risk*) er, hvor meget porteføljens volatilitet ændrer sig pr. ekstra vægtenhed i positionen:
+
+$$
+\text{MCTR}_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\Sigma w)_i}{\sigma_p}, \qquad \sum_i w_i\,\text{MCTR}_i = \sigma_p
+$$
+
+Den sidste ligning (Eulers sætning) siger, at bidragene lægger op til hele volatiliteten. En position med MCTR over $\sigma_p$ øger risikoen, hvis du køber mere af den; en position under sænker den. Ideen bag risikoparitet (Qian, 2005) er at give positionerne lige store risikobidrag i stedet for lige store vægte.
+
 ### Korrelationer i krise
 
 Korrelationer er ikke konstante. Longin og Solnik (2001) viser, at korrelationen mellem internationale aktiemarkeder stiger markant i store fald, men ikke i store stigninger. Ang og Chen (2002) finder det samme for amerikanske aktieporteføljer. Det betyder, at en korrelation målt i rolige perioder overvurderer diversifikationen i netop de perioder, hvor den betyder mest. Downside beta (se [Beta, alfa og faktorer](laerebog/beta-og-alfa)) er en anden side af samme fænomen.
@@ -115,7 +133,18 @@ Detaljerne (`signals/views.py`):
 
 For en fond viser tickerprofilen kortet *Fund look-through* med fondens største beholdninger og sektorvægte fra Yahoo Finance. Beholdninger, du også ejer direkte, får mærket *you hold*. Det er den simpleste form for overlap-kontrol: ejer du både en ETF og dens største positioner, er din reelle eksponering mod dem større end din direkte vægt.
 
-Radaren beregner ikke en samlet look-through-eksponering for hele porteføljen, ingen diversifikationsratio og intet effektivt antal positioner. Det må du regne selv, fx som i eksemplet nedenfor.
+Profilen gennemlyser én fond ad gangen. For hele porteføljen gør røntgenbilledet det efter sektor, region og valuta (se nedenfor), men ikke ned til de enkelte aktier i fondene. Overlap mellem to fonde i den samme aktie må du stadig regne selv, fx som i eksemplet nedenfor.
+
+### Porteføljens røntgen
+
+Siden [X-ray](/xray) (se [Røntgen af porteføljen](brugervejledning/xray)) bruger teorien ovenfor på dine valgte porteføljer, i kroner og med dagens vægte (`xray.py`, med motoren i `portfolios/riskmodel.py`, den samme som porteføljeforslagene bruger):
+
+- **Kovariansen** er beregnet på ugentlige afkast i kroner over {{settings:risk.covariance.history_weeks}} uger af beholdningerne og ACWI, med shrinkage ({{settings:risk.covariance.shrink|pct}} mod en fælles korrelation; se [Porteføljeforslag](laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage)). Papirer med færre end {{settings:risk.covariance.min_weeks}} uger er udeladt og vises med deres vægt.
+- **Risikobidrag og MCTR** er formlerne ovenfor på vægtene blandt papirerne i modellen, annualiseret med $\sqrt{52}$. Ligger under {{settings:risk.xray.min_coverage|pct}} af værdien i modellen, vises ingen risikotal.
+- **Diversifikationsratioen** er $DR$ ovenfor.
+- **Koncentrationen** er $N_{eff}$ på positionernes vægte, de fem største positioners andel og den position, der har det største risikobidrag. En verdensfond tæller som én position, så $N_{eff}$ undervurderer spredningen; derfor vises andelen i verdensfonde.
+- **Par, der bevæger sig sammen**, er beholdninger med en ugentlig korrelation over {{settings:risk.xray.pair_corr}} i samme vindue (`signals/risk.py`, `correlation`, parvis komplet), med deres samlede vægt.
+- **Eksponeringen** efter sektor, region og valuta gennemlyser fondene, hvor data tillader det, og viser for hver dimension, hvor stor en del af værdien der kunne placeres. En fond, der ikke kan gennemlyses, bliver aldrig fordelt efter gæt.
 
 ### Værdi og momentum side om side
 
@@ -149,6 +178,20 @@ Ligevægtede aktier, hver med 30 % volatilitet og parvis korrelation 0,3:
 | ∞ | $30\,\% \cdot \sqrt{0.3} \approx 16.4\,\%$ |
 
 Fra 10 til uendeligt mange aktier vinder du kun 1,8 procentpoint. Hvis korrelationen i et krak stiger til 0,7, bliver grænsen $30\,\% \cdot \sqrt{0.7} \approx 25.1\,\%$.
+
+### En lille position med stor risiko
+
+En portefølje har 95 % i en bred fond med volatilitet $\sigma_f = 15\,\%$ og 5 % i én aktie med $\sigma_a = 60\,\%$. Korrelationen er $\rho = 0.6$. Positionernes kovarians med porteføljen:
+
+$$
+(\Sigma w)_a = 0.05 \cdot 0.36 + 0.95 \cdot 0.6 \cdot 0.60 \cdot 0.15 = 0.0180 + 0.0513 = 0.0693
+$$
+
+$$
+(\Sigma w)_f = 0.95 \cdot 0.0225 + 0.05 \cdot 0.6 \cdot 0.60 \cdot 0.15 = 0.0214 + 0.0027 = 0.0241
+$$
+
+Variansen er $0.05 \cdot 0.0693 + 0.95 \cdot 0.0241 = 0.00347 + 0.02287 = 0.02634$, så $\sigma_p \approx 16.2\,\%$. Aktiens andel af risikoen er $0.00347 / 0.02634 \approx 13\,\%$: 5 % af pengene, 13 % af udsvingene. Dens MCTR er $0.0693 / 0.162 \approx 43\,\%$, langt over porteføljens 16,2 %. Hver procentpoint mere i aktien øger porteføljens volatilitet med omkring 0,43 procentpoint, mens fondens MCTR på $0.0241 / 0.162 \approx 15\,\%$ ligger under.
 
 ### Koncentration og overlap
 

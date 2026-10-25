@@ -116,6 +116,28 @@ def test_a_missing_price_is_a_gap_not_a_zero(market):
     assert res["missing"] == ["NOPX: no prices"] and all(v is None for v in res["series"]["value_dkk"])
 
 
+def test_positions_add_up_to_the_holdings_with_the_same_gaps(market):
+    rows = [_buy("S1", 50, 10, c1(50)), _sell("S1", 100, 4, c1(100)), _buy("GAPPY", 110, 10, 100 * 1.001 ** 110)]
+    b = performance.book(rows, market)
+    assert list(b.positions.columns) == ["GAPPY", "S1"]
+    total = b.positions.sum(axis=1, min_count=1)
+    assert total.isna().equals(b.holdings.isna())                       # GAPPY's missing prices: unknown, not 0
+    assert np.allclose(total.dropna(), b.holdings.dropna())
+    at = b.positions.index.get_loc(IDX[80])
+    assert b.positions["S1"].iloc[at] == pytest.approx(10 * c1(80) * FX)
+    assert b.positions["GAPPY"].iloc[at] == 0                           # not held yet
+    assert b.positions["S1"].iloc[-1] == pytest.approx(6 * c1(END) * FX)
+    nopx = performance.book([_buy("NOPX", 100, 1, 10)], market)         # never priced: unknown while held
+    assert nopx.positions["NOPX"].isna().all()
+
+    other = performance.book([_buy("S2", 150, 5, c2(150))], market)
+    pooled = performance.pool([b, other])
+    assert list(pooled.positions.columns) == ["GAPPY", "S1", "S2"]
+    assert pooled.positions["S2"].loc[: IDX[149]].eq(0).all()           # before that book opened: not held
+    assert pooled.positions["S1"].equals(b.positions["S1"].reindex(pooled.dates, fill_value=0.0))
+    assert pooled.positions["S2"].iloc[-1] == pytest.approx(5 * c2(END) * FX)
+
+
 def test_an_unpriced_trade_after_the_last_close_leaves_the_history_known(market, monkeypatch):
     monkeypatch.setattr(fxrates, "currencies", lambda ts: {t: None if t == "NOPX" else "USD" for t in ts})
     today = (IDX[END] + pd.Timedelta(days=3)).date().isoformat()      # booked before the next update

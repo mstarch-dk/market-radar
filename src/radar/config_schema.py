@@ -239,6 +239,33 @@ class Analyst(_Section):
     max_age_days: int
 
 
+class CalendarRefresh(_Section):
+    max_age_days: float
+    near_days: int
+    near_max_age_hours: float
+
+
+class CalendarInclude(_Section):
+    watchlist: bool
+    ex_dividend: bool
+    reviews: bool
+
+
+class CalendarHighlight(_Section):
+    big_position: float
+    near_level: float
+    revision_cut: float
+
+
+class Calendar(_Section):
+    days: int
+    soon_days: int
+    stale_days: int
+    include: CalendarInclude
+    highlight: CalendarHighlight
+    refresh: CalendarRefresh
+
+
 class Coverage(_Section):
     max_age: dict[str, int]                     # source -> days behind the report's as-of date before it is stale
     blind_spots: list[str]
@@ -309,6 +336,11 @@ class Longrun(_Section):
     regime_months: int = 10
     panels: dict[str, _Panel] = {}
     factors: dict[str, tuple[str, str]] = {}    # label -> (dataset, series)
+
+
+class Attribution(_Section):
+    snapshot_days: int = 6
+    min_proxy_coverage: float = 0.8
 
 
 class Updates(_Section):
@@ -422,10 +454,12 @@ class Settings(_Section):
     propose: Propose
     risk: Risk
     analyst: Analyst
+    calendar: Calendar
     coverage: Coverage
     network: Network
     factors: Factors
     longrun: Longrun
+    attribution: Attribution = Attribution()
     updates: Updates = Updates()
     ops: Ops = Ops()
     valuation: Valuation

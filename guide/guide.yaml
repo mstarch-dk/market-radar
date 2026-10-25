@@ -27,6 +27,7 @@ books:
         chapters:
           - {slug: tickerprofil, title: Tickerprofilen}
           - {slug: beholdninger, title: Mine beholdninger og watchlist}
+          - {slug: xray, title: Røntgen af porteføljen}
           - {slug: portefolje, title: "Portefølje: handler, kontanter og import"}
           - {slug: portefoljer-og-tags, title: Rigtige og virtuelle porteføljer}
           - {slug: afkast, title: Afkast over tid}
@@ -123,6 +124,7 @@ page_links:
   /discover: brugervejledning/discover
   /positioning: brugervejledning/positionering
   /me: brugervejledning/beholdninger
+  /xray: brugervejledning/xray
   /views: brugervejledning/markedssyn
   /notebook: brugervejledning/notesbog
   /portfolio: brugervejledning/portefolje
@@ -231,3 +233,18 @@ glossary_links:
   pb: laerebog/kvalitetsscore#banker-og-forsikringsselskaber
   ab_test: brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum
   ab_corr: laerebog/diversifikation#værdi-og-momentum-side-om-side
+  xray_active: brugervejledning/xray#eksponering-mod-acwi
+  xray_class: brugervejledning/xray#sådan-placeres-fondene
+  xray_vol: laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage
+  xray_beta: laerebog/beta-og-alfa#beta
+  xray_te: laerebog/beta-og-alfa#tracking-error-og-aktiv-risiko
+  xray_div_ratio: laerebog/diversifikation#diversifikationsratio
+  xray_coverage: brugervejledning/xray#dækning-hvad-tallene-hviler-på
+  xray_share_total: laerebog/diversifikation#risikobidrag-og-mctr
+  xray_share_active: laerebog/beta-og-alfa#tracking-error-og-aktiv-risiko
+  xray_mctr: laerebog/diversifikation#risikobidrag-og-mctr
+  xray_effective_n: laerebog/diversifikation#koncentration
+  xray_pairs: laerebog/diversifikation#korrelation
+  xray_stress: laerebog/portefoeljeforslag#drawdown-på-tre-måder
+  xray_realised: laerebog/beta-og-alfa#ex-ante-og-realiseret
+  xray_tilts: brugervejledning/xray#scorehældning

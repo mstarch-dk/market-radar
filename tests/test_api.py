@@ -146,11 +146,64 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-2:] == ["/api/xray", "/api/evidence"]
+    assert paths_[-3:] == ["/api/xray", "/api/calendar", "/api/evidence"]   # the newest routers come last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
     assert gone.status_code == 503 and "radar update" in gone.json()["detail"]["message"]
+
+
+def _calendar_reads(asof: pd.Timestamp) -> None:
+    """S1 (held) reports in 3 days, E2 (watched) in Yahoo's window 10-14 days out; S3 isn't held or watched."""
+    from radar.config import write_parquet
+    from radar.sources import external
+
+    rows = [{"ticker": t, "fetched": asof, "earnings_start": asof + pd.Timedelta(days=a),
+             "earnings_end": asof + pd.Timedelta(days=b), "eps_chg_30d": chg, "quote_type": "EQUITY",
+             "source": "yahoo_detail"} for t, a, b, chg in (("S1", 3, 3, -0.05), ("E2", 10, 14, None),
+                                                              ("S3", 2, 2, None))]
+    write_parquet(pd.DataFrame(rows, columns=list(external.CALENDAR_COLS)), external.CALENDAR_FILE, index=False)
+
+
+def test_calendar_api_contract(built, monkeypatch):
+    """GET /api/calendar validates against AgendaView: S1's report is high (held, soon, estimate cut, the whole
+    portfolio), E2's window is info; an empty selection is a view with a note; the router came last; no prices is
+    503."""
+    from world import IDX
+
+    _calendar_reads(IDX[-1])
+    r = built.get("/api/calendar")
+    assert r.status_code == 200, r.json()
+    v = api_models.AgendaView.model_validate(r.json())
+    assert v.today == IDX[-1].date().isoformat() and v.selection.names
+    items = {i.symbol: i for i in v.items}
+    assert set(items) == {"S1", "E2"}
+    s1 = items["S1"]
+    assert (s1.level, s1.days, s1.weight) == ("high", 3, pytest.approx(1.0))
+    assert {x.key for x in s1.reasons} >= {"held", "big_position", "estimates_cut"}
+    assert v.soon == [s1.id]
+    e2 = items["E2"]
+    assert e2.level == "info" and e2.earnings.is_range and e2.date_end is not None
+    assert built.get("/api/calendar").json()["generated"] == r.json()["generated"]       # cached until data changes
+    assert {i["symbol"] for i in built.get("/api/calendar", params={"days": 5}).json()["items"]} == {"S1"}
+    assert built.get("/api/calendar", params={"days": 0}).status_code == 422
+    empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
+    assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
+    paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
+    assert paths_[-2:] == ["/api/calendar", "/api/evidence"]
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    assert built.get("/api/calendar").status_code == 503
+
+
+def test_me_flag_matches_calendar(built):
+    from world import IDX
+
+    _calendar_reads(IDX[-1])
+    rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
+    days = {i["symbol"]: i["days"] for i in built.get("/api/calendar").json()["items"]}
+    assert f"earnings in {days['S1']} d" in rows["S1"]["flags"]
+    assert not any(f.startswith("earnings") for f in rows["E2"]["flags"])        # 10 days out: past soon_days
 
 
 def test_evidence_api_contract(client, monkeypatch):

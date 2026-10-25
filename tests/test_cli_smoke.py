@@ -154,6 +154,18 @@ def test_performance(built):
     assert run_json("performance", "--json")
 
 
+def test_cli_calendar(built):
+    """radar calendar prints its weeks, --json the AgendaView; a held stock without a date is listed, not dropped."""
+    from radar import api_models
+
+    out = run("calendar")
+    assert "Calendar of" in out and "No earnings date known" in out and "S1" in out
+    v = api_models.AgendaView.model_validate(run_json("calendar", "--json"))
+    assert "S1" in {r.symbol for r in v.no_date} and v.items == []                # nothing read yet: no guess
+    assert run_json("calendar", "--days", "10", "--json")["days"] == 10
+    assert "--scope must be one of" in run("calendar", "--scope", "isk", code=1)
+
+
 def test_cli_xray(built):
     """radar xray prints its tables, --json the XrayView; names, tags and scopes resolve as radar performance's."""
     from radar import api_models

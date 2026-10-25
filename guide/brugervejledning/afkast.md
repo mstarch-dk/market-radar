@@ -86,5 +86,6 @@ Kolonnerne er værdi, TWR, TWR p.a., MWR p.a., ACWI, forskellen til ACWI og stø
 
 - Afkastet er i DKK. Valutakursbevægelser er en del af afkastet, også for ACWI.
 - Et kort tidsrum siger lidt. Afkast over få uger er mest støj, og et års MWR kræver netop et års data.
+- Afkastet viser, hvad der skete; [X-ray](/xray) viser, hvad porteføljen er eksponeret mod i dag, og hvor risikoen sidder. Dens realiserede volatilitet og drawdown er regnet på samme tidsvægtede indeks som her. Se [Røntgen af porteføljen](brugervejledning/xray).
 - `/market-brief` læser dine rigtige porteføljers afkast (1 måned, 3 måneder, år til dato, 1 år og siden start) fra `summary.json`. Se [Claude Code-skills](brugervejledning/claude-code).
 - Siden er analyse, ikke rådgivning.

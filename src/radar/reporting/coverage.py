@@ -17,7 +17,7 @@ from ..paths import CACHE
 from ..portfolios import trades
 
 OK, STALE, MISSING, INFO = "ok", "stale", "missing", "info"
-NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii",   # never "the regime's oldest input"
+NOT_REGIME = {"valuation_stocks", "valuation_etfs", "ecb", "putcall", "aaii", "calendar",   # never "the regime's oldest input"
               "fundamentals_edgar", "fundamentals_yahoo", "factors"}
 
 # key -> display name, provider, official source?, cadence, what it feeds
@@ -29,10 +29,14 @@ SOURCES = {
     "oecd": ("Leading indicators", "OECD Composite Leading Indicators", True, "monthly", "Regime, Positioning"),
     "factset": ("S&P 500 earnings revisions", "FactSet Earnings Insight (PDF)", True, "weekly", "Regime, Positioning"),
     "analyst": ("Analyst consensus", "Yahoo Finance", False, "weekly re-fetch", "Levels (take-profit)"),
+    "calendar": ("Earnings calendar", "Yahoo Finance (ticker calendar)", False,
+                 "every few days, daily near a report", "Calendar (holdings and watchlist)"),
     "constituents": ("S&P 500 constituents", "SSGA SPY holdings", True, "monthly re-fetch",
                      "Momentum, breadth"),
     "acwi_holdings": ("MSCI ACWI weights", "iShares MSCI ACWI UCITS holdings", True, "monthly re-fetch, on use",
-                      "Portfolio proposals (sector, region and currency vs ACWI)"),
+                      "Portfolio proposals and the X-ray (sector, region and currency vs ACWI)"),
+    "acwi_segments": ("MSCI ACWI weights over time", "iShares MSCI ACWI UCITS holdings (aggregates kept by the radar)",
+                      True, "weekly snapshot", "Attribution (ACWI's segment weights in past weeks)"),
     "reference": ("Names, sectors, currencies", "Yahoo Finance (cached)", False, "on first use",
                   "Momentum clusters, Holdings (DKK)"),
     "positive_list": ("Positive list (aktiebaserede inv.selskaber)", "SKAT (manual download)", True, "yearly",
@@ -109,7 +113,7 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
           cot: pd.DataFrame, cot_markets: list[str], cli: pd.DataFrame, cli_areas: dict, factset: pd.DataFrame,
           analyst: pd.DataFrame, analyst_tickers: list[str], stock_tickers: list[str],
           holdings: pd.DataFrame, positive_list_year: str | None, indicators: list[dict], cfg: dict,
-          today: date | None = None, log: dict | None = None) -> dict:
+          today: date | None = None, log: dict | None = None, calendar: pd.DataFrame | None = None) -> dict:
     """Everything the "Data & coverage" tab and summary.json show. `cfg` is settings()."""
     max_age = cfg["coverage"]["max_age"]
     log = sourcelog.load_log() if log is None else log
@@ -165,18 +169,38 @@ def build(ref: date, prices: pd.DataFrame, configured: list[str], fred: pd.DataF
         rows.append(_row("analyst", None, ref, max_age["analyst"],
                          f"0 of {len(analyst_tickers)} holdings/watchlist names", "", log))
 
+    # earnings calendar for holdings/watchlist: the oldest last read decides; funds have no earnings
+    cal = calendar if calendar is not None else pd.DataFrame()
+    c = (cal[cal["ticker"].isin(analyst_tickers)].sort_values("fetched").groupby("ticker").last()
+         if not cal.empty and analyst_tickers else pd.DataFrame())
+    stocks = c[~c["quote_type"].isin(("ETF", "MUTUALFUND"))] if not c.empty else c
+    n_dated = int(stocks["earnings_start"].notna().sum()) if not stocks.empty else 0
+    rows.append(_row("calendar", stocks["fetched"].min() if not stocks.empty else None, ref,
+                     max_age.get("calendar"),
+                     f"{len(c)} of {len(analyst_tickers)} holdings/watchlist names read; {n_dated} of "
+                     f"{len(stocks)} stocks with an earnings date",
+                     "Yahoo's date or expected window, not confirmed by the company; funds have no earnings", log))
+
     # constituents list (file date)
     cons = CACHE / "constituents_us.csv"
     n_cons = len(pd.read_csv(cons)) if cons.exists() else 0
     rows.append(_row("constituents", _mtime(cons), today, cfg["constituents_max_age_days"] + 14,
                      f"{n_cons} US stocks", "Today's members only: no history of index changes", log))
 
-    # ACWI's weights (fetched when a proposal needs them)
+    # ACWI's weights (fetched weekly for the snapshot, and when a proposal needs them)
     aw = CACHE / "acwi_holdings.csv"
     n_aw = len(pd.read_csv(aw)) if aw.exists() else 0
     rows.append(_row("acwi_holdings", _mtime(aw), today, cfg["constituents_max_age_days"] + 14,
-                     f"{n_aw} stocks", "Fetched by `radar propose` when older than a month", log,
+                     f"{n_aw} stocks", "Fetched weekly by `radar run` (and by `radar propose` when older than a month)", log,
                      state=None if aw.exists() else INFO))
+
+    # ACWI's weights over time: the radar's own weekly snapshots (iShares serves no past holdings)
+    seg = paths.HISTORY / "acwi_segments.csv"
+    snaps = sorted(pd.read_csv(seg, usecols=["asof"])["asof"].unique()) if seg.exists() else []
+    rows.append(_row("acwi_segments", snaps[-1] if snaps else None, today, 14,
+                     f"{len(snaps)} weekly snapshots" + (f" since {snaps[0]}" if snaps else ""),
+                     "Weeks before the first snapshot are back-drifted from it", log,
+                     state=None if snaps else INFO))
 
     # reference caches: how many stocks have a sector (used by the momentum clusters)
     sec_file = CACHE / "sectors.csv"

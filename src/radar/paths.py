@@ -249,6 +249,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "snapshots/",                   # rank snapshots: "new", "dropped", "Δ rank"
         "discovery/snapshots/",         # discovery scores per scan
         "analyst.parquet",              # analyst consensus as fetched, kept to see targets raised or cut
+        "calendar.parquet",             # earnings dates as Yahoo gave them on each read: dates move
         "valuation/stocks.parquet",     # weekly P/E and EPS snapshots
         "valuation/etfs.parquet",
         "factset.parquet",              # the source only looks 14 days back
@@ -256,6 +257,7 @@ REGISTRY: dict[str, tuple[str, ...]] = {
         "fred_rolling.parquet",         # FRED serves ICE BofA's spreads for ~3 years only
         "fundamentals/yahoo.parquet",   # Yahoo's statements: it shows ~4 years, what scrolls out is gone
         "fundamentals/scores.parquet",  # weekly kvalitets- and værdiscore per stock
+        "acwi_segments.csv",            # ACWI's weights each week: iShares serves only today's holdings
     ),
     "cache": (
         "prices.parquet", "prices_from.json", "fred.parquet", "cot.parquet", "oecd_cli.parquet", "ecb.parquet",

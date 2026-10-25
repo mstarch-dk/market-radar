@@ -17,7 +17,7 @@ from .fundamentals import edgar, yahoo
 from .market import Market
 from .paths import CACHE
 from .reporting import report
-from .sources import external, factors, ingest, sentiment, tracked, valuation
+from .sources import constituents, external, factors, ingest, sentiment, tracked, valuation
 
 UPDATE_LOCK = CACHE / "update.lock"   # one update at a time: the app's job, `radar update` / `run` in a terminal
 BUSY = "an update is already running (in the app or in a terminal): wait for it to finish"
@@ -111,9 +111,12 @@ def update_external(log: Log = print) -> None:
         "putcall": ("CBOE put/call ratios", sentiment.update_putcall),
         "aaii": ("AAII sentiment survey", sentiment.update_aaii),
         "factors": ("Long factor histories (French, JKP; monthly)", factors.update_factors),
+        "acwi_segments": ("MSCI ACWI weights (iShares; weekly snapshot)", constituents.update_acwi_segments),
         "valuation_etfs": ("ETF valuation (Yahoo fund data)", lambda: valuation.update_etfs(universe.etf_tickers())),
         "valuation_stocks": ("Stock valuation (Yahoo screener, weekly; a few minutes)",
                              lambda: valuation.update_stocks(stocks)),
+        "calendar": ("Earnings calendar (holdings and watchlist)",
+                     lambda: external.update_calendar(mine, **typed().calendar.refresh.model_dump())),
         # after the valuation snapshot: it names each stock's reporting currency and next earnings date
         "fundamentals_edgar": ("Financial statements (SEC EDGAR, US)",
                                lambda: edgar.update_edgar(stocks, userstore.sec_contact())),

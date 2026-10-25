@@ -354,3 +354,76 @@ def test_cached_detail_never_fetches(monkeypatch, tmp_path):
     assert status == "ok" and raw["symbol"] == "FUND.L" and fetched == "2020-01-02T10:00:00"   # years old: still used
     (tmp_path / "BAD.L.json").write_text("{not json", encoding="utf-8")
     assert external.cached_detail("BAD.L") == (None, "invalid", None)          # unreadable: said, not "missing"
+
+
+# ---------------- earnings calendar of holdings/watchlist ----------------
+
+def _read(fetched, dates, quote_type="EQUITY", eps_trend=None):
+    return {"fetched": fetched, "info": {"quoteType": quote_type},
+            "calendar": {"Earnings Date": dates, "Earnings Average": 1.2, "Earnings Low": 1.0, "Earnings High": 1.5}
+            if dates is not None else {},
+            "eps_trend": eps_trend or {}, "eps_revisions": {}, "growth_estimates": {}}
+
+
+def _fake_detail(monkeypatch, answers: dict, asked: list):
+    def detail(t, max_age_hours=24, refresh=False):
+        asked.append(t)
+        a = answers.get(t)
+        return (a, "ok") if a else (None, "missing")
+    monkeypatch.setattr(external, "detail", detail)
+
+
+def _hist_row(ticker, fetched, start, quote_type="EQUITY"):
+    d = pd.Timestamp(start) if start else pd.NaT
+    return {"ticker": ticker, "fetched": pd.Timestamp(fetched), "earnings_start": d, "earnings_end": d,
+            "quote_type": quote_type}
+
+
+def test_calendar_schedule():
+    hist = pd.DataFrame([
+        _hist_row("FRESH", "2026-10-24 08:00", "2026-12-01"),
+        _hist_row("OLD", "2026-10-21 08:00", "2026-12-01"),           # older than 3 days
+        _hist_row("NEAR", "2026-10-24 08:00", "2026-10-30"),          # a report within 14 days, read 24 h ago
+        _hist_row("NEARFRESH", "2026-10-25 06:00", "2026-10-30"),     # ... read 2 h ago
+        _hist_row("PASSED", "2026-10-24 06:00", "2026-10-24"),        # the report has happened since the read
+        _hist_row("FUND", "2026-01-01", None, quote_type="ETF"),
+    ])
+    due = external.calendar_due(["NEW", "FRESH", "OLD", "NEAR", "NEARFRESH", "PASSED", "FUND"], hist,
+                                pd.Timestamp("2026-10-25 08:00"), max_age_days=3, near_days=14, near_max_age_hours=20)
+    assert due == ["NEW", "OLD", "NEAR", "PASSED"]
+
+
+def test_calendar_append_only(monkeypatch):
+    asked: list = []
+    trend = {"0q": {"current": 0.97, "30daysAgo": 1.0}}
+    _fake_detail(monkeypatch, {"AAA": _read("2026-10-20T08:00:00", ["2026-11-03", "2026-11-07"], eps_trend=trend),
+                               "FND": _read("2026-10-20T08:00:00", None, quote_type="ETF")}, asked)
+    msg = external.update_calendar(["AAA", "FND"], now=pd.Timestamp("2026-10-20 09:00"))
+    assert msg == "2 of 2 read, 1 with an earnings date; 1 funds (no earnings)"
+    _fake_detail(monkeypatch, {"AAA": _read("2026-10-24T08:00:00", ["2026-11-05"])}, asked)
+    assert external.update_calendar(["AAA", "FND"], now=pd.Timestamp("2026-10-24 09:00")) == "1 of 1 read, 1 with an earnings date"
+    assert asked == ["AAA", "FND", "AAA"]                                  # the fund is not asked again
+    df = external.load_calendar()
+    a = df[df["ticker"] == "AAA"].reset_index(drop=True)
+    assert list(a["earnings_start"]) == [pd.Timestamp("2026-11-03"), pd.Timestamp("2026-11-05")]   # the old read stays
+    assert a.loc[0, "earnings_end"] == pd.Timestamp("2026-11-07") and a.loc[0, "eps_low"] == 1.0
+    assert a.loc[0, "eps_chg_30d"] == pytest.approx(-0.03)
+    f = df[df["ticker"] == "FND"].iloc[0]
+    assert f["quote_type"] == "ETF" and pd.isna(f["earnings_start"])
+
+
+def test_calendar_all_fail_loud(monkeypatch):
+    _fake_detail(monkeypatch, {"AAA": _read("2026-10-20T08:00:00", ["2026-11-03"])}, [])
+    external.update_calendar(["AAA"], now=pd.Timestamp("2026-10-20 09:00"))
+    before = external.load_calendar()
+    _fake_detail(monkeypatch, {}, [])
+    with pytest.raises(RuntimeError, match="no data for 2 tickers"):
+        external.update_calendar(["AAA", "BBB"], now=pd.Timestamp("2026-10-30 09:00"))
+    pd.testing.assert_frame_equal(external.load_calendar(), before)
+
+
+def test_calendar_failed_read_keeps_the_rest(monkeypatch):
+    _fake_detail(monkeypatch, {"AAA": _read("2026-10-20T08:00:00", ["2026-11-03"])}, [])
+    msg = external.update_calendar(["AAA", "BBB"], now=pd.Timestamp("2026-10-20 09:00"))
+    assert msg == "1 of 2 read, 1 with an earnings date"
+    assert list(external.load_calendar()["ticker"]) == ["AAA"]

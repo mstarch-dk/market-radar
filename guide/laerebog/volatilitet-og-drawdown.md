@@ -117,6 +117,8 @@ Kortet viser også *Max drawdown (weeks under)*: den dybeste drawdown og i paren
 
 **Andre steder i appen.** Kortet med tekniske indikatorer viser en 3-måneders volatilitet (*vol_3m*) fra daglige log-afkast over 63 handelsdage, annualiseret med $\sqrt{252}$, og en 1-års drawdown fra daglige kurser i lokal valuta. Siden [Returns](/returns) viser volatilitet og maksimal drawdown for hele porteføljer, beregnet på det daglige tidsvægtede indeks og annualiseret med $\sqrt{252}$ (se [Tidsvægtet og pengevægtet afkast](laerebog/twr-og-mwr)). Tallene kan derfor afvige fra risikokortets ugentlige tal for samme papir; de måler det samme med forskellig opløsning og valuta.
 
+**En portefølje med dagens vægte.** Siden [X-ray](/xray) og porteføljeforslagene regner volatiliteten for en hel portefølje som $\sqrt{w^\top \hat\Sigma w \cdot 52}$, hvor $\hat\Sigma$ er en krympet kovariansmatrix: den målte ugentlige kovarians i kroner over {{settings:risk.covariance.history_weeks}} uger, trukket {{settings:risk.covariance.shrink|pct}} mod en matrix med samme volatiliteter og én fælles korrelation. Krympningen dæmper støjen i de mange parvise korrelationer, som få års data ikke kan bestemme præcist; den er forklaret i [Porteføljeforslag](laerebog/portefoeljeforslag#risiko-kovarians-med-shrinkage). Røntgenbilledet stiller tallet ved siden af den realiserede volatilitet og drawdown for det, du faktisk ejede det seneste år (se [Røntgen af porteføljen](brugervejledning/xray#ex-ante-og-realiseret)).
+
 ## Regneeksempel
 
 Otte ugers afkast i kroner (alt for få til at radaren ville vise et tal, men nok til at regne i hånden):

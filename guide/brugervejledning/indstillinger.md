@@ -154,9 +154,37 @@ Nøglerne `covariance`, `world_funds` og `stress` lå tidligere under `propose:`
 
 Se [Beta, alfa og faktorer](laerebog/beta-og-alfa).
 
+## `attribution`: attribution mod ACWI
+
+Attributionen er under opbygning; indtil videre gemmer radaren ACWI's vægte hver uge, så den senere kan forklare tidligere måneder.
+
+| Nøgle | Værdi | Betyder |
+|---|---|---|
+| `attribution.snapshot_days` | {{settings:attribution.snapshot_days}} dage | ACWI's beholdningsfil hentes igen, når den er ældre end dette, og ugens vægte (sektor, region, land og valuta) gemmes i historikmappen. iShares viser kun dagens beholdninger, så en uge uden opdatering kan ikke hentes bagefter |
+| `attribution.min_proxy_coverage` | {{settings:attribution.min_proxy_coverage|pct}} | En regions afkast bygges af lande-ETF'er vægtet med ACWI's landevægte; dækker landene med en ETF mindre end denne andel af regionen, mangler regionens afkast den dag |
+
 ## `analyst`: analytikerkonsensus
 
 `analyst.max_age_days` = {{settings:analyst.max_age_days}}: Yahoos konsensus for beholdninger og watchlist hentes igen, når den er ældre end dette. Hvor gammel konsensus må være, før kursmålene ikke længere bruges, styres af `coverage.max_age.analyst` ({{settings:coverage.max_age.analyst}} dage).
+
+## `calendar`: regnskabsdatoer
+
+Radaren læser Yahoos regnskabskalender for de aktier, du ejer eller følger, og gemmer hver læsning, så en dato, der flytter sig, kan ses. Fonde har ingen regnskaber og læses kun én gang.
+
+| Nøgle | Værdi | Betydning |
+|---|---|---|
+| `calendar.days` | {{settings:calendar.days}} | Kalenderens vindue i dage (også månedsbriefens) |
+| `calendar.soon_days` | {{settings:calendar.soon_days}} | De nærmeste dage, hvor en beholdning med et særligt hensyn fremhæves som *high* |
+| `calendar.stale_days` | {{settings:calendar.stale_days}} | En læsning ældre end dette sætter ikke datoen, når den ugentlige screener har en |
+| `calendar.include.watchlist`, `.ex_dividend`, `.reviews` | {{settings:calendar.include.watchlist}}, {{settings:calendar.include.ex_dividend}}, {{settings:calendar.include.reviews}} | Tag watchlist, udbyttedatoer og dine egne gennemgangsdatoer (journal, tidsstop) med |
+| `calendar.highlight.big_position` | {{settings:calendar.highlight.big_position|pct}} | En beholdning med mindst denne andel af den investerede værdi |
+| `calendar.highlight.near_level` | {{settings:calendar.highlight.near_level|pct}} | Kursen er højst så langt fra gennemgangsniveauet, over eller under |
+| `calendar.highlight.revision_cut` | {{settings:calendar.highlight.revision_cut|pct}} | Kvartalets EPS-estimat er ændret så meget eller mere nedad på 30 dage: en nedjustering (det modsatte: en opjustering) |
+| `calendar.refresh.max_age_days` | {{settings:calendar.refresh.max_age_days}} | Kalenderen læses igen, når den seneste læsning er ældre end dette antal dage |
+| `calendar.refresh.near_days` | {{settings:calendar.refresh.near_days}} | Når et regnskab er højst så mange dage væk, … |
+| `calendar.refresh.near_max_age_hours` | {{settings:calendar.refresh.near_max_age_hours}} | … læses kalenderen igen efter så mange timer |
+
+Når et regnskab er overstået, læses kalenderen igen ved næste opdatering, så den næste dato kommer med. Hvor gammel læsningen må være, før kilden er *stale* på *Data & coverage*, styres af `coverage.max_age.calendar` ({{settings:coverage.max_age.calendar}} dage).
 
 ## `coverage`: friskhed og blinde vinkler
 
@@ -309,6 +337,7 @@ Eksempler: RSI ({{settings:gauges.rsi14.ticks}} som tærskler), momentumscoren (
 - `stock_groups`: aktielisterne pr. region (USA er S&P 500).
 - `macro`: makrotickere og FRED-serier.
 - `external`: CFTC-markeder og OECD-områder.
+- `attribution`: de ETF'er, der står i stedet for ACWI's sektorer (MSCI World-sektorfonde, med de amerikanske sektor-ETF'er før deres første kurs) og regioner (lande-ETF'er) i attributionen.
 
 Et symbol, der ikke findes på Yahoo, dukker op under *Missing tickers* på siden [Data & coverage](/data).
 
