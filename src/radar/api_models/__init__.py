@@ -143,6 +143,7 @@ from .ops import (
     OpsRequest,
     OpsRow,
     OpsSummary,
+    StudyRunStatus,
     UpdateProgress,
     UpdateStatus,
 )
@@ -351,7 +352,7 @@ __all__ = [
     "ImportCommitResult", "ImportRecord", "Preset", "ViewExposure", "ViewIndicator", "ViewIn", "EvidenceItem",
     "Evidence", "ViewRow", "ViewTemplate", "CatalogueIndicator", "CatalogueEtf", "ViewsCatalogue", "ViewsPage",
     "AlignReason", "AlignLabel", "ViewAlignmentRow", "ViewAlignment", "AlignRequest", "AlignCompactView",
-    "AlignCompact", "UpdateProgress", "UpdateStatus", "OpsJob", "OpsJobDetail", "OpsCooldown", "OpsRow", "OpsSummary",
+    "AlignCompact", "UpdateProgress", "UpdateStatus", "StudyRunStatus", "OpsJob", "OpsJobDetail", "OpsCooldown", "OpsRow", "OpsSummary",
     "OpsEvent", "OpsRequest", "DoctorCheck", "LegacyFound", "HomeStatus", "SetupIn", "SetupResult", "DataFolder",
     "BackupRow", "DataHome", "MirrorIn", "RestoreIn", "RestoreResult", "OpenIn", "UpdateCheck", "UpdateCheckIn",
     "GuideChapterRef", "GuidePart", "GuideBook", "GuideTree", "GuideHeading", "GuideLink", "GuideChapter", "GuideHit",

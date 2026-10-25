@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, universe, userstore
 from radar.portfolios import trades
 from radar.reporting import dashboard, report
@@ -179,7 +180,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _virtual_s2(client) -> int:

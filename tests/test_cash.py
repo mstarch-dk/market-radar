@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, importers, userstore
 from radar.market import Market
 from radar.portfolios import performance, trades
@@ -25,7 +26,7 @@ def client(tmp_data, monkeypatch):
     api.reset()
     dashboard.reset()
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [])
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _sim(client, name="Sim") -> int:

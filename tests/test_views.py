@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, api_models, market_views, profile, userstore
 from radar.signals import views as sv
 from radar.sources import ingest, tracked
@@ -168,7 +169,7 @@ def test_views_only_appear_in_personal_profiles(env):
 
 
 def test_views_api_round_trip(env):
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url=LOCAL)
     page = api_models.ViewsPage.model_validate(c.get("/api/views").json())
     assert len(page.views) == 1 and page.views[0].evidence is not None and "subjective" in page.disclaimer
     assert any(t.key == "ai_bubble" for t in page.templates)

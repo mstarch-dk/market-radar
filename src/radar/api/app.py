@@ -1,10 +1,12 @@
 """The local web API for the radar (`radar serve`): ticker profiles, chart series, search, the dashboard readings
 from the last `radar run`, the live holdings table and watchlist edits, plus the built web app from web/dist.
-Binds to 127.0.0.1 only; there is no authentication."""
+Binds to 127.0.0.1 only; there is no authentication. A request that changes something must come from this computer's
+own pages (`_same_machine`)."""
 from __future__ import annotations
 
 import http
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -29,6 +31,7 @@ from . import (
     refresh,
     setup,
     state,
+    studies,
     tax,
     ticker,
     transactions,
@@ -109,6 +112,30 @@ async def _data_home(request: Request, call_next):
     return await call_next(request)
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _host(value: str) -> str | None:
+    """The host of a Host header or an Origin ("http://localhost:5173" and "localhost:8780" give "localhost")."""
+    try:
+        return urlsplit(value if "://" in value else f"//{value}").hostname
+    except ValueError:
+        return None
+
+
+@app.middleware("http")
+async def _same_machine(request: Request, call_next):
+    """A request that changes something (anything but a read) only from the app's own pages: the Host must be this
+    computer (no DNS rebinding) and an Origin, when the browser sends one, too. Otherwise any web page open in the
+    browser could post to the local app (an update, a study, a backup). Requests without an Origin (curl, the
+    tests) pass."""
+    if request.method not in READS:
+        origin = request.headers.get("origin")
+        if _host(request.headers.get("host", "")) not in LOCAL_HOSTS or (origin and _host(origin) not in LOCAL_HOSTS):
+            return _error(403, "Only the app's own pages on this computer can change data.")
+    return await call_next(request)
+
+
 NOT_RECORDED = {503}   # "no dashboard / scan yet" is a state the pages explain, not an operational error
 
 
@@ -131,7 +158,7 @@ async def _record_errors(request: Request, call_next):
 
 
 for _r in (setup, ticker, readings, operations, views, discover, holdings, refresh, transactions, portfolios, docs,
-           imports, xray, agenda, evidence, attribution, tax):    # new routers last: the OpenAPI order of the others stays put
+           imports, xray, agenda, evidence, attribution, tax, studies):    # new routers last: the OpenAPI order of the others stays put
     app.include_router(_r.router)
 
 

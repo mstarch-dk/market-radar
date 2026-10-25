@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, mine, userstore
 from radar.api_models import Comparison, Performance
 from radar.config import settings
@@ -206,7 +207,7 @@ def client(market, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _portfolio(name, rows, tags=()):

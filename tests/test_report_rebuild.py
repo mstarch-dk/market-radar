@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import world
+from fakes import LOCAL
 from radar import api, cli, locks, updater
 from radar.fundamentals.store import YAHOO_FILE  # the synthetic world keeps its prices in memory; this one is on disk
 from radar.reporting import dashboard, report
@@ -25,7 +26,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(updater.rebuild_readings, "Building the readings", "report"))
     monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: None))
     report.build()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _touch(f) -> None:

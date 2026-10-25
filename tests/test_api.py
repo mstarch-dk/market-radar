@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, api_models, paths
 from radar.reporting import dashboard, report
 from radar.sources import ingest
@@ -17,7 +18,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})   # Yahoo knows nothing new
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 @pytest.fixture
@@ -146,7 +147,9 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-11:-7] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
+    at = paths_.index("/api/xray")                                         # each new router after the last one
+    assert paths_[at:at + 4] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]
+    assert paths_[-2:] == ["/api/studies/run", "/api/studies/run/{key}"]   # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -178,7 +181,8 @@ def test_calendar_api_contract(built, monkeypatch):
     empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
     assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-10:-7] == ["/api/calendar", "/api/evidence", "/api/attribution"]
+    at = paths_.index("/api/calendar")
+    assert paths_[at:at + 3] == ["/api/calendar", "/api/evidence", "/api/attribution"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/calendar").status_code == 503
@@ -214,8 +218,9 @@ def test_tax_api_contract(built, monkeypatch):
     ask = next(p for p in pf if p["name"] == "ASK")
     assert ask["tax_person_id"] == me["id"]
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-7:] == ["/api/tax", "/api/tax/persons", "/api/tax/persons/{pid}", "/api/tax/instruments",
-                           "/api/tax/instruments/{symbol}", "/api/tax/openings", "/api/tax/openings/{oid}"]
+    at = paths_.index("/api/tax")                                          # the routers after it come later
+    assert paths_[at:at + 7] == ["/api/tax", "/api/tax/persons", "/api/tax/persons/{pid}", "/api/tax/instruments",
+                                 "/api/tax/instruments/{symbol}", "/api/tax/openings", "/api/tax/openings/{oid}"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/tax").status_code == 503

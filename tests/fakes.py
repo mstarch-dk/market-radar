@@ -4,6 +4,7 @@
   (limits, retries, the operations log); an answer is a `Resp`, an exception (raised) or a callable(url).
 - `FakeYf`: the parts of yfinance the radar uses, installed with `fake_yf(monkeypatch, ...)`; `statements(…)`
   reads the captured Yahoo statement frames.
+- `LOCAL`: the base URL of a TestClient, so its Host is this computer (api/app.py `_same_machine`).
 - `stored(path)`: rows and first/last date per key of a stored file, for "never shrinks" checks.
 """
 from __future__ import annotations
@@ -17,6 +18,8 @@ import pandas as pd
 import requests
 
 from radar import net
+
+LOCAL = "http://127.0.0.1"   # a TestClient on this computer: changing requests from elsewhere get 403
 
 
 class Resp:

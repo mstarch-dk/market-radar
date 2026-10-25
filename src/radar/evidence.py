@@ -50,7 +50,8 @@ def head(loaded: art.Loaded, label: str, command: str, rule_now: str | None, max
     asof = rep.data_asof if rep is not None else None
     age = (today - asof).days if asof is not None else None
     return {"name": loaded.name, "signal": signal, "label": label, "status": loaded.status, "reason": loaded.reason,
-            "command": command, "created": rep.created.isoformat(timespec="seconds") if rep is not None else None,
+            "command": command, "run_key": art.run_key(loaded.name, signal),
+            "created": rep.created.isoformat(timespec="seconds") if rep is not None else None,
             "data_asof": _iso(asof), "age_days": age,
             "old_data": loaded.status == "ok" and age is not None and age > max_age,
             "rule_hash": rep.rule_hash if rep is not None else None, "rule_hash_now": rule_now,

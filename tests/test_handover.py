@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import world
+from fakes import LOCAL
 from radar import api, cli, updater
 from radar.reporting import dashboard
 from radar.sources import ingest
@@ -20,7 +21,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(ingest, "update_prices", lambda tickers, progress=None: {})
     api.reset()
     dashboard.reset()
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _wait(job, timeout=5):

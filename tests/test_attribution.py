@@ -149,6 +149,7 @@ def test_the_view_validates_and_the_cli_prints_the_apis_view(market, monkeypatch
     from fastapi.testclient import TestClient
     from typer.testing import CliRunner
 
+    from fakes import LOCAL
     from radar import api, api_models, cli
     _history()
     days = pd.bdate_range(IDX[0], IDX[-1])
@@ -162,7 +163,7 @@ def test_the_view_validates_and_the_cli_prints_the_apis_view(market, monkeypatch
     _portfolio([_deposit(20, 10 * (px("S1", 20) + px("THEME1", 20)) * FX), _buy("S1", 20, 10, px("S1", 20)),
                 _buy("THEME1", 20, 10, px("THEME1", 20))])
     api.reset()
-    r = TestClient(api.app).get("/api/attribution", params={"scope": "virtual"})
+    r = TestClient(api.app, base_url=LOCAL).get("/api/attribution", params={"scope": "virtual"})
     assert r.status_code == 200, r.json()
     v = api_models.AttributionView.model_validate(r.json())
     assert set(v.dims) == {"sector", "region"} and v.currency and v.regression and v.unclassified
@@ -172,5 +173,5 @@ def test_the_view_validates_and_the_cli_prints_the_apis_view(market, monkeypatch
     assert {**json.loads(res.stdout), "generated": None} == {**r.json(), "generated": None}
     out = CliRunner().invoke(cli.app, ["attribution", "--scope", "virtual"]).output
     assert "trading and fees" in out and "By sector" in out and "Factor regression" in out
-    bad = TestClient(api.app).get("/api/attribution", params={"start": "last year"})
+    bad = TestClient(api.app, base_url=LOCAL).get("/api/attribution", params={"start": "last year"})
     assert bad.status_code == 422

@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import world
+from fakes import LOCAL
 from radar import api, importers, net, ops, userstore
 from radar.reporting import dashboard
 from radar.sources import ingest
@@ -26,7 +27,7 @@ def client(tmp_data, monkeypatch):
     api.reset()
     dashboard.reset()
     monkeypatch.setattr(importers, "yahoo_search", lambda q: [])     # no network
-    return TestClient(api.app)
+    return TestClient(api.app, base_url=LOCAL)
 
 
 def _dk(x: float) -> str:

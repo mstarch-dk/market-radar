@@ -24,6 +24,15 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 - **The proposals' ASK deposit check follows skat.dk**: the cap less the account's value on 31 December the year
   before and this year's deposits, with the cap from `config/tax_dk.yaml`. The settings `propose.ask_deposit_cap`
   and `propose.ask_cap_year` are gone (a settings.yaml that still has them fails on start and names them).
+- **Run the studies from the Evidence page.** Every study card and rule study now has a button: *Run the study*
+  when there is no report, *Run again* when it tested an older rule or has old data. The app runs the study's own
+  command (the one on the card) in the background as a child process, shows how long it has run and its log, and
+  can cancel it. One study at a time, shared with `radar study …` in a terminal (a new `study.lock`; a second run
+  stops with "Not started"), and never during an update or a rebuild. `GET`/`POST`/`DELETE /api/studies/run`.
+- **The local app refuses changing requests from other sites.** A POST, PUT or DELETE whose `Host` or `Origin`
+  isn't this computer gets 403, so a web page open in the browser can't start an update or a study (or reach the
+  app through DNS rebinding). The app's own pages and the CLI are unaffected.
+- `python -m radar` runs the command line, like `radar`.
 
 - **Calendar** (`/calendar`, under *Mine* after *X-ray*): the coming 35 days for what you hold and
   watch. Earnings and ex-dividend dates of held and watched stocks, your open journal reviews and your proposals'

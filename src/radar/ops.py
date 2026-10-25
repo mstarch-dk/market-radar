@@ -301,6 +301,13 @@ def mark_interrupted() -> None:
            f"WHERE status = 'running' AND kind IN ({','.join('?' * len(SERVER_KINDS))})", SERVER_KINDS)
 
 
+def interrupt(kind: str, since: str, error: str) -> None:
+    """A child process the app stopped can't record its own end: its `kind` jobs still running that started at or
+    after `since` (a `timestamp()`) are marked interrupted, with `error` as why."""
+    _write("UPDATE jobs SET status = 'interrupted', error = ?, finished = ? "
+           "WHERE status = 'running' AND kind = ? AND started >= ?", (error, timestamp(), kind, since))
+
+
 # ---------------- queries for the page and `radar ops` ----------------
 
 def _pct(values: list[float], q: float) -> float | None:

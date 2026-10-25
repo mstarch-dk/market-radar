@@ -115,9 +115,10 @@ def test_the_old_layout_is_not_backed_up(tmp_path):
 def test_the_data_page_lists_folders_and_backups(data, tmp_path):
     from fastapi.testclient import TestClient
 
+    from fakes import LOCAL
     from radar import api
 
-    c = TestClient(api.app)
+    c = TestClient(api.app, base_url=LOCAL)
     d = c.get("/api/data-home").json()
     assert {f["key"]: f["tier"] for f in d["folders"]}["cache"] == "cache" and d["status"]["state"] == "ok"
     made = c.post("/api/data-home/backup").json()

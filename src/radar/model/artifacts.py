@@ -386,6 +386,12 @@ SCORE_SIGNALS: dict[str, ScoreSignal] = {
 }
 
 
+def run_key(name: str, signal: str | None = None) -> str:
+    """The key the app runs a study by (studyrun.py): the report's name, with the signal for the score study
+    ("score-study:quality")."""
+    return f"{name}:{signal}" if signal else name
+
+
 # ---------------- the rule a study tested ----------------
 
 # Bumped by hand in the same change as a score's code (signals/score.py and model/panels.py for momentum,

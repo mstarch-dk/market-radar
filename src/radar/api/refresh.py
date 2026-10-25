@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from .. import (
     errors,
     importers,
+    studyrun,
     updater,
 )
 from ..api_models import (
@@ -32,7 +33,10 @@ def update_status() -> dict:
 
 @router.post("/api/update", response_model=UpdateStatus)
 def start_update() -> dict:
-    """Start downloading new data and rebuilding the dashboard in the background (one at a time)."""
+    """Start downloading new data and rebuilding the dashboard in the background (one at a time). 409 while a
+    study started from the app runs (it reads the prices the update rewrites)."""
+    if studyrun.STUDY_JOB.running:
+        raise HTTPException(409, "A study is running: update the data when it has finished.")
     if not updater.JOB.start():
         raise HTTPException(409, "An update is already running.")
     return updater.JOB.state
@@ -51,6 +55,8 @@ def start_report() -> dict:
     the job stop with its message."""
     if updater.JOB.state["status"] == "running":
         raise HTTPException(409, "An update is running: it rebuilds the readings when it finishes.")
+    if studyrun.STUDY_JOB.running:
+        raise HTTPException(409, "A study is running: rebuild the readings when it has finished.")
     if not updater.REPORT_JOB.start():
         raise HTTPException(409, "The readings are already being rebuilt.")
     return updater.REPORT_JOB.state
