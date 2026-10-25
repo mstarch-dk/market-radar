@@ -19,6 +19,8 @@ Virtuelle porteføljer kommer aldrig med af sig selv. De vises kun på siden *Ex
 
 En ny konto: skriv et navn i feltet nederst under fanen *Accounts* på siden *Portfolio*, vælg skattetype, og klik *Add account*. En ny virtuel portefølje opretter du nederst på siden *Experiments*; den får automatisk tagget `virtual`.
 
+Skattetypen bestemmer, hvordan fanen *Tax* regner kontoen: en aktiesparekonto og en pensionskonto hver for sig, konti med frie midler samlet pr. ejer. Hvem der ejer hver konto, sætter du på fanen *Tax*; se [Skat: radarens skatteestimat](brugervejledning/skat).
+
 Under *Accounts* sætter du også kontoens kurtageskema (*fees: …*), som formularen bruger til at estimere kurtagen på en handel. Se [Kurtage-estimatet](brugervejledning/portefolje#kurtage-estimatet).
 
 ### Skattetype

@@ -377,3 +377,32 @@ applied:
    vejledning* and records the result.
 3. How the ASK's own tax debit is booked in an import (some brokers show it as a fee row). Suggest: a `WITHDRAW` with
    a note; the guide says so, and TASK-5.8 warns when a `FEE` row in an ASK in January looks like the tax.
+
+## 10. Changes during implementation
+
+Recorded as the work landed; where this section and the sections above disagree, this one is what the code does.
+
+1. **The positive list stays where it is (C6).** `imports/positivliste.xlsx` is an app file shipped in the install
+   folder (`docs/architecture.md`, *Where data lives*), so it isn't moved to `paths`. Open question 1 is settled by
+   SKAT's own cover sheet: the sheet named for a year ("Kalenderåret 2026") is that income year's list.
+2. **The ASK deposit cap follows skat.dk.** The cap is tested against the account's value on 31 December the year
+   before plus this year's deposits (`model/tax.ask_headroom`), not against net deposits as `propose` did.
+3. **Values at traded closes.** The tax book is `performance.book(rows, market, "cash")`: holdings at traded closes,
+   dividends as cash or outflow. Adjusted closes would count a distributing fund's dividend in its lager and again in
+   its dividend row.
+4. **Negative tax, not negative return, is carried** for the ASK and pension (skat.dk, PAL § 17); the opening pools
+   are `ask_negative_tax`, `pension_negative_tax`, `listed_loss` and `negative_share_income`.
+5. **Every real portfolio gets the first person** on creation and in the migration (not only the tax kinds), so a
+   change of kind needs no second step; `other` still gets no estimate.
+6. **ASK and pension pools ignore the class.** The pool taxes the whole account; a holding of class `fund` (off the
+   list) or `unknown` on an ASK is a warning, not a gap in the pool. *Not in the estimate* lists frie midler
+   holdings only.
+7. **No `tax.years_back` setting.** The tab's year picker runs from the first transaction's year to this year.
+8. **Loss pools (open question 2):** `losses.listed_offsets: [realised, dividends, pl_lager]` and
+   `pl_lager: share_income`, from the general table in *Den juridiske vejledning* C.B.2.1.2 and skat.dk's page on
+   listed-share losses. The detailed passage on offsetting lager losses on investment companies wasn't found; the
+   guide's "not modelled" list names the conditions for deducting losses.
+9. **Wire keys** `ret` and `tax_class` instead of `return` and `class`; `DELETE /api/tax/openings/{oid}` returns the
+   id. The tax inputs travel in the export and the holdings bundle as `tax.json`.
+10. **Marketing:** `features.yaml` needs a brochure section and a screenshot; that is left to the `/marketing` run
+    for the release, as for attribution.

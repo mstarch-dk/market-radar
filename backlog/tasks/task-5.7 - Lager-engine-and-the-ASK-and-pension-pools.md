@@ -1,9 +1,10 @@
 ---
 id: TASK-5.7
 title: Lager engine and the ASK and pension pools
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
 dependencies:
@@ -23,8 +24,14 @@ model/tax: lager per holding and year (year-end value plus sale proceeds minus y
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The textbook's three-year ASK example gives 2,040 / 0 / 510 with the loss carried into year 3 (tested)
-- [ ] #2 The textbook's positive-list example (50,000 bought mid-year, 56,000 at year end) gives 6,000 share income (tested)
-- [ ] #3 Progression below, at and above the limit, and a pension year with carry-forward at the PAL rate (tested)
-- [ ] #4 A missing year-start or year-end value makes that holding's lager missing, never 0
+- [x] #1 The textbook's three-year ASK example gives 2,040 / 0 / 510 with the loss carried into year 3 (tested)
+- [x] #2 The textbook's positive-list example (50,000 bought mid-year, 56,000 at year end) gives 6,000 share income (tested)
+- [x] #3 Progression below, at and above the limit, and a pension year with carry-forward at the PAL rate (tested)
+- [x] #4 A missing year-start or year-end value makes that holding's lager missing, never 0
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+model/tax lager, account_pool (negative tax carried), share_income, capital_tax, ask_headroom; golden tests from the textbook.
+<!-- SECTION:FINAL_SUMMARY:END -->

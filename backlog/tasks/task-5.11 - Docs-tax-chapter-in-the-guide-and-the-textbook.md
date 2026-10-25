@@ -1,9 +1,10 @@
 ---
 id: TASK-5.11
 title: 'Docs: tax chapter in the guide and the textbook'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - docs
 dependencies:
@@ -23,7 +24,13 @@ New brugervejledning/skat.md (the tab, classification, persons and openings, boo
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 uv run pytest -q tests/test_guide.py passes
-- [ ] #2 The not modelled list covers at least spouse transfer, unlisted shares, withholding tax, the negative share income's tax value and history before the first transaction
-- [ ] #3 No statement in the textbook contradicts the engine's golden tests
+- [x] #1 uv run pytest -q tests/test_guide.py passes
+- [x] #2 The not modelled list covers at least spouse transfer, unlisted shares, withholding tax, the negative share income's tax value and history before the first transaction
+- [x] #3 No statement in the textbook contradicts the engine's golden tests
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+brugervejledning\skat.md, laerebog\skat.md (Sådan gør radaren, rates via {{tax;...}}), formler.md, indstillinger.md, portefolje.md, portefoljer-og-tags.md, hvad-er-market-radar.md.
+<!-- SECTION:FINAL_SUMMARY:END -->

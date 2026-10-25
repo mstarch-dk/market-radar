@@ -1,9 +1,10 @@
 ---
 id: TASK-5.6
 title: 'Realisation engine: average cost in DKK'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
 dependencies:
@@ -23,7 +24,13 @@ model/tax.replay_dkk: the average-cost replay in DKK at each trade's rate (its f
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The textbook's partial-sale example gives a gain of 145 DKK; the same with rates other than 1 matches a hand calculation (tested)
-- [ ] #2 Buys in two frie midler accounts of one person share one average; an ASK buy doesn't move it (tested)
-- [ ] #3 A missing rate makes the gains missing, never 0
+- [x] #1 The textbook's partial-sale example gives a gain of 145 DKK; the same with rates other than 1 matches a hand calculation (tested)
+- [x] #2 Buys in two frie midler accounts of one person share one average; an ASK buy doesn't move it (tested)
+- [x] #3 A missing rate makes the gains missing, never 0
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+model/tax.replay_dkk with golden tests (tests/test_tax_math.py, tests/test_tax.py).
+<!-- SECTION:FINAL_SUMMARY:END -->

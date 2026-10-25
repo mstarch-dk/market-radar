@@ -1,9 +1,10 @@
 ---
 id: TASK-5
 title: F3 Danish tax engine and after-tax returns
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-25 18:49'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
   - tax

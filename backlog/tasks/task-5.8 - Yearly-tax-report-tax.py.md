@@ -1,9 +1,10 @@
 ---
 id: TASK-5.8
 title: 'Yearly tax report: tax.py'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
 dependencies:
@@ -27,9 +28,15 @@ portfolios/taxinputs.py (trades with DKK rates, dividends regardless of the divi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An ETF that leaves the positive list is share income in one year and capital income the next, with an ASK warning (tested)
-- [ ] #2 An unknown holding is listed with its value and reason and left out of every estimate (tested)
-- [ ] #3 A year without rules computes the bases with taxes null and a note (tested)
-- [ ] #4 performance.analyze and compare output unchanged on the test world (regression test)
-- [ ] #5 Opening losses are used in the year they are carried into
+- [x] #1 An ETF that leaves the positive list is share income in one year and capital income the next, with an ASK warning (tested)
+- [x] #2 An unknown holding is listed with its value and reason and left out of every estimate (tested)
+- [x] #3 A year without rules computes the bases with taxes null and a note (tested)
+- [x] #4 performance.analyze and compare output unchanged on the test world (regression test)
+- [x] #5 Opening losses are used in the year they are carried into
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+tax.py year_report; tax_openings; layers and contracts; docs/architecture.md and data-conventions.md; January FEE warning on ASK.
+<!-- SECTION:FINAL_SUMMARY:END -->

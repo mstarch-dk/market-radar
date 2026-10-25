@@ -1,9 +1,10 @@
 ---
 id: TASK-5.12
 title: Release the tax engine
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-25 18:52'
+updated_date: '2026-10-25 19:48'
 labels:
   - release
 dependencies:
@@ -23,6 +24,12 @@ CHANGELOG.md and Nyheder, marketing features.yaml, screenshot check in the demo 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 CHANGELOG.md and Nyheder describe the Tax tab and the estimate's limits
+- [x] #1 CHANGELOG.md and Nyheder describe the Tax tab and the estimate's limits
 - [ ] #2 Screenshots only from the demo copy; leak check passes
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+CHANGELOG.md and Nyheder written. Left: marketing features.yaml and screenshots via /marketing at release.
+<!-- SECTION:FINAL_SUMMARY:END -->

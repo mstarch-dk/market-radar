@@ -11,6 +11,14 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 - **Samme kalender andre steder**: båndet *Soon* på forsiden, flaget *earnings in N d* på *Holdings & watchlist*, `radar calendar` på kommandolinjen og afsnittet *Kommende uger* i månedsbriefen.
 - **Nye indstillinger** under `calendar:`; se [Indstillinger](brugervejledning/indstillinger#calendar-regnskabsdatoer). Du skal ikke gøre noget, når du opdaterer.
 
+**Et skøn over skatten.** Siden *Portfolio* har fået fanen *Tax*, der regner den danske skat af dine egne handler for et indkomstår: aktiesparekonto og pension hver for sig, og dine konti med frie midler samlet, fordi gennemsnitsmetoden og aktieindkomsten opgøres pr. person. Du ser realiserede gevinster og tab i kroner, udbytte, lagergevinst på fonde, aktieindkomsten mod progressionsgrænsen, kapitalindkomst og det, der fremføres. Det er et estimat, ikke skatterådgivning; din årsopgørelse gælder. Se [Skat: radarens skatteestimat](brugervejledning/skat).
+
+- **Satserne har kilde og dato.** De står i `config/tax_dk.yaml` for 2025 og 2026. Et år uden tjekkede satser viser beløbene, men ingen skat.
+- **Intet gættes.** En fond uden ISIN-kode, et år uden positivliste eller en dansk fond uden for listen står under *Not in the estimate* med værdi og årsag, og du kan rette den direkte der.
+- **Positivlisten pr. år.** Hver fond slås op på listen for netop det indkomstår, så en ETF, der forlader listen, skifter beskatning det år.
+- **Indskudsloftet på aktiesparekontoen** måles nu som hos SKAT: mod kontoens værdi den 31. december året før. Har du sat `propose.ask_deposit_cap` eller `propose.ask_cap_year` i din egen `settings.yaml`, så slet dem; loftet står nu i `tax_dk.yaml`.
+- **Din database opdateres** med personer, ISIN-koder og fremførte tab; der tages en backup først. Alle dine konti tilhører personen *Me*, indtil du ændrer det.
+
 ## 0.2.0
 
 **Dine data har fået deres egen mappe.** Porteføljer, handler, markedssyn, watchlist, noter, briefs, research, journal og den historik, radaren har samlet op, ligger nu i en datamappe uden for programmappen, som standard `Market Radar` i din brugermappe. Markedsdata ligger i en cache-mappe for sig og kan altid hentes igen. Fremover pakker du bare en ny version ud og starter den; den finder selv dine data, og du skal ikke kopiere mapper.

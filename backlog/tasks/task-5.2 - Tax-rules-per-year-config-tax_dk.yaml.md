@@ -1,9 +1,10 @@
 ---
 id: TASK-5.2
 title: 'Tax rules per year: config/tax_dk.yaml'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
   - config
@@ -24,9 +25,15 @@ config/tax_dk.yaml with one block per income year (2025, 2026): share-income rat
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A year without a verified block raises NoRules; nothing is reused from another year (tested)
-- [ ] #2 Every number in the file has a source URL and a verified date
-- [ ] #3 propose reads the ASK cap from the rules file; the old settings keys are gone with a CHANGELOG note
-- [ ] #4 {{tax:...}} renders in the guide and an unknown path fails tests/test_guide.py
-- [ ] #5 Loss-pool rules checked against Den juridiske vejledning, with the outcome in the file and the plan
+- [x] #1 A year without a verified block raises NoRules; nothing is reused from another year (tested)
+- [x] #2 Every number in the file has a source URL and a verified date
+- [x] #3 propose reads the ASK cap from the rules file; the old settings keys are gone with a CHANGELOG note
+- [x] #4 {{tax:...}} renders in the guide and an unknown path fails tests/test_guide.py
+- [x] #5 Loss-pool rules checked against Den juridiske vejledning, with the outcome in the file and the plan
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+config\tax_dk.yaml (2025, 2026 from skat.dk, verified 2026-10-25), config_schema.TaxRules, portfolios\taxrules.py (NoRules), {{tax;...}} guide placeholder; propose ASK cap moved and tested against the 31 Dec value; DATA_LICENSE rows. Loss pools from JV C.B.2.1.2 (plan 10.8).
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -1,9 +1,10 @@
 ---
 id: TASK-5.5
 title: 'Tax persons: which accounts belong to one person'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
 dependencies:
@@ -23,7 +24,13 @@ userstore migrations: tax_persons (name, capital_income_rate, note) and portfoli
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The default links real tax accounts to Me and leaves virtual ones null (tested)
-- [ ] #2 A person without a capital-income rate shows the base and no tax on it
-- [ ] #3 The migration is append-only and keeps existing data
+- [x] #1 The default links real tax accounts to Me and leaves virtual ones null (tested)
+- [x] #2 A person without a capital-income rate shows the base and no tax on it
+- [x] #3 The migration is append-only and keeps existing data
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+tax_persons + portfolios.tax_person_id (Me owns every real portfolio), radar tax person, API persons and tax_person_id on portfolios.
+<!-- SECTION:FINAL_SUMMARY:END -->

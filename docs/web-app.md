@@ -121,7 +121,16 @@ Python computes every number; the frontend only formats and draws. It is the rad
   regression (null under `attribution.min_weeks` or without factors) and notes. Under `attribution.min_months` or
   without ACWI's weekly weights: a valid view with empty `dims`, nulls and notes. `start`/`end` must be YYYY-MM-DD
   (422 otherwise). Computed live under the price lock; cached per (selection, period, prices mtime, transactions
-  version, ACWI segment file, daily factor file); no prices is 503. Its router is included last.
+  version, ACWI segment file, daily factor file); no prices is 503. Its router comes after the evidence page's.
+- Tax: `GET /api/tax?year=&portfolio=&person=` → `TaxYearView` (`tax.py`): the rules year (its verified date and
+  sources, null without rules), per tax person the share income (`ShareIncomeView`, null without rules or when what
+  is carried in is unknown), the bases and capital income, per account the pool (ASK, pension) or its sales, lager
+  rows and dividends, the holdings of unknown class with their value and reason, warnings and notes. Keys `ret` and
+  `tax_class` (not `return`/`class`). Computed live under the price lock, not cached; no prices is 503. The inputs:
+  `GET/POST /api/tax/persons`, `PUT /api/tax/persons/{pid}`, `GET /api/tax/instruments`, `PUT
+  /api/tax/instruments/{symbol}` (a manual ISIN or class), `GET/POST /api/tax/openings`, `DELETE
+  /api/tax/openings/{oid}`; `tax_person_id` on `PUT /api/portfolios/{id}` (left out: kept). Its router is included
+  last.
 - Evidence: `GET /api/evidence` → `EvidenceView` (`evidence.py`): a card per score study (momentum, quality, value,
   K+V) and the long-run study, each with its header (`status` ok | stale | missing | invalid, the reason and the
   command, `data_asof`, `age_days`, `old_data` past `evidence.max_age_days`, the rule tested and today's), the baseline

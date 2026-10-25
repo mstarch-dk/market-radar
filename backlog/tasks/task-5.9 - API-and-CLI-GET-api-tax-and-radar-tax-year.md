@@ -1,9 +1,10 @@
 ---
 id: TASK-5.9
 title: 'API and CLI: GET /api/tax and radar tax year'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
   - api
@@ -25,7 +26,13 @@ api_models/tax.py (TaxYearView and the edit models, strict), api/tax.py (GET /ap
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 radar tax year --json equals the API's view for the same selection (tested)
-- [ ] #2 The view validates against TaxYearView; no prices gives 503; edits round-trip (tested)
-- [ ] #3 A year without rules returns a valid view with nulls and notes, not an error
+- [x] #1 radar tax year --json equals the API's view for the same selection (tested)
+- [x] #2 The view validates against TaxYearView; no prices gives 503; edits round-trip (tested)
+- [x] #3 A year without rules returns a valid view with nulls and notes, not an error
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+api_models/tax.py, api/tax.py, cli/tax.py, schema.ts and client.ts; docs/commands.md, web-app.md, CLAUDE.md. No tax.years_back setting (plan 10.7).
+<!-- SECTION:FINAL_SUMMARY:END -->

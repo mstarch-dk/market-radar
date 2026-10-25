@@ -227,6 +227,26 @@ $$
 \text{andel} = \frac{b}{s}, \qquad s = \frac{P_t - \text{stop}}{P_t}
 $$
 
+## Skat
+
+Gennemsnitsmetoden i kroner, med kurs $p$, antal $q$, kurtage $k$ og valutakurs $x$ på handelsdagen ([Dansk skat for investorer](laerebog/skat#sådan-gør-radaren)):
+
+$$
+\text{anskaffelsessum} = \sum_{\text{køb}} (q\,p + k)\,x, \qquad \text{gevinst} = (q\,p - k)\,x - \frac{\text{anskaffelsessum}}{\text{beholdning}}\,q
+$$
+
+Lager pr. fond og år, og afkastet på en aktiesparekonto eller pensionskonto:
+
+$$
+\text{lager} = V_{slut} + \text{salg} - V_{start} - \text{køb}, \qquad \text{afkast} = V_{slut} - V_{start} - \text{indbetalt} + \text{udbetalt}
+$$
+
+Skat på aktieindkomst $S$ med progressionsgrænse $G$, og på kontoens afkast $A$ med sats $s$ og fremført negativ skat $N$:
+
+$$
+\text{skat} = {{tax:2026.share_income.low_rate|raw}} \min(S, G) + {{tax:2026.share_income.high_rate|raw}} \max(0, S - G), \qquad \text{skat}_{\text{konto}} = \max(0, s\,A - N)
+$$
+
 ## Afkastmåling
 
 Tidsvægtet afkast med indskud $I$ ved dagens start og udtræk $U$ ved dagens slutning, og pengevægtet afkast (XIRR) ([Tidsvægtet og pengevægtet afkast](laerebog/twr-og-mwr)):

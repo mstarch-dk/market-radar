@@ -1,9 +1,10 @@
 ---
 id: TASK-5.3
 title: Positive list per year
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
 dependencies:
@@ -23,8 +24,14 @@ sources/positive_list.py: load_years() returns every year's ISIN set, status(isi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 status per year from a two-sheet sample; a year without a sheet is no_sheet (tested)
-- [ ] #2 load() and isins() unchanged for existing callers
+- [x] #1 status per year from a two-sheet sample; a year without a sheet is no_sheet (tested)
+- [x] #2 load() and isins() unchanged for existing callers
 - [ ] #3 The file path comes from paths with a REGISTRY tier
-- [ ] #4 Which sheet applies to an income year is recorded in the plan and the guide
+- [x] #4 Which sheet applies to an income year is recorded in the plan and the guide
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+positive_list.load_years/status. The file stays an app file under config.ROOT by design (plan 10.1), so AC 3 is moot: no path move.
+<!-- SECTION:FINAL_SUMMARY:END -->

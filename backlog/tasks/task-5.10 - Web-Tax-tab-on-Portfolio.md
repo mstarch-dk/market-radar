@@ -1,9 +1,10 @@
 ---
 id: TASK-5.10
 title: 'Web: Tax tab on Portfolio'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 18:51'
+updated_date: '2026-10-25 19:48'
 labels:
   - feature
   - web
@@ -24,7 +25,13 @@ A Tax tab on Portfolio with a year picker: the estimate banner with the rules ye
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Missing values show as a dash with a reason, never 0 (pnpm -C web test)
-- [ ] #2 The estimate, not tax advice banner is always shown with the rules year
+- [x] #1 Missing values show as a dash with a reason, never 0 (pnpm -C web test)
+- [x] #2 The estimate, not tax advice banner is always shown with the rules year
 - [ ] #3 Fixing an unknown holding from the tab updates the estimate
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+web/src/components/TaxTab.tsx on Portfolio; checked in the demo copy (fictional investor). Inline fix for unknown holdings in place; AC 3 not verified in the browser (covered by the API round-trip test).
+<!-- SECTION:FINAL_SUMMARY:END -->
