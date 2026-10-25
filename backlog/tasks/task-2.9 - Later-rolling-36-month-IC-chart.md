@@ -4,6 +4,7 @@ title: 'Later: rolling 36-month IC chart'
 status: To Do
 assignee: []
 created_date: '2026-10-25 14:51'
+updated_date: '2026-10-25 15:01'
 labels:
   - feature
 dependencies:
@@ -19,7 +20,7 @@ ordinal: 22000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Keep the per-date IC rows in the score study report (today only by_year and by_regime are kept), bump schema_version, and draw a rolling 36-month IC chart per horizon on the evidence card.
+The per-date IC rows are already in the score study report (dates[].horizons[h].ic[variant]); type them in model/artifacts.py and draw a rolling 36-month IC chart per horizon on the evidence card.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
