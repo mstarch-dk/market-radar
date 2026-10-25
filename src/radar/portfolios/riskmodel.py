@@ -40,23 +40,35 @@ def shrunk_cov(R: pd.DataFrame, shrink: float, min_weeks: int) -> pd.DataFrame:
     return pd.DataFrame(M, index=S.index, columns=S.columns)
 
 
-def ex_ante_risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
-    """Ex-ante risk of DKK `values` from a weekly covariance (that includes `bench`)."""
+def model_weights(values: dict[str, float], cov: pd.DataFrame, bench: str) -> tuple[pd.Series, float | None, list[str]]:
+    """The weights the risk model uses for DKK `values`: over the names in `cov` (a world fund without its own
+    prices modelled with ACWI), summing to 1; the share of the value they cover (None when nothing can be
+    modelled, or `cov` has no `bench`), and the names left out."""
     lt = exposure.look_through()
     agg: dict[str, float] = {}
-    for t, x in values.items():                    # a world fund without its own prices is modelled with ACWI
+    for t, x in values.items():
         if x:
             k = bench if t in lt and t not in cov.index else t
             agg[k] = agg.get(k, 0.0) + x
     total = sum(agg.values())
-    out: dict[str, Any] = {"vol_ann": None, "beta": None, "te_ann": None, "div_ratio": None, "coverage": None,
-           "missing": sorted(t for t in agg if t not in cov.index), "contributions": {}}
+    missing = sorted(t for t in agg if t not in cov.index)
     covered = {t: x for t, x in agg.items() if t in cov.index}
     if total <= 0 or not covered or bench not in cov.index:
+        return pd.Series(dtype=float), None, missing
+    s = sum(covered.values())
+    return pd.Series(covered) / s, s / total, missing
+
+
+def ex_ante_risk(values: dict[str, float], cov: pd.DataFrame, bench: str) -> dict:
+    """Ex-ante risk of DKK `values` from a weekly covariance (that includes `bench`)."""
+    ws, coverage, missing = model_weights(values, cov, bench)
+    out: dict[str, Any] = {"vol_ann": None, "beta": None, "te_ann": None, "div_ratio": None, "coverage": None,
+           "missing": missing, "contributions": {}}
+    if coverage is None:
         return out
-    out["coverage"] = sum(covered.values()) / total
-    names = list(covered)
-    w = np.array([covered[t] for t in names]) / sum(covered.values())
+    out["coverage"] = coverage
+    names = list(ws.index)
+    w = ws.to_numpy()
     S = cov.loc[names, names].to_numpy()
     sb = cov.loc[names, bench].to_numpy()
     vb = float(cov.at[bench, bench])
