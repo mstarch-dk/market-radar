@@ -40,6 +40,21 @@ def shrunk_cov(R: pd.DataFrame, shrink: float, min_weeks: int) -> pd.DataFrame:
     return pd.DataFrame(M, index=S.index, columns=S.columns)
 
 
+def book_cov(values: dict[str, float], R: pd.DataFrame, bench: str) -> pd.DataFrame:
+    """The covariance of one set of holdings: the weekly returns in `R` of the names in `values` and `bench` only,
+    shrunk with settings risk.covariance. Each set gets its own, so its risk never depends on which other names
+    `R` happens to hold (the constant-correlation target is the mean correlation of the columns used)."""
+    cv = typed().risk.covariance
+    cols = [t for t in dict.fromkeys([*values, bench]) if t in R]
+    return shrunk_cov(R[cols], cv.shrink, cv.min_weeks)
+
+
+def book_risk(values: dict[str, float], R: pd.DataFrame, bench: str) -> dict:
+    """Ex-ante risk of DKK `values` on their own covariance (book_cov): the figures the portfolio X-ray shows and
+    every proposal figure uses, for the holdings, a basket or the portfolio after it."""
+    return ex_ante_risk(values, book_cov(values, R, bench), bench)
+
+
 def model_weights(values: dict[str, float], cov: pd.DataFrame, bench: str) -> tuple[pd.Series, float | None, list[str]]:
     """The weights the risk model uses for DKK `values`: over the names in `cov` (a world fund without its own
     prices modelled with ACWI), summing to 1; the share of the value they cover (None when nothing can be

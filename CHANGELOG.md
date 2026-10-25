@@ -12,6 +12,11 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
   currency it is quoted in: an S&P 500 fund listed in London used to count as Europe. Each dimension now
   reports its coverage, and only real sectors, regions and currencies count as active weight vs ACWI. A fund's
   Yahoo data is read from the cache only; a fund you haven't opened a profile for shows as *unknown* until you do.
+- **A proposal's risk figures no longer depend on its candidates.** Each set of holdings (your portfolio today,
+  the basket, the portfolio after it, every alternative) is modelled on the covariance of its own names and ACWI,
+  so the same holdings always get the same volatility, beta and tracking error, in proposals and the portfolio
+  X-ray. Before, one covariance was shrunk over the holdings and some 60 candidates, which moved beta and
+  tracking error with the candidate list; volatility barely changes.
 - **Regions match ACWI's**: stocks listed outside the radar's four regions (Toronto, Sydney, São Paulo …) are
   `other`, as in ACWI's holdings file, not `us` (Canada) or `asia` (Australia).
 - **Settings moved** from `propose:` to `risk:` (values unchanged): `history_weeks`, `min_weeks` (for the

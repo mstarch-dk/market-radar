@@ -152,8 +152,7 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
     if values:
         factor_cols = [f for f in rc.factors if f in market.closes]
         R = prices.weekly(list(dict.fromkeys([*values, bench, *factor_cols])), rc.covariance.history_weeks)
-        cov = riskmodel.shrunk_cov(R.reindex(columns=[t for t in dict.fromkeys([*values, bench]) if t in R]),
-                                   rc.covariance.shrink, rc.covariance.min_weeks)
+        cov = riskmodel.book_cov(values, R, bench)
         risk = _risk(values, cov, bench, _realised(market, ports), notes)
         conc = riskmodel.concentration(values, {p["symbol"]: p["share_total"] for p in risk["positions"]
                                                 if p["share_total"] is not None} if risk else None)
