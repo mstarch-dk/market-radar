@@ -1,7 +1,7 @@
 ---
 id: TASK-1.10
 title: Score-tilts tile (optional)
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -24,5 +24,5 @@ Plan step 7. Value-weighted momentum score and K+V percentile of the holdings vs
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Holdings without a score are left out of the average and counted in a note
+- [x] #1 Holdings without a score are left out of the average and counted in a note
 <!-- AC:END -->

@@ -1,7 +1,7 @@
 ---
 id: TASK-1.8
 title: Web page /xray
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -22,7 +22,7 @@ Plan step 6 (section 4.6). Xray.tsx in the Mine group after Holdings & watchlist
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Nav includes /xray (pnpm -C web test)
-- [ ] #2 Negative risk shares shown as reducing tracking error
-- [ ] #3 Coverage below warn_coverage shown in amber; missing values shown as missing
+- [x] #1 Nav includes /xray (pnpm -C web test)
+- [x] #2 Negative risk shares shown as reducing tracking error
+- [x] #3 Coverage below warn_coverage shown in amber; missing values shown as missing
 <!-- AC:END -->

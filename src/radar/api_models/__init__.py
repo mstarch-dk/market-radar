@@ -245,6 +245,7 @@ from .xray import (
     LargestRisk,
     RiskExcluded,
     RiskPosition,
+    ScoreTilt,
     StressWindow,
     Unvalued,
     XrayClass,
@@ -284,5 +285,5 @@ __all__ = [
     "GuideChapterRef", "GuidePart", "GuideBook", "GuideTree", "GuideHeading", "GuideLink", "GuideChapter", "GuideHit",
     "NotebookKind", "JournalMeta", "NotebookEntry", "NotebookListing", "NotebookDocument",
     "FundClass", "XraySelection", "Unvalued", "XrayTotals", "ExposureRow", "ExposureDim", "XrayExposure", "XrayClass", "RiskPosition",
-    "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "XrayView",
+    "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "ScoreTilt", "XrayView",
 ]

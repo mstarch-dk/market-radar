@@ -112,6 +112,22 @@ function Tile({ label, help, children, sub, warn }: {
   );
 }
 
+const TILT_LABEL: Record<XrayView["tilts"][number]["key"], string> = { score: "Momentum", qv: "K+V" };
+
+/** The holdings' value-weighted momentum score and K+V next to the universe's medians; names without a score are
+ *  left out of the average and counted. */
+function TiltsTile({ tilts }: { tilts: XrayView["tilts"] }) {
+  const missing = tilts.filter((t) => t.missing.length > 0);
+  return (
+    <div className="tile">
+      <span><Term k="xray_tilts">Score tilts</Term></span>
+      <b>{tilts.map((t, i) => <span key={t.key}>{i > 0 && " · "}{TILT_LABEL[t.key]} {num(t.value, 0)}</span>)}</b>
+      <span>median {tilts.map((t) => num(t.median, 0)).join(" / ")}
+        {missing.length > 0 && <> · without a score: {missing.map((t) => `${TILT_LABEL[t.key]} ${t.missing.length}`).join(", ")}</>}</span>
+    </div>
+  );
+}
+
 function Header({ d }: { d: XrayView }) {
   const { totals: t, risk: r, concentration: c } = d;
   const total = t.cash_dkk != null ? t.invested_dkk + t.cash_dkk : null;
@@ -129,6 +145,7 @@ function Header({ d }: { d: XrayView }) {
       <Tile label="Risk model coverage" help="xray_coverage" warn={r ? r.warn : t.invested_dkk > 0}
         sub={r ? (r.warn ? "figures cover only part" : "of invested value") : t.invested_dkk > 0 ? "too low: no risk figures" : undefined}>
         {r ? pct(r.coverage, 0, false) : "–"}</Tile>
+      {d.tilts.length > 0 && <TiltsTile tilts={d.tilts} />}
     </div>
   );
 }
