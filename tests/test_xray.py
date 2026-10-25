@@ -14,6 +14,11 @@ from world import IDX
 
 
 def test_xray_same_as_proposal(market, ask):  # noqa: F811
+    """For the same holdings the X-ray and a proposal's "before" agree exactly: the exposure, and every risk figure,
+    since each set of holdings is modelled on its own covariance (riskmodel.book_risk), never on one shared with
+    the proposal's candidates."""
+    with paths.TRANSACTIONS_FILE.open("a", encoding="utf-8") as f:                 # the world's holdings: its CSV
+        f.write(f"S3,{IDX[150].date()},BUY,40,{market.closes['S3'].iloc[150]}\n")
     xr = xray.build(market, [ask["id"]])
     ev = propose.evaluate(market, _draft(market, ask)["draft_picks"], offline=True, light=True)
     before = ev["exposure"]["before"]
@@ -21,13 +26,13 @@ def test_xray_same_as_proposal(market, ask):  # noqa: F811
         assert {r["key"]: r["weight"] for r in xr["exposure"][d]["rows"] if r["weight"]} == pytest.approx(
             before["weights"][d])
         assert xr["exposure"][d]["coverage"] == before["coverage"][d]
-    # One holding: its volatility is its own variance, which the shrinkage leaves alone. Beta and TE are not
-    # compared: the proposal shrinks one covariance over the holdings and its candidates, the X-ray over the
-    # holdings and ACWI, so the constant-correlation target differs.
-    assert xr["risk"]["vol_ann"] == pytest.approx(ev["risk"]["before"]["vol_ann"])
-    assert xr["risk"]["coverage"] == 1 and xr["risk"]["positions"][0]["symbol"] == "S1"
+    rb = ev["risk"]["before"]
+    for k in ("vol_ann", "beta", "te_ann", "div_ratio", "coverage"):
+        assert xr["risk"][k] == pytest.approx(rb[k], rel=1e-12), k
+    assert {p["symbol"]: p["share_total"] for p in xr["risk"]["positions"]} == pytest.approx(rb["contributions"])
+    assert {p["symbol"] for p in xr["risk"]["positions"]} == {"S1", "S3"}
     assert sum(p["share_total"] for p in xr["risk"]["positions"]) == pytest.approx(1)
-    assert xr["concentration"]["effective_n"] == pytest.approx(1)
+    assert 1 < xr["concentration"]["effective_n"] < 2
 
 
 def test_xray_missing_price_is_unvalued(market, ask):  # noqa: F811

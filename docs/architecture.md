@@ -190,7 +190,8 @@ change to the model and to its schema version.
   - `exposure.py`: the holdings book in DKK, each name's class (world fund, sector fund, other fund, stock,
     unknown) with sector / region / currency (a fund looked through where its cached data allows, else *fund: not
     looked through*, never filed under its listing), and exposures against ACWI with coverage per dimension.
-  - `riskmodel.py`: shrunk covariance, ex-ante volatility, beta and tracking error with each name's share of total
+  - `riskmodel.py`: shrunk covariance (`book_cov`: each set of holdings on its own names and ACWI, so its risk is
+    the same wherever it is computed), ex-ante volatility, beta and tracking error with each name's share of total
     and active risk and its marginal contribution, concentration and correlated pairs, the weekly path of fixed
     weights, stress windows, realised drawdown and factor tilts.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
