@@ -43,3 +43,5 @@ marketing/site/img/
 .coverage
 .hypothesis/
 coverage.xml
+
+backlog/
