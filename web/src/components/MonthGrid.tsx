@@ -8,7 +8,8 @@ function monthName(m: string): string {
 }
 
 /** The window's months as plain CSS grids (no chart library): a dot per item on each day it falls on, coloured by
- *  level. A range (Yahoo's expected window) runs across its days, drawn lighter, so it never reads as one date. */
+ *  level. A range (Yahoo's expected window) runs across its days, drawn lighter, so it never reads as one date.
+ *  Weeks wholly before today or after the window are left out. */
 export function MonthGrid({ items, today, days }: { items: Item[]; today: string; days: number }) {
   const last = monthsOf(today, days).at(-1)!;
   const end = new Date(Date.parse(`${today}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
@@ -19,7 +20,7 @@ export function MonthGrid({ items, today, days }: { items: Item[]; today: string
           <h3>{monthName(m)}</h3>
           <div className="cal-grid" role="grid">
             {WEEKDAYS.map((d) => <div key={d} className="cal-wd" role="columnheader">{d}</div>)}
-            {monthGrid(items, m, today).flat().map((c, idx) => (
+            {monthGrid(items, m, today).filter((w) => w.at(-1)!.date >= today && w[0]!.date <= end).flat().map((c, idx) => (
               <div key={c.date} role="gridcell"
                 className={`cal-day ${c.inMonth ? "" : "out"} ${c.today ? "today" : ""} ${c.date < today || c.date > end ? "past" : ""}`}>
                 <span className="cal-n">{+c.date.slice(8, 10)}</span>

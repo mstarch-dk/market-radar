@@ -757,8 +757,10 @@ dl.nb-facts dd { margin: 0; }
 .cal-card b { color: var(--ink); }
 .cal-src { display: block; }
 .reasons { margin-top: 0; gap: 4px; }
-.reasons .badge { font-size: 11px; }
-.cal-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.reasons .badge { font-size: 11px; white-space: normal; text-align: left; max-width: 100%; }
+.cal-soon { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 8px; }
+.cal-card { min-width: 0; }
+.cal-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 12px; }
 .cal-controls .page-tabs { margin: 0; }
 .cal-week h3 { margin: 16px 0 6px; }
 .cal-nodate { padding-left: 18px; }
