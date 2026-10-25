@@ -61,8 +61,8 @@ def summary(d: dict, me: list[dict], portfolios: list[dict] | None = None, calen
                                      if x.get("rank_qv") is not None][:10] for r in qual},
         "quality_new_entrants": {r["key"]: r["entrants"] for r in qual},
         "quality_coverage": {r["key"]: r["coverage"] for r in qual},
-        "abtest": {"running": False},
-        "calendar": calendar,              # the coming weeks for your names (agenda.collect), see _calendar      # the forward A/B test's digest (abtest.summary), filled by add_abtest
+        "abtest": {"running": False},      # the forward A/B test's digest (abtest.summary), filled by add_abtest
+        "calendar": calendar,              # the coming weeks for your names (agenda.collect), see _calendar
         "positioning_cot": [_plain(r) for r in d["positioning"]["cot"]],
         "leading_indicators": [_plain(r) for r in d["positioning"]["cli"]],
         "earnings_factset": d["positioning"]["factset"],
