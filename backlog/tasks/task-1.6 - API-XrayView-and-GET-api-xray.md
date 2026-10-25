@@ -1,7 +1,7 @@
 ---
 id: TASK-1.6
 title: 'API: XrayView and GET /api/xray'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -22,7 +22,7 @@ Plan step 5 (section 4.4). api_models/xray.py (extra=forbid, re-exported), api/x
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Response validates against XrayView; an empty selection returns 200 with notes; no prices returns 503
-- [ ] #2 OpenAPI order of the existing routers unchanged
-- [ ] #3 pnpm -C web build passes
+- [x] #1 Response validates against XrayView; an empty selection returns 200 with notes; no prices returns 503
+- [x] #2 OpenAPI order of the existing routers unchanged
+- [x] #3 pnpm -C web build passes
 <!-- AC:END -->

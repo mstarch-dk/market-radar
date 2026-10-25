@@ -1,6 +1,7 @@
 """The web API on the synthetic world: responses match their models, errors are HTTP errors."""
 from datetime import date
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -130,6 +131,26 @@ def test_me_is_live(built):
     assert built.put("/api/watchlist/s3").json() == {"symbol": "S3", "my_status": "watch"}
     rows = {r["symbol"]: r for r in built.get("/api/me").json()["rows"]}
     assert rows["S3"]["status"] == "watch" and rows["S3"]["score"] is not None
+
+
+def test_xray_api_contract(client, monkeypatch):
+    """GET /api/xray validates against XrayView (`class` on the wire), an empty selection is a view with a note, the
+    router came last (the others keep their OpenAPI order), and no prices at all is 503."""
+    r = client.get("/api/xray")
+    assert r.status_code == 200, r.json()
+    v = api_models.XrayView.model_validate(r.json())
+    assert v.selection.names and {c.symbol for c in v.classes} == {"S1"} and r.json()["classes"][0]["class"] == "stock"
+    assert client.get("/api/xray").json()["generated"] == r.json()["generated"]           # cached until data changes
+    empty = client.get("/api/xray", params={"tag": "no-such-tag"})
+    assert empty.status_code == 200 and api_models.XrayView.model_validate(empty.json()).classes == []
+    assert "No valued holdings in this selection" in empty.json()["notes"]
+    assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
+    paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
+    assert paths_[-1] == "/api/xray"
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    gone = client.get("/api/xray")
+    assert gone.status_code == 503 and "radar update" in gone.json()["detail"]["message"]
 
 
 def test_watchlist_add_and_remove(client):

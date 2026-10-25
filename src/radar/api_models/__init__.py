@@ -235,6 +235,25 @@ from .views import (
     ViewsPage,
     ViewTemplate,
 )
+from .xray import (
+    Concentration,
+    CorrelatedPair,
+    ExposureDim,
+    ExposureRow,
+    FundClass,
+    Largest,
+    LargestRisk,
+    RiskExcluded,
+    RiskPosition,
+    StressWindow,
+    Unvalued,
+    XrayClass,
+    XrayExposure,
+    XrayRisk,
+    XraySelection,
+    XrayTotals,
+    XrayView,
+)
 
 __all__ = [
     "Status", "Quadrant", "RegimeLabel", "Num", "Strict", "Gauge", "StockValuation", "FundValuation",
@@ -264,4 +283,6 @@ __all__ = [
     "BackupRow", "DataHome", "MirrorIn", "RestoreIn", "RestoreResult", "OpenIn", "UpdateCheck", "UpdateCheckIn",
     "GuideChapterRef", "GuidePart", "GuideBook", "GuideTree", "GuideHeading", "GuideLink", "GuideChapter", "GuideHit",
     "NotebookKind", "JournalMeta", "NotebookEntry", "NotebookListing", "NotebookDocument",
+    "FundClass", "XraySelection", "Unvalued", "XrayTotals", "ExposureRow", "ExposureDim", "XrayExposure", "XrayClass", "RiskPosition",
+    "RiskExcluded", "XrayRisk", "Largest", "LargestRisk", "CorrelatedPair", "Concentration", "StressWindow", "XrayView",
 ]

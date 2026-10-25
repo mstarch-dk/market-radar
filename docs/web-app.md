@@ -43,9 +43,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
   your status), for hover cards and held/watch markers. Cached until prices or the dashboard change; no Yahoo calls.
 - `GET /api/me`: holdings, watchlist and sold positions, computed live from the current prices (quadrants and regime
   for the stop levels come from the dashboard).
-- A portfolio selection on `/api/me`, `/api/portfolio/transactions`, `/positions` and `/export.csv`: `portfolio` (ids,
-  repeatable), `tag` (repeatable) or `scope` (real | virtual | all); none means your real portfolios. The web app
-  keeps it in the URL as `?pf=` (`real`, `3,5`, `tag:sim-a`).
+- A portfolio selection on `/api/me`, `/api/xray`, `/api/portfolio/transactions`, `/positions` and `/export.csv`:
+  `portfolio` (ids, repeatable), `tag` (repeatable) or `scope` (real | virtual | all); none means your real
+  portfolios. The web app keeps it in the URL as `?pf=` (`real`, `3,5`, `tag:sim-a`).
 - Market views: `GET /api/views` (views with evidence, templates, vocabulary), `POST /api/views`, `PUT` / `DELETE
   /api/views/{id}` (a delete returns the view; `POST /api/views/restore` undoes it), `POST /api/views/align`
   `{tickers, store: main|discovery}` (compact alignment for table columns, cached by the views' version). The ticker
@@ -96,6 +96,13 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Returns: `GET /api/portfolios/{id}/performance?start=&end=` (series with null gaps, TWR/MWR stats vs ACWI, notes),
   `GET /api/portfolios/compare?portfolio=&tag=&start=` (lines rebased at a common start; default: each of your real
   portfolios).
+- X-ray: `GET /api/xray?portfolio=&tag=&scope=` → `XrayView` (`xray.py`): exposure by sector, region and currency
+  against ACWI with coverage, each name's class (`class` on the wire), ex-ante risk with each position's share of total
+  and active risk and its MCTR (null below `risk.xray.min_coverage`, `warn` below `warn_coverage`), realised 1-year
+  vol and drawdown, concentration with correlated pairs, the stress windows, the factor tilts and notes. Computed live
+  under the price lock; cached per (selection, prices mtime, transactions version, fund-detail cache). An empty
+  selection is a view with empty tables and a note; no prices at all is 503. Its router is included last in
+  `api/app.py`, so the OpenAPI order of the others stays put.
 - Data folder (`datahome/`, `updates.py`): `GET /api/setup` (state ok | unset | missing |
   newer, locations, old folders found), `GET /api/setup/scan?path=` (what an old folder holds; 404 if nothing), `POST
   /api/setup` `{action: migrate|create|use, source, home, copy_cache}` (409 once a folder is in use). Until then every

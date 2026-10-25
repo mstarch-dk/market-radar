@@ -29,6 +29,7 @@ from . import (
     ticker,
     transactions,
     views,
+    xray,
 )
 
 WEB_DIST = ROOT / "web" / "dist"
@@ -126,7 +127,7 @@ async def _record_errors(request: Request, call_next):
 
 
 for _r in (setup, ticker, readings, operations, views, discover, holdings, refresh, transactions, portfolios, docs,
-           imports):
+           imports, xray):                      # new routers last: the OpenAPI order of the others stays put
     app.include_router(_r.router)
 
 

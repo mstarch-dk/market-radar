@@ -1340,6 +1340,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/xray": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Xray
+         * @description Exposure by sector, region and currency against ACWI, ex-ante and realised risk with each position's share,
+         *     concentration, the stress windows and the factor tilts of the chosen portfolios (default: your real ones),
+         *     computed now from the current prices. An empty selection is a view with empty tables and a note.
+         */
+        get: operations["get_xray_api_xray_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1726,6 +1748,23 @@ export interface components {
             rows: components["schemas"]["CompareRow"][];
             chart: components["schemas"]["LineChart"];
         };
+        /**
+         * Concentration
+         * @description Effective N (1/Σw²), the top-5 share, the largest position and the largest share of total risk. A world fund
+         *     counts as one position, so `world_fund_weight` says how much that understates the spread.
+         */
+        Concentration: {
+            /** Effective N */
+            effective_n?: number | null;
+            /** Top5 Share */
+            top5_share?: number | null;
+            largest?: components["schemas"]["Largest"] | null;
+            largest_ctr?: components["schemas"]["LargestRisk"] | null;
+            /** World Fund Weight */
+            world_fund_weight?: number | null;
+            /** Pairs */
+            pairs: components["schemas"]["CorrelatedPair"][];
+        };
         /** Context */
         Context: {
             regime: components["schemas"]["Regime"];
@@ -1740,6 +1779,20 @@ export interface components {
              * @default []
              */
             watchouts: components["schemas"]["Watchout"][];
+        };
+        /**
+         * CorrelatedPair
+         * @description Two holdings whose weekly returns correlated above the threshold, and their combined weight.
+         */
+        CorrelatedPair: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /** Corr */
+            corr: number;
+            /** Weight */
+            weight: number;
         };
         /** Correlation */
         Correlation: {
@@ -2115,6 +2168,34 @@ export interface components {
              * @enum {string}
              */
             state: "supports" | "contradicts" | "flat" | "no data";
+        };
+        /**
+         * ExposureDim
+         * @description Rows sorted by the size of the active weight, then the weight. `coverage`: the share of the value with a
+         *     real key.
+         */
+        ExposureDim: {
+            /** Rows */
+            rows: components["schemas"]["ExposureRow"][];
+            /** Coverage */
+            coverage?: number | null;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * ExposureRow
+         * @description One key's weight, ACWI's and the active weight; `acwi` and `active` are None for a key that isn't a real
+         *     place (a fund not looked through, unknown) or without ACWI's weights.
+         */
+        ExposureRow: {
+            /** Key */
+            key: string;
+            /** Weight */
+            weight: number;
+            /** Acwi */
+            acwi?: number | null;
+            /** Active */
+            active?: number | null;
         };
         /** FactSet */
         FactSet: {
@@ -2797,6 +2878,20 @@ export interface components {
             review_by?: string | null;
             /** Views */
             views?: unknown[] | null;
+        };
+        /** Largest */
+        Largest: {
+            /** Symbol */
+            symbol: string;
+            /** Weight */
+            weight: number;
+        };
+        /** LargestRisk */
+        LargestRisk: {
+            /** Symbol */
+            symbol: string;
+            /** Share */
+            share: number;
         };
         /**
          * LegacyFound
@@ -4428,6 +4523,32 @@ export interface components {
              */
             notes: string[];
         };
+        /** RiskExcluded */
+        RiskExcluded: {
+            /** Symbol */
+            symbol: string;
+            /** Weight */
+            weight?: number | null;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * RiskPosition
+         * @description A position's share of the total risk and of the active risk (both sum to 1 with the ACWI leg; a hedge is
+         *     negative) and its marginal contribution to the total risk, annualised.
+         */
+        RiskPosition: {
+            /** Symbol */
+            symbol: string;
+            /** Weight */
+            weight: number;
+            /** Share Total */
+            share_total?: number | null;
+            /** Share Active */
+            share_active?: number | null;
+            /** Mctr Ann */
+            mctr_ann?: number | null;
+        };
         /** RiskWindow */
         RiskWindow: {
             /** N Weeks */
@@ -4786,6 +4907,34 @@ export interface components {
             /** Error */
             error?: string | null;
         };
+        /**
+         * StressWindow
+         * @description Today's weights replayed through a past window, where the price history covers at least half the value.
+         */
+        StressWindow: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Coverage */
+            coverage?: number | null;
+            /** Ret */
+            ret?: number | null;
+            /** Max Dd */
+            max_dd?: number | null;
+            /** Acwi Ret */
+            acwi_ret?: number | null;
+            /** Acwi Max Dd */
+            acwi_max_dd?: number | null;
+            /** Missing */
+            missing: string[];
+            /** Note */
+            note?: string | null;
+        };
         /** SymbolCandidate */
         SymbolCandidate: {
             /** Symbol */
@@ -5009,6 +5158,21 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * Unvalued
+         * @description A position without a DKK value (no price, or no DKK rate): left out of every weight, never valued at 0.
+         */
+        Unvalued: {
+            /** Symbol */
+            symbol: string;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "no price" | "no DKK rate";
         };
         /**
          * UpdateCheck
@@ -5350,6 +5514,107 @@ export interface components {
             r1y?: number | null;
             /** Ytd */
             ytd?: number | null;
+        };
+        /**
+         * XrayClass
+         * @description How a held name is classified for the exposure (a fund looked through, a world fund, a stock …).
+         */
+        XrayClass: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Class
+             * @enum {string}
+             */
+            class: "world" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
+            /** Value Dkk */
+            value_dkk: number;
+            /** Weight */
+            weight: number;
+            /** Detail Asof */
+            detail_asof?: string | null;
+        };
+        /** XrayExposure */
+        XrayExposure: {
+            sector: components["schemas"]["ExposureDim"];
+            region: components["schemas"]["ExposureDim"];
+            currency: components["schemas"]["ExposureDim"];
+        };
+        /**
+         * XrayRisk
+         * @description Ex-ante risk of today's weights (shrunk weekly covariance over `window_weeks`), and the realised figures of
+         *     what was actually held over the last year. `warn`: the risk model covers less than the warning level.
+         */
+        XrayRisk: {
+            /** Vol Ann */
+            vol_ann: number;
+            /** Beta */
+            beta?: number | null;
+            /** Te Ann */
+            te_ann?: number | null;
+            /** Div Ratio */
+            div_ratio?: number | null;
+            /** Coverage */
+            coverage: number;
+            /** Warn */
+            warn: boolean;
+            /** Realised Vol 1Y */
+            realised_vol_1y?: number | null;
+            /** Realised Max Dd 1Y */
+            realised_max_dd_1y?: number | null;
+            /** Positions */
+            positions: components["schemas"]["RiskPosition"][];
+            /** Acwi Leg Share Active */
+            acwi_leg_share_active?: number | null;
+            /** Excluded */
+            excluded: components["schemas"]["RiskExcluded"][];
+            /** Window Weeks */
+            window_weeks: number;
+            /** Shrink */
+            shrink: number;
+        };
+        /** XraySelection */
+        XraySelection: {
+            /** Ids */
+            ids: number[];
+            /** Names */
+            names: string[];
+            /** Scope */
+            scope?: string | null;
+        };
+        /**
+         * XrayTotals
+         * @description `cash_dkk`: summed over the portfolios that keep a cash ledger; None when none does (unknown, not 0).
+         */
+        XrayTotals: {
+            /** Invested Dkk */
+            invested_dkk: number;
+            /** Cash Dkk */
+            cash_dkk?: number | null;
+            /** Unvalued */
+            unvalued: components["schemas"]["Unvalued"][];
+        };
+        /**
+         * XrayView
+         * @description GET /api/xray: the X-ray of a selection of portfolios (default: your real ones), computed live.
+         */
+        XrayView: {
+            /** Asof */
+            asof?: string | null;
+            /** Generated */
+            generated: string;
+            selection: components["schemas"]["XraySelection"];
+            totals: components["schemas"]["XrayTotals"];
+            exposure: components["schemas"]["XrayExposure"];
+            /** Classes */
+            classes: components["schemas"]["XrayClass"][];
+            risk?: components["schemas"]["XrayRisk"] | null;
+            concentration: components["schemas"]["Concentration"];
+            /** Stress */
+            stress: components["schemas"]["StressWindow"][];
+            factors?: components["schemas"]["Factors"] | null;
+            /** Notes */
+            notes: string[];
         };
         /** YieldGap */
         YieldGap: {
@@ -7713,6 +7978,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": number;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_xray_api_xray_get: {
+        parameters: {
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["XrayView"];
                 };
             };
             /** @description Validation Error */
