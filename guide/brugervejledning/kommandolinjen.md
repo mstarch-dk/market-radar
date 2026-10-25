@@ -201,6 +201,20 @@ uv run radar performance --start 2026-01-01
 uv run radar performance --json
 ```
 
+### Røntgen af porteføljen
+
+`radar xray` viser, hvad de valgte porteføljer tilsammen er eksponeret mod, og hvor risikoen sidder: de største aktive vægte mod ACWI efter sektor, region og valuta, den forventede risiko (volatilitet, beta, tracking error) med de fem positioner, der bærer mest af den, den realiserede volatilitet og drawdown det seneste år, koncentrationen og stressperioderne. Navne og tags vælges som ved `radar performance`; uden navne er det dine rigtige porteføljer.
+
+```
+uv run radar xray                            # dine rigtige porteføljer samlet
+uv run radar xray "ASK"                      # én portefølje
+uv run radar xray --tag momentum-a
+uv run radar xray --scope all                # rigtige og virtuelle
+uv run radar xray --json                     # det hele som JSON
+```
+
+Et tal, der ikke kan beregnes (en kurs mangler, en fond kan ikke ses igennem), vises som – og forklares i noterne nederst, aldrig som 0.
+
 ### Simulér stop og take-profit
 
 `radar sim exits` afspiller dine rigtige handler med radarens stop og take-profit fulgt, dag for dag, ind i virtuelle porteføljer. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
@@ -299,6 +313,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se om noget fejler | `uv run radar ops --errors` |
 | se mine porteføljer | `uv run radar portfolios list` |
 | se mit afkast mod ACWI | `uv run radar performance` |
+| se hvad mine beholdninger er eksponeret mod | `uv run radar xray` |
 | teste momentumscoren | `uv run radar study score` |
 | teste scorens regel over årtier | `uv run radar study longrun` |
 | teste varianter af stopreglen | `uv run radar study exits` |

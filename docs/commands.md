@@ -124,6 +124,11 @@ Always run Python through uv; the frontend uses pnpm.
   (a changed rule makes it stale). Value and mix: US stocks only.
 - `uv run radar performance [NAME…] [--tag T] [--start D] [--json]`: returns over time in DKK vs ACWI (TWR, MWR,
   drawdown) from a common start; tags pool their portfolios into one line.
+- `uv run radar xray [NAME…] [--tag T] [--scope real|virtual|all] [--json]`: the portfolio X-ray (`xray.py`) of the
+  chosen portfolios pooled (default: your real ones; names and tags resolve as for `performance`): the top active
+  weights by sector, region and currency against ACWI, ex-ante risk (vol, beta, tracking error, coverage) with the top
+  five risk contributors, realised 1-year vol and drawdown, concentration and correlated pairs, the stress windows and
+  the notes. `--json` prints the `XrayView` dict, the same as `GET /api/xray`.
 - `uv run radar import-yahoo imports/yahoo_portfolio.csv`: a Yahoo Finance export into the store (it replaces the
   previous Yahoo import; manual and broker trades are kept). Unknown transaction types are skipped with a warning.
 - Watchlist: add or remove from any ticker page in the web app (stored in `radar.db` in the data folder, survives

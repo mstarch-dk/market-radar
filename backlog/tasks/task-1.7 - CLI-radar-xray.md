@@ -1,7 +1,7 @@
 ---
 id: TASK-1.7
 title: 'CLI: radar xray'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 09:29'
 labels:
@@ -22,6 +22,6 @@ Plan step 5 (section 4.5). radar xray [NAME...] [--tag T] [--scope real|virtual|
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 radar xray --json runs on the test world and prints valid JSON (test_cli_smoke)
-- [ ] #2 Names resolve as radar performance resolves them
+- [x] #1 radar xray --json runs on the test world and prints valid JSON (test_cli_smoke)
+- [x] #2 Names resolve as radar performance resolves them
 <!-- AC:END -->

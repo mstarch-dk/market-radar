@@ -144,6 +144,69 @@ def performance(names: list[str] = typer.Argument(None, help="Portfolio names (d
             typer.echo(f"    · {n}")
 
 
+@app.command()
+def xray(names: list[str] = typer.Argument(None, help="Portfolio names (default: your real portfolios)"),
+         tag: list[str] = typer.Option(None, "--tag", help="Portfolios carrying this tag (repeatable)"),
+         scope: str = typer.Option(None, "--scope", help="real | virtual | all, when no name or tag is given"),
+         as_json: bool = typer.Option(False, "--json", help="The XrayView as JSON (for the skills)")):
+    """The portfolio X-ray: exposure by sector, region and currency against ACWI, where the risk sits (ex-ante and
+    realised), concentration and the stress windows, of the chosen portfolios pooled. Analysis, not advice."""
+    from .. import userstore
+    from .. import xray as xr
+
+    trades.ensure_migrated()
+    if scope and scope not in userstore.SCOPES:
+        raise SystemExit(f"--scope must be one of {', '.join(userstore.SCOPES)}")
+    ids = (portfolio_ids(names, tag) if (names or tag) else
+           userstore.portfolio_ids(scope) if scope else None)
+    v = xr.build(Market.load(), ids, scope)
+    if as_json:
+        typer.echo(to_json(v, indent=1))
+        return
+    pct = lambda x, signed=False: "–" if x is None else (f"{x:+.1%}" if signed else f"{x:.1%}")  # noqa: E731
+    t = v["totals"]
+    cash = f"{t['cash_dkk']:,.0f} DKK" if t["cash_dkk"] is not None else "unknown"
+    typer.echo(f"X-ray of {', '.join(v['selection']['names']) or 'no portfolios'} as of {v['asof']}: "
+               f"{t['invested_dkk']:,.0f} DKK invested, cash {cash}")
+    for d, ex in v["exposure"].items():
+        cov = f", coverage {pct(ex['coverage'])}" if ex["coverage"] is not None and ex["coverage"] < 1 else ""
+        typer.echo(f"\n{d.capitalize()} (top active weights{cov})")
+        typer.echo(f"  {'':<26}{'weight':>8} {'ACWI':>8} {'active':>8}")
+        for r in ex["rows"][:6]:
+            typer.echo(f"  {r['key'][:25]:<26}{pct(r['weight']):>8} {pct(r['acwi']):>8} {pct(r['active'], True):>8}")
+    rk = v["risk"]
+    if rk:
+        typer.echo(f"\nRisk (ex-ante, {rk['window_weeks']} weeks, coverage {pct(rk['coverage'])}"
+                   f"{', partial' if rk['warn'] else ''})")
+        beta = f"{rk['beta']:.2f}" if rk["beta"] is not None else "–"
+        div = f"{rk['div_ratio']:.2f}" if rk["div_ratio"] is not None else "–"
+        typer.echo(f"  vol {pct(rk['vol_ann'])}  beta {beta}  tracking error {pct(rk['te_ann'])}  "
+                   f"diversification ratio {div}")
+        typer.echo(f"  realised last year: vol {pct(rk['realised_vol_1y'])}  max drawdown "
+                   f"{pct(rk['realised_max_dd_1y'], True)}")
+        typer.echo(f"  {'':<14}{'weight':>8} {'of risk':>8} {'of active':>10} {'MCTR':>8}")
+        for p in rk["positions"][:5]:
+            typer.echo(f"  {p['symbol'][:13]:<14}{pct(p['weight']):>8} {pct(p['share_total']):>8} "
+                       f"{pct(p['share_active'], True):>10} {pct(p['mctr_ann']):>8}")
+    c = v["concentration"]
+    if c["effective_n"] is not None:
+        largest = f"{c['largest']['symbol']} {pct(c['largest']['weight'])}"
+        ctr = f", most risk: {c['largest_ctr']['symbol']} {pct(c['largest_ctr']['share'])}" if c["largest_ctr"] else ""
+        typer.echo(f"\nConcentration: effective N {c['effective_n']:.1f}, top 5 {pct(c['top5_share'])}, "
+                   f"largest {largest}{ctr}")
+        for pr in c["pairs"]:
+            typer.echo(f"  {pr['a']} & {pr['b']}: correlation {pr['corr']:.2f}, together {pct(pr['weight'])}")
+    if v["stress"]:
+        typer.echo(f"\nStress (today's weights)\n  {'':<30}{'return':>8} {'max DD':>8} {'ACWI':>8} {'coverage':>9}")
+        for w in v["stress"]:
+            typer.echo(f"  {w['label'][:29]:<30}{pct(w['ret'], True):>8} {pct(w['max_dd'], True):>8} "
+                       f"{pct(w['acwi_ret'], True):>8} {pct(w['coverage']):>9}")
+    if v["notes"]:
+        typer.echo("")
+    for n in v["notes"]:
+        typer.echo(f"  · {n}")
+
+
 portfolios_app = typer.Typer(help="Your portfolios: real ones (your accounts) and virtual ones (simulations, A/B "
                                   "tests), with tags. Only real ones count as yours unless chosen.")
 
