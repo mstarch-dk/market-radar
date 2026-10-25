@@ -139,3 +139,38 @@ def test_too_short_or_without_acwi_weights_gives_notes(market):
     assert short["dims"] == {} and short["reconciliation"] is None
     assert any("months of history" in n for n in short["notes"])
     assert attribution.build(market, [])["notes"] == ["No transactions in this selection"]
+
+
+def test_the_view_validates_and_the_cli_prints_the_apis_view(market, monkeypatch):
+    """A full view (both dimensions, the currency table, the regression) validates against AttributionView, and
+    `radar attribution --json` is the same view as GET /api/attribution (TASK-3.7 AC 1)."""
+    import json
+
+    from fastapi.testclient import TestClient
+    from typer.testing import CliRunner
+
+    from radar import api, api_models, cli
+    _history()
+    days = pd.bdate_range(IDX[0], IDX[-1])
+    rng = np.random.default_rng(2)
+    five = pd.DataFrame(rng.normal(0, 0.002, (len(days), 5)), index=days, columns=["Mkt-RF", "SMB", "HML", "RMW", "CMA"])
+    five["RF"] = 0.0001
+    mom = pd.DataFrame({"WML": rng.normal(0, 0.002, len(days))}, index=days)
+    monkeypatch.setattr(factors, "daily_panel", lambda key: five if "ff5" in key else mom)
+    monkeypatch.setattr(stats, "daily_rf", lambda m: pd.Series(0.0001, index=days))
+    with_settings(monkeypatch, attribution={"min_weeks": 40})
+    _portfolio([_deposit(20, 10 * (px("S1", 20) + px("THEME1", 20)) * FX), _buy("S1", 20, 10, px("S1", 20)),
+                _buy("THEME1", 20, 10, px("THEME1", 20))])
+    api.reset()
+    r = TestClient(api.app).get("/api/attribution", params={"scope": "virtual"})
+    assert r.status_code == 200, r.json()
+    v = api_models.AttributionView.model_validate(r.json())
+    assert set(v.dims) == {"sector", "region"} and v.currency and v.regression and v.unclassified
+    assert r.json()["unclassified"][0]["class"] == "fund"                    # `class` on the wire
+    res = CliRunner().invoke(cli.app, ["attribution", "--scope", "virtual", "--json"])
+    assert res.exit_code == 0, res.output
+    assert {**json.loads(res.stdout), "generated": None} == {**r.json(), "generated": None}
+    out = CliRunner().invoke(cli.app, ["attribution", "--scope", "virtual"]).output
+    assert "trading and fees" in out and "By sector" in out and "Factor regression" in out
+    bad = TestClient(api.app).get("/api/attribution", params={"start": "last year"})
+    assert bad.status_code == 422

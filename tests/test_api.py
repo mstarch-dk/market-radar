@@ -146,7 +146,7 @@ def test_xray_api_contract(client, monkeypatch):
     assert "No valued holdings in this selection" in empty.json()["notes"]
     assert client.get("/api/xray", params={"scope": "nope"}).status_code == 422
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-3:] == ["/api/xray", "/api/calendar", "/api/evidence"]   # the newest routers come last
+    assert paths_[-4:] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]   # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -190,7 +190,7 @@ def test_calendar_api_contract(built, monkeypatch):
     empty = built.get("/api/calendar", params={"tag": "no-such-tag"})
     assert empty.status_code == 200 and api_models.AgendaView.model_validate(empty.json()).selection.ids == []
     paths_ = [p for p in built.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
-    assert paths_[-2:] == ["/api/calendar", "/api/evidence"]
+    assert paths_[-3:] == ["/api/calendar", "/api/evidence", "/api/attribution"]
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     assert built.get("/api/calendar").status_code == 503

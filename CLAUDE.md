@@ -17,6 +17,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar info <T1> <T2> … [--personal] [--out PATH]`: several tickers side by side with ACWI (personal data left out unless `--personal`)
 - `uv run radar portfolios list [--json]` / `uv run radar performance [NAME…] [--tag T]`: the portfolios (real ones are "yours"; virtual ones only when named) and their returns over time vs ACWI
 - `uv run radar xray [NAME…] [--tag T] [--scope real|virtual|all] [--json]`: the portfolio X-ray (exposure vs ACWI, where the risk sits, concentration, stress)
+- `uv run radar attribution [NAME…] [--tag T] [--start D] [--end D] [--json]`: attribution vs ACWI (trading and fees, proxies vs ACWI, allocation / selection / interaction by sector and region, currency) and the factor regression's alpha with its t
 - `uv run radar evidence [--json]`: every study's status, age and rule, the scores' IC with t and holdout, and the forward record vs ACWI (the Evidence page)
 - `uv run radar calendar [NAME…] [--tag T] [--days N] [--json]`: the coming weeks for what you hold and watch (earnings and ex-dividend dates, your review dates, proposal time stops), each with why it is highlighted
 - `uv run radar study score [--exits 6]`: the momentum score tested at every past month-end (IC, quintiles, holdout, variants, the exit rule); `uv run radar sim picks …`: a basket picked on a past day, simulated

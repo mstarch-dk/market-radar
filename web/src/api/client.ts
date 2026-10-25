@@ -72,6 +72,7 @@ export type XrayView = S["XrayView"];
 export type AgendaView = S["AgendaView"];
 export type AgendaItem = S["AgendaItem"];
 export type EvidenceView = S["EvidenceView"];
+export type AttributionView = S["AttributionView"];
 export type ReportHead = S["ReportHead"];
 export type ScoreCard = S["ScoreCard"];
 export type ScoreRow = S["ScoreRow"];
@@ -212,6 +213,8 @@ export const api = {
   calendar: (sel?: PortfolioSel, days?: number) =>
     get<AgendaView>(withSel(days ? `/api/calendar?days=${days}` : "/api/calendar", sel)),
   evidence: () => get<EvidenceView>("/api/evidence"),
+  attribution: (sel?: PortfolioSel, start?: string) =>
+    get<AttributionView>(withSel(start ? `/api/attribution?start=${enc(start)}` : "/api/attribution", sel)),
   priceCheck: (symbol: string, date: string) =>
     get<PriceCheck>(`/api/portfolio/price-check?symbol=${enc(symbol)}&date=${enc(date)}`),
   portfolios: () => get<Portfolio[]>("/api/portfolios"),

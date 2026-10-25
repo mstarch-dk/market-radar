@@ -16,6 +16,23 @@ from .agenda import (
     AgendaView,
     ReasonKey,
 )
+from .attribution import (
+    AttributionBenchmark,
+    AttributionDim,
+    AttributionMonth,
+    AttributionPeriod,
+    AttributionSelection,
+    AttributionView,
+    CurrencyEffect,
+    CurrencyRow,
+    EffectTotals,
+    FactorLoading,
+    FactorRegression,
+    Reconciliation,
+    SegmentDim,
+    SegmentRow,
+    Unclassified,
+)
 from .common import (
     FundValuation,
     Gauge,
@@ -323,4 +340,7 @@ __all__ = [
     "ReportStatus", "ReportHead", "ScoreRow", "ScoreHorizon", "VariantVerdict", "ScoreUniverse", "ScoreCard",
     "LongrunRow", "LongrunHorizon", "LongrunPart", "LongrunPanelCard", "SurvivorshipGauge", "BaseRateRow",
     "LongrunCard", "ForwardRecord", "ForwardCohort", "ForwardGroup", "EvidenceForward", "EvidenceView",
+    "SegmentDim", "AttributionSelection", "AttributionPeriod", "Reconciliation", "EffectTotals", "SegmentRow",
+    "AttributionMonth", "AttributionDim", "CurrencyRow", "CurrencyEffect", "AttributionBenchmark", "Unclassified",
+    "FactorLoading", "FactorRegression", "AttributionView",
 ]

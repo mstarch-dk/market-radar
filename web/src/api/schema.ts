@@ -1406,6 +1406,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Attribution
+         * @description Brinson–Fachler by sector and by region on local returns, the currency effect, linked to months and the
+         *     period, the reconciliation with Returns, and the factor regression, of the chosen portfolios (default: your real
+         *     ones), computed now from the current prices. Too short a history is a view with nulls and notes.
+         */
+        get: operations["get_attribution_api_attribution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1746,6 +1768,115 @@ export interface components {
             /** Tickers */
             tickers: components["schemas"]["ListedTicker"][];
         };
+        /**
+         * AttributionBenchmark
+         * @description The first weekly record of ACWI's weights (None: none yet) and the months whose weights are back-drifted.
+         */
+        AttributionBenchmark: {
+            /** First Snapshot */
+            first_snapshot?: string | null;
+            /** Back Drifted Months */
+            back_drifted_months: string[];
+        };
+        /**
+         * AttributionDim
+         * @description One dimension (sector or region): segments largest |total| first, the months, the period's totals, the
+         *     portfolio's and the proxies' returns over the days used, the days left out and the linking error.
+         */
+        AttributionDim: {
+            /** Rows */
+            rows: components["schemas"]["SegmentRow"][];
+            /** Months */
+            months: components["schemas"]["AttributionMonth"][];
+            totals: components["schemas"]["EffectTotals"];
+            /** Rp */
+            rp?: number | null;
+            /** Rb */
+            rb?: number | null;
+            /** Days */
+            days: number;
+            /** Days Missing */
+            days_missing: number;
+            /** Linking Error */
+            linking_error: number;
+            /** Proxy Notes */
+            proxy_notes: string[];
+            reconciliation: components["schemas"]["Reconciliation"];
+        };
+        /**
+         * AttributionMonth
+         * @description One month's effects linked over its days; `basis` back-drifted when any day's ACWI weights were rolled back
+         *     from the first weekly snapshot.
+         */
+        AttributionMonth: {
+            /** Month */
+            month: string;
+            /** Allocation */
+            allocation: number;
+            /** Selection */
+            selection: number;
+            /** Interaction */
+            interaction: number;
+            /** Currency */
+            currency: number;
+            /** Cross */
+            cross: number;
+            /** Active */
+            active: number;
+            /** Days */
+            days: number;
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "snapshot" | "back-drifted";
+        };
+        /**
+         * AttributionPeriod
+         * @description The book's valued history inside the period asked for; `months` from start to end.
+         */
+        AttributionPeriod: {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Months */
+            months: number;
+        };
+        /** AttributionSelection */
+        AttributionSelection: {
+            /** Ids */
+            ids: number[];
+            /** Names */
+            names: string[];
+            /** Scope */
+            scope?: string | null;
+        };
+        /**
+         * AttributionView
+         * @description GET /api/attribution: the attribution of a selection of portfolios (default: your real ones) vs ACWI,
+         *     computed live. Too short a history or no ACWI weights yet: nulls and notes, not an error.
+         */
+        AttributionView: {
+            /** Asof */
+            asof?: string | null;
+            /** Generated */
+            generated: string;
+            selection: components["schemas"]["AttributionSelection"];
+            period?: components["schemas"]["AttributionPeriod"] | null;
+            reconciliation?: components["schemas"]["Reconciliation"] | null;
+            /** Dims */
+            dims: {
+                [key: string]: components["schemas"]["AttributionDim"];
+            };
+            currency?: components["schemas"]["CurrencyEffect"] | null;
+            benchmark: components["schemas"]["AttributionBenchmark"];
+            /** Unclassified */
+            unclassified: components["schemas"]["Unclassified"][];
+            regression?: components["schemas"]["FactorRegression"] | null;
+            /** Notes */
+            notes: string[];
+        };
         /** BackupRow */
         BackupRow: {
             /** Name */
@@ -2069,6 +2200,32 @@ export interface components {
             blind_spots: string[];
         };
         /**
+         * CurrencyEffect
+         * @description The currency effect (the same in both dimensions) and the sector dimension's cross term, by currency;
+         *     `unknown` holds value whose currency isn't known (its whole return counted as local).
+         */
+        CurrencyEffect: {
+            /** Effect */
+            effect: number;
+            /** Cross */
+            cross: number;
+            /** Rows */
+            rows: components["schemas"]["CurrencyRow"][];
+        };
+        /** CurrencyRow */
+        CurrencyRow: {
+            /** Currency */
+            currency: string;
+            /** W P */
+            w_p?: number | null;
+            /** W B */
+            w_b?: number | null;
+            /** Fx Return */
+            fx_return?: number | null;
+            /** Effect */
+            effect: number;
+        };
+        /**
          * DataFolder
          * @description One place the app keeps things: your data (personal), history, or the market-data cache.
          */
@@ -2273,6 +2430,19 @@ export interface components {
             symbol: string;
             before: components["schemas"]["PositionState"];
             after: components["schemas"]["PositionState"];
+        };
+        /** EffectTotals */
+        EffectTotals: {
+            /** Allocation */
+            allocation: number;
+            /** Selection */
+            selection: number;
+            /** Interaction */
+            interaction: number;
+            /** Currency */
+            currency: number;
+            /** Cross */
+            cross: number;
         };
         /** Eps */
         Eps: {
@@ -2480,6 +2650,48 @@ export interface components {
             growth_now?: number | null;
             /** Fwd Pe */
             fwd_pe?: number | null;
+        };
+        /** FactorLoading */
+        FactorLoading: {
+            /** Factor */
+            factor: string;
+            /** Beta */
+            beta?: number | null;
+            /** T */
+            t?: number | null;
+        };
+        /**
+         * FactorRegression
+         * @description Weekly excess returns in DKK on French's developed factors with Newey-West t: alpha p.a. with its t and n,
+         *     and the weeks and months of data it would take to reach t = 2 (None once |t| ≥ 2 or without a t).
+         */
+        FactorRegression: {
+            /** N Weeks */
+            n_weeks: number;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Nw Lag */
+            nw_lag: number;
+            /** R2 */
+            r2?: number | null;
+            /** Alpha Ann */
+            alpha_ann?: number | null;
+            /** Alpha T */
+            alpha_t?: number | null;
+            /** Alpha Se Ann */
+            alpha_se_ann?: number | null;
+            /** Reached */
+            reached: boolean;
+            /** Weeks To T2 */
+            weeks_to_t2?: number | null;
+            /** Months To T2 */
+            months_to_t2?: number | null;
+            /** Loadings */
+            loadings: components["schemas"]["FactorLoading"][];
+            /** Factors To */
+            factors_to: string;
         };
         /** Factors */
         Factors: {
@@ -4770,6 +4982,25 @@ export interface components {
             /** Mean */
             mean?: number | null;
         };
+        /**
+         * Reconciliation
+         * @description TWR − ACWI = trading and fees (TWR minus the buy-and-hold return of the daily weights) + benchmark proxies vs
+         *     ACWI + the attributed active return. None where a leg has no data.
+         */
+        Reconciliation: {
+            /** Twr */
+            twr: number;
+            /** Acwi */
+            acwi?: number | null;
+            /** Active */
+            active?: number | null;
+            /** Trading Fees */
+            trading_fees?: number | null;
+            /** Proxy Vs Acwi */
+            proxy_vs_acwi?: number | null;
+            /** Attributed */
+            attributed?: number | null;
+        };
         /** Regime */
         Regime: {
             /** Label */
@@ -5278,6 +5509,31 @@ export interface components {
             /** Weight */
             weight: number;
         };
+        /**
+         * SegmentRow
+         * @description One segment over the period: average weights, compounded returns on the days held (None: never held), and
+         *     its effects linked with Carino. `cash` is a segment whose benchmark return is 0: the cash drag.
+         */
+        SegmentRow: {
+            /** Key */
+            key: string;
+            /** W P */
+            w_p?: number | null;
+            /** W B */
+            w_b?: number | null;
+            /** R P */
+            r_p?: number | null;
+            /** R B */
+            r_b?: number | null;
+            /** Allocation */
+            allocation: number;
+            /** Selection */
+            selection: number;
+            /** Interaction */
+            interaction: number;
+            /** Total */
+            total: number;
+        };
         /** Sentiment */
         Sentiment: {
             aaii?: components["schemas"]["Aaii"] | null;
@@ -5704,6 +5960,21 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * Unclassified
+         * @description A holding that can't be placed by sector: its own segment with its own return, never a 0 % return.
+         */
+        Unclassified: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Class
+             * @enum {string}
+             */
+            class: "world" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
+            /** Avg Weight */
+            avg_weight?: number | null;
         };
         /**
          * Unvalued
@@ -8646,6 +8917,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvidenceView"];
+                };
+            };
+        };
+    };
+    get_attribution_api_attribution_get: {
+        parameters: {
+            query?: {
+                /** @description Portfolio ids (repeatable); default: your real portfolios */
+                portfolio?: number[] | null;
+                /** @description Portfolios carrying any of these tags (repeatable) */
+                tag?: string[] | null;
+                /** @description real | virtual | all (when no portfolio or tag is given) */
+                scope?: string | null;
+                /** @description From this day (default: the start) */
+                start?: string | null;
+                /** @description To this day (default: the last close) */
+                end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttributionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
