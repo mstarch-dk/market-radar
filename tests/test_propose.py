@@ -14,7 +14,7 @@ import pytest
 
 import world
 from conftest import with_settings
-from radar import propose, universe, userstore
+from radar import paths, propose, universe, userstore
 from radar.config import settings
 from radar.config_schema import Propose
 from radar.market import Market
@@ -408,6 +408,17 @@ def test_candidates_draft_and_evaluate(market, ask):
     after = ev["exposure"]["after"]["weights"]["sector"]
     assert sum(after.values()) == pytest.approx(1)
     assert ev["exposure"]["before"]["weights"]["sector"] == {"Technology": pytest.approx(1)}   # S1 is held
+
+
+def test_alternatives_with_a_holding_too_young_for_the_covariance(market, ask):
+    """A held stock with prices but fewer weeks than the covariance needs is fetched once, not twice: topping it up
+    (A4) lists it as missing from the risk model instead of failing on a duplicate column."""
+    market.closes.loc[market.closes.index[:-60], "S3"] = np.nan                    # ~12 weeks, min_weeks is 20
+    with paths.TRANSACTIONS_FILE.open("a", encoding="utf-8") as f:                 # the world's holdings: its CSV
+        f.write(f"S3,{IDX[-30].date()},BUY,50,{market.closes['S3'].iloc[-30]}\n")
+    ev = propose.evaluate(market, _draft(market, ask)["draft_picks"], offline=True)
+    a4 = ev["alternatives"]["A4"]
+    assert "S3" in a4["values"] and "S3" in a4["risk"]["missing"]
 
 
 def test_too_many_swaps_fail_the_constraint(market, ask, monkeypatch):

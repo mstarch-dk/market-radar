@@ -241,7 +241,8 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
     out = {}
 
     def rec(label: str, values: dict, drift, cost, tests: str, extra: dict | None = None, draws: int = 2000):
-        missing = [t for t in values if t not in cov.index and t not in exposure.look_through()]
+        # names outside the covariance; one already in R had too few weeks for it and isn't fetched again
+        missing = [t for t in values if t not in cov.index and t not in R and t not in exposure.look_through()]
         if missing:
             more = ctx.prices.weekly(missing, c.history_weeks)
             R2 = pd.concat([R, more], axis=1)
