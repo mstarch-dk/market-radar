@@ -208,6 +208,78 @@ def xray(names: list[str] = typer.Argument(None, help="Portfolio names (default:
 
 
 @app.command()
+def attribution(names: list[str] = typer.Argument(None, help="Portfolio names (default: your real portfolios)"),
+                tag: list[str] = typer.Option(None, "--tag", help="Portfolios carrying this tag (repeatable)"),
+                scope: str = typer.Option(None, "--scope", help="real | virtual | all, when no name or tag is given"),
+                start: str = typer.Option(None, "--start", help="From this day, YYYY-MM-DD (default: the start)"),
+                end: str = typer.Option(None, "--end", help="To this day, YYYY-MM-DD (default: the last close)"),
+                as_json: bool = typer.Option(False, "--json", help="The AttributionView as JSON (for the skills)")):
+    """Attribution vs ACWI: the active return split into trading and fees, benchmark proxies vs ACWI, allocation,
+    selection and interaction by sector and by region, the currency effect, and the factor regression's alpha with
+    its t, of the chosen portfolios pooled. Analysis, not advice."""
+    from datetime import date as _date
+
+    from .. import attribution as attr
+    from .. import userstore
+
+    trades.ensure_migrated()
+    if scope and scope not in userstore.SCOPES:
+        raise SystemExit(f"--scope must be one of {', '.join(userstore.SCOPES)}")
+    for flag, d in (("--start", start), ("--end", end)):
+        try:
+            if d:
+                _date.fromisoformat(d)
+        except ValueError:
+            raise SystemExit(f"{flag} must be a date, YYYY-MM-DD") from None
+    ids = (portfolio_ids(names, tag) if (names or tag) else
+           userstore.portfolio_ids(scope) if scope else None)
+    v = attr.build(Market.load(), ids, scope, start, end)
+    if as_json:
+        typer.echo(to_json(v, indent=1))
+        return
+    pct = lambda x: "–" if x is None else f"{x:+.1%}"  # noqa: E731
+    w = lambda x: "–" if x is None else f"{x:.1%}"  # noqa: E731
+    p = v["period"]
+    span = f" from {p['start']} to {p['end']} ({p['months']:.0f} months)" if p else ""
+    typer.echo(f"Attribution of {', '.join(v['selection']['names']) or 'no portfolios'} vs ACWI{span} (DKK)")
+    rec = v["reconciliation"]
+    if rec:
+        typer.echo(f"\n  TWR {pct(rec['twr'])}  ACWI {pct(rec['acwi'])}  active {pct(rec['active'])}")
+        typer.echo(f"  = trading and fees {pct(rec['trading_fees'])} + benchmark proxies vs ACWI "
+                   f"{pct(rec['proxy_vs_acwi'])} + attributed {pct(rec['attributed'])}")
+    for dim, d in v["dims"].items():
+        t = d["totals"]
+        typer.echo(f"\nBy {dim} ({d['days']} days, {d['days_missing']} left out): allocation {pct(t['allocation'])}, "
+                   f"selection {pct(t['selection'])}, interaction {pct(t['interaction'])}, currency "
+                   f"{pct(t['currency'])}, cross {pct(t['cross'])}")
+        typer.echo(f"  {'':<24}{'w':>7} {'ACWI w':>7} {'r':>8} {'ACWI r':>8} {'alloc':>7} {'select':>7} "
+                   f"{'inter':>7} {'total':>7}")
+        for r in d["rows"][:8]:
+            typer.echo(f"  {r['key'][:23]:<24}{w(r['w_p']):>7} {w(r['w_b']):>7} {pct(r['r_p']):>8} "
+                       f"{pct(r['r_b']):>8} {pct(r['allocation']):>7} {pct(r['selection']):>7} "
+                       f"{pct(r['interaction']):>7} {pct(r['total']):>7}")
+    c = v["currency"]
+    if c:
+        by = ", ".join(f"{r['currency']} {pct(r['effect'])}" for r in c["rows"][:5])
+        typer.echo(f"\nCurrency effect {pct(c['effect'])} ({by}); cross term {pct(c['cross'])}")
+    g = v["regression"]
+    if g:
+        t2 = ("reached" if g["reached"] else f"about {g['months_to_t2']:.0f} months more for t = 2"
+              if g["months_to_t2"] is not None else "t = 2 out of reach")
+        a_t = f"{g['alpha_t']:.2f}" if g["alpha_t"] is not None else "–"
+        typer.echo(f"\nFactor regression ({g['n_weeks']} weeks, {g['start']} to {g['end']}, factors to "
+                   f"{g['factors_to']}): alpha {pct(g['alpha_ann'])} p.a., t {a_t} ({t2})")
+        typer.echo("  " + "  ".join(f"{f['factor']} {f['beta']:.2f}" if f["beta"] is not None else f"{f['factor']} –"
+                                    for f in g["loadings"]))
+    if v["unclassified"]:
+        typer.echo("\nUnclassified: " + ", ".join(u["symbol"] for u in v["unclassified"]))
+    if v["notes"]:
+        typer.echo("")
+    for n in v["notes"]:
+        typer.echo(f"  · {n}")
+
+
+@app.command()
 def calendar(names: list[str] = typer.Argument(None, help="Portfolio names (default: your real portfolios)"),
              tag: list[str] = typer.Option(None, "--tag", help="Portfolios carrying this tag (repeatable)"),
              scope: str = typer.Option(None, "--scope", help="real | virtual | all, when no name or tag is given"),

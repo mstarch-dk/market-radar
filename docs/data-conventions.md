@@ -227,6 +227,28 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   countries with an ETF cover less than `attribution.min_proxy_coverage` of the region or one of them has no return.
   A missing segment return is never 0 %.
 
+## Attribution (`attribution.py`, `model/attribution.py`)
+- **Days are the periods**: weights at the previous close (each holding's DKK value from `Book.positions`, cash
+  from the ledger, over the book's value), returns from DKK closes (adjusted, as `reinvested`). Trades, fills
+  versus closes and fees aren't in these returns; they show as *trading and fees* = TWR − the attribution's
+  portfolio return. The period's first day only opens it. A day where a held value or price, a proxy, a rate or
+  ACWI's weights is unknown, or a break in the book, is left out and counted (`days_missing`); the TWR still spans
+  it, so the reconciliation absorbs it.
+- **Segments**: a stock its sector and region; a sector fund its sector; a world fund spread with ACWI's weights and
+  a fund with Yahoo sector weights spread by them, each slice getting the segment's benchmark return plus the
+  fund's own difference to that mix; everything else `unclassified` with its own return. Cash is a segment with
+  return 0 and benchmark return 0 (the cash drag, as allocation). Today's classification, for every past day.
+- **Currency**: each return splits as 1 + r = (1 + local)(1 + f): a stock's f is its quote currency's DKK return, a
+  world fund's ACWI's currency mix, a US sector fund's USD, a benchmark segment's its currency mix in ACWI; unknown
+  currency counts as f = 0 (all local). Brinson runs on local returns; the currency effect on the currency weights;
+  the cross term is the rest of the DKK active return, so the five add up exactly. ACWI's currencies without a DKK
+  rate on Yahoo (small ones) are left out of its mix and renormalised, with a note.
+- **Linking**: Carino over the valid days, for the period in one go and for each month on its own (the months don't
+  sum to the period exactly). A linking error beyond `attribution.tolerance` is an error, not a figure.
+- **Factor regression**: weekly (W-FRI) TWR returns of the selection less the ECB deposit rate compounded over the
+  week, on French's daily developed factors compounded to weeks, the market factor converted to DKK; the window ends
+  where the factor files end (about two months back).
+
 ## Long histories (`sources/factors.py`, `backtest/longrun.py`)
 - **French**: each ZIP holds one CSV with several blocks; a block is a header line starting with "," followed by rows
   dated YYYYMM, titled by the text line above it. The configured block is matched on its title (`block`), else the
