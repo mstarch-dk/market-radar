@@ -3,6 +3,7 @@ holdings, unvalued positions left out of every weight, the coverage rules for ri
 says what it is."""
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from conftest import with_settings
@@ -45,6 +46,26 @@ def test_xray_missing_price_is_unvalued(market, ask):  # noqa: F811
         assert sum(r["weight"] for r in xr["exposure"][d]["rows"]) == pytest.approx(1)
     assert xr["risk"]["coverage"] == 1 and all(p["symbol"] != "GONE" for p in xr["risk"]["positions"])
     assert any("GONE" in n for n in xr["notes"])
+
+
+def test_xray_score_tilts_leave_out_names_without_a_score(market, ask):  # noqa: F811
+    """The value-weighted score uses only the holdings that have one, and names the rest; a holding without a
+    score is never averaged in as 0."""
+    notes: list[str] = []
+    t = xray.score_tilt("score", {"A": 100.0, "B": 300.0}, {"A": 80.0, "B": None}, pd.Series([40.0, 50.0, 60.0, None]),
+                   notes)
+    assert t == {"key": "score", "value": 80.0, "median": 50.0, "coverage": 0.25, "missing": ["B"]}
+    assert any("1 holding(s) without a momentum score" in n and "B" in n for n in notes)
+    none = xray.score_tilt("qv", {"A": 1.0}, {}, pd.Series(dtype=float), [])
+    assert none["value"] is None and none["median"] is None and none["coverage"] == 0
+
+    xr = xray.build(market, [ask["id"]])
+    assert {t["key"] for t in xr["tilts"]} == {"score", "qv"}
+    value = {c["symbol"]: c["value_dkk"] for c in xr["classes"]}
+    for t in xr["tilts"]:
+        scored = sum(v for s, v in value.items() if s not in t["missing"])
+        assert t["coverage"] == pytest.approx(scored / sum(value.values()))
+        assert t["value"] is None or 0 <= t["value"] <= 100
 
 
 def test_xray_low_coverage_hides_risk(market, ask, monkeypatch):  # noqa: F811

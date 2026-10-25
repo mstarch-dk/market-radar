@@ -143,6 +143,16 @@ class StressWindow(Strict):
     note: str | None = None
 
 
+class ScoreTilt(Strict):
+    """The holdings' value-weighted momentum score (against the whole stock universe) or K+V, next to the universe's
+    median. `coverage`: the share of the invested value with a score; `missing`: the holdings left out."""
+    key: Literal["score", "qv"]
+    value: Num = None
+    median: Num = None
+    coverage: Num = None
+    missing: list[str]
+
+
 class XrayView(Strict):
     """GET /api/xray: the X-ray of a selection of portfolios (default: your real ones), computed live."""
     asof: str | None = None
@@ -155,4 +165,5 @@ class XrayView(Strict):
     concentration: Concentration
     stress: list[StressWindow]
     factors: Factors | None = None
+    tilts: list[ScoreTilt]
     notes: list[str]

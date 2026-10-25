@@ -4728,6 +4728,26 @@ export interface components {
             /** Tail */
             tail: components["schemas"]["RrgPoint"][];
         };
+        /**
+         * ScoreTilt
+         * @description The holdings' value-weighted momentum score (against the whole stock universe) or K+V, next to the universe's
+         *     median. `coverage`: the share of the invested value with a score; `missing`: the holdings left out.
+         */
+        ScoreTilt: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "score" | "qv";
+            /** Value */
+            value?: number | null;
+            /** Median */
+            median?: number | null;
+            /** Coverage */
+            coverage?: number | null;
+            /** Missing */
+            missing: string[];
+        };
         /** SearchHit */
         SearchHit: {
             /** Symbol */
@@ -5615,6 +5635,8 @@ export interface components {
             /** Stress */
             stress: components["schemas"]["StressWindow"][];
             factors?: components["schemas"]["Factors"] | null;
+            /** Tilts */
+            tilts: components["schemas"]["ScoreTilt"][];
             /** Notes */
             notes: string[];
         };

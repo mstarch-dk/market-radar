@@ -12,10 +12,13 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from . import userstore
+from . import universe, userstore
 from .config import typed
+from .fundamentals import context as fcontext
 from .portfolios import exposure, performance, riskmodel
 from .portfolios.prices import Prices
+from .signals import momentum
+from .signals import score as scoring
 from .sources import constituents, external, tracked
 from .values import num
 
@@ -121,6 +124,36 @@ def _risk(values: dict[str, float], cov: pd.DataFrame, bench: str, realised: tup
             "window_weeks": cv.history_weeks, "shrink": cv.shrink}
 
 
+TILT_LABELS = {"score": "momentum score", "qv": "K+V"}
+
+
+def score_tilt(key: str, values: dict[str, float], scores: dict[str, float | None], universe_scores: pd.Series,
+          notes: list[str]) -> dict:
+    """The holdings' value-weighted score next to the universe's median. Holdings without a score are left out of
+    the average (never counted as 0) and named in a note."""
+    scored = {t: s for t in values if (s := scores.get(t)) is not None and not pd.isna(s)}
+    missing = [t for t in values if t not in scored]
+    total, part = sum(values.values()), sum(values[t] for t in scored)
+    if missing:
+        notes.append(f"{len(missing)} holding(s) without a {TILT_LABELS[key]} are left out of its average: "
+                     f"{', '.join(missing)}")
+    u = universe_scores.dropna()
+    return {"key": key, "value": sum(values[t] * scored[t] for t in scored) / part if part > 0 else None,
+            "median": float(u.median()) if len(u) else None, "coverage": part / total if total > 0 else None,
+            "missing": missing}
+
+
+def _tilts(market: Market, values: dict[str, float], notes: list[str]) -> list[dict]:
+    """Momentum score (against the whole stock universe, as on /api/me) and K+V of the holdings, value-weighted."""
+    lead = market.leaders()
+    m = momentum.metrics(market.closes, market.volumes, list(values), typed().momentum.min_history_days)
+    mom = {r["ticker"]: scoring.score_vs(lead, r) for _, r in m.iterrows()}
+    t = fcontext.context(market.closes, market.raw_closes(), universe.tracked_stocks(), market.mtime).table()
+    qv = dict(zip(t["ticker"], t["qv"])) if not t.empty else {}
+    return [score_tilt("score", values, mom, scoring.score(lead), notes),
+            score_tilt("qv", values, qv, t["qv"].astype(float) if not t.empty else pd.Series(dtype=float), notes)]
+
+
 def cached(market: Market, ids: list[int] | None = None, scope: str | None = None) -> dict:
     """`build`, kept until a trade or portfolio edit, a price update or a newly cached fund detail changes it."""
     ids = userstore.portfolio_ids() if ids is None else ids
@@ -163,6 +196,7 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
     pairs: list[dict] = []
     stress: list[dict] = []
     factors = None
+    tilts: list[dict] = []
     if values:
         factor_cols = [f for f in rc.factors if f in market.closes]
         R = prices.weekly(list(dict.fromkeys([*values, bench, *factor_cols])), rc.covariance.history_weeks)
@@ -173,6 +207,7 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
         pairs = riskmodel.correlated_pairs(values, R)
         stress = riskmodel.stress(values, prices, bench)
         factors = riskmodel.factor_tilts(values, R, market)
+        tilts = _tilts(market, values, notes)
         if factors is not None:
             notes.append("Factor tilts are a regression on US factor ETFs (as spreads over ACWI): descriptive, "
                          "not a forecast")
@@ -189,5 +224,6 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
         "selection": {"ids": [p["id"] for p in ports], "names": [p["name"] for p in ports], "scope": scope},
         "totals": {"invested_dkk": invested, "cash_dkk": cash, "unvalued": unvalued},
         "exposure": _exposure(ex, acwi), "classes": classes, "risk": risk,
-        "concentration": conc | {"pairs": pairs}, "stress": stress, "factors": factors, "notes": notes,
+        "concentration": conc | {"pairs": pairs}, "stress": stress, "factors": factors, "tilts": tilts,
+        "notes": notes,
     }

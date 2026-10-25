@@ -133,6 +133,7 @@ export const GLOSSARY = {
   xray_effective_n: "Effective number of positions: 1 / the sum of squared weights. Ten equal positions give 10; one position at 50% caps it near 4 however many others there are. A world fund counts as one position here, which understates its spread.",
   xray_pairs: "Holdings whose weekly DKK returns correlated above {{settings:risk.xray.pair_corr}} over the covariance window, with their combined weight. Two such names behave much like one bigger position.",
   xray_stress: "Today's DKK weights replayed through a past window (settings risk.stress), next to ACWI. Only where the price history covers at least half the value; names without prices then are listed, and a window before the history isn't replayed.",
+  xray_tilts: "The holdings' momentum score (0–100 against the whole stock universe, as on Holdings & watchlist) and K+V (kvalitet + værdi among sector peers), each averaged by DKK value, next to the median of the radar's stock universe. Above the median = the portfolio leans towards stronger momentum, or better and cheaper businesses. Holdings without a score (funds, short histories, no statements) are left out of the average, never counted as 0, and counted under the numbers.",
   xray_realised: "Ex-ante uses today's weights on past returns: what this portfolio would have done. Realised is the time-weighted index of what you actually held over the last year, trades included. They differ when the portfolio has changed.",
 } as const;
 
