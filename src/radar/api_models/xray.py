@@ -43,9 +43,10 @@ class ExposureRow(Strict):
 
 class ExposureDim(Strict):
     """Rows sorted by the size of the active weight, then the weight. `coverage`: the share of the value with a
-    real key."""
+    real key; `warn`: below `risk.xray.warn_coverage`."""
     rows: list[ExposureRow]
     coverage: Num = None
+    warn: bool
     note: str | None = None
 
 

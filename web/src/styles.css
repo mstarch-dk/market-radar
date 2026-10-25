@@ -740,3 +740,12 @@ dl.nb-facts dd { margin: 0; }
 .q-metrics tr.q-pillar td { padding-top: 10px; border-bottom: none; }
 .q-bar { display: grid; grid-template-columns: minmax(40px, 1fr) 28px auto; align-items: center; gap: 6px; }
 .q-bar .stack { height: 8px; } .q-bar .bar { display: block; height: 100%; border-radius: 0; }
+
+/* portfolio X-ray */
+.xray-tiles .tile b { font-size: 20px; font-weight: 600; }
+.dbar { display: inline-grid; grid-template-columns: 1fr 1fr; width: 140px; height: 10px; vertical-align: middle; }
+.dbar > span { display: flex; }
+.dbar .l { justify-content: flex-end; border-right: 1px solid var(--line); }
+.dbar i { display: block; height: 100%; }
+.dbar .l i { background: var(--warn); border-radius: 2px 0 0 2px; }
+.dbar .r i { background: var(--accent); border-radius: 0 2px 2px 0; }

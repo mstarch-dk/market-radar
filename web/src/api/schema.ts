@@ -2172,13 +2172,15 @@ export interface components {
         /**
          * ExposureDim
          * @description Rows sorted by the size of the active weight, then the weight. `coverage`: the share of the value with a
-         *     real key.
+         *     real key; `warn`: below `risk.xray.warn_coverage`.
          */
         ExposureDim: {
             /** Rows */
             rows: components["schemas"]["ExposureRow"][];
             /** Coverage */
             coverage?: number | null;
+            /** Warn */
+            warn: boolean;
             /** Note */
             note?: string | null;
         };

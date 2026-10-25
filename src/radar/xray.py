@@ -63,7 +63,8 @@ def _cash(market: Market, ports: list[dict], notes: list[str]) -> float | None:
 
 def _exposure(ex: dict, acwi: dict | None) -> dict:
     """Per dimension: rows of key, weight, ACWI's weight and the active weight (real keys only), sorted by the
-    size of the active weight, then the weight; and the coverage."""
+    size of the active weight, then the weight; and the coverage, with a warning below `warn_coverage`."""
+    warn_at = typed().risk.xray.warn_coverage
     out = {}
     for d in exposure.DIMS:
         w = ex["weights"][d]
@@ -73,7 +74,7 @@ def _exposure(ex: dict, acwi: dict | None) -> dict:
                  "active": active.get(k)} for k in keys]
         rows.sort(key=lambda r: (-abs(r["active"]) if r["active"] is not None else 1, -r["weight"], r["key"]))
         cov = ex["coverage"][d]
-        out[d] = {"rows": rows, "coverage": cov,
+        out[d] = {"rows": rows, "coverage": cov, "warn": cov is not None and cov < warn_at,
                   "note": None if cov is None or cov >= 1 - 1e-9 else
                   f"{1 - cov:.0%} of the value can't be placed by {d} (funds not looked through, or unknown)"}
     return out

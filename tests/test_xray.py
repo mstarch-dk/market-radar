@@ -54,6 +54,7 @@ def test_xray_low_coverage_hides_risk(market, ask, monkeypatch):  # noqa: F811
     with_settings(monkeypatch, base=market.cfg, risk={"xray": {"min_coverage": 0.0, "warn_coverage": 1.01}})
     warned = xray.build(market, [ask["id"]])
     assert warned["risk"]["warn"] is True and warned["risk"]["vol_ann"] is not None
+    assert all(warned["exposure"][d]["warn"] is True for d in ("sector", "region", "currency"))
 
 
 def test_xray_cash_lines(market, ask):  # noqa: F811
