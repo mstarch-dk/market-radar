@@ -115,6 +115,19 @@ The tickers are fetched in parallel through `net.pool` like `update_analyst`, in
 cost too much, a lean `fetch_calendar` (calendar + eps_trend + eps_revisions only) is the fallback, and the decision
 is recorded in the PR.
 
+**Measured (2026-10-25, TASK-4.5).** A first read of 24 held and watched names (all due) took 35 s and 184 Yahoo
+requests, 7.7 per name: about 5.4 `quoteSummary`, one `timeseries` and one crumb request per name, plus a few
+cookie checks. 168 answered 200 and 16 answered 404 (blocks Yahoo has none of for that name, such as fund data or
+estimates for a name without analysts); there were no 429s and no retries. The median request took 66 ms. Of the
+24 names, 20 had an earnings date, 3 had none and 1 was a fund.
+
+On the schedule, a name is read every 3 days and daily within 14 days of a report, so a portfolio of this size
+needs about 10–25 reads a day, or 80–190 requests. The worst case is every name every day: 184 requests. That is
+under 1 % of the `*.yahoo.com` daily budget (20.000). **Decision:** keep `external.detail`. A lean fetch would save
+about 5 requests per name (well under 1 % of the budget) at the cost of a second fetch path. The shared path also
+keeps the profile page and the calendar on the same read and warms the profile cache. Revisit only if the
+watchlist grows past a few hundred names.
+
 ### 4.4 Settings
 
 ```yaml
