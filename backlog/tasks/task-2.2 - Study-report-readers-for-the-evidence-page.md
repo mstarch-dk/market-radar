@@ -1,10 +1,10 @@
 ---
 id: TASK-2.2
 title: Study report readers for the evidence page
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:51'
-updated_date: '2026-10-25 15:01'
+updated_date: '2026-10-25 15:17'
 labels:
   - feature
 dependencies:
@@ -24,9 +24,9 @@ model/artifacts.py: SCORE_SIGNALS (signal -> label, file) moved down from backte
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 All four score studies, longrun, propose, exit and redeploy load with status ok/stale/missing/invalid (tested)
-- [ ] #2 A stale report is never mixed with current numbers
-- [ ] #3 Older reports still load
-- [ ] #4 Rule hash moves with its settings keys and revision; every hashed key exists in settings.yaml (tested)
-- [ ] #5 top_vs_acwi and its Newey-West t in summarize (hand-computed test)
+- [x] #1 All four score studies, longrun, propose, exit and redeploy load with status ok/stale/missing/invalid (tested)
+- [x] #2 A stale report is never mixed with current numbers
+- [x] #3 Older reports still load
+- [x] #4 Rule hash moves with its settings keys and revision; every hashed key exists in settings.yaml (tested)
+- [x] #5 top_vs_acwi and its Newey-West t in summarize (hand-computed test)
 <!-- AC:END -->

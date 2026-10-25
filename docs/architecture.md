@@ -115,6 +115,14 @@ it, readers get `ok`, `stale` (another rule: shown, never acted on), `missing` o
 from before the header is read as schema 0; one from a newer version is invalid. A change to a consumed field is a
 change to the model and to its schema version.
 
+The four score studies (momentum, quality, value, K+V) share one contract, each in its own file (`SCORE_SIGNALS`;
+`artifacts.score(signal)` reads one). The rule hash is the proposal rule's (`propose.rule_hash`) for the rule study
+and `artifacts.study_rule_hash` for the score and long-run studies: the settings their numbers depend on
+(`RULE_KEYS`) and the score's `SCORE_REVISION`. Bump the revision in the same change as a change to a score's code
+(`signals/score.py`, `model/panels.py`; `signals/fundamentals.py`, `fundamentals/context.py`), so a report of the
+old code reads as another rule. A report without a hash (written before schema 2) is stale to a reader that asks
+for one.
+
 ## `src/radar/`
 
 ### Interfaces

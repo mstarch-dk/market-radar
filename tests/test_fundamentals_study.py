@@ -14,6 +14,7 @@ from radar.backtest.fund import FundPIT
 from radar.fundamentals import context as fcontext
 from radar.fundamentals import store
 from radar.market import Market
+from radar.model import artifacts as art
 
 LAG = 40
 
@@ -157,6 +158,10 @@ def test_the_report_file_follows_the_signal(cfg, tmp_data):
     study.write(study.run(None, (1,), None, 5, with_regime=False, p=_panels(), signal="qv"))
     study.write(study.run(None, (1,), ["score", "r3m"], 5, with_regime=False, p=_panels()))
     assert sorted(f.name for f in (tmp_data / "reports").iterdir()) == ["score-study-qv.json", "score-study.json"]
+    for sig in ("qv", "momentum"):                     # each records its rule and loads as current
+        got = art.score(sig, rule_hash=art.study_rule_hash("score-study", sig))
+        assert got.ok and got.report.signal == sig and got.report.schema_version == art.SCHEMA_VERSION
+    assert art.score("quality").status == "missing"
 
 
 def test_momentum_is_unchanged_and_bad_signals_are_refused(cfg):

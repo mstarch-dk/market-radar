@@ -38,7 +38,6 @@ if TYPE_CHECKING:
 HORIZONS = {1: 21, 3: 63, 6: 126, 12: 252}      # months -> sessions
 GROUP_MIN = 10                                   # names a stock group needs on a date for its own IC
 SECTOR_MIN = 5                                   # names a sector needs for the sector-neutral variant
-REPORT_FILE = "score-study.json"
 BASELINE = "score"
 
 
@@ -249,9 +248,10 @@ class Signal:
 
 
 SIGNALS = {
-    "momentum": Signal("momentum", "Momentum score", BASELINE, tuple(VARIANTS), REPORT_FILE, ()),
-    **{k: Signal(k, lbl, k, tuple(FUND_VARIANTS), f"score-study-{k}.json", tuple(FUND_CAVEATS), fund=True)
-       for k, lbl in (("quality", "Kvalitetsscore"), ("value", "Værdiscore"), ("qv", "K+V"))},
+    "momentum": Signal("momentum", artifacts.SCORE_SIGNALS["momentum"].label, BASELINE, tuple(VARIANTS),
+                       artifacts.SCORE_SIGNALS["momentum"].file, ()),
+    **{k: Signal(k, s.label, k, tuple(FUND_VARIANTS), s.file, tuple(FUND_CAVEATS), fund=True)
+       for k, s in artifacts.SCORE_SIGNALS.items() if s.fund},
 }
 
 
@@ -528,7 +528,9 @@ def fast(ctx, p: Panels):
 
 
 def write(rep: dict) -> artifacts.ScoreStudy:
-    out = artifacts.write("score-study", rep, data_asof=rep["asof"], file=SIGNALS[rep.get("signal", "momentum")].report)
+    signal = rep.get("signal", "momentum")
+    out = artifacts.write("score-study", rep, data_asof=rep["asof"], file=SIGNALS[signal].report,
+                          rule_hash=artifacts.study_rule_hash("score-study", signal))
     assert isinstance(out, artifacts.ScoreStudy)
     return out
 

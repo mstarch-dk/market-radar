@@ -28,7 +28,9 @@ Kommandoen skriver `score-study.json` i cache-mappens `reports/` og viser én ta
 - **top N** og **hit**: merafkastet for de N bedste (standard 15) og andelen af dem, der slog gennemsnitsaktien.
 - **holdout IC** og **verdict**: en variants IC i holdout-perioden (fra {{settings:backtest.study_holdout_from}}) og dommen mod scoren. Kun *candidate improvement* tæller som en mulig forbedring.
 
-Under tabellen står scorens IC pr. regime og pr. region, top N i DKK mod ACWI, hvor hurtigt signalet aftager (IC pr. horisont) og hvor stor en del af toppen der skiftes ud hver måned.
+Under tabellen står scorens IC pr. regime og pr. region, top N i DKK mod ACWI med et t-tal for forskellen, hvor hurtigt signalet aftager (IC pr. horisont) og hvor stor en del af toppen der skiftes ud hver måned.
+
+Øverst står reglens fingeraftryk (*rule*): en kode for de indstillinger, testen afhænger af (holdout-datoen, kurtagen, det mindste antal aktier og for kvalitet og værdi scorernes vægte), og for scorens version. Ændrer du en af dem, gælder rapporten en ældre regel, indtil du kører testen igen. Rapporter fra før version 0.3 har intet fingeraftryk og regnes derfor også for en ældre regel.
 
 Med `--exits 6` følger stopreglen: hver dags 15 bedste beholdt i 6 måneder mod reglen fulgt, med kun stop og kun take-profit, med kurtage på {{settings:backtest.fee_bps}} basispoint pr. handel. Se [Simulér stop og take-profit på dine handler](brugervejledning/stop-simulering).
 
@@ -70,7 +72,7 @@ Scoren regnes præcis som i appen, bare på måneder: gennemsnittet af percentil
 Tabellerne har de samme kolonner som `radar study score` plus:
 
 - **eff N**: antallet af uafhængige perioder (datoer divideret med horisonten). Med 6 måneders horisont over 99 år er det omkring 200, mod omkring 15 i `radar study score`.
-- **vs mkt**: top N mod panelets marked (det amerikanske marked eller JKP's verdensmarked) i stedet for gennemsnittet af panelet.
+- **vs mkt** og **t**: top N mod panelets marked (det amerikanske marked eller JKP's verdensmarked) i stedet for gennemsnittet af panelet, med t-tal.
 
 Under tabellerne står scorens IC pr. årti, i op- og nedtrend (markedet over eller under sit {{settings:longrun.regime_months}}-måneders gennemsnit) og i og uden for amerikanske recessioner.
 

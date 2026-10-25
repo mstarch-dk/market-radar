@@ -5,6 +5,7 @@ The design: docs/architecture.md, *Study reports*.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -14,11 +15,11 @@ from typing import Generic, Literal, TypeVar
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from ..config import write_text
+from ..config import settings, write_text
 from ..jsonsafe import dumps
 from ..paths import REPORTS
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2              # 2: the score and long-run studies record their rule; more t-statistics typed
 HEADER = ("schema_version", "kind", "created", "data_asof", "rule_hash")
 
 
@@ -132,6 +133,14 @@ class Labelled(_Open):
     label: str | None = None
 
 
+class VariantInfo(_Open):
+    key: str
+    label: str | None = None
+    note: str | None = None
+    baseline: bool = False
+    pit: bool = True
+
+
 class LongrunSummary(_Open):
     dates: int | None = None
     eff_n: float | None = None
@@ -142,6 +151,7 @@ class LongrunSummary(_Open):
     top_excess: float | None = None
     top_excess_t: float | None = None
     top_vs_market: float | None = None
+    top_vs_market_t: float | None = None
 
 
 class LongrunVariant(_Open):
@@ -159,6 +169,7 @@ class LongrunPanel(_Open):
     months: int | None = None
     first: date | None = None
     last: date | None = None
+    variants: list[VariantInfo] = []
     variants_tried: int | None = None
     results: dict[str, dict[str, LongrunVariant]] = {}       # horizon → variant
     verdicts: dict[str, dict[str, Verdict]] = {}
@@ -198,31 +209,33 @@ class LongrunStudy(Header):
 # ---------------- the score study (backtest/study.py) ----------------
 
 class ScoreSummary(_Open):
+    """One split across formation dates (model/stats.summarize). `top_vs_acwi`: the top N in DKK minus ACWI per
+    date, with its t (from schema 2; None in an older report)."""
     dates: int | None = None
+    n_mean: float | None = None
     q: list[float | None] | None = None
+    monotone: bool | None = None
     ic_mean: float | None = None
     ic_t: float | None = None
     ic_pos: float | None = None
     spread: float | None = None
     spread_t: float | None = None
     top_excess: float | None = None
+    top_excess_t: float | None = None
     top_hit: float | None = None
     top_dkk: float | None = None
     acwi_dkk: float | None = None
+    top_vs_acwi: float | None = None
+    top_vs_acwi_t: float | None = None
     top_beats_acwi: float | None = None
 
 
 class ScoreVariant(_Open):
     all: ScoreSummary | None = None
+    in_sample: ScoreSummary | None = None
     holdout: ScoreSummary | None = None
     by_regime: dict[str, ScoreSummary | None] = {}
     by_group: dict[str, ScoreSummary | None] = {}
-
-
-class VariantInfo(_Open):
-    key: str
-    baseline: bool = False
-    pit: bool = True
 
 
 class MomentumCorr(_Open):
@@ -254,6 +267,7 @@ class ScoreExits(_Open):
 
 class ScoreStudy(Header):
     signal: str = "momentum"
+    signal_label: str | None = None
     universe: StudyUniverse
     results: dict[str, dict[str, ScoreVariant | None]]     # horizon → variant
     settings: StudySettings = StudySettings()
@@ -346,6 +360,69 @@ ARTIFACTS: dict[str, Spec] = {
     "redeploy-study": Spec("redeploy-study.json", RedeployStudy, "radar study redeploy"),
 }
 
+
+@dataclass(frozen=True)
+class ScoreSignal:
+    """A score the score study tests, and the file its report goes to (each under the `score-study` contract)."""
+    key: str
+    label: str
+    file: str
+    fund: bool = False
+
+    @property
+    def command(self) -> str:
+        return "radar study score" + ("" if self.key == "momentum" else f" --signal {self.key}")
+
+
+SCORE_SIGNALS: dict[str, ScoreSignal] = {
+    "momentum": ScoreSignal("momentum", "Momentum score", "score-study.json"),
+    **{k: ScoreSignal(k, lbl, f"score-study-{k}.json", fund=True)
+       for k, lbl in (("quality", "Kvalitetsscore"), ("value", "Værdiscore"), ("qv", "K+V"))},
+}
+
+
+# ---------------- the rule a study tested ----------------
+
+# Bumped by hand in the same change as a score's code (signals/score.py and model/panels.py for momentum,
+# signals/fundamentals.py and fundamentals/context.py for the fund scores), so a report of the old code reads as
+# another rule. `study_rule_hash` hashes it with the settings the study's numbers depend on (`RULE_KEYS`).
+SCORE_REVISION: dict[str, int] = {"momentum": 1, "quality": 1, "value": 1, "qv": 1}
+_SCORE_KEYS = ("backtest.study_holdout_from", "backtest.study_min_names", "backtest.fee_bps", "backtest.fill",
+               "momentum.min_history_days")
+RULE_KEYS: dict[str, tuple[str, ...]] = {
+    "score-study": _SCORE_KEYS,
+    "score-study/fund": (*_SCORE_KEYS, "backtest.fundamentals_lag_days", "fundamentals.quality",
+                         "fundamentals.value"),
+    "longrun-study": ("longrun",),
+}
+
+
+def setting(raw: dict, dotted: str):
+    """The value at `dotted` (e.g. "backtest.fee_bps") in the settings as written; KeyError naming it if absent."""
+    v: object = raw
+    for part in dotted.split("."):
+        if not isinstance(v, dict) or part not in v:
+            raise KeyError(f"settings.yaml has no {dotted} (a study's rule hashes it: model/artifacts.py RULE_KEYS)")
+        v = v[part]
+    return v
+
+
+def study_rule_hash(name: str, signal: str | None = None) -> str:
+    """The rule the study `name` tests today, as 12 hex characters: the score, its revision and the settings the
+    study's numbers depend on. Taken of the file as written (as propose.rule_hash), so 10 and 10.0 don't differ. The score
+    and long-run studies have one here; the proposal study's is propose.rule_hash."""
+    if name == "score-study":
+        sig = SCORE_SIGNALS[signal or "momentum"]
+        keys, score = RULE_KEYS["score-study/fund" if sig.fund else "score-study"], sig.key
+    elif name == "longrun-study":
+        keys, score = RULE_KEYS[name], "momentum"
+    else:
+        raise ValueError(f"{name} has no study rule hash (score-study and longrun-study have)")
+    raw = settings()
+    blob = json.dumps({"kind": name, "score": score, "revision": SCORE_REVISION[score],
+                       "settings": {k: setting(raw, k) for k in keys}}, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode()).hexdigest()[:12]
+
 M = TypeVar("M", bound=Header)
 Status = Literal["ok", "stale", "missing", "invalid"]
 
@@ -370,8 +447,17 @@ def _spec(name: str) -> Spec:
     return ARTIFACTS[name]
 
 
-def path(name: str) -> Path:
-    return (REPORTS / _spec(name).file).now()
+def path(name: str, file: str | None = None) -> Path:
+    return (REPORTS / (file or _spec(name).file)).now()
+
+
+def _command(name: str, file: str | None) -> str:
+    """The command that writes the report `name` to `file` (a score signal's file names its --signal)."""
+    if name == "score-study":
+        for sig in SCORE_SIGNALS.values():
+            if sig.file == (file or _spec(name).file):
+                return sig.command
+    return _spec(name).command
 
 
 def _asof(raw: dict) -> str | None:
@@ -409,35 +495,54 @@ def _first_error(e: ValidationError) -> str:
 _cache: dict = {}
 
 
-def load(name: str, *, rule_hash: str | None = None) -> Loaded:
-    """The report `name` (a key of `ARTIFACTS`) as its model. `rule_hash`: the rule the reader acts on; a report
-    that tested another one is `stale` (its numbers are given, never acted on). Otherwise `ok`, `missing` or
-    `invalid` (unreadable, another kind, a newer schema, or not matching the model), each with a reason; a report
-    from before the header is `legacy`. Never a silent fallback: what a reader does without the report is its own,
-    stated choice. Cached per file version."""
+def load(name: str, *, rule_hash: str | None = None, file: str | None = None) -> Loaded:
+    """The report `name` (a key of `ARTIFACTS`) as its model, from its own file or from `file` when the same
+    contract is written under another name (`score` reads the fund scores' files this way). `rule_hash`: the rule
+    the reader acts on; a report that tested another one, or didn't record its rule, is `stale` (its numbers are
+    given, never acted on). Otherwise `ok`, `missing` or `invalid` (unreadable, another kind, a newer schema, or
+    not matching the model), each with a reason; a report from before the header is `legacy`. Never a silent
+    fallback: what a reader does without the report is its own, stated choice. Cached per file version."""
     spec = _spec(name)
-    f = (REPORTS / spec.file).now()
+    command = _command(name, file)
+    f = path(name, file)
     try:
         st = f.stat()
     except FileNotFoundError:
-        return Loaded(name, "missing", reason=f"no {name} yet: run `{spec.command}`")
+        return Loaded(name, "missing", reason=f"no {f.stem} yet: run `{command}`")
     key = (str(f), st.st_mtime_ns, st.st_size)
-    if _cache.get(name, (None,))[0] != key:
-        _cache[name] = (key, _read(name, spec, f))
-    got = _cache[name][1]
+    slot = (name, f.name)
+    if _cache.get(slot, (None,))[0] != key:
+        _cache[slot] = (key, _read(name, spec, f, command))
+    got = _cache[slot][1]
     if got.report is None or rule_hash is None or got.report.rule_hash == rule_hash:
         return got
-    return Loaded(name, "stale", got.report, f"{name} tested another rule (settings {got.report.rule_hash}, "
-                  f"today's {rule_hash}): run `{spec.command}` again", got.legacy)
+    if got.report.rule_hash is None:
+        why = f"{f.stem} was written before studies recorded their rule (today's {rule_hash})"
+    else:
+        why = f"{f.stem} tested another rule (settings {got.report.rule_hash}, today's {rule_hash})"
+    return Loaded(name, "stale", got.report, f"{why}: run `{command}` again", got.legacy)
 
 
-def _read(name: str, spec: Spec, f: Path) -> Loaded:
+def score(signal: str, *, rule_hash: str | None = None) -> Loaded:
+    """The score study of `signal` (a key of `SCORE_SIGNALS`), from its own file; that file holding another
+    signal's study is invalid."""
+    if signal not in SCORE_SIGNALS:
+        raise ValueError(f"unknown score {signal} (known: {', '.join(SCORE_SIGNALS)})")
+    sig = SCORE_SIGNALS[signal]
+    got = load("score-study", rule_hash=rule_hash, file=sig.file)
+    if isinstance(got.report, ScoreStudy) and got.report.signal != signal:
+        return Loaded("score-study", "invalid", reason=f"{sig.file} holds the {got.report.signal} study, not "
+                      f"{signal}: run `{sig.command}` again", legacy=got.legacy)
+    return got
+
+
+def _read(name: str, spec: Spec, f: Path, command: str) -> Loaded:
     try:
         raw = json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        return Loaded(name, "invalid", reason=f"{f.name} can't be read ({e}): run `{spec.command}` again")
+        return Loaded(name, "invalid", reason=f"{f.name} can't be read ({e}): run `{command}` again")
     if not isinstance(raw, dict):
-        return Loaded(name, "invalid", reason=f"{f.name} is not a report: run `{spec.command}` again")
+        return Loaded(name, "invalid", reason=f"{f.name} is not a report: run `{command}` again")
     legacy = "schema_version" not in raw
     if legacy:
         raw = _upgrade(raw, name)
@@ -451,7 +556,7 @@ def _read(name: str, spec: Spec, f: Path) -> Loaded:
         rep = spec.model.model_validate(raw)
     except ValidationError as e:
         return Loaded(name, "invalid", reason=f"{f.name} doesn't match its contract ({_first_error(e)}): "
-                      f"run `{spec.command}` again")
+                      f"run `{command}` again")
     return Loaded(name, "ok", rep, legacy=legacy)
 
 

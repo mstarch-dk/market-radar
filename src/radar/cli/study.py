@@ -67,7 +67,7 @@ def _print_score(rep: a.ScoreStudy, n: int) -> None:
     sig = study.SIGNALS[rep.signal]
     names = f"{u.fund_names} US stocks with SEC EDGAR statements" if sig.fund else f"{u.tickers} stocks"
     typer.echo(f"\n{sig.label}: {names}, formation dates {u.first} to {u.last}; holdout from "
-               f"{rep.settings.holdout_from}; {rep.variants_tried} variants tried against {bk}")
+               f"{rep.settings.holdout_from}; {rep.variants_tried} variants tried against {bk}; rule {rep.rule_hash or '-'}")
     labels = {v.key: v for v in rep.variants}
     for h, res in rep.results.items():
         typer.echo(f"\n{h} month(s) ahead: excess over the equal-weight universe")
@@ -93,8 +93,9 @@ def _print_score(rep: a.ScoreStudy, n: int) -> None:
             typer.echo(f"  {bk} IC within each group: " + ", ".join(f"{g} {fmt_num(s.ic_mean)}" for g, s in grp.items()))
         al = base.all or a.ScoreSummary()
         if al.top_dkk is not None:
-            typer.echo(f"  top {n} in DKK: mean {fmt_pct(al.top_dkk)} against ACWI {fmt_pct(al.acwi_dkk)}, "
-                       f"ahead on {fmt_pct(al.top_beats_acwi, False)} of dates")
+            typer.echo(f"  top {n} in DKK: mean {fmt_pct(al.top_dkk)} against ACWI {fmt_pct(al.acwi_dkk)} "
+                       f"(difference t {fmt_num(al.top_vs_acwi_t, '+.1f')}), ahead on "
+                       f"{fmt_pct(al.top_beats_acwi, False)} of dates")
     typer.echo(f"\nIC decay ({bk}): " + ", ".join(f"{h}m {fmt_num(v)}" for h, v in rep.decay.get(bk, {}).items()))
     typer.echo(f"Top-quintile turnover per month ({bk}): {fmt_pct(rep.turnover.get(bk), False)}")
     mc = rep.momentum_corr
@@ -167,11 +168,11 @@ def _print_longrun(rep: a.LongrunStudy) -> None:
     for pr in rep.panels.values():
         typer.echo(f"\n{pr.label}: {pr.members} members, top {pr.n_top}, {pr.months} formation months "
                    f"{_month(pr.first)} to {_month(pr.last)}; holdout from {rep.settings.holdout_from}; "
-                   f"{pr.variants_tried} variants tried")
+                   f"{pr.variants_tried} variants tried; rule {rep.rule_hash or '-'}")
         for h, res in pr.results.items():
             typer.echo(f"\n  {h} month(s) ahead: excess over the panel's equal weight")
             typer.echo(f"    {'':<12}{'dates':>6} {'eff N':>6} {'IC':>6} {'t':>6}  {'Q5-Q1':>7} {'t':>6}  {'top N':>7} {'t':>6}"
-                       f"  {'vs mkt':>7}  {'holdout IC':>10}  verdict")
+                       f"  {'vs mkt':>7} {'t':>6}  {'holdout IC':>10}  verdict")
             for k, r in res.items():
                 al, ho = r.all or a.LongrunSummary(), r.holdout or a.LongrunSummary()
                 verdict = pr.verdicts.get(h, {}).get(k)
@@ -179,7 +180,8 @@ def _print_longrun(rep: a.LongrunStudy) -> None:
                 typer.echo(f"    {k:<12}{al.dates or 0:>6} {fmt_num(al.eff_n, '.0f'):>6} {fmt_num(al.ic_mean):>6} "
                            f"{fmt_num(al.ic_t, '+.1f'):>6}  {fmt_pct(al.spread):>7} {fmt_num(al.spread_t, '+.1f'):>6}  "
                            f"{fmt_pct(al.top_excess):>7} {fmt_num(al.top_excess_t, '+.1f'):>6}  "
-                           f"{fmt_pct(al.top_vs_market):>7}  {fmt_num(ho.ic_mean):>10}  {v}")
+                           f"{fmt_pct(al.top_vs_market):>7} {fmt_num(al.top_vs_market_t, '+.1f'):>6}  "
+                           f"{fmt_num(ho.ic_mean):>10}  {v}")
             base = res.get("score") or a.LongrunVariant()
             dec = {d: s for d, s in base.by_decade.items() if s}
             typer.echo("    score IC by decade: " + ", ".join(f"{d} {fmt_num(s.ic_mean)}" for d, s in dec.items()))

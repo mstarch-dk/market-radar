@@ -1,10 +1,10 @@
 ---
 id: TASK-2.1
 title: 'Plan: F2 evidence page'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-25 14:50'
-updated_date: '2026-10-25 15:01'
+updated_date: '2026-10-25 15:03'
 labels:
   - docs
 dependencies: []
@@ -23,5 +23,5 @@ Write plans/F2-evidence-page.md following section 7 of the review: goal and non-
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Plan written and approved before code
+- [x] #1 Plan written and approved before code
 <!-- AC:END -->

@@ -1,9 +1,10 @@
 ---
 id: TASK-2
 title: F2 Evidence page
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-25 14:50'
+updated_date: '2026-10-25 15:03'
 labels:
   - feature
   - evidence
