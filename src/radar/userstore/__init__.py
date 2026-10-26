@@ -204,6 +204,26 @@ MIGRATIONS = [
                  AND tax_person_id IS NULL)
              OR (pool IN ('listed_loss', 'negative_share_income') AND tax_person_id IS NOT NULL
                  AND portfolio_id IS NULL)))"""),
+    # an opening is the årsopgørelse's figure and anchors the carried chain from its year, so 0 ("nothing is
+    # carried") is a real answer: the table is rebuilt to allow it, every row kept
+    ("""CREATE TABLE tax_openings_new (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         year INTEGER NOT NULL CHECK (year BETWEEN 1990 AND 2100),
+         pool TEXT NOT NULL CHECK (pool IN ('ask_negative_tax', 'pension_negative_tax', 'listed_loss',
+                                            'negative_share_income')),
+         portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
+         tax_person_id INTEGER REFERENCES tax_persons(id) ON DELETE CASCADE,
+         amount REAL NOT NULL CHECK (amount >= 0),
+         note TEXT,
+         created_at TEXT NOT NULL,
+         CHECK ((pool IN ('ask_negative_tax', 'pension_negative_tax') AND portfolio_id IS NOT NULL
+                 AND tax_person_id IS NULL)
+             OR (pool IN ('listed_loss', 'negative_share_income') AND tax_person_id IS NOT NULL
+                 AND portfolio_id IS NULL)))""",
+     """INSERT INTO tax_openings_new (id, year, pool, portfolio_id, tax_person_id, amount, note, created_at)
+         SELECT id, year, pool, portfolio_id, tax_person_id, amount, note, created_at FROM tax_openings""",
+     "DROP TABLE tax_openings",
+     "ALTER TABLE tax_openings_new RENAME TO tax_openings"),
 ]
 
 
@@ -694,16 +714,17 @@ def tax_openings() -> list[dict]:
 
 
 def add_tax_opening(row: dict) -> int:
-    """A loss carried into `year` from before the history, in DKK: an ASK's or pension account's negative tax (by
-    `portfolio_id`), or a person's listed-share loss or negative share income (by `tax_person_id`)."""
+    """What the årsopgørelse for `year` - 1 carries into `year`, in DKK: an ASK's or pension account's negative tax
+    (by `portfolio_id`), or a person's listed-share loss or negative share income (by `tax_person_id`). It replaces
+    the radar's own chain from that year; 0 says nothing is carried."""
     pool = row.get("pool")
     if pool not in OPENING_POOLS:
         raise ValueError(f"pool must be one of {', '.join(OPENING_POOLS)}")
     owner = "portfolio_id" if OPENING_POOLS[pool] == "portfolio" else "tax_person_id"
     if row.get(owner) is None:
         raise ValueError(f"a {pool} opening needs {owner}")
-    if not row.get("amount") or float(row["amount"]) <= 0:
-        raise ValueError("an opening is a positive amount in DKK")
+    if row.get("amount") is None or float(row["amount"]) < 0:
+        raise ValueError("an opening is an amount in DKK, 0 or more")
     with closing(connect()) as con, con:
         return new_id(con.execute(
             f"INSERT INTO tax_openings (year, pool, {owner}, amount, note, created_at) VALUES (?, ?, ?, ?, ?, ?)",

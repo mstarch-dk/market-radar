@@ -204,6 +204,10 @@ def test_cli_tax(built):
     api_models.TaxYearView.model_validate(v)
     assert v["accounts"] == year_report(Market.load(), year)["accounts"]
     assert "S1" in run("tax", "classify")
+    sim = userstore.save_portfolio({"name": "Tax sim", "mode": "virtual"})
+    userstore.add_tx({"symbol": "SIMONLY", "date": IDX[-5].date().isoformat(), "type": "BUY", "quantity": 1,
+                      "price": 10.0, "portfolio_id": sim})
+    assert "SIMONLY" not in run("tax", "classify")                                      # simulations pay no tax
     assert "THEME1: IE00B4L5Y983" in run("tax", "isin", "THEME1", "IE00B4L5Y983")
     assert "S1: stock" in run("tax", "classify", "S1", "stock")
     assert "isn't an ISIN" in run("tax", "isin", "THEME1", "nope", code=1)

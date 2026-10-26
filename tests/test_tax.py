@@ -1,7 +1,8 @@
 """The tax estimate for a year (tax.py) on the synthetic world: one average per person across their frie midler
 accounts, an ETF that leaves the positive list (share income, then capital income and an ASK warning), a fund the
 radar can't classify (named with its value, in no estimate), the aktiesparekonto's pool from the book, a year
-without rules (bases, no tax), openings carried in, and the pre-tax numbers unchanged."""
+without rules (bases, no tax), openings carried in and anchoring the chain after a year without rules, dividends
+the prices show but nobody booked (unknown, not 0), and the pre-tax numbers unchanged."""
 from __future__ import annotations
 
 import openpyxl
@@ -105,7 +106,10 @@ def test_a_fund_without_an_isin_is_named_and_left_out(market):
     (u,) = r["unknown"]
     assert u["symbol"] == "THEME2" and u["value_dkk"] > 0 and "ISIN" in u["reason"]
     acc = next(a for a in r["accounts"] if a["name"] == "frie midler")
-    assert acc["lager"] == [] and r["persons"][0]["bases"]["capital_base"] == 0
+    me = r["persons"][0]
+    assert acc["lager"] == [] and me["bases"]["capital_base"] is None                # it could be capital income
+    assert me["capital_income"]["base"] is None and me["capital_income"]["tax"] is None and not me["complete"]
+    assert any("THEME2 at the end of" in n for n in me["notes"])
 
 
 def test_the_ask_pool_from_the_book(market):
@@ -126,9 +130,7 @@ def test_the_ask_pool_from_the_book(market):
 
 
 def test_a_year_without_rules_shows_bases_and_no_tax(market, monkeypatch):
-    raw = config.load_yaml("tax_dk.yaml")
-    del raw["years"][YEAR]
-    monkeypatch.setattr(taxrules, "load", lambda: config_schema.check_tax(raw))
+    no_rules_for(YEAR, monkeypatch)
     fm = pid("frie midler")
     buy(fm, "S2", day(PREV, 5), 10, market)
     buy(fm, "S2", day(YEAR, 5), 4, market, kind="SELL")
@@ -148,6 +150,75 @@ def test_openings_are_carried_in(market):
     si = tax.year_report(market, YEAR)["persons"][0]["share_income"]
     assert si["listed_loss_in"] == pytest.approx(gain + 100)
     assert si["net"] == 0 and si["listed_loss_out"] == pytest.approx(100)
+
+
+def no_rules_for(year: int, monkeypatch) -> None:
+    raw = config.load_yaml("tax_dk.yaml")
+    raw["years"].pop(year, None)
+    monkeypatch.setattr(taxrules, "load", lambda: config_schema.check_tax(raw))
+
+
+def test_an_opening_anchors_the_chain_after_a_year_without_rules(market, monkeypatch):
+    no_rules_for(PREV, monkeypatch)
+    fm, ask = pid("frie midler"), pid("ASK")
+    buy(fm, "S2", day(PREV, 5), 10, market)
+    buy(fm, "S2", day(YEAR, 5), 10, market, kind="SELL")
+    userstore.add_tx({"date": day(PREV, 1).date().isoformat(), "type": "DEPOSIT", "amount": 50_000, "portfolio_id": ask})
+    buy(ask, "S1", day(PREV, 2), 50, market)
+    r = tax.year_report(market, YEAR)
+    me, pool = r["persons"][0], next(a for a in r["accounts"] if a["name"] == "ASK")["pool"]
+    assert me["share_income"] is None and pool["tax"] is None                          # the chain broke in PREV
+    assert any(f"({PREV} has no estimate)" in n and f"årsopgørelse for {PREV}" in n for n in me["notes"])
+    person = userstore.tax_persons()[0]["id"]
+    userstore.add_tax_opening({"year": YEAR, "pool": "listed_loss", "tax_person_id": person, "amount": 0})
+    userstore.add_tax_opening({"year": YEAR, "pool": "ask_negative_tax", "portfolio_id": ask, "amount": 300})
+    r = tax.year_report(market, YEAR)
+    si, pool = r["persons"][0]["share_income"], next(a for a in r["accounts"] if a["name"] == "ASK")["pool"]
+    assert si is not None and si["listed_loss_in"] == 0 and si["negative_in"] == 0      # the pool not entered: 0
+    assert pool["carried_in"] == 300 and pool["tax"] is not None
+
+
+def test_an_opening_replaces_a_known_chain(market):
+    fm = pid("frie midler")
+    buy(fm, "S2", day(PREV, 5), 10, market)
+    buy(fm, "S2", day(PREV, 40), 10, market, kind="SELL")
+    loss = tax.year_report(market, PREV)["persons"][0]["share_income"]
+    chained = tax.year_report(market, YEAR)["persons"][0]["share_income"]
+    assert chained["listed_loss_in"] == pytest.approx(loss["listed_loss_out"])
+    me = userstore.tax_persons()[0]["id"]
+    userstore.add_tax_opening({"year": YEAR, "pool": "listed_loss", "tax_person_id": me, "amount": 1234})
+    assert tax.year_report(market, YEAR)["persons"][0]["share_income"]["listed_loss_in"] == 1234   # the årsopgørelse wins
+
+
+def test_a_dividend_the_prices_show_but_nobody_booked(market):
+    fm = pid("frie midler")
+    ex = day(YEAR, 20)
+    raw = market.closes.copy()
+    raw.loc[raw.index < ex, "S2"] = raw.loc[raw.index < ex, "S2"] / 0.98             # a 2 % dividend on `ex`
+    market._raw = raw
+    buy(fm, "S2", day(PREV, 5), 10, market)
+    r = tax.year_report(market, YEAR)
+    me = r["persons"][0]
+    assert me["bases"]["dividends"] is None and not me["complete"]
+    assert any(f"S2 in frie midler: ex-dividend {ex.date()}" in n for n in me["notes"])
+    userstore.add_tx({"symbol": "S2", "date": (ex + pd.Timedelta(days=3)).date().isoformat(), "type": "DIVIDEND",
+                      "amount": 25.0, "portfolio_id": fm})
+    me = tax.year_report(market, YEAR)["persons"][0]
+    assert me["bases"]["dividends"] == pytest.approx(25.0) and not any("ex-dividend" in n for n in me["notes"])
+
+
+def test_the_payment_window_matches_the_guide():
+    assert tax.PAY_DAYS == 45            # quoted as "45 dage" in guide/brugervejledning/skat.md
+
+
+def test_a_dividend_before_the_holding_is_not_missing(market):
+    fm = pid("frie midler")
+    ex = day(YEAR, 20)
+    raw = market.closes.copy()
+    raw.loc[raw.index < ex, "S2"] = raw.loc[raw.index < ex, "S2"] / 0.98
+    market._raw = raw
+    buy(fm, "S2", ex, 10, market)                                                      # bought on the ex-day: no dividend
+    assert tax.year_report(market, YEAR)["persons"][0]["bases"]["dividends"] == 0
 
 
 def test_pretax_numbers_are_unchanged(market):
