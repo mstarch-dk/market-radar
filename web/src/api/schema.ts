@@ -4799,6 +4799,8 @@ export interface components {
             last?: number | null;
             /** Value */
             value?: number | null;
+            /** Value Dkk */
+            value_dkk?: number | null;
             /** Unrealized */
             unrealized?: number | null;
         };

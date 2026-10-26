@@ -7,7 +7,7 @@ import world
 from fakes import LOCAL
 from radar import api
 from radar.reporting import dashboard
-from radar.sources import ingest
+from radar.sources import fxrates, ingest
 from world import IDX
 
 DAY = IDX[200].date().isoformat()
@@ -44,6 +44,14 @@ def test_add_shows_up_in_positions(client):
     pos = {p["symbol"]: p for p in client.get("/api/portfolio/positions").json()["total"]}
     assert pos["S3"]["quantity"] == 10 and pos["S3"]["avg_price"] == pytest.approx(round(S3_CLOSE, 2) + 0.5)
     assert {t["symbol"]: t["status"] for t in client.get("/api/context").json()["tickers"]}["S3"] == "holding"
+    assert pos["S3"]["currency"] == "USD" and pos["S3"]["value_dkk"] == pytest.approx(pos["S3"]["value"] * 6.5)
+
+
+def test_value_dkk_is_missing_without_a_rate(client, monkeypatch):
+    client.post("/api/portfolio/transactions", json=_tx(portfolio_id=_pid(client, "ASK")))
+    monkeypatch.setattr(fxrates, "fx_to_dkk", lambda closes, ccy: None)
+    s3 = next(p for p in client.get("/api/portfolio/positions").json()["total"] if p["symbol"] == "S3")
+    assert s3["value"] is not None and s3["value_dkk"] is None
 
 
 def test_errors_block_and_warnings_need_confirmation(client):
