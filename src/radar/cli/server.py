@@ -84,6 +84,15 @@ def serve(port: int = 8780, open_browser: bool = typer.Option(False, "--open", h
 
 
 @app.command()
+def mcp():
+    """Run the MCP server over stdio: the radar's readings as tools for Claude (.mcp.json starts it; the skills
+    use it). Local only: it talks to the client that started it and never listens on a port."""
+    from ..mcp import server
+
+    server.run()
+
+
+@app.command()
 def openapi():
     """Print the web API's OpenAPI schema (web/ generates its TypeScript types from it: `pnpm gen:api`)."""
     import json

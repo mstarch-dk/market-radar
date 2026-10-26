@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "radar": {
+      "command": "uv",
+      "args": ["run", "radar", "mcp"]
+    }
+  }
+}
