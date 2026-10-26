@@ -20,6 +20,12 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
     each holding's ISIN and class (filled from your imports, `universe.yaml` and the discovery map; yours wins),
     losses carried in from before your history. In the export and the holdings bundle as `tax.json`.
   - `radar tax year|classify|isin|person|opening` and `GET /api/tax` with edit endpoints.
+  - Losses carried in are the årsopgørelse's figures and replace the radar's own chain from their year (0 allowed:
+    nothing carried; a schema step rebuilds `tax_openings`, every row kept). A history that starts before the
+    rules (trades from a year without rules) otherwise left every later year without tax.
+  - Dividends are unknown, not 0, when the prices show an ex-dividend day on a share you held and no dividend is
+    booked; capital income is unknown while a holding has no class. A negative capital base notes that its
+    deduction isn't in the estimate. `radar tax classify` lists only what the real accounts traded.
   - The positive list is read per income year for the estimate; the ETF pages' flag still uses the latest sheet.
 - **The proposals' ASK deposit check follows skat.dk**: the cap less the account's value on 31 December the year
   before and this year's deposits, with the cap from `config/tax_dk.yaml`. The settings `propose.ask_deposit_cap`

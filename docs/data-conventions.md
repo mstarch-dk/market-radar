@@ -267,12 +267,21 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   the import's symbol map, `universe.yaml` (the `ucits:` listing's `isin:`, never the US ticker's) and discovery's
   ISIN map; a manual row is never overwritten.
 - **Pools** (ASK, pension): return = V_end − V_start − inflow + outflow from the book's flows in the year; negative
-  tax is carried, chained from the account's first year plus `tax_openings`; an unknown year breaks the chain
-  (later carries unknown, no tax).
+  tax is carried, chained from the account's first year; an unknown year (no rules, no value) breaks the chain
+  (later carries unknown, no tax) until a year with a `tax_openings` row.
+- **Openings** are the årsopgørelse's figure for what is carried into their year (0 allowed: nothing carried) and
+  replace the chain from that year, so a history that starts before the rules still gets an estimate. A person's
+  opening in either pool anchors both; the pool not entered carries 0.
 - **Share income** per person: realised gains on shares and Danish distributing funds, dividends (as booked: gross
   or net of withholding isn't known), positive-list lager; listed-share losses offset what `losses.listed_offsets`
   lists and carry; a negative total carries as negative share income. Capital income (lager on funds off the list)
-  is taxed only at the person's own `capital_income_rate`, else null.
+  is taxed only at the person's own `capital_income_rate`, else null; a negative base is taxed 0 (its deduction
+  depends on other income).
+- **Unknown, not 0**: the year's dividends are null when the prices show an ex-dividend day (the dividend factor,
+  adjusted / traded close, steps up by more than `tax.DIV_STEP`) on a security the account held the day before (by
+  its trades, not its value) and no DIVIDEND row is booked from 7 days before to `tax.PAY_DAYS` after; an ex-day
+  younger than `PAY_DAYS` is skipped. The capital base is null while a sale, dividend or year-end holding has no
+  class, or a fund's lager or dividend is missing.
 
 ## Long histories (`sources/factors.py`, `backtest/longrun.py`)
 - **French**: each ZIP holds one CSV with several blocks; a block is a header line starting with "," followed by rows

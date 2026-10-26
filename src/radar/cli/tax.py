@@ -92,8 +92,8 @@ def classify(symbol: str = typer.Argument(None, help="Set this symbol's class (w
              cls: str = typer.Argument(None, metavar="CLASS", help="stock | pl_fund | fund | dk_distributing | auto"),
              year_: int = typer.Option(None, "--year", help="Show the classes in this year (default: this year)"),
              unknown: bool = typer.Option(False, "--unknown", help="Only the holdings the radar can't classify")):
-    """The instruments with ISIN, source and class in a year; or set a symbol's class by hand (`auto`: from its
-    ISIN and the positive list again)."""
+    """The instruments your real accounts have traded, with ISIN, source and class in a year; or set a symbol's
+    class by hand (`auto`: from its ISIN and the positive list again)."""
     from .. import userstore
     from ..portfolios import taxinputs
     from ..sources import positive_list
@@ -106,7 +106,8 @@ def classify(symbol: str = typer.Argument(None, help="Set this symbol's class (w
         typer.echo(f"{symbol.upper()}: {cls}")
         return
     trades.ensure_migrated()
-    syms = sorted({t["symbol"] for t in userstore.transactions() if t["symbol"]})
+    real = [p["id"] for p in userstore.portfolios() if p["mode"] == "real"]      # simulations pay no tax
+    syms = sorted({t["symbol"] for t in userstore.transactions(portfolios=real) if t["symbol"]}) if real else []
     inst = taxinputs.fill_instruments(syms)
     years, y = positive_list.load_years(), year_ or date.today().year
     for s in syms:
@@ -174,8 +175,9 @@ def opening(action: str = typer.Argument("list", help="list | add | remove"),
             person_: str = typer.Option(None, "--person", help="The person (listed losses, negative share income)"),
             oid: int = typer.Option(None, "--id", help="With remove: the opening's id"),
             note: str = typer.Option(None, "--note")):
-    """Losses carried in from before the radar's history: an ASK's or pension's negative tax, a person's listed-
-    share loss or negative share income, from your last årsopgørelse."""
+    """Losses carried in, from your årsopgørelse for the year before: an ASK's or pension's negative tax, a person's
+    listed-share loss or negative share income. An opening replaces the radar's own chain from its year (a person's
+    pool not entered carries 0), so one from your last årsopgørelse is enough; 0 says nothing is carried."""
     from .. import userstore
 
     if action == "list":

@@ -7,10 +7,13 @@ person): realised gains on shares by the average-cost method in DKK, dividends, 
 (share income), lager on funds off the list (capital income), the loss rules and the progression limit.
 
 Values are at traded closes (dividends are income, not price), in DKK at each day's rate; a trade's DKK rate is
-its own, else Yahoo's that day. Carried amounts are chained from each account's first year, plus the openings
-entered by hand. A year without verified rules gives the bases and no tax; a holding the radar can't classify is
-named with its value and left out; a missing value is missing, never 0. Computed live, nothing written. The
-arithmetic is in model/tax.py, the rules in portfolios/taxrules.py, the classes in portfolios/taxinputs.py."""
+its own, else Yahoo's that day. Carried amounts are chained from each account's first year; an opening entered by
+hand is the årsopgørelse's figure and replaces the chain from its year (so a year without rules before it doesn't
+leave every later year unknown). A year without verified rules gives the bases and no tax; a holding the radar
+can't classify is named with its value and left out; a missing value is missing, never 0: a dividend the prices say
+was paid on a holding but isn't booked leaves the dividends unknown, and an unclassified holding the capital
+income. Computed live, nothing written. The arithmetic is in model/tax.py, the rules in portfolios/taxrules.py,
+the classes in portfolios/taxinputs.py."""
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -31,6 +34,8 @@ TAX_KINDS = ("ask", "frie_midler", "pension")
 SHARE_CLASSES = ("stock", "dk_distributing")          # realisation, share income
 LAGER_CLASSES = ("pl_fund", "fund")                   # lager: share income on the list, capital income off it
 DISCLAIMER = "An estimate from the radar's own records, not tax advice: your årsopgørelse wins."
+DIV_STEP = 5e-4        # a rise in the dividend factor (adjusted / traded close) above this marks an ex-dividend day
+PAY_DAYS = 45          # a dividend is looked for this long after its ex-day; a younger ex-day may be unpaid
 
 
 def _at(s: pd.Series | None, day: pd.Timestamp) -> float | None:
@@ -49,6 +54,22 @@ def _year_end(year: int, last: pd.Timestamp) -> pd.Timestamp:
 
 def _in_year(day, year: int) -> bool:
     return pd.Timestamp(str(day)[:10]).year == year
+
+
+def _opening(openings: list[dict], year: int, pools: tuple[str, ...], **owner: int) -> dict[str, float] | None:
+    """The årsopgørelse's carried amounts into `year` for these pools and this owner (a pool not entered carries 0),
+    or None when no opening is entered for that year."""
+    rows = [o for o in openings if o["year"] == year and o["pool"] in pools
+            and all(o.get(k) == v for k, v in owner.items())]
+    if not rows:
+        return None
+    return {k: sum(o["amount"] for o in rows if o["pool"] == k) for k in pools}
+
+
+def _carry_note(year: int, broke: int | None) -> str:
+    where = f"{broke} has no estimate" if broke is not None else "an earlier year has no estimate"
+    return (f"no tax: what is carried into {year} is unknown ({where}): enter what your årsopgørelse for {year - 1} "
+            f"carries into {year} under Losses carried in (0 if nothing)")
 
 
 def _rules(year: int):
@@ -98,17 +119,20 @@ def _pool_rate(kind: str, rules) -> float:
 
 
 def _account_pool(c: _Ctx, p: dict, year: int, openings: list[dict]) -> tuple[dict | None, list[str]]:
-    """The pool for `year`, chained from the account's first year (negative tax carried, openings added)."""
+    """The pool for `year`, chained from the account's first year (negative tax carried); an opening replaces the
+    chain from its year."""
     b, first = c.books[p["id"]], c.first_year(p["id"])
     notes: list[str] = []
     if b is None or first is None or first > year:
         return None, ["no rows in or before this year"]
     pool = "ask_negative_tax" if p["kind"] == "ask" else "pension_negative_tax"
     carried: float | None = 0.0
+    broke: int | None = None
     out = None
     for y in range(first, year + 1):
-        added = sum(o["amount"] for o in openings if o["pool"] == pool and o["portfolio_id"] == p["id"] and o["year"] == y)
-        carried = None if carried is None else carried + added
+        anchor = _opening(openings, y, (pool,), portfolio_id=p["id"])
+        if anchor is not None:
+            carried = anchor[pool]                   # the årsopgørelse wins over the chain
         start, end = pd.Timestamp(y - 1, 12, 31), _year_end(y, c.last)
         v0, v1 = _at(b.value, start), _at(b.value, end)
         win = (b.value.index > start) & (b.value.index <= end)
@@ -121,8 +145,9 @@ def _account_pool(c: _Ctx, p: dict, year: int, openings: list[dict]) -> tuple[di
                        "ret": None if v0 is None or v1 is None else v1 - v0 - inflow + outflow,
                        "carried_in": carried, "rate": None if r is None else _pool_rate(p["kind"], r),
                        "gross_tax": None, "used": None, "tax": None, "carried_out": None}
-                notes.append(f"no tax: {why}" if carried is not None else
-                             f"no tax: what is carried into {year} is unknown (an earlier year has no estimate)")
+                notes.append(f"no tax: {why}" if carried is not None else _carry_note(year, broke))
+            if carried is not None:
+                broke = y
             carried = None
             continue
         res = tm.account_pool(v0, v1, inflow, outflow, carried, _pool_rate(p["kind"], r))
@@ -217,23 +242,61 @@ def _dividends(c: _Ctx, fm: list[dict], year: int) -> list[dict]:
     return out
 
 
+def _missing_dividends(c: _Ctx, fm: list[dict], year: int) -> list[tuple[str, str]]:
+    """Dividends the prices say were paid while no DIVIDEND row is booked, as (class, note). An ex-dividend day is a
+    step up in the dividend factor (adjusted / traded close) on a day the account held the security (by its trades,
+    so a gap in another holding's prices doesn't hide it); a booking from a week before to PAY_DAYS after counts, and
+    an ex-day younger than PAY_DAYS may be unpaid, so it is skipped."""
+    raw = c.market.raw_closes()
+    if raw is None:
+        return []
+    booked: dict[str, list[pd.Timestamp]] = {}
+    for p in fm:
+        for r in c.rows[p["id"]]:
+            if r["type"] == "DIVIDEND" and r["symbol"]:
+                booked.setdefault(r["symbol"], []).append(pd.Timestamp(str(r["date"])[:10]))
+    start, end = pd.Timestamp(year - 1, 12, 31), _year_end(year, c.last)
+    wait, before = pd.Timedelta(days=PAY_DAYS), pd.Timedelta(days=7)
+    out = []
+    for p in fm:
+        trades_: dict[str, list[tuple[pd.Timestamp, float]]] = {}
+        for r in c.rows[p["id"]]:
+            if r["type"] in ("BUY", "SELL") and r["symbol"]:
+                q = float(r["quantity"]) * (1 if r["type"] == "BUY" else -1)
+                trades_.setdefault(r["symbol"], []).append((pd.Timestamp(str(r["date"])[:10]), q))
+        for sym, ts in sorted(trades_.items()):
+            if sym not in raw or sym not in c.market.closes:
+                continue
+            f = (c.market.closes[sym] / raw[sym]).dropna()
+            step = f / f.shift(1) - 1
+            for d in step[(step > DIV_STEP) & (step.index > start) & (step.index <= end)].index:
+                held = sum(q for t, q in ts if t < d)             # held at the close before the ex-day
+                if held <= 1e-9 or d > c.last - wait:
+                    continue
+                if any(d - before <= x <= d + wait for x in booked.get(sym, [])):
+                    continue
+                out.append((c.cls(sym, year)[0], f"{sym} in {p['name']}: ex-dividend {d.date()} while held, but no "
+                                                 "dividend is booked: add it, or the dividends stay unknown"))
+    return out
+
+
 def _person_year(c: _Ctx, person: dict, fm: list[dict], year: int, openings: list[dict]) -> dict:
-    """The person's share and capital income for `year`, the carried losses chained from their first year."""
+    """The person's share and capital income for `year`, the carried losses chained from their first year; an
+    opening (either pool) replaces the chain from its year."""
     realised = _realised(c, fm)
     firsts = [y for p in fm if (y := c.first_year(p["id"])) is not None]
     listed: float | None = 0.0
     negative: float | None = 0.0
+    broke: int | None = None
     notes: list[str] = [w["warning"] for w in realised.get(0, [])]
     res: dict[str, Any] = {"share_income": None, "capital_income": None, "bases": None, "complete": False}
     for y in range(min(firsts) if firsts else year, year + 1):
-        for o in openings:
-            if o["tax_person_id"] == person["id"] and o["year"] == y:
-                if o["pool"] == "listed_loss" and listed is not None:
-                    listed += o["amount"]
-                elif o["pool"] == "negative_share_income" and negative is not None:
-                    negative += o["amount"]
+        anchor = _opening(openings, y, ("listed_loss", "negative_share_income"), tax_person_id=person["id"])
+        if anchor is not None:                       # the årsopgørelse wins over the chain
+            listed, negative = anchor["listed_loss"], anchor["negative_share_income"]
         sales = realised.get(y, [])
         divs = _dividends(c, fm, y)
+        unpaid = _missing_dividends(c, fm, y) if y == year else []
         lager = [dict(row, portfolio_id=p["id"], portfolio=p["name"]) for p in fm for row in _lager_rows(c, p, y)]
         known_sales = [s["gain"] for s in sales if s["tax_class"] in SHARE_CLASSES and s["gain"] is not None]
         share_div = sum(d["amount"] for d in divs if d["tax_class"] in (*SHARE_CLASSES, "pl_fund"))
@@ -246,10 +309,14 @@ def _person_year(c: _Ctx, person: dict, fm: list[dict], year: int, openings: lis
                     for x in lager if x["gain"] is None]
         unknown = [f"{s['symbol']} sold {s['date']}: {s['reason']}" for s in sales if s["tax_class"] == taxinputs.UNKNOWN]
         unknown += [f"{d['symbol']} dividend {d['date']}: {d['reason']}" for d in divs if d["tax_class"] == taxinputs.UNKNOWN]
+        held_unknown = [u["symbol"] for u in _unknown_holdings(c, fm, y)] if y == year else []
+        # capital income can't be told while a holding has no class, or a fund's lager or dividend is missing
+        capital_open = (bool(unknown) or bool(held_unknown) or any(k == "fund" for k, _ in unpaid)
+                        or any(x["gain"] is None for x in lager if x["tax_class"] == "fund"))
         r = _rules(y)
         bases = {"realised_gains": sum(g for g in known_sales if g > 0), "realised_losses": -sum(g for g in known_sales if g < 0),
-                 "dividends": share_div, "pl_gains": sum(g for g in pl if g > 0), "pl_losses": -sum(g for g in pl if g < 0),
-                 "capital_base": capital}
+                 "dividends": None if unpaid else share_div, "pl_gains": sum(g for g in pl if g > 0),
+                 "pl_losses": -sum(g for g in pl if g < 0), "capital_base": None if capital_open else capital}
         si = None
         if r is not None and listed is not None and negative is not None:
             si = tm.share_income(known_sales, share_div, pl, listed_loss_in=listed, negative_in=negative,
@@ -257,20 +324,30 @@ def _person_year(c: _Ctx, person: dict, fm: list[dict], year: int, openings: lis
                                  limit=r.share_income.progression_limit, listed_offsets=r.losses.listed_offsets)
             listed, negative = si.listed_loss_out, si.negative_out
         else:
+            if listed is not None:
+                broke = y
             listed = negative = None
         if y == year:
             rate = person.get("capital_income_rate")
+            base = bases["capital_base"]
             res = {"share_income": asdict(si) if si else None, "bases": bases,
-                   "capital_income": {"base": capital, "rate": rate, "tax": tm.capital_tax(capital, rate)},
+                   "capital_income": {"base": base, "rate": rate,
+                                      "tax": None if base is None else tm.capital_tax(base, rate)},
                    "realised": sales, "dividends": divs, "lager": lager,
-                   "complete": si is not None and not missing and not unknown}
+                   "complete": si is not None and not missing and not unknown and not unpaid and not capital_open}
             if r is None:
                 notes.append(f"no tax: no rules for {year} in config/tax_dk.yaml")
             elif si is None:
-                notes.append(f"no tax: the losses carried into {year} are unknown (an earlier year has no rules)")
-            if rate is None and capital:
+                notes.append(_carry_note(year, broke))
+            if base is None:
+                notes.append("capital income unknown: a holding has no class, or a fund's lager or dividend is missing")
+            elif rate is None and base:
                 notes.append("capital income has no tax here: set your marginal rate on capital income")
-            notes += missing + unknown
+            elif base < 0:
+                notes.append("negative capital income: no tax on it; it lowers the tax on your other income by an "
+                             "amount that depends on that income (not in the estimate)")
+            notes += missing + unknown + [f"{s} at the end of {year}: no class, see Not in the estimate" for s in held_unknown]
+            notes += [m for _, m in unpaid]
     return res | {"notes": notes}
 
 

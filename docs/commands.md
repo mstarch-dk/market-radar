@@ -147,7 +147,7 @@ Always run Python through uv; the frontend uses pnpm.
   holdings it can't classify and the notes. A year without verified rules in `config/tax_dk.yaml`: the bases, no
   tax. `--json` prints the `TaxYearView` dict, the same as `GET /api/tax`. An estimate, not tax advice.
 - `uv run radar tax classify [--year Y] [--unknown]` / `tax classify SYMBOL stock|pl_fund|fund|dk_distributing|auto`
-  / `tax isin SYMBOL ISIN`: the holdings' ISIN, its source and the class in a year; set a class or an ISIN by hand
+  / `tax isin SYMBOL ISIN`: the ISIN, its source and the class in a year of what the real accounts have traded; set a class or an ISIN by hand
   (a manual row is never overwritten by the automatic fill from imports, `universe.yaml` and the discovery map).
 - `uv run radar tax person list|add|set NAME [--capital-rate R] [--account NAME…] [--rename NEW]` / `tax opening
   list|add|remove [--pool P --year Y --amount DKK --portfolio NAME | --person NAME] [--id N]`: tax persons (who owns

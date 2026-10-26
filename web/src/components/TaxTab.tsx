@@ -38,7 +38,7 @@ function PersonCard({ p }: { p: TaxPerson }) {
         </div>
       )}
       <KV rows={[
-        [<Term k="tax_share_income">Share income</Term>, si ? dkk(si.net) : <span className="muted">no rules: no netting</span>,
+        [<Term k="tax_share_income">Share income</Term>, si ? dkk(si.net) : <span className="muted">no tax: see the notes</span>,
           { hint: si ? `of the limit ${num(si.limit, 0)} DKK` : undefined }],
         ["Tax on it", si ? dkk(si.tax) : <span className="muted">–</span>,
           { hint: si ? `${num(si.tax_low, 0)} at the low rate, ${num(si.tax_high, 0)} above the limit` : undefined, hide: !si }],
@@ -48,7 +48,8 @@ function PersonCard({ p }: { p: TaxPerson }) {
         ["Listed losses carried out", si ? dkk(si.listed_loss_out) : "–", { hide: !si || si.listed_loss_out === 0 }],
         ["Negative share income carried out", si ? dkk(si.negative_out) : "–", { hide: !si || si.negative_out === 0 }],
         ["Capital income (funds off the list)", p.capital_income ? dkk(p.capital_income.base) : "–",
-          { hint: p.capital_income?.tax != null ? `tax ${num(p.capital_income.tax, 0)} DKK` : "no tax shown: set the rate below" }],
+          { hint: p.capital_income?.tax != null ? `tax ${num(p.capital_income.tax, 0)} DKK`
+            : p.capital_income?.base == null ? "unknown: see the notes" : "no tax shown: set the rate below" }],
       ]} />
       <Notes items={p.notes} />
     </Card>
@@ -161,7 +162,9 @@ function TaxSettings({ portfolios, onSaved }: { portfolios: Portfolio[]; onSaved
           <input type="number" min={0} max={100} step={0.1} defaultValue={x.capital_income_rate != null ? x.capital_income_rate * 100 : ""}
             aria-label={`${x.name}'s rate on capital income, %`} onBlur={(e) => rate.mutate({ id: x.id, name: x.name,
               r: e.target.value === "" ? null : Number(e.target.value) / 100 })} /> %</li>))}</ul>
-      <h3>Losses carried in from before your history</h3>
+      <h3>Losses carried in</h3>
+      <p className="small muted">What your årsopgørelse for the year before carries into a year. It replaces the radar&apos;s
+        own count from that year, so your latest årsopgørelse is enough; enter 0 if nothing is carried.</p>
       <ul className="small">{(openings.data ?? []).map((x) => (
         <li key={x.id}>{x.year} {POOLS.find(([k]) => k === x.pool)?.[1]}: {num(x.amount, 0)} DKK{" "}
           <button type="button" className="linkish" onClick={() => del.mutate(x.id)}>remove</button></li>))}</ul>
@@ -175,7 +178,7 @@ function TaxSettings({ portfolios, onSaved }: { portfolios: Portfolio[]; onSaved
           {owners.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
         <input type="number" min={0} value={o.amount} placeholder="DKK" aria-label="Amount in DKK" onChange={(e) => setO({ ...o, amount: e.target.value })} />
-        <button type="button" className="btn small" disabled={!o.owner || !(Number(o.amount) > 0) || add.isPending} onClick={() => add.mutate()}>Add</button>
+        <button type="button" className="btn small" disabled={!o.owner || o.amount === "" || !(Number(o.amount) >= 0) || add.isPending} onClick={() => add.mutate()}>Add</button>
         {add.isError && <span className="neg">{add.error.message}</span>}
       </div>
     </details>

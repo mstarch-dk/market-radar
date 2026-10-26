@@ -44,14 +44,14 @@ class TaxBases(Strict):
     """The year's amounts before any netting, also when there are no rules for the year."""
     realised_gains: float
     realised_losses: float
-    dividends: float
+    dividends: Num = None         # none: a dividend the prices show isn't booked
     pl_gains: float
     pl_losses: float
-    capital_base: float
+    capital_base: Num = None      # none: a holding has no class, or a fund's lager or dividend is missing
 
 
 class CapitalIncome(Strict):
-    base: float
+    base: Num = None              # none: unknown, see the notes
     rate: Num = None              # the person's own marginal rate; none: no tax shown
     tax: Num = None
 
@@ -198,5 +198,5 @@ class TaxOpeningIn(Strict):
     pool: OpeningPool
     portfolio_id: int | None = None
     tax_person_id: int | None = None
-    amount: float = Field(gt=0)
+    amount: float = Field(ge=0)   # what the årsopgørelse carries into `year`; 0: nothing
     note: str | None = None
