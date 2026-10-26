@@ -156,6 +156,35 @@ record the tool calls and input tokens of each run here. Continue with phases 2�
 30 % or more. Otherwise, stop at phase 1, move the slicing (`summary --section`, `calendar --symbol`) into the CLI,
 and leave the other skills on the shell.
 
+**Measured 2026-10-26 (TASK-6.7)** on the user's data folder, `/research NVDA` and `/compare NVDA AMD` (a second set,
+`/research MU` and `/compare MU 000660.KS AMD`, gave the same picture). The script ran each skill's data phase both
+ways: the CLI commands and file reads the old skill text prescribes, and the same tool wrappers the server
+registers, so each result is the text the client gets. The web research and writing the memo are the same either
+way and are left out. Sizes are characters put into context; tokens ≈ characters / 4 (JSON is a little denser).
+This is not a live agent run: an agent may skip an optional step (views, calendar), and every result is resent
+with each later turn, which scales both versions alike.
+
+| Skill | Version | Calls | Context from calls | ≈ tokens | Skill text |
+|---|---|---|---|---|---|
+| `/research` | CLI | 10 | 209,600 chars | 52,000 | 8,200 chars |
+| `/research` | MCP | 8 | 72,100 chars | 18,000 | 7,000 chars |
+| `/compare` | CLI | 6 | 142,000 chars + `longrun-study.json` (1,187,000) | 35,500 + see below | 10,900 chars |
+| `/compare` | MCP | 5 | 164,000 chars | 41,000 | 10,400 chars |
+
+- `/research`: **−66 %** context, 2 calls fewer. Most of the saving: `summary.json` whole (140k) vs
+  `summary(["rotation"])` (27k), `calendar --json` (14k) vs `calendar(symbols)` (1k). No `radar paths` call;
+  `data_paths` (0.9k) is called only to write the memo.
+- `/compare`: the profiles are 22 % smaller over MCP (54k vs 70k for the `--out` JSON, read by the skill and again
+  by its red team). The CLI red team was pointed at `longrun-study.json`, which at 1.19M chars no agent reads whole.
+  The Read tool stops at about 25k tokens, so in practice it read some part and maybe not the base rates.
+  `evidence_view(sections=["longrun"])` (added for this; 53k) returns the card with `base_rates`. Counting the CLI
+  red team's read at the Read limit (about 100k chars), the CLI total is about 242k against 164k: **−32 %**. Without
+  the red team's long-run read: −22 %.
+- One-off cost: the 15 tool descriptions add about 7,000 chars (≈ 1,800 tokens) to a session that has the `radar`
+  server connected, whether or not a skill runs.
+- Not yet checked by hand: a live `/research` in a session with `radar` connected (`/mcp`), and whether the desktop
+  scheduled task loads `.mcp.json` (section 8, question 1).
+
 ## 8. Open questions
 
 1. Does the Claude desktop scheduled task load project MCP servers? This decides whether `/market-brief` can rely

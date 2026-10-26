@@ -63,16 +63,25 @@ def calendar(portfolios: list[str] | None = None, tags: list[str] | None = None,
                 "no_date": [n for n in v["no_date"] if n["symbol"].upper() in want]}
 
 
-def evidence_view() -> dict:
+def evidence_view(sections: list[str] | None = None) -> dict:
     """The Evidence page: a card per score study (momentum, kvalitet, værdi, K+V) and the long-run study with
     status, age, IC with t and holdout, the rule studies' headers, and the forward record vs ACWI (A/B test, paper
-    trail, frozen proposals). Without prices the forward record is null and the cards still come back."""
+    trail, frozen proposals). Without prices the forward record is null and the cards still come back.
+    `sections`: only these of scores, longrun (its `base_rates`: how often momentum, value and quality lost over 6
+    and 12 months, and their worst drawdown), rules, forward."""
     trades.ensure_migrated()
     try:
         m = market()
     except errors.NotFound:
         m = None
-    return evidence.cached(m)
+    v = evidence.cached(m)
+    if not sections:
+        return v
+    known = ("scores", "longrun", "rules", "forward")
+    unknown = [s for s in sections if s not in known]
+    if unknown:
+        raise errors.Invalid(f"No section {', '.join(unknown)} on the Evidence page (known: {', '.join(known)}).")
+    return {k: x for k, x in v.items() if k not in known or k in sections}
 
 
 def ticker_profile(symbols: list[str], personal: bool = False, portfolios: list[str] | None = None,
@@ -81,7 +90,13 @@ def ticker_profile(symbols: list[str], personal: bool = False, portfolios: list[
     fundamentals, ETF data, peers, quality, your views; each section has a `status`. With several symbols: a
     side-by-side comparison with ACWI (profiles, a metrics table, risk, correlations); your positions and
     correlations with your holdings only with `personal` (from `portfolios`/`tags`, default your real ones). An
-    untracked ticker's prices are downloaded first (about 10 s). `refresh`: fetch fundamentals and estimates now."""
+    untracked ticker's prices are downloaded first (about 10 s). `refresh`: fetch fundamentals and estimates now.
+
+    `price.returns` is in the listing currency, `price.returns_dkk` in DKK; risk statistics are in DKK on complete
+    weekly returns. Each section has `status` (ok, stale, missing), `source`, `asof`, and `context.notes` explains
+    the gaps. `gauges`: `level` −4…+4 (+ favourable, − warning) with a `label`; `context.watchouts` lists the red
+    ones. The comparison's `table` has rows {metric, direction, values: {SYM: v, ACWI: v}, best}; `correlation` is
+    weekly DKK returns over 1y; an unknown symbol becomes an `error` entry."""
     if not symbols:
         raise errors.Invalid("Give at least one symbol.")
     if len(symbols) == 1:

@@ -116,6 +116,9 @@ def test_portfolios_by_name(built):
     assert ok("performance")["rows"]
     assert "regression" in ok("attribution")
     assert len(ok("evidence_view")["scores"]) == 4
+    lr = ok("evidence_view", sections=["longrun"])
+    assert "longrun" in lr and "scores" not in lr and "forward" not in lr
+    assert "No section nope" in refused("evidence_view", sections=["nope"])
 
 
 def test_ticker_profile(built):
