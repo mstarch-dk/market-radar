@@ -159,7 +159,8 @@ export function Portfolio() {
             <ul className="small warn-text">{Object.entries(p.warnings).flatMap(([s, ws]) => ws.map((w) => <li key={s + w}><b>{s}</b>: {w}</li>))}</ul>
           )}
           {p && p.total.length > 0 && (
-            <p className="small muted">Values use the last traded close in each stock&apos;s own currency. Returns in DKK against
+            <p className="small muted">Values use the last traded close in each stock&apos;s own currency, and in DKK at the exchange rate on that
+              close&apos;s day. Returns in DKK against
               ACWI: per holding on <Link to="/me">My holdings &amp; watchlist</Link>, per account over time on{" "}
               <Link to={`/returns${isDefaultSel(sel) ? "" : `?pf=${formatSel(sel)}`}`}>Returns</Link>.</p>
           )}

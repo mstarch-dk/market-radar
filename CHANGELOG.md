@@ -6,6 +6,9 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Positions in DKK**: the *Positions* table on *Portfolio* (and on *Experiments*) has a *Value (DKK)* column, each
+  position's value at its last traded close converted at the DKK rate on that close's day, so it sorts by size
+  across currencies. It shows "–" when the price or rate is missing; `/api/portfolio/positions` gains `value_dkk`.
 - **Tax estimate** (a *Tax* tab on *Portfolio*): the Danish tax your own records imply for an income year, an
   estimate and not tax advice. Each aktiesparekonto and pension account is one pool (lager on the whole return,
   negative tax carried forward); each tax person's frie midler accounts are taken together for share income

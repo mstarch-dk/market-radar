@@ -13,9 +13,9 @@ import pandas as pd
 
 from .. import money, universe, userstore
 from ..errors import Invalid
-from ..sources import fxrates
 from ..values import whole
 from . import trades
+from .prices import Prices
 
 if TYPE_CHECKING:
     from ..market import Market
@@ -242,27 +242,31 @@ def effect(row: dict, others: list[dict] | None = None, exclude_id: int | None =
 
 def positions_view(market: Market, portfolios: list[int] | None = None) -> dict:
     """Open positions per portfolio and in total over these portfolios (ids; default: your real ones), valued at
-    the last traded close (in the quote currency)."""
+    the last traded close, in the quote currency and in DKK at the exchange rate on that close's day (None when
+    either is missing)."""
     tx = trades.transactions(portfolios)
     total, warn = trades.positions(tx)
     per, _ = trades.positions(tx, by_portfolio=True)
+    prices = Prices(market)
+    prices.preload(sorted(total["symbol"]) if not total.empty else [])
 
     def rows(df, by_portfolio):
         out = []
         for _, p in df[df["status"] == "holding"].iterrows():
             found = session_close(market, p["symbol"], pd.Timestamp.today())
             last = found[1] if found else None
+            value = last * float(p["quantity"]) if last is not None else None
+            rate = prices.rate(p["symbol"], found[0]) if found else None
             out.append({"symbol": p["symbol"],
                         "portfolio_id": whole(p.get("portfolio_id")) if by_portfolio else None,
                         "portfolio": _text(p.get("portfolio")) if by_portfolio else None,
                         "portfolios": _text(p.get("portfolios")), "quantity": float(p["quantity"]),
                         "avg_price": float(p["avg_price"]), "first_trade": p["first_trade"], "last": last,
-                        "value": last * float(p["quantity"]) if last is not None else None,
+                        "value": value, "value_dkk": value * rate if value is not None and rate is not None else None,
                         "unrealized": last / float(p["avg_price"]) - 1 if last is not None and p["avg_price"] else None})
         return out
     names = universe.names(sorted(total["symbol"])) if not total.empty else {}
-    ccy = fxrates.currencies(sorted(total["symbol"])) if not total.empty else {}
-    add = lambda r: r | {"name": names.get(r["symbol"]), "currency": ccy.get(r["symbol"])}  # noqa: E731
+    add = lambda r: r | {"name": names.get(r["symbol"]), "currency": prices.ccy(r["symbol"])}  # noqa: E731
     return {"total": [add(r) for r in rows(total, False)], "by_portfolio": [add(r) for r in rows(per, True)],
             "warnings": warn, "transactions": len(tx), "cash": cash_view(market, portfolios)}
 

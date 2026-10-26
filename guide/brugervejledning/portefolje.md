@@ -10,7 +10,7 @@ Virtuelle porteføljer (A/B-testen, simuleringer og forks) vises ikke her, men p
 
 Derunder er siden delt i fem faner (`?tab=` i adressen, så *Tilbage* i browseren går til den forrige fane):
 
-- ***Positions***: dine positioner med antal, gennemsnitlig anskaffelseskurs (*Average cost*), seneste kurs, værdi, urealiseret afkast og dato for første køb. *Total* lægger kontiene sammen, *By account* viser dem hver for sig. Har en konto kontantrækker, står kontantbeholdningen i DKK under tabellen. Værdierne er i hvert papirs egen valuta.
+- ***Positions***: dine positioner med antal, gennemsnitlig anskaffelseskurs (*Average cost*), seneste kurs, værdi, værdi i DKK, urealiseret afkast og dato for første køb. *Total* lægger kontiene sammen, *By account* viser dem hver for sig. Har en konto kontantrækker, står kontantbeholdningen i DKK under tabellen. *Value* er i papirets egen valuta; *Value (DKK)* er samme værdi omregnet til kroner med valutakursen fra dagen for den seneste kurs, så du kan sortere positionerne efter størrelse på tværs af valutaer. Mangler valutakursen, står der en streg i stedet for et tal.
 - ***Transactions***: alle rækker, nyeste først, med *Edit* og *Delete*. Knapperne *Add a trade* og *Add a cash row* åbner formularen lige over tabellen, og *Download your transactions (CSV)* henter de viste rækker. Sletter du en række, kan du fortryde med *Undo* lige bagefter.
 - ***Imports***: *Import a file…* åbner guiden til import fra en bank eller et regneark, og *Past imports* viser tidligere importer med mulighed for at fortryde (se [Fortryd en import](#fortryd-en-import)).
 - ***Accounts***: dine konti med skattetype, tags, kurtageskema og arkiv. Se [Rigtige og virtuelle porteføljer](brugervejledning/portefoljer-og-tags).
