@@ -4,6 +4,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 ## Næste version
 
+**Positioner i kroner.** Tabellen *Positions* på *Portfolio* har fået kolonnen *Value (DKK)*: værdien omregnet til kroner med valutakursen fra dagen for den seneste kurs, så du kan sortere dine positioner efter størrelse på tværs af valutaer. Se [Portefølje](brugervejledning/portefolje).
+
 **En kalender over det, du ejer og følger.** Den nye side *Calendar* under *Mine* viser de næste {{settings:calendar.days}} dages regnskaber og udbyttedage for dine beholdninger og din watchlist, og dine egne datoer: gennemgangsdatoer i journalen og tidsstop i dine porteføljeforslag. Hvert punkt siger, hvorfor det er fremhævet, efter faste regler: hvor meget af porteføljen der står på spil, hvor tæt kursen er på dit gennemgangsniveau, svagt momentum, nedjusterede skøn, og hvor sikker datoen er. Se [Kalenderen](brugervejledning/kalender).
 
 - **Datoerne er Yahoos, og det står der.** Et vindue vises som et vindue, aldrig som dets første dag. En aktie uden kendt dato står under *No date known* med grunden; fonde tælles, men listes ikke.
@@ -16,6 +18,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 - **Satserne har kilde og dato.** De står i `config/tax_dk.yaml` for 2025 og 2026. Et år uden tjekkede satser viser beløbene, men ingen skat.
 - **Intet gættes.** En fond uden ISIN-kode, et år uden positivliste eller en dansk fond uden for listen står under *Not in the estimate* med værdi og årsag, og du kan rette den direkte der.
 - **Positivlisten pr. år.** Hver fond slås op på listen for netop det indkomstår, så en ETF, der forlader listen, skifter beskatning det år.
+- **Din årsopgørelse er udgangspunktet.** Skriv det, din seneste årsopgørelse fører ind i året, under *Losses carried in* (0, hvis intet fremføres). Så får du et estimat, også når dine handler går længere tilbage end satserne.
+- **Ukendt udbytte står som ukendt.** Viser kurserne et udbytte på en aktie, du ejede, uden at det er bogført, står udbyttet som –, ikke 0, og noten siger hvilket.
 - **Indskudsloftet på aktiesparekontoen** måles nu som hos SKAT: mod kontoens værdi den 31. december året før. Har du sat `propose.ask_deposit_cap` eller `propose.ask_cap_year` i din egen `settings.yaml`, så slet dem; loftet står nu i `tax_dk.yaml`.
 - **Din database opdateres** med personer, ISIN-koder og fremførte tab; der tages en backup først. Alle dine konti tilhører personen *Me*, indtil du ændrer det.
 

@@ -2160,7 +2160,7 @@ export interface components {
         /** CapitalIncome */
         CapitalIncome: {
             /** Base */
-            base: number;
+            base?: number | null;
             /** Rate */
             rate?: number | null;
             /** Tax */
@@ -4799,6 +4799,8 @@ export interface components {
             last?: number | null;
             /** Value */
             value?: number | null;
+            /** Value Dkk */
+            value_dkk?: number | null;
             /** Unrealized */
             unrealized?: number | null;
         };
@@ -6094,13 +6096,13 @@ export interface components {
             /** Realised Losses */
             realised_losses: number;
             /** Dividends */
-            dividends: number;
+            dividends?: number | null;
             /** Pl Gains */
             pl_gains: number;
             /** Pl Losses */
             pl_losses: number;
             /** Capital Base */
-            capital_base: number;
+            capital_base?: number | null;
         };
         /** TaxDividend */
         TaxDividend: {

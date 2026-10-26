@@ -215,3 +215,19 @@ def test_one_list_of_row_types():
     schema = "\n".join(s if isinstance(s, str) else "\n".join(s) for s in userstore.MIGRATIONS)
     checks = {frozenset(re.findall(r"'([A-Z]+)'", m)) for m in re.findall(r"type IN \(([^)]*)\)\)", schema)}
     assert frozenset(userstore.TYPES) in checks
+
+
+def test_openings_survive_the_rebuild_that_allows_zero(tmp_data, monkeypatch):
+    n = len(userstore.MIGRATIONS)
+    monkeypatch.setattr(userstore, "MIGRATIONS", userstore.MIGRATIONS[:n - 1])        # the schema before it
+    userstore.connect().close()
+    me = userstore.tax_persons()[0]["id"]
+    userstore.add_tax_opening({"year": 2026, "pool": "listed_loss", "tax_person_id": me, "amount": 500, "note": "x"})
+    monkeypatch.setattr(userstore, "MIGRATIONS", userstore.MIGRATIONS + [_ALLOW_ZERO])
+    (o,) = userstore.tax_openings()
+    assert (o["year"], o["pool"], o["tax_person_id"], o["amount"], o["note"]) == (2026, "listed_loss", me, 500, "x")
+    userstore.add_tax_opening({"year": 2026, "pool": "negative_share_income", "tax_person_id": me, "amount": 0})
+    assert [x["amount"] for x in userstore.tax_openings()] == [500, 0]
+
+
+_ALLOW_ZERO = userstore.MIGRATIONS[-1]

@@ -23,6 +23,8 @@ export const posCols = (byPortfolio: boolean, portfolioLabel = "Portfolio"): Col
   { key: "avg", label: "Average cost", sort: (p) => p.avg_price, render: (p) => price(p.avg_price, p.currency) },
   { key: "last", label: "Last", sort: (p) => p.last, render: (p) => price(p.last, p.currency) },
   { key: "value", label: "Value", sort: (p) => p.value, render: (p) => price(p.value, p.currency) },
+  { key: "value_dkk", label: "Value (DKK)", sort: (p) => p.value_dkk,
+    render: (p) => (p.value_dkk != null ? `${num(p.value_dkk, 0)} DKK` : <span className="muted" title="No price or DKK exchange rate">–</span>) },
   { key: "unreal", label: "Unrealised", sort: (p) => p.unrealized, render: (p) => <Pct v={p.unrealized} />, heat: true },
   { key: "first", label: "Since", sort: (p) => p.first_trade, render: (p) => date(p.first_trade) },
 ];

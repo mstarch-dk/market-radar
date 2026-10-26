@@ -106,7 +106,8 @@ class PositionRow(Strict):
     avg_price: float
     first_trade: str | None = None
     last: Num = None
-    value: Num = None
+    value: Num = None                      # in the quote currency
+    value_dkk: Num = None                  # at the DKK rate on the last close's day; None when that rate is missing
     unrealized: Num = None
 
 

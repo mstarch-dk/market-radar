@@ -16,7 +16,7 @@ Derefter kommer et kort for hver person og for hver konto:
 
 Under kortene står *Not in the estimate*: beholdninger, radaren ikke kan afgøre beskatningen af. De er nævnt med værdi og årsag og regnes ikke med; de bliver aldrig gættet. Nederst åbner *Who owns what, rates and losses carried in* indstillingerne (se nedenfor).
 
-Et beløb, der ikke kan regnes (en manglende kurs eller valutakurs), står som –, aldrig som 0, og kortet er mærket *incomplete* eller *no estimate*.
+Et beløb, der ikke kan regnes (en manglende kurs eller valutakurs), står som –, aldrig som 0, og kortet er mærket *incomplete* eller *no estimate*. Det gælder også udbyttet, når kurserne viser et udbytte, du ikke har bogført, og kapitalindkomsten, så længe en beholdning mangler sin beskatning: en af dem kan være en fond uden for positivlisten.
 
 ## Sådan regner radaren
 
@@ -25,7 +25,9 @@ Et beløb, der ikke kan regnes (en manglende kurs eller valutakurs), står som �
 - **Lager** for en fond: værdien ved årets slut plus det, salg har indbragt, minus værdien ved årets start og det, køb har kostet.
 - **Aktiesparekonto og pension**: afkastet er værdien ved årets slut minus værdien ved årets start, minus indbetalinger, plus udbetalinger. Udbytte er med i værdien.
 - **Klassificering pr. år.** En aktie er realisationsbeskattet aktieindkomst. En fond, hvis ISIN står på det års positivliste, er lagerbeskattet aktieindkomst; en udenlandsk fond, der ikke gør, er lagerbeskattet kapitalindkomst. Forlader en ETF listen, skifter den derfor beskatning i det år, den forsvinder, og på en aktiesparekonto får du en advarsel.
-- **Fremførsel** regnes fra kontoens første år: negativ skat på aktiesparekonto og pension, tab på børsnoterede aktier og negativ aktieindkomst pr. person. Har et tidligere år ingen satser, kendes det fremførte ikke, og året viser grundlaget uden skat.
+- **Fremførsel** regnes fra kontoens første år: negativ skat på aktiesparekonto og pension, tab på børsnoterede aktier og negativ aktieindkomst pr. person. Har et tidligere år ingen satser, kendes det fremførte ikke, og året viser grundlaget uden skat, indtil du skriver beløbene fra din årsopgørelse ind under *Losses carried in* (se nedenfor). De erstatter radarens egen optælling fra det år.
+- **Udbytte** tæller med det beløb, du har bogført som udbytte. Radaren kan se på kurserne, hvornår en aktie er gået ex-udbytte. Ejede du den dagen før, og er der ikke bogført et udbytte fra en uge før til 45 dage efter, står udbyttet som ukendt, og noten nævner aktien og datoen. En ex-dag, der er yngre end 45 dage, er måske ikke udbetalt endnu og tælles ikke med.
+- **Negativ kapitalindkomst** giver ingen skat her. Den sænker skatten af din øvrige indkomst med et beløb, der afhænger af den indkomst, så den regnes ikke med.
 
 Satserne står i `config/tax_dk.yaml`, ét afsnit pr. år, hvert tal med kilde og den dato, det er tjekket. Et år uden tjekkede satser viser beløbene, men ingen skat: radaren låner aldrig et andet års tal.
 
@@ -35,7 +37,7 @@ Satserne står i `config/tax_dk.yaml`, ét afsnit pr. år, hvert tal med kilde o
 
 - **Accounts**: hvilken person hver konto tilhører. Alle rigtige konti tilhører *Me*, indtil du ændrer det. Har du og en partner hver jeres frie midler, så opret en person mere med `radar tax person add Navn` og flyt kontoen.
 - **Rate on capital income**: din marginale skat på kapitalindkomst i procent. Den afhænger af resten af din indkomst, så radaren gætter den ikke; uden den vises kapitalindkomsten uden skat.
-- **Losses carried in from before your history**: tab fra før dine første handler i radaren, fra din seneste årsopgørelse. Vælg året, de føres ind i, puljen (*ASK: negative tax*, *Pension: negative tax*, *Listed-share loss* eller *Negative share income*), kontoen eller personen og beløbet i kroner.
+- **Losses carried in**: det, din årsopgørelse for året før fører ind i et år. Vælg året, beløbet føres ind i, puljen (*ASK: negative tax*, *Pension: negative tax*, *Listed-share loss* eller *Negative share income*), kontoen eller personen og beløbet i kroner. Beløbet erstatter radarens egen optælling fra det år, så din seneste årsopgørelse er nok, også når dine handler i radaren går længere tilbage end satserne. Fremføres der intet, så skriv 0: det er også et svar. For en person gælder et beløb for begge puljer; den, du ikke skriver, fører 0 ind.
 
 En beholdning under *Not in the estimate* retter du direkte i listen: skriv ISIN-koden (så positivlisten kan tjekkes), eller vælg beskatningen. En dansk fond uden for positivlisten skal du selv angive som *Danish distributing fund*, hvis den er udloddende. Det samme kan gøres med `radar tax isin SYMBOL ISIN` og `radar tax classify SYMBOL KLASSE`.
 
@@ -46,11 +48,11 @@ ISIN-koder hentes automatisk, første gang en beholdning ses: fra din import (de
 | Kommando | Hvad den gør |
 |---|---|
 | `uv run radar tax year 2026` | Estimatet for året; `--json` giver det samme som fanen, `--portfolio` og `--person` afgrænser |
-| `uv run radar tax classify [--unknown]` | Beholdningernes ISIN, kilde og klasse i året |
+| `uv run radar tax classify [--unknown]` | ISIN, kilde og klasse i året for det, dine rigtige konti har handlet (ikke simuleringer) |
 | `uv run radar tax isin SYMBOL ISIN` | Sæt en ISIN-kode |
 | `uv run radar tax classify SYMBOL stock\|pl_fund\|fund\|dk_distributing\|auto` | Sæt beskatningen (`auto`: ud fra ISIN og positivlisten igen) |
 | `uv run radar tax person list\|add\|set` | Personer, deres sats på kapitalindkomst (`--capital-rate 0.37`) og konti (`--account`) |
-| `uv run radar tax opening list\|add\|remove` | Fremførte tab fra før din historik |
+| `uv run radar tax opening list\|add\|remove` | Fremførte tab fra din årsopgørelse (`--amount 0`: intet fremført) |
 
 ## Hvad radaren regner med, og hvad den ikke gør
 
