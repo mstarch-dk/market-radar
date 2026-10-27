@@ -185,6 +185,21 @@ with each later turn, which scales both versions alike.
 - Not yet checked by hand: a live `/research` in a session with `radar` connected (`/mcp`), and whether the desktop
   scheduled task loads `.mcp.json` (section 8, question 1).
 
+**Decision 2026-10-27 (TASK-6.8): go.** Phases 2–3 go ahead (tasks 6.9–6.13 kept). Both skills together:
+
+| Counting `/compare`'s long-run read | CLI | MCP | Saving |
+|---|---|---|---|
+| Both sides left out (CLI file, MCP `evidence_view`) | 352k chars | 183k chars | −48 % |
+| CLI at the Read limit, MCP as measured | 452k chars | 236k chars | −48 % |
+
+Both clear the 30 % bar, and `/research` alone (−66 %) would. `/compare` alone sits at −22 % to −32 %, because its
+bulk is the profiles, which are the same data either way. That is not a reason to stop: the skills left for phase 2
+have more of what the tools cut. `/market-brief` reads about 15 sections of `summary.json`, the journal review runs
+`info` once per open entry, and propose and hindsight write picks JSON by hand (findings M2, M4, M5). The fixed cost
+(about 1,800 tokens of tool descriptions per session) is small next to one run's saving. Phase 2 is still to be
+measured on what it migrates: `/market-brief`'s data step is compared against the CLI the same way before task 6.13
+releases it.
+
 ## 8. Open questions
 
 1. Does the Claude desktop scheduled task load project MCP servers? This decides whether `/market-brief` can rely
