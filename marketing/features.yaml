@@ -32,6 +32,22 @@ features:
     pages: [/momentum]
     shots: [momentum]
 
+  - id: quality
+    title: Kvalitet og værdi
+    section: quality
+    pages: [/quality, /ticker/:symbol]
+    commands: [radar fundamentals, radar abtest]
+    shots: [quality, ticker_quality]
+    since: "0.2.0"
+
+  - id: evidence
+    title: Evidens
+    section: evidence
+    pages: [/evidence]
+    commands: [radar evidence, radar study score, radar study longrun]
+    shots: [evidence]
+    since: "F2 evidence page"
+
   - id: discover
     title: Discover (heatmap og screener)
     section: discover
@@ -46,6 +62,7 @@ features:
     pages: [/ticker/:symbol]
     commands: [radar info, radar ticker]
     shots: [ticker_chart, ticker_cards, hover]
+    since: "#38"
 
   - id: views
     title: Mine markedssyn
@@ -76,21 +93,49 @@ features:
     pages: [/portfolio]
     commands: [radar portfolio, radar import-yahoo]
     shots: [portfolio, import]
-    since: "#11"
+    since: "#37"
+
+  - id: xray
+    title: Røntgen af porteføljen
+    section: xray
+    pages: [/xray]
+    commands: [radar xray]
+    shots: [xray, xray_risk]
+    since: "#21"
 
   - id: returns
-    title: Afkast over tid og virtuelle porteføljer (A/B)
+    title: Afkast over tid, attribution og eksperimenter
     section: returns
-    pages: [/returns, /portfolio]
-    commands: [radar portfolios, radar performance]
-    shots: [returns, returns_ab, portfolios]
-    since: "#14"
+    pages: [/returns, /experiments]
+    commands: [radar portfolios, radar performance, radar attribution, radar sim picks]
+    shots: [returns, returns_ab, attribution, experiments]
+    since: "#32"
+
+  - id: tax
+    title: Skatteskøn
+    section: tax
+    pages: [/portfolio]
+    commands: [radar tax]
+    shots: [tax]
+    since: "#36"
+
+  - id: rules
+    title: Mine handelsregler
+    section: rules
+    pages: [/rules, /me, /portfolio]
+    commands: [radar rules]
+    skills: [rules, journal]
+    shots: [rules, rules_check]
+    since: "#41"
 
   - id: research
     title: Skriftlig research med Claude Code
     section: research
-    skills: [market-brief, research, compare, journal]
+    pages: [/notebook]
+    commands: [radar mcp]
+    skills: [market-brief, research, compare, journal, rules, propose-portfolio, hindsight]
     shots: []
+    since: "#40"
 
   - id: positioning
     title: Positionering og cyklus
@@ -101,9 +146,9 @@ features:
   - id: data
     title: Data og dækning
     section: data
-    pages: [/data]
-    commands: [radar doctor, radar update]
-    shots: [data, blindspots]
+    pages: [/data, /ops]
+    commands: [radar doctor, radar update, radar ops, radar paths, radar backup, radar export]
+    shots: [data_home, blindspots]
 
   - id: interface
     title: Lokal app, lyst/mørkt tema og mobil

@@ -40,6 +40,9 @@ forks:
 
 watchlist: [NKT.CO, SAAB-B.ST, VWS.CO]
 
+# ISIN codes the radar can't find by itself (the tax estimate checks them against the positive list).
+isins: {XDWD.DE: IE00BJ0KDQ92}
+
 # My market views, from the templates in config/views.yaml.
 views:
   - template: ai_dominates
@@ -74,3 +77,9 @@ rules:
   - template: sell_cooling
   - template: exit_first
   - template: explain_it
+
+# Hindsight baskets (`radar sim picks`, what /hindsight runs): mechanical, from the score as it stood that day, so
+# the Experiments page has a simulation beside the fork. Each makes three virtual portfolios: · hold, · exits, · control.
+simulations:
+  - name: "Hindsight: momentum top 10"
+    args: [--asof, 6M, --rule, top-n, --n, 10, --max-per-sector, 3, --capital, 100000]
