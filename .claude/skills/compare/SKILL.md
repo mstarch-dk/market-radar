@@ -6,35 +6,32 @@ argument-hint: <ticker> <ticker> [...] [--personal] [--horizon 3m]
 
 # Compare tickers
 
-Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+Read the radar through the `mcp__radar__*` tools; their descriptions carry the units, `status` and the table's
+shape. If the `radar` tools aren't connected, use the CLI instead: `uv run radar paths --json` for the folders, then
+`uv run radar info <T1> <T2> ... [--personal] --out <exports>/<date>_<tickers>.json`, and read
+`notes/investor.md` and `reports/longrun-study.json` from those folders.
 
-**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+Read `investor_notes` first (the user's accounts, horizon and preferences); if it has none yet, go on without.
 
-Output goes to `research/compare/YYYY-MM-DD_<T1>-<T2>[-...].md`. Reply with the summary table and a link.
+Output goes to `research/compare/YYYY-MM-DD_<T1>-<T2>[-...].md` in the data folder (`data_paths`:
+`folders.research`). Reply with the summary table and a link.
 Everything here is analysis of a setup, not a recommendation to buy or sell.
 
 **Defaults:**
-- **Horizon:** 3 months (the radar's 1–6-month momentum focus), unless `notes/investor.md` or the user says otherwise.
+- **Horizon:** 3 months (the radar's 1–6-month momentum focus), unless the investor notes or the user say otherwise.
 - **Personal data:** off. Use `--personal` only when the user asks for it or passes the flag. Without it, don't use
   their positions, journal, memos or market views, and don't infer them.
 - **Market views** (with `--personal` only): each profile then has a `views` section, how the name lines up with the
-  user's market views from the app's *My market views* page, with the radar's evidence per view. `uv run radar views
-  --json` has the full views. They are the user's subjective beliefs, not evidence.
+  user's market views from the app's *My market views* page, with the radar's evidence per view. `market_views`
+  has the full views. They are the user's subjective beliefs, not evidence.
 
-## Data conventions (the JSON you'll read)
-- **Units:**
-  - Returns and percentages are **fractions** (0.12 = 12%).
-  - `price.returns` is in the listing currency, `price.returns_dkk` in DKK. Risk statistics are in **DKK**, on
-    complete weekly returns.
-- **Missing data:** a missing value is `null`, never 0. Each section has `status` (`ok` / `stale` / `missing`),
-  `source` and `asof`, and `context.notes` explains the gaps. Write "n/a" for them; never fill them in.
-- **`gauges`:** each has `level` −4…+4 (+ favourable, − warning) and a `label`. `context.watchouts` lists the red
-  ones.
+## Reading the comparison
+- **Missing data:** write "n/a" for a `null` or a section that isn't `ok`; never fill it in.
 - **`risk.windows`:** for 1y and 3y, `beta ± beta_se` with `r2` and an `alpha_ann` with `alpha_t`. Treat
   |t| < 2 as noise, and check whether 1y and 3y agree before leaning on either.
 - **`risk.factors`:** loadings on ACWI and on tilts (factor ETFs and the sector ETF minus ACWI), with t-stats.
   This shows whether a "great stock" is really momentum, value or sector exposure.
-- **`table`:** rows `{metric, direction, values: {SYM: v, ACWI: v}, best}`. Use it rather than re-deriving numbers.
+- **`table`:** use it rather than re-deriving numbers.
 - **P/E vs peers:** `fundamentals.snapshot.pe_vs_sector` is each stock's P/E on next year's EPS against its sector's median among its radar peers (funds: `pe_vs_acwi`). Use it in the valuation row so names in different markets are compared with their own sector, and say when it is missing (too few peers).
 - **Quality & value:** each stock's `quality` section has the kvalitetsscore, værdiscore and K+V (0–100 against its
   sector's peers across regions), what they rest on (`q_n` / `v_n` of 4), every metric with its percentile, the
@@ -47,7 +44,7 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
   a peak signal as much as a value signal; treat it as both, not as an argument for one side.
 - **Analyst targets** are rescaled to the radar's dividend-adjusted prices (so they aren't round numbers);
   `rec_mean` and the monthly `recommendations` breakdown can disagree (both from Yahoo). Quote the breakdown.
-- **`correlation`:** weekly DKK returns over 1y. With `--personal` it also includes the user's holdings (their real portfolios; never virtual ones unless `--portfolio`/`--tag` names them).
+- **`correlation`:** with `--personal` it also includes the user's holdings (their real portfolios; never virtual ones unless the user names them: pass `portfolios`/`tags`).
 - **`levels`:** the radar's mechanical rule. With `levels.mode: trend` (the default) `levels.stop` is a review level at
   the 200-day average, not a sell level, and there is no take-profit: the radar's own test found fixed stops and
   targets cost momentum names more return than the risk they removed, and sizing cut risk more cheaply. Present it
@@ -56,8 +53,7 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 
 ## Steps
 
-1. **Data**: run `uv run radar info <T1> <T2> ... [--personal] --out exports/<date>_<tickers>.json` and read the
-   file.
+1. **Data**: `ticker_profile([<T1>, <T2>, ...], personal=<true with --personal>)`.
    - **Errors:** stop and tell the user about any `error` entry (wrong symbol?).
    - **Stale data:** note it, e.g. if `regime.asof` is more than a week old (suggest `uv run radar run`).
    - **Gaps:** collect them per ticker from `status`, `null` values and `context.notes`.
@@ -91,10 +87,10 @@ Everything here is analysis of a setup, not a recommendation to buy or sell.
 5. **Bull and bear per ticker**: three arguments each way, each tied to a rubric cell or a cited source. Label
    anything that rests on neither as *narrative*. Drop arguments the data contradicts; don't soften them.
 
-6. **Red team**: launch a separate subagent (general-purpose) with only the JSON path, `reports/longrun-study.json`
-   (the long-run base rates of momentum, value and quality: how often each lost over 6 and 12 months, and its
-   worst drawdown) and your step-5 text. Its
-   brief:
+6. **Red team**: launch a separate subagent (general-purpose) with only the tickers and the `personal` flag (it
+   calls `ticker_profile` itself with the same arguments), `evidence_view(sections=["longrun"])` (the long-run base
+   rates of momentum, value and quality: how often each lost over 6 and 12 months, and its worst drawdown) and your
+   step-5 text. Its brief:
    - attack each bull case
    - write a pre-mortem per ticker ("it's down 30% at the end of the horizon: the most likely reasons")
    - reverse-engineer what the forward P/E implies about growth and say whether that is plausible against the

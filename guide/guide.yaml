@@ -48,6 +48,7 @@ books:
       - title: Claude Code og kommandolinjen
         chapters:
           - {slug: claude-code, title: Claude Code-skills}
+          - {slug: claude-mcp, title: Claude og radarens værktøjer}
           - {slug: kommandolinjen, title: Kommandolinjen}
           - {slug: maanedsbrief, title: Månedsbriefen}
       - title: Appendiks

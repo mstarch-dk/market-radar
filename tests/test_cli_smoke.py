@@ -126,6 +126,16 @@ def test_serve_starts_uvicorn(built, monkeypatch):
     assert served == [("radar.api:app", port)]
 
 
+def test_mcp_runs_the_server_over_stdio(built, monkeypatch):
+    """`radar mcp` runs the MCP server over stdio and prints nothing first: stdout is the protocol."""
+    from mcp.server.mcpserver import MCPServer
+
+    ran = []
+    monkeypatch.setattr(MCPServer, "run", lambda self, transport="stdio", **k: ran.append((self.name, transport)))
+    assert run("mcp") == ""
+    assert ran == [("radar", "stdio")]
+
+
 def test_openapi_prints_the_schema():
     assert "/api/regime" in run_json("openapi")["paths"]
 

@@ -4,6 +4,14 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 ## Næste version
 
+**Claude kan bruge radaren direkte.** Åbner du programmappen i Claude Code, får Claude radarens tal som værktøjer i stedet for at køre kommandoer og læse hele filer. Første gang spørger Claude Code, om du vil bruge serveren `radar` fra projektet; svar ja. Se [Claude og radarens værktøjer](brugervejledning/claude-mcp).
+
+- **Skills læser mindre.** `/research`, `/compare`, `/journal`, `/market-brief`, `/propose-portfolio` og `/hindsight` henter kun det, de skal bruge. Et `/research`-notat læser cirka to tredjedele mindre og månedsbriefen omkring en fjerdedel mindre, og Claude skal ikke bede om lov til at læse i datamappen.
+- **Svarene siger, hvor gamle de er,** og manglende data er stadig "n/a", aldrig 0.
+- **Det, der gemmer, spørger først.** En handel, Claude registrerer for dig, tjekkes som i appen og gemmes først, når du siger ja. Et dokument, der findes, erstattes kun efter at være læst.
+- **Opdatering og studier fra Claude** vises på siden *Operations*, og kører der allerede et job i appen eller en terminal, starter Claude ikke et til.
+- **Uden værktøjerne virker alt som før**: skills bruger så kommandolinjen. Du skal ikke gøre noget, når du opdaterer.
+
 **Positioner i kroner.** Tabellen *Positions* på *Portfolio* har fået kolonnen *Value (DKK)*: værdien omregnet til kroner med valutakursen fra dagen for den seneste kurs, så du kan sortere dine positioner efter størrelse på tværs af valutaer. Se [Portefølje](brugervejledning/portefolje).
 
 **Shareholder yield for selskaber med helårlige pengestrømme.** Har Yahoo kun et selskabs pengestrømsopgørelse for hele år (mange europæiske og japanske selskaber, fx Santander og BBVA), manglede shareholder yield og FCF-tallene, så snart regnskabsåret var over {{settings:fundamentals.ttm_max_age_days}} dage gammelt. Nu bruges det seneste regnskabsår, med en note i kortet *Quality & value*. Se [Radarens kvalitets- og værdiscore](laerebog/kvalitetsscore).

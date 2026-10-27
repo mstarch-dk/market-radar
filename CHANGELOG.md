@@ -6,6 +6,27 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **The radar as tools for Claude (MCP server).** `uv run radar mcp` serves the radar over stdio to the Claude
+  client that starts it (Claude Code starts it from the committed `.mcp.json`; approve it once, `/mcp` shows it).
+  No port, no new data source, and `radar serve` needn't run. Every tool returns what the matching `--json`
+  command prints, with `null` for missing values; readings from the report carry `asof`, `age_days` and `stale`.
+  - Readings: data folder, investor notes, market views, the summary in sections, the discovery scan cut to the
+    off-radar rows a brief reads, study ages, the notebook (briefs, research, proposals, journal), portfolios,
+    returns vs ACWI, X-ray, attribution, the calendar (by symbol), the Evidence page (by section), one or several
+    tickers' profiles.
+  - Jobs: start and follow an update, a rebuild of the readings or a study. They run like the app's, show on the
+    *Operations* page, and check the same locks, so a job already running in the app or a terminal is refused,
+    not started twice.
+  - Engines: a basket proposal from shortlist to frozen picks (structured input, no hand-written picks file),
+    evaluation, shadow portfolios, review and exit check; the hindsight basket (`radar sim picks`, run as a child
+    process).
+  - Two narrow writes: `write_memo` (only the notebook's folders, atomic, never over a document unless asked) and
+    `add_trade` (checked like the app; saves nothing without `confirm`).
+  - Tool annotations say which tools only read, which may replace a file and which reach the network.
+- **The skills use the tools.** `/research`, `/compare`, `/journal`, `/market-brief`, `/propose-portfolio` and
+  `/hindsight` prefer the `mcp__radar__*` tools and keep one line of CLI fallback (for a client without them). Measured
+  on one data folder: `/research` reads about 66 % less, `/compare` 22–32 % less and `/market-brief` 28 % less than
+  the CLI versions (`plans/mcp_server.md`, section 7). New guide chapter *Claude og radarens værktøjer*.
 - **Cash flow from the latest fiscal year**: when a company's cash-flow items (operating cash flow, capex,
   dividends paid, buybacks, issuance) have no last-twelve-months figure within `fundamentals.ttm_max_age_days`
   (Yahoo has only full-year cash flow statements for many non-US companies), the latest fiscal year within

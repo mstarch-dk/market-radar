@@ -105,6 +105,7 @@ uv run radar fundamentals check                   # EDGAR mod Yahoo for amerikan
 | `radar serve --open` | Starter appen og åbner browseren |
 | `radar serve --port 8781` | Bruger en anden port |
 | `radar ticker NOVO-B.CO` | Åbner tickerprofilen i browseren og starter appen, hvis den ikke kører |
+| `radar mcp` | Radarens værktøjer til Claude. Claude Code starter den selv fra programmappens `.mcp.json`; du kører den ikke selv. Se [Claude og radarens værktøjer](brugervejledning/claude-mcp) |
 
 Appen kan kun nås fra din egen computer. Kører den allerede, siger `serve` det og åbner blot browseren. Luk den med Ctrl+C i terminalen.
 

@@ -18,6 +18,7 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "xlrd>=2.0.2",
     "platformdirs>=4",
+    "mcp>=2.3",
 ]
 
 [project.scripts]
@@ -66,20 +67,20 @@ type = "forbidden"
 source_modules = ["radar.model"]
 forbidden_modules = [
     "radar.backtest", "radar.reporting", "radar.api", "radar.cli", "radar.updater",
-    "radar.propose", "radar.abtest",
+    "radar.propose", "radar.abtest", "radar.mcp",
 ]
 
 [[tool.importlinter.contracts]]
 name = "The studies (radar.backtest) read data, not the report builder or the app"
 type = "forbidden"
 source_modules = ["radar.backtest"]
-forbidden_modules = ["radar.reporting", "radar.api", "radar.cli", "radar.mine", "radar.profile"]
+forbidden_modules = ["radar.reporting", "radar.api", "radar.cli", "radar.mcp", "radar.mine", "radar.profile"]
 
 [[tool.importlinter.contracts]]
 name = "The app reads the studies' reports (model.artifacts), never runs a study"
 type = "forbidden"
 source_modules = ["radar.updater", "radar.reporting", "radar.api", "radar.abtest", "radar.propose", "radar.xray",
-                  "radar.agenda", "radar.evidence", "radar.attribution", "radar.tax", "radar.studyrun"]
+                  "radar.agenda", "radar.evidence", "radar.attribution", "radar.tax", "radar.studyrun", "radar.mcp"]
 forbidden_modules = ["radar.backtest"]
 
 [[tool.importlinter.contracts]]
@@ -91,7 +92,7 @@ type = "layers"
 containers = ["radar"]
 exhaustive = true
 layers = [
-    "__main__ : api : cli",
+    "__main__ : api : cli : mcp",
     "abtest : agenda : api_models : attribution : backtest : evidence : health : mine : profile : propose : reporting : studyrun : tax : updater : xray",
     "model",
     "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",

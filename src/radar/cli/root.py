@@ -64,7 +64,8 @@ def _first_use_of_version() -> None:
     from ..datahome import home as homes
 
     if backup.before_upgrade():
-        typer.echo(f"First use of Market Radar {manifest.app_version()} with this data: backed up first.")
+        typer.echo(f"First use of Market Radar {manifest.app_version()} with this data: backed up first.",
+                   err=True)     # stderr: stdout is the protocol for `radar mcp` and the JSON of --json commands
     if backup.is_home():
         homes.upgrade(paths.locations().home)
         homes.touch(paths.locations().home)

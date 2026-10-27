@@ -6,26 +6,31 @@ argument-hint: "[1M|3M|6M|1Y …]"
 
 # Hindsight baskets
 
-Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+Read `investor_notes` first (the user's accounts, horizon and preferences); if it has none yet, go on without.
 
-**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+Work through the `mcp__radar__*` tools; their descriptions carry the units. The study reports have no tool of their
+own: read `score-study.json`, `score-study-qv.json` and `longrun-study.json` from `data_paths`' `folders.reports`
+(`study_reports` says how old each is). If the `radar` tools aren't connected, use the CLI instead: `uv run radar
+paths --json` for the folders, then `radar sim picks-candidates … --json`, `radar sim picks … --json` with a picks
+file in `exports/picks/`, and `radar study score`.
 
-Output goes to `research/hindsight/YYYY-MM-DD_<name>.md`, one memo per basket. Reply with the results table and the
+Output goes to `research/hindsight/YYYY-MM-DD_<name>.md` (`write_memo(kind="hindsight", …)`), one memo per basket. Reply with the results table and the
 links. This is a simulation for inspiration and for judging the score, not advice. **One basket over one period
 is an illustration; the evidence is the rolling study (`radar study score`).** Say so in every memo.
 
 ## Hindsight: the rule that matters most
 You know what happened in markets up to your training cutoff. A basket you pick for a day **before** that cutoff can
 be steered by memory of which names went on to rally, even without meaning to. So:
-- Work out your knowledge cutoff as `YYYY-MM` and pass it as `--model-cutoff` every time. The output's
+- Work out your knowledge cutoff as `YYYY-MM` and pass it as `model_cutoff` every time. The output's
   `after_cutoff` says whether the day is clean.
-- **Judgment basis on a day before your cutoff:** always use `--blind` (tickers and names hidden behind C001…),
+- **Judgment basis on a day before your cutoff:** always use `blind` (tickers and names hidden behind C001…),
   never try to work out which company an id is, and say in the memo that recognition from sector and figures can't
   be ruled out. Suggest a day after your cutoff (usually 1M or 3M) as the clean test.
-- Pick only from the candidates file. No web searches, no `radar info`, no prices after the day, no news, before
-  the picks are frozen.
-- **Freeze the picks** in their file before running anything that shows a result. Never change them after a run;
-  a new idea is a new basket with a new name.
+- Pick only from the candidates. No web searches, no `ticker_profile`, no prices after the day, no news, before
+  the basket has run.
+- **The picks are final when you pass them to `sim_picks`**: settle them before calling anything that shows a
+  result (the report keeps them with their `why`). Never run a basket again with changed picks; a new idea is a new
+  basket with a new name.
 
 ## Steps
 
@@ -44,21 +49,19 @@ be steered by memory of which names went on to rally, even without meaning to. S
    Capital is 100.000 DKK unless the user says otherwise. Name each basket
    `hs-<lookback>-<basis>-<today>`, e.g. `hs-6m-judgment-2026-10-15`.
 
-2. **Candidates** per lookback:
-   ```
-   uv run radar sim picks-candidates --asof <1M|3M|6M|1Y> --model-cutoff <YYYY-MM> [--blind] [--views] [--fund] --json --out exports/picks/<name>-candidates.json
-   ```
-   - For *K+V*, add `--fund` and leave out `--top`: each candidate then has `qv`, `quality` and `value` from the
+2. **Candidates** per lookback: `sim_picks_candidates(asof="<1M|3M|6M|1Y>", model_cutoff="<YYYY-MM>", blind?,
+   views?, fund?)`.
+   - For *K+V*, set `fund` and leave out `top`: each candidate then has `qv`, `quality` and `value` from the
      statements filed by D (`null` outside the US or without statements), and `fund_scored` says how many have one.
-   - Read `asof` (the day D) and `fill` (the buy session) from the file. **Use that date, not the lookback, from
+   - Read `asof` (the day D) and `fill` (the buy session) from the result. **Use that date, not the lookback, from
      here on**, so a later run doesn't drift with new prices.
-   - Values are fractions; `null` is missing. Sectors are today's (the file says so).
+   - Sectors are today's (the result says so).
    - `dkk: false` names can't be bought in a simulation (no DKK rate): leave them out.
 
 3. **Pick** (skip for *Score only*):
-   - *K+V* (`--fund`): the names with a `qv` and `dkk: true`, highest `qv` first (ties by `rank`), within the
+   - *K+V* (`fund`): the names with a `qv` and `dkk: true`, highest `qv` first (ties by `rank`), within the
      caps; no judgment. `meta.basis` is `"qv"`. With fewer scored names than N, say so and stop.
-   - *Score + your views* (`--views`):
+   - *Score + your views* (`views`):
      - Start from the top 60 by score.
      - Prefer names whose `views.label` is aligned. Leave out names that conflict with a view of conviction 4–5.
      - Otherwise go by score, within the caps.
@@ -73,26 +76,21 @@ be steered by memory of which names went on to rally, even without meaning to. S
 
      One line of reasoning per pick, citing the fields.
 
-   Write `exports/picks/<name>.json`:
+   The basket is `picks` plus `meta` for `sim_picks`:
    ```json
-   {"meta": {"basis": "judgment", "n": 15, "max_per_sector": 3, "max_per_group": null, "weighting": "equal",
-             "lookback": "6M", "blind": true},
-    "picks": [{"id": "C004", "why": "12-1 +85%, 3m +20%, in trend, vol 38%"}]}
+   "meta": {"basis": "judgment", "n": 15, "max_per_sector": 3, "max_per_group": null, "weighting": "equal",
+            "lookback": "6M", "blind": true},
+   "picks": [{"id": "C004", "why": "12-1 +85%, 3m +20%, in trend, vol 38%"}]
    ```
    Use `ticker` instead of `id` when not blind. Leave weights out for equal weights. The caps in `meta` also shape
    the score-only control.
 
 4. **Run** each basket:
-   - *Score only*:
-     ```
-     uv run radar sim picks --asof <D> --rule top-n --n <N> [--max-per-sector 3] [--max-per-group 6] [--weighting score] --name <name> --model-cutoff <YYYY-MM> --json
-     ```
-   - Otherwise:
-     ```
-     uv run radar sim picks --asof <D> --picks exports/picks/<name>.json --name <name> --model-cutoff <YYYY-MM> --json
-     ```
+   - *Score only*: `sim_picks(asof=D, rule="top-n", n=N, max_per_sector=3?, max_per_group=6?, weighting="score"?,
+     name=<name>, model_cutoff=<YYYY-MM>)`.
+   - Otherwise: `sim_picks(asof=D, picks=[…], meta={…}, name=<name>, model_cutoff=<YYYY-MM>)`.
 
-   The report is also in `reports/sim-picks/<slug>.json`. It holds:
+   The report is also kept in `reports/sim-picks/<slug>.json`. It holds:
    - `portfolios`: hold / exits / control, each with `return_dkk` (every fee included) and `excess_dkk` against
      ACWI
    - `yardsticks`: ACWI, the equal-weight universe, and `random` (the percentile among random baskets of the same
@@ -103,17 +101,18 @@ be steered by memory of which names went on to rally, even without meaning to. S
    - `returns_link`
 
 5. **The study.**
-   - If `reports/score-study.json` is under 35 days old, read it.
-   - Otherwise run `uv run radar study score --no-regime` (a few minutes) and read the file.
-   - Put the basket and the study next to the decades: `reports/longrun-study.json` (`radar study longrun`):
+   - If `study_reports` shows `score-study:momentum` under 35 days old and `ok`, read `score-study.json`.
+   - Otherwise `job_start(kind="study", study="score-study:momentum")` (several minutes), follow it with
+     `job_status(kind="study")`, and read the file when it is `done`.
+   - Put the basket and the study next to the decades: `longrun-study.json` (`radar study longrun`):
      the score's IC on US industries since 1926 and since 2008 (the holdout), `base_rates` for the momentum and
      value factors (how often a 6- or 12-month window lost) and `survivorship` (how much today's universe flatters
      the study). One basket beating ACWI over a few months is well inside those base rates either way.
    - Take, for 3 and 6 months: the score's `ic_mean` with `ic_t`, `ic_pos`, `spread` with `spread_t`,
      `top_excess`, `top_dkk` against `acwi_dkk`, and the holdout IC.
    - Add any variant whose verdict is a candidate improvement.
-   - For a *K+V* basket, read `reports/score-study-qv.json` the same way (if it is older than 35 days, run
-     `uv run radar study score --signal qv --no-regime` in the background: 10–15 minutes), and its
+   - For a *K+V* basket, read `score-study-qv.json` the same way (if `score-study:qv` is older than 35 days,
+     `job_start(kind="study", study="score-study:qv")`: 10–15 minutes, one study at a time), and its
      `momentum_corr` (how differently K+V and momentum rank the same stocks). Its control is still the momentum
      score's top N, which is the comparison that matters here: a different kind of basket against the radar's main one.
 
@@ -174,7 +173,7 @@ improvement. Is this basket typical of the score, or an outlier?
 - Costs: fees are included; taxes aren't.
 
 ## Links
-Returns page: <returns_link> · Report: reports/sim-picks/<slug>.json · Candidates: exports/picks/<name>-candidates.json
+Returns page: <returns_link> · Report: reports/sim-picks/<slug>.json
 ```
 
 ## Ground rules

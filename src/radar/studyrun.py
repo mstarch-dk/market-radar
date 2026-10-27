@@ -65,6 +65,13 @@ def argv(command: str) -> list[str]:
     return [sys.executable, "-m", "radar", *command.split()[1:]]
 
 
+def child_env() -> dict[str, str]:
+    """The environment for a `radar` child: this process's data folder and cache, UTF-8 and unbuffered output."""
+    loc = paths.locations()
+    return os.environ | {paths.ENV_HOME: str(loc.home), paths.ENV_CACHE: str(loc.cache),
+                         "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
+
+
 class StudyJob:
     """One study at a time, run as a child process; its log can be polled and it can be cancelled."""
 
@@ -118,9 +125,7 @@ class StudyJob:
         return True
 
     def _run(self, command: str) -> None:
-        loc = paths.locations()
-        env = os.environ | {paths.ENV_HOME: str(loc.home), paths.ENV_CACHE: str(loc.cache),
-                            "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
+        env = child_env()
         status, error, last = "done", None, None
         self._log(f"uv run {command}")
         try:
