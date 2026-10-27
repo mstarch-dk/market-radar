@@ -5,7 +5,7 @@ and its docstrings do. The method behind each reading is explained for users in 
 
 ## Layers
 ```
-interfaces       api, cli
+interfaces       api, cli, mcp/
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
                  reporting/, studyrun, tax, updater, xray
 kernel           model/
@@ -23,10 +23,10 @@ piece moves down.
 Three `forbidden` contracts keep the app and the studies apart, so an experiment can't change what the app shows
 and the app never runs a study: the kernel (`model/`) imports neither; the studies (`backtest/`) never import the
 report builder or the app (`dashboard`, `mine`, `profile`, `api`, `cli`); the app (`updater`, `report`, `api`,
-`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`, `tax`, `studyrun`) never imports `backtest/` and reads the studies' reports through
+`abtest`, `agenda`, `propose/`, `xray`, `evidence`, `attribution`, `tax`, `studyrun`, `mcp/`) never imports `backtest/` and reads the studies' reports through
 `model/artifacts.py`. When you run a study from the Evidence page, `studyrun.py` starts the study's own command
 (`python -m radar study …`) as a child process: the contract holds, the heavy work stays off the server, and the run
-can be cancelled.
+can be cancelled. The MCP server does the same for a study and for `radar sim picks`.
 
 A helper both sides need goes down a layer (e.g. `Market` in `market.py`; the regime votes and level universe in
 `model/inputs.py`), and its callers move with it: a name is read from the module that defines it, never through one
@@ -146,6 +146,17 @@ for one.
 - `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
   the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
   the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
+- `mcp/`: the MCP server (`radar mcp`, started by `.mcp.json`), the radar as tools for Claude and the skills. It
+  runs over stdio, in the client's own process tree, never on a port, and doesn't need `radar serve`. Each tool is a
+  function that returns the same view as the matching `--json` command or API route, through `common.tool` (JSON
+  without NaN; a domain error becomes a tool error with its message). `home.py`: the data folder, notes, views, the
+  summary and discovery scan in slices, study ages, the notebook. `book.py`: portfolios, returns, X-ray,
+  attribution, calendar, evidence, ticker profiles. `jobs.py`: the update, the rebuild and a study, run like the
+  app's, checking the same locks. `engine.py`: proposals (`radar.propose`) and the hindsight basket (`radar sim` as
+  a child). `writes.py`: `write_memo` (the notebook's folders only, atomic, never over a document unless asked) and
+  `add_trade` (checked like the app, saved only with `confirm`). `server.py` registers them with annotations that
+  say which only read, which may replace a file and which reach the network (`tests/test_mcp.py`,
+  `tests/test_mcp_engine.py`).
 
 ### Features
 - `studyrun.py`: the Evidence page's *Run* button. It runs one study at a time as a child process of its CLI
@@ -333,6 +344,8 @@ Vite + React + TypeScript, served by `radar serve`: the only UI. The skills don'
   folders until `radar setup` copies them out; `.gitignore` leaves them out, anchored with `/` so the fixture
   data folders are committed.
 - The monthly brief runs on this machine: a Claude desktop scheduled task runs `/market-brief` on the 1st.
+- `.mcp.json` is committed: it holds only the command that starts the MCP server (`uv run radar mcp`), no paths and
+  no personal data. The skills prefer its tools and keep one line of CLI fallback for a client without them.
 - CI (`.github/workflows/ci.yml`) runs the tests and web checks on every pull
   request and push to main. Its `emails` job fails when any commit's author or committer email isn't a noreply
   address (GitHub's email privacy must stay on, or a merge on github.com would publish the account's email).

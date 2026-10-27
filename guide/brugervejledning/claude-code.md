@@ -14,15 +14,17 @@ Skills tilpasser sig dig gennem filen `notes/investor.md` i din datamappe. Kopi�
 - **Horizon and style**: din typiske holdeperiode og stil.
 - **Preferences and limits**: maksimal positionsstørrelse, sektorer du undgår, og andet Claude bør vide, fx at amerikanske ETF'er ikke sælges til private i EU.
 
-Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skills læser dem med `uv run radar views --json`. Se [Mine markedssyn](brugervejledning/markedssyn).
+Dine markedssyn skriver du ikke her, men på siden [Market views](/views); skills læser dem derfra. Se [Mine markedssyn](brugervejledning/markedssyn).
 
 `notes/` bliver på din computer og bliver aldrig delt. Sundhedstjekket (`uv run radar doctor`) siger, om profilen findes.
 
 ## Hvor skills læser og skriver
 
-Dine data ligger i datamappen, uden for programmappen (se [Dine data, backup og opdatering](brugervejledning/dine-data)). Hver skill begynder derfor med `uv run radar paths --json`, som siger, hvor datamappen, `summary.json` og de andre mapper ligger. Stierne i dette kapitel, fx `briefs/` og `research/`, er mapper i datamappen, og `summary.json` ligger i cache-mappens `reports/`.
+Dine data ligger i datamappen, uden for programmappen (se [Dine data, backup og opdatering](brugervejledning/dine-data)). Skills læser og skriver dem gennem radarens værktøjer, som Claude Code starter fra programmappen: de ved selv, hvor tingene ligger, læser kun det, der skal bruges, og spørger, før noget gemmes. Se [Claude og radarens værktøjer](brugervejledning/claude-mcp). Stierne i dette kapitel, fx `briefs/` og `research/`, er mapper i datamappen.
 
-> **Bemærk:** Fordi datamappen ligger uden for den mappe, du har åbnet i Claude Code, kan Claude Code spørge om lov, før den læser eller skriver der. Giv lov til datamappen; det er der, dine noter, briefs, research og journal hører hjemme.
+Uden værktøjerne bruger skills kommandolinjen som før: de begynder med `uv run radar paths --json`, som siger, hvor mapperne ligger, og læser og skriver filerne der.
+
+> **Bemærk:** Uden værktøjerne ligger datamappen uden for den mappe, du har åbnet i Claude Code, så Claude Code kan spørge om lov, før den læser eller skriver der. Giv lov til datamappen; det er der, dine noter, briefs, research og journal hører hjemme.
 
 Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller køre `uv run radar setup` først.
 
@@ -46,7 +48,7 @@ Alt, hvad skills skriver, kan du læse i appen på siden [Notebook](/notebook) (
 
 ## /market-brief
 
-Markedsbriefen opdaterer først radaren (`uv run radar run`) og læser derefter `summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen under 10 dage gammel, læses den også, og dine markedssyn hentes med `radar views --json`.
+Markedsbriefen opdaterer først radaren (det samme som *Update data*) og læser derefter `summary.json`: regime og indikatorer, rotation, momentumledere og -klynger, positionering, ledende indikatorer, værdiansættelse, sentiment, dine beholdninger med flag og dine porteføljers afkast mod ACWI. Er Discover-scanningen frisk, læses de navne fra den, der står uden for radarens egne lister, og dine markedssyn hentes også.
 
 Claude udvælger højst 6–8 ting, der betyder noget, søger efter årsagerne på nettet (med kildelink til hver påstand) og skriver en brief på under cirka 900 ord med disse afsnit: TL;DR, regime, positionering og cyklus, rotation, nye momentumledere, nyt fra Discover, dine syn mod data, din portefølje i den sammenhæng og en kø af navne til `/research`. Afsnittet *Kvalitet og værdi* nævner de bedste K+V-navne, deres overlap med momentumlederne og status for A/B-testen. Briefen skrives på dansk.
 
@@ -58,7 +60,7 @@ Briefen kører også af sig selv den første i hver måned som en planlagt opgav
 
 ## /research
 
-`/research NOVO-B.CO` skriver et notat i `research/NOVO-B.CO.md`. Claude henter hele profilen med `uv run radar info <TICKER>` (momentum, risiko, stop, analytikere, værdiansættelse, fondsgennemlysning, peers og dine markedssyn), læser rotationen fra `summary.json`, ser efter dine tidligere beslutninger i `journal/` og søger på nettet efter forretning, seneste regnskaber, værdiansættelse mod historik og peers og kommende begivenheder. Kvalitets- og værdiscoren, FCF yield, ROIC og EV/EBIT tager Claude fra radarens egne regnskabstal (afsnittet *Quality & value* i notatet).
+`/research NOVO-B.CO` skriver et notat i `research/NOVO-B.CO.md`. Claude henter hele profilen (det samme som `uv run radar info <TICKER>`: momentum, risiko, stop, analytikere, værdiansættelse, fondsgennemlysning, peers og dine markedssyn), læser rotationen fra `summary.json`, ser efter dine tidligere beslutninger og notater og søger på nettet efter forretning, seneste regnskaber, værdiansættelse mod historik og peers og kommende begivenheder. Kvalitets- og værdiscoren, FCF yield, ROIC og EV/EBIT tager Claude fra radarens egne regnskabstal (afsnittet *Quality & value* i notatet).
 
 Notatet har en fast skabelon: tese (bull case), momentum og rotation, nøgletal og værdiansættelse, sammenhæng med dine markedssyn, katalysatorer de næste 1–6 måneder, risici (bear case), hvad der ville ugyldiggøre tesen, implementering (aktien selv eller en UCITS-ETF, og hvilken konto) og kilder. Manglende data skrives som "n/a", aldrig som et gæt.
 
@@ -66,7 +68,7 @@ Findes notatet allerede, beholdes det gamle indhold, og Claude tilføjer et date
 
 ## /compare
 
-`/compare NVDA AMD MU` sammenligner to eller flere navne side om side og altid med ACWI som det at gøre ingenting. Claude henter data med `uv run radar info NVDA AMD MU --out …` (en fil i `exports/` i datamappen) og går frem i fast rækkefølge:
+`/compare NVDA AMD MU` sammenligner to eller flere navne side om side og altid med ACWI som det at gøre ingenting. Claude henter data for alle navnene på én gang (det samme som `uv run radar info NVDA AMD MU`) og går frem i fast rækkefølge:
 
 1. **Rubrik** fra radarens data alene, før nyhederne: momentum, indtjeningsmomentum, værdiansættelse mod vækst (med værdiscoren, FCF yield og EV/EBIT), kvalitet (med kvalitetsscoren og dens søjler), risiko, rotationsmedvind, overstrækning, praktiske forhold.
 2. **Fakta fra nettet** med kilder.
@@ -80,9 +82,9 @@ Horisonten er 3 måneder, medmindre din profil eller du siger andet. Dine person
 
 Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, hvorfor du traf beslutningen, og hvad der ville vise, at den var forkert.
 
-**Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen med `uv run radar portfolio add`, som tjekker den som i appen.
+**Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen. Handlen tjekkes som i appen, Claude viser dig tjekket og din position før og efter, og den gemmes først, når du siger ja.
 
-**Månedlig gennemgang** med `/journal review`. Claude opdaterer radaren, læser alle åbne poster og sammenligner exitreglerne med de aktuelle tal. Hver post klassificeres som *Intact*, *Weakening* eller *Invalidated*. Lukkede handler fra de seneste 3 måneder gennemgås også: hvad skete der efter exit? Resultatet skrives i `journal/reviews/ÅÅÅÅ-MM.md` med 2–3 mønstre på tværs af beslutningerne, fx at sælge vindere for tidligt. Claude ændrer ikke status på en post uden at spørge dig.
+**Månedlig gennemgang** med `/journal review`. Claude opdaterer radaren, læser alle åbne poster, henter de aktuelle tal for alle deres aktier på én gang og sammenligner exitreglerne med dem. Hver post klassificeres som *Intact*, *Weakening* eller *Invalidated*. Lukkede handler fra de seneste 3 måneder gennemgås også: hvad skete der efter exit? Resultatet skrives i `journal/reviews/ÅÅÅÅ-MM.md` med 2–3 mønstre på tværs af beslutningerne, fx at sælge vindere for tidligt. Claude ændrer ikke status på en post uden at spørge dig.
 
 ## /propose-portfolio
 
@@ -101,7 +103,7 @@ Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, 
 
 Antal stk. regnes i hele aktier med porteføljens kurtage, valutatillæg og et skønnet spread. På en aktiesparekonto bruges en ETF til restbeløbet kun, hvis den står på positivlisten.
 
-**Claudes vurdering har grænser.** Claude tager udgangspunkt i reglens egen kurv og må højst bytte {{settings:propose.max_swaps}} aktier ud, hver med en skrevet grund: et regnskab inden for to uger, en konflikt med et af dine markedssyn med høj overbevisning, en sektor du undgår. Valget låses i en fil med `uv run radar propose freeze`, **før** modellens tal ses. Derefter regner `uv run radar propose evaluate` det hele.
+**Claudes vurdering har grænser.** Claude tager udgangspunkt i reglens egen kurv og må højst bytte {{settings:propose.max_swaps}} aktier ud, hver med en skrevet grund: et regnskab inden for to uger, en konflikt med et af dine markedssyn med høj overbevisning, en sektor du undgår. Valget låses (`propose freeze`), **før** modellens tal ses. Derefter regnes det hele igennem (`propose evaluate`).
 
 **Hvad notatet viser.**
 - **Det forventede merafkast over ACWI** kommer fra testen af reglen (`uv run radar study propose`: samme regel på hver tidligere månedsultimo), med fradrag for overlevelsesbias (mindst {{settings:propose.survivorship_haircut|pct}} af et positivt merafkast) og trukket mod den lange historik: hvad de samme egenskaber har givet i alle aktier i udviklede markeder siden {{settings:propose.prior.since}}. Derefter trækkes forslagets egne handelsomkostninger fra. Aktiernes egne historiske afkast bruges ikke: de er valgt, fordi de har været høje. Se [Porteføljeforslag](laerebog/portefoeljeforslag#sådan-gør-radaren).
@@ -122,7 +124,7 @@ Metoden er beskrevet i [Porteføljeforslag: forventet afkast, drawdown og nulhyp
 - **Grundlaget**: scoren alene (mekanisk, den rene test), scoren og dine markedssyn (kun dem, der var oprettet senest på dagen), scoren og Claudes vurdering, eller K+V (de bedste efter kvalitet og værdi, som de så ud på dagen; kun amerikanske aktier).
 - **Antal aktier** og **spredning**: fx højst 3 pr. sektor, lige vægte eller vægtet efter score.
 
-Claude henter universet med `uv run radar sim picks-candidates`, låser valget i en fil, før noget resultat er kendt, og kører `uv run radar sim picks`. Notatet viser kurven beholdt og med stopreglen fulgt mod ACWI, mod scorens egne bedste aktier og mod gennemsnitsaktien, kurvens placering blandt tilfældige kurve og scorens test over alle måneder (`uv run radar study score`). Én kurv over én periode er et eksempel, ikke et bevis, og det står i notatet.
+Claude henter universet, som det så ud på dagen (`radar sim picks-candidates`), lægger sig fast på valget, før noget resultat er kendt, og kører simuleringen (`radar sim picks`). Notatet viser kurven beholdt og med stopreglen fulgt mod ACWI, mod scorens egne bedste aktier og mod gennemsnitsaktien, kurvens placering blandt tilfældige kurve og scorens test over alle måneder (`uv run radar study score`). Én kurv over én periode er et eksempel, ikke et bevis, og det står i notatet.
 
 Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger Claude blindt, med aktierne skjult bag C001, C002 …. Se [Test momentumscoren på historikken](brugervejledning/scoretest).
 
@@ -132,13 +134,12 @@ Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger C
 
 ## Hvor kommer tallene fra?
 
-Skills bruger de samme tal som appen:
+Skills bruger de samme tal som appen, gennem radarens værktøjer eller kommandolinjen:
 
-- `summary.json` fra seneste `radar run` (i cache-mappens `reports/`): hele markedsbilledet, dine beholdninger og porteføljernes afkast. Kun dine rigtige porteføljer; virtuelle kommer aldrig med.
-- `uv run radar info` for enkelte navne.
-- `uv run radar views --json` for dine markedssyn.
-- `uv run radar portfolios list --json` for dine konti.
+- `summary.json` fra seneste opdatering: hele markedsbilledet, dine beholdninger og porteføljernes afkast. Kun dine rigtige porteføljer; virtuelle kommer aldrig med.
+- Tickerprofilen for enkelte navne (`uv run radar info`).
+- Dine markedssyn (`uv run radar views --json`) og dine konti (`uv run radar portfolios list --json`).
 
-Manglende data er `null` i radarens output og skal skrives som "n/a". Se [Kommandolinjen](brugervejledning/kommandolinjen).
+Manglende data er `null` i radarens output og skal skrives som "n/a". Se [Claude og radarens værktøjer](brugervejledning/claude-mcp) og [Kommandolinjen](brugervejledning/kommandolinjen).
 
 > **Tip:** Kør `/market-brief` en gang om måneden og `/journal review` lige efter. Briefen giver billedet, gennemgangen holder dine egne beslutninger op mod det.

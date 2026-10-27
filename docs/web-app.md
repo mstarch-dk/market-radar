@@ -8,6 +8,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
   need a `reports/dashboard.json` from `radar run` (or `radar report`); without it they say so (HTTP 503).
 - `uv run radar ticker <TICKER>`: open one ticker's page, starting the server if needed.
 - Frontend work: run `pnpm -C web dev` (port 5173, proxies `/api` to 8780) next to `radar serve`.
+- The MCP server (`radar mcp`, see [commands.md](commands.md#claude-mcp-server)) is a separate interface on the same
+  feature functions. It doesn't call this API and doesn't need `radar serve` running; a job it starts shows on the
+  *Operations* page, not in the app's progress bar.
 
 ## Contract
 - `src/radar/api_models/` defines every response with `extra="forbid"` (one module per area, every model

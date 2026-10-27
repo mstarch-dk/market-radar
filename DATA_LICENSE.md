@@ -68,6 +68,10 @@ source above.
   publish them elsewhere either.
 - Don't expose `radar serve` to the internet or your network for other people to use. It listens on
   `127.0.0.1` (your computer only) on purpose.
+- The MCP server (`radar mcp`) adds no data source. It serves data already downloaded and your own data only to
+  the Claude client on your computer that started it, over stdio, and never listens on a port. What a tool returns
+  is read by Claude as part of your conversation, just as when a skill reads a file. Don't connect it to a client
+  other people use.
 - Respect the sources' limits. Market Radar paces its requests and pauses a host that asks it to slow down (see
   the *Operations* page). Don't remove that throttling or point many copies at one server.
 - When you quote a number in something you publish, name the source.

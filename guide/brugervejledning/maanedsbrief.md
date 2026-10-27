@@ -4,13 +4,13 @@ Den første i hver måned skriver Claude en markedsbrief på din egen computer: 
 
 Alt sker lokalt. Radaren henter selv data, læser dine porteføljer, markedssyn og noter, hvor de ligger, og briefen bliver liggende i mappen `briefs/` i datamappen. Intet sendes til GitHub.
 
-> **Bemærk:** Opgaven finder datamappen med `uv run radar paths --json`. Datamappen ligger uden for projektmappen, så Claude Code kan spørge om lov til at læse og skrive der. Svar ja, gerne med "altid", så opgaven ikke venter på dig næste måned.
+> **Bemærk:** Opgaven bruger radarens værktøjer, når den planlagte opgave indlæser dem (se [Claude og radarens værktøjer](brugervejledning/claude-mcp)), og ellers kommandolinjen: så finder den datamappen med `uv run radar paths --json`. Datamappen ligger uden for projektmappen, så Claude Code kan spørge om lov til at læse og skrive der. Svar ja, gerne med "altid", så opgaven ikke venter på dig næste måned.
 
 ## Sådan kører den
 
 En planlagt opgave i Claude-appen (*Scheduled tasks*) kører den første i hver måned om morgenen:
 
-1. Den opdaterer radaren med `uv run radar run`, ligesom knappen *Update data*. En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
+1. Den opdaterer radaren, ligesom knappen *Update data* (med værktøjet `job_start` eller `uv run radar run`). En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
 2. Den læser `summary.json` (i cache-mappens `reports/`), dine markedssyn (`uv run radar views --json`), den seneste Discover-scanning, hvis den er under 10 dage gammel, din investorprofil i `notes/investor.md` og dine læsenoter i `notes/` i datamappen.
 3. Den søger efter årsagerne til det vigtigste på nettet og skriver briefen i `briefs/` i datamappen.
 

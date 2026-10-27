@@ -204,6 +204,15 @@ Always run Python through uv; the frontend uses pnpm.
   one step: `pnpm install` and `build` (the old server keeps running if that fails), stop the server on the port (and
   the start script's window), `uv sync`, optionally `radar report`, then `radar serve` in this window.
 
+## Claude (MCP server)
+- `uv run radar mcp`: the MCP server over stdio, the radar as tools for Claude. Claude Code starts it from the
+  project's `.mcp.json` (approve it once; `/mcp` shows it connected); you never run it by hand. Tools: the readings
+  (`data_paths`, `investor_notes`, `market_views`, `summary(sections)`, `discovery`, `study_reports`, `documents`,
+  `journal_entries`, `read_document`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`,
+  `evidence_view`, `ticker_profile`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
+  (`propose_*`, `sim_picks_candidates`, `sim_picks`) and two writes (`write_memo`, `add_trade` with `confirm`). Each
+  returns what the matching `--json` command prints. Needs a data folder, like the other data commands.
+
 ## Marketing material
 - `uv run --group marketing python scripts/marketing.py workspace | seed | explore /path… | shots [ID…] | pdf | check
   | edition | all`: the Danish brochure in `marketing/` from a demo copy of the app (`.demo/`, port 8790, launch
