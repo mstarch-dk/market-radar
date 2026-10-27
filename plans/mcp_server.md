@@ -206,5 +206,11 @@ releases it.
    on the tools or needs the fallback for good.
 2. Should `ticker_profile` for an untracked ticker be allowed to download prices (about 10 s, like the profile
    page), or only read what is tracked unless `refresh=True`?
+   *Answered in phase 1:* it downloads, as the profile page does, and the tool is marked open-world;
+   `refresh` fetches fundamentals and estimates now.
 3. Phase 2 job tools: should the MCP process run the update itself (as the CLI does), or hand it to a running app
    when there is one, so that the app's progress bar shows it?
+   *Answered in TASK-6.9:* it runs it itself, like the CLI. The app's progress bar doesn't show it, but the
+   Operations page does (ops.db). The same file locks are checked first, so a job running in the app or a
+   terminal is reported, not started twice. Handing jobs to the app would need a client for the app's API and a
+   running app.

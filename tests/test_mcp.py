@@ -1,15 +1,17 @@
 """The MCP server on the synthetic world: every tool answers through a real client (in memory), with the same view
 the CLI's --json prints, JSON without NaN, and what the domain refuses as a tool error with its message."""
 import json
+import threading
+import time
 
 import anyio
 import pytest
 from mcp.client import Client
 
 import world
-from radar import agenda, notebook, paths, xray
+from radar import agenda, locks, notebook, ops, paths, studyrun, updater, userstore, xray
 from radar.market import Market
-from radar.mcp import common, server
+from radar.mcp import common, server, writes
 from radar.reporting import dashboard, report
 from radar.sources import ingest
 
@@ -63,15 +65,20 @@ def refused(tool: str, /, **args) -> str:
     return text
 
 
-def test_the_tools_are_read_only_and_say_their_units():
+def test_the_tools_say_what_they_touch_and_their_units():
     async def go():
         async with Client(server.build()) as c:
             return (await c.list_tools()).tools
     tools = {t.name: t for t in anyio.run(go)}
     assert set(tools) == {fn.__name__ for fn in server.TOOLS}
+    reads = {fn.__name__ for fn in server.READS}
     for t in tools.values():
-        assert t.annotations.read_only_hint and not t.annotations.destructive_hint
+        assert t.annotations.read_only_hint == (t.name in reads)
+        assert t.annotations.destructive_hint == (t.name == "write_memo")
         assert common.UNITS in t.description and "\n" not in t.description.split("\n\n")[0]
+    assert {"summary", "ticker_profile", "propose_check", "job_status"} <= reads
+    assert not reads & {"job_start", "propose_freeze", "propose_evaluate", "propose_shadow", "sim_picks",
+                        "write_memo", "add_trade"}
     assert tools["ticker_profile"].annotations.open_world_hint and not tools["summary"].annotations.open_world_hint
     assert "symbols" in tools["calendar"].input_schema["properties"]
 
@@ -161,3 +168,97 @@ def test_study_reports(radar):
     assert {"score-study:momentum", "score-study:qv", "longrun-study", "propose-study", "exit-study"} <= set(studies)
     assert all(s["status"] == "missing" and s["age_days"] is None for s in studies.values())
     assert studies["score-study:qv"]["command"] == "uv run radar study score --signal qv"
+
+
+# ---------------- jobs ----------------
+
+@pytest.fixture
+def held():
+    """Hold a lock from another thread, as the app or a terminal would from another process, until the test ends."""
+    stop, threads = threading.Event(), []
+
+    def hold(path):
+        ready = threading.Event()
+
+        def run():
+            with locks.file_lock(path):
+                ready.set()
+                stop.wait(10)
+        t = threading.Thread(target=run)
+        t.start()
+        ready.wait(5)
+        threads.append(t)
+    yield hold
+    stop.set()
+    [t.join(5) for t in threads]
+
+
+def test_a_job_running_elsewhere_is_reported_not_started(radar, monkeypatch, held):
+    ran = []
+    monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: ran.append("update")))
+    monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(lambda log, progress: ran.append("report"),
+                                                                 "Building", "report"))
+    held(updater.UPDATE_LOCK)
+    held(updater.REPORT_LOCK)
+    assert "update is already running" in refused("job_start", kind="update")
+    assert "readings are already being built" in refused("job_start", kind="report")
+    assert ok("job_status", kind="update")["status"] == "idle" and ran == []
+    assert "kind must be one of" in refused("job_start", kind="backup")
+    assert "Name the study" in refused("job_start", kind="study")
+    assert "No study called nope" in refused("job_start", kind="study", study="nope")
+
+
+def test_a_study_running_elsewhere_blocks_an_update(radar, monkeypatch, held):
+    monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: None))
+    held(studyrun.LOCK)
+    assert "a study is already running" in refused("job_start", kind="update")
+
+
+def test_a_job_started_here_is_in_the_operations_log(radar, monkeypatch):
+    def work(log, progress):
+        log("rebuilt")
+    monkeypatch.setattr(updater, "REPORT_JOB", updater.UpdateJob(work, "Building", "report"))
+    assert ok("job_start", kind="report")["status"] in ("running", "done")
+    for _ in range(100):
+        if updater.REPORT_JOB.state["status"] != "running":
+            break
+        time.sleep(0.05)
+    st = ok("job_status", kind="report")
+    assert st["status"] == "done" and st["log"][-1].endswith("rebuilt")
+    assert ok("job_status", kind="report", tail=0)["log"] == []
+    assert any(j["kind"] == "report" and j["status"] == "done" for j in ops.jobs())
+
+
+# ---------------- writes ----------------
+
+def test_write_memo_writes_only_its_folders_whole(radar):
+    got = ok("write_memo", kind="research", name="NVDA", markdown="# NVIDIA\n\nA memo.")
+    f = paths.HOME.now() / "research" / "NVDA.md"
+    assert got["file"] == str(f) and not got["replaced"]
+    assert f.read_text(encoding="utf-8") == "# NVIDIA\n\nA memo.\n"
+    assert "A memo." in ok("read_document", kind="research", name="NVDA")["markdown"]
+    assert "exists" in refused("write_memo", kind="research", name="NVDA", markdown="# Again")
+    assert ok("write_memo", kind="research", name="NVDA", markdown="# Again", replace=True)["replaced"]
+    assert ok("write_memo", kind="hindsight", name="2026-10-27_top-n", markdown="# H")["file"].endswith(
+        "2026-10-27_top-n.md")
+    for name in ("../NVDA", "a/b", "..", ""):
+        assert "isn't a file name" in refused("write_memo", kind="research", name=name, markdown="# x")
+    assert "kind must be one of" in refused("write_memo", kind="exports", name="x", markdown="# x")
+    assert "empty" in refused("write_memo", kind="briefs", name="2026-10-27", markdown="  ")
+    home = paths.HOME.now()
+    for d in writes.FOLDERS.values():
+        rel = d.relative_to(home).as_posix().split("/")[0] + "/"
+        assert rel in paths.REGISTRY["home"]
+
+
+def test_add_trade_saves_only_when_confirmed(built):
+    rows = len(userstore.transactions())
+    px = float(Market.load().closes["S1"].dropna().iloc[-1])
+    preview = ok("add_trade", type="buy", symbol="s1", quantity=10, price=px)
+    assert not preview["saved"] and preview["trade"]["symbol"] == "S1" and "effect" in preview
+    assert len(userstore.transactions()) == rows
+    assert not preview["blocked"], preview["issues"]
+    saved = ok("add_trade", type="buy", symbol="S1", quantity=10, price=px, confirm=True)
+    assert saved["saved"] and saved["id"]
+    assert len(userstore.transactions()) == rows + 1
+    assert saved["effect"]["after"]["quantity"] == saved["effect"]["before"]["quantity"] + 10
