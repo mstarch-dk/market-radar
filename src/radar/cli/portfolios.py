@@ -59,11 +59,13 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
                                                      "the default portfolio; see `radar portfolios list`)"),
                   account: str = typer.Option(None, "--account", hidden=True),
                   note: str = typer.Option(None),
-                  yes: bool = typer.Option(False, "--yes", help="Save despite warnings (errors always block)")):
-    """Add one trade, checked the same way as in the app."""
+                  yes: bool = typer.Option(False, "--yes", help="Save despite warnings (errors always block)"),
+                  rule_reason: str = typer.Option(None, "--rule-reason", help="Why you go ahead although it breaks "
+                                                                              "one of your trading rules (logged)")):
+    """Add one trade, checked the same way as in the app (your trading rules included, as warnings)."""
     from datetime import date as _date
 
-    from .. import profile, userstore
+    from .. import profile, rulecheck, userstore
     from ..portfolios import checks
 
     trades.ensure_migrated()
@@ -76,8 +78,14 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
         raise SystemExit(str(e))
     from ..errors import Invalid
 
+    rc: dict = {}
+
+    def rules(r: dict) -> list[dict]:
+        rc["check"] = rulecheck.trade_check(market, r)
+        return rulecheck.trade_issues(rc["check"])
+
     try:
-        issues = checks.checked(row, market, confirm=yes)
+        issues = checks.checked(row, market, confirm=yes, rule_issues=rules)
     except Invalid as e:
         issues = e.issues
     for i in issues:
@@ -86,6 +94,7 @@ def portfolio_add(type_: str = typer.Argument(..., metavar="BUY|SELL"), symbol: 
     if blocked or (issues and not yes):
         raise SystemExit("Not saved." + ("" if blocked else " Add --yes to save anyway."))
     tx_id = userstore.add_tx(row)
+    rulecheck.log_trade(rc.get("check"), tx_id, rule_reason)
     eff = checks.effect(row, exclude_id=tx_id)
     saved = userstore.get_tx(tx_id) or {}
     typer.echo(f"Saved #{tx_id} in {saved.get('portfolio')}. {symbol}: {eff['before']['quantity']:g} → "

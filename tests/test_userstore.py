@@ -106,7 +106,7 @@ def test_holdings_bundle_round_trip_carries_transactions_and_watchlists(tmp_data
     for f in (tmp_data / "userdata").iterdir():                         # another machine, nothing stored yet
         f.unlink() if f.is_file() else None
     res = CliRunner().invoke(cli.app, ["unbundle-holdings"], env={"HOLDINGS_BUNDLE": bundle})
-    assert res.exit_code == 0 and "1 transactions in 3 portfolios, 2 watchlist edits and 1 market views" in res.output
+    assert res.exit_code == 0 and "1 transactions in 3 portfolios, 2 watchlist edits, 1 market views and 0 trading rules" in res.output
     h = trades.holdings().set_index("symbol")
     assert h["status"].to_dict() == {"H": "holding", "A": "watch"} and h.loc["H", "quantity"] == 2
     [v] = viewstore.views()

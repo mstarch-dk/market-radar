@@ -6,7 +6,7 @@ from __future__ import annotations
 import re
 from datetime import date as _date
 
-from .. import errors, notebook, paths, profile, userstore
+from .. import errors, notebook, paths, profile, rulecheck, userstore
 from ..config import write_text
 from ..portfolios import checks, trades
 
@@ -39,22 +39,34 @@ def write_memo(kind: str, name: str, markdown: str, replace: bool = False) -> di
 
 
 def add_trade(type: str, symbol: str, quantity: float, price: float, date: str | None = None, fee: float = 0.0,
-              portfolio: str | None = None, note: str | None = None, confirm: bool = False) -> dict:
+              portfolio: str | None = None, note: str | None = None, confirm: bool = False,
+              rule_reason: str | None = None) -> dict:
     """Record one trade (`type` BUY or SELL; `price` and `fee` in the price's currency; `date` YYYY-MM-DD, default
     today) in `portfolio` (by name; default: the default portfolio). Without `confirm` nothing is saved: it returns
-    the checks' issues (errors always block, warnings need the user's yes) and the position before and after. Show
-    them to the user, and call again with `confirm` only once the user has agreed to save this trade."""
+    the checks' issues (errors always block, warnings need the user's yes; the user's trading rules that the trade
+    breaks or comes close to are warnings too, with the full check under `rules`) and the position before and
+    after. Show them to the user, and call again with `confirm` only once the user has agreed to save this trade;
+    when it breaks a rule, pass the user's own reason for going ahead as `rule_reason` (it is logged)."""
     trades.ensure_migrated()
     sym = symbol.strip().upper()
     row = {"symbol": sym, "date": date or _date.today().isoformat(), "type": type.strip().upper(),
            "quantity": quantity, "price": price, "fee": fee, "portfolio": portfolio, "note": note}
     m = profile.ensure_prices(sym)                     # an untracked ticker is downloaded, as in the app
+    rc: dict = {}
+
+    def rules(r: dict) -> list[dict]:
+        rc["check"] = rulecheck.trade_check(m, r)
+        return rulecheck.trade_issues(rc["check"])
+
     if not confirm:
         issues = checks.validate(row, m)
+        if not any(i["level"] == "error" for i in issues):
+            issues += rules(row)
         return {"saved": False, "trade": row, "issues": issues, "effect": checks.effect(row),
-                "blocked": any(i["level"] == "error" for i in issues)}
-    issues = checks.checked(row, m, confirm=True)      # Invalid (with the issues) on an error
+                "blocked": any(i["level"] == "error" for i in issues), "rules": rc.get("check")}
+    issues = checks.checked(row, m, confirm=True, rule_issues=rules)   # Invalid (with the issues) on an error
     tx_id = userstore.add_tx(row)
+    rulecheck.log_trade(rc.get("check"), tx_id, rule_reason)
     saved = userstore.get_tx(tx_id) or {}
     return {"saved": True, "id": tx_id, "portfolio": saved.get("portfolio"), "trade": row, "issues": issues,
             "effect": checks.effect(row, exclude_id=tx_id)}

@@ -29,7 +29,7 @@ FOLDERS = {
     "journal": HOME / "journal",
     "reviews": HOME / "journal" / "reviews",
 }
-JOURNAL_FIELDS = ("ticker", "action", "account", "horizon", "status", "review_by", "views")
+JOURNAL_FIELDS = ("ticker", "action", "account", "horizon", "style", "status", "review_by", "views")
 DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}(?:-\d{2})?)")
 
 
@@ -79,7 +79,7 @@ def _entry(kind: str, path: Path, today: date) -> dict:
         fields = {k: (meta or {}).get(k) for k in JOURNAL_FIELDS}
         if fields["views"] is not None and not isinstance(fields["views"], list):
             fields["views"] = [fields["views"]]
-        for k in ("ticker", "action", "account", "horizon", "status", "review_by"):
+        for k in ("ticker", "action", "account", "horizon", "style", "status", "review_by"):
             fields[k] = None if fields[k] is None else str(fields[k])
         out["meta"] = fields
         out["ticker"] = fields["ticker"]

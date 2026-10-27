@@ -80,7 +80,8 @@ forbidden_modules = ["radar.reporting", "radar.api", "radar.cli", "radar.mcp", "
 name = "The app reads the studies' reports (model.artifacts), never runs a study"
 type = "forbidden"
 source_modules = ["radar.updater", "radar.reporting", "radar.api", "radar.abtest", "radar.propose", "radar.xray",
-                  "radar.agenda", "radar.evidence", "radar.attribution", "radar.tax", "radar.studyrun", "radar.mcp"]
+                  "radar.agenda", "radar.evidence", "radar.attribution", "radar.tax", "radar.studyrun", "radar.mcp",
+                  "radar.rulecheck"]
 forbidden_modules = ["radar.backtest"]
 
 [[tool.importlinter.contracts]]
@@ -93,9 +94,9 @@ containers = ["radar"]
 exhaustive = true
 layers = [
     "__main__ : api : cli : mcp",
-    "abtest : agenda : api_models : attribution : backtest : evidence : health : mine : profile : propose : reporting : studyrun : tax : updater : xray",
+    "abtest : agenda : api_models : attribution : backtest : evidence : health : mine : profile : propose : reporting : rulecheck : studyrun : tax : updater : xray",
     "model",
-    "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : universe : userstore",
+    "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : trading_rules : universe : userstore",
     "discovery : fundamentals : sources : updates",
     "signals",
     "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",

@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-from .. import agenda, mine, universe, userstore
+from .. import agenda, mine, rulecheck, universe, userstore
 from ..api_models import (
     MeView,
     TickerSummary,
@@ -14,6 +14,7 @@ from ..config import settings, typed
 from ..model import inputs
 from ..reporting import dashboard, tickers
 from ..sources import tracked, valuation
+from ..userstore import rulestore
 from . import state
 from .common import (
     PortfolioQ,
@@ -45,11 +46,12 @@ def get_me(portfolio: list[int] | None = PortfolioQ, tag: list[str] | None = Tag
         from ..fundamentals import context as fcontext
 
         fctx = fcontext.context(m.closes, m.raw_closes(), universe.tracked_stocks(), m.mtime)
+        flags = rulecheck.standing(m)["flags"] if rulestore.rules("active") else {}
     vctx = valuation.context()
     rows = agenda.with_earnings_flags(rows, vctx, asof, typed().calendar)
     rows = dashboard.with_fundamentals(dashboard.with_valuation(rows, vctx), fctx)
     return {"asof": asof.isoformat(), "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
-            "regime": regime_label, "rows": rows}
+            "regime": regime_label, "rows": rows, "rule_flags": flags}
 
 
 @router.get("/api/tickers", response_model=list[TickerSummary])

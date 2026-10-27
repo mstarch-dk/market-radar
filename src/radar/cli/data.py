@@ -210,7 +210,8 @@ def unbundle_holdings(file: str = typer.Option(None, "--file", help="Read the bu
         r = export.restore_holdings(z)
     what = (f"{r['transactions']} transactions in {r['portfolios'] or 'their'} portfolios" if not r["legacy_files"]
             else ", ".join(r["legacy_files"]))
-    typer.echo(f"Restored {what}, {r['watchlist']} watchlist edits and {r['views']} market views.")
+    typer.echo(f"Restored {what}, {r['watchlist']} watchlist edits, {r['views']} market views and {r.get('rules', 0)} "
+               "trading rules.")
 
 
 @app.command(name="export")

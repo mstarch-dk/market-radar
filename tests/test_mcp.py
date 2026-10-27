@@ -285,3 +285,21 @@ def test_add_trade_saves_only_when_confirmed(built):
     assert saved["saved"] and saved["id"]
     assert len(userstore.transactions()) == rows + 1
     assert saved["effect"]["after"]["quantity"] == saved["effect"]["before"]["quantity"] + 10
+
+
+def test_trading_rules_tools(radar):
+    from radar.userstore import rulestore
+
+    assert ok("trading_rules")["rules"] == [] and ok("trading_rules")["standing"] is None
+    draft = ok("add_rule", statement="Max 5 %", kind="max_position_weight", params={"pct": 5}, severity="hard")
+    assert not draft["saved"] and draft["rule"]["params"] == {"pct": 5.0} and rulestore.rules() == []
+    assert "Unknown rule kind" in refused("add_rule", statement="x", kind="dsl")
+    saved = ok("add_rule", statement="Max 5 %", kind="max_position_weight", params={"pct": 5}, severity="hard",
+               confirm=True)
+    assert saved["saved"] and ok("trading_rules")["standing"]["flags"]["S1"][0]["status"] == "breaks"
+    chk = ok("rules_check", side="buy", ticker="S1", amount_dkk=1000, log=True)
+    assert chk["verdicts"][0]["status"] == "breaks" and chk["check_id"]
+    assert ok("rule_decision", check_id=chk["check_id"], decision="dropped")["decision"] == "dropped"
+    assert "No logged check" in refused("rule_decision", check_id=999, decision="dropped")
+    preview = ok("add_trade", type="buy", symbol="S1", quantity=1, price=float(Market.load().closes["S1"].iloc[-1]))
+    assert any(i["field"] == "rules" for i in preview["issues"]) and preview["rules"]["verdicts"]

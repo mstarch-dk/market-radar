@@ -6,7 +6,7 @@ import datetime as dt
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
-from .. import userstore
+from .. import rulecheck, userstore
 from ..api_models import (
     PositionsView,
     PriceCheck,
@@ -47,13 +47,21 @@ def _validated(row: dict, exclude_id: int | None) -> list[dict]:
         return checks.validate(row, state.market(), exclude_id=exclude_id)
 
 
-def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict]]:
-    """The row and its issues; 422 with the issues when it can't be saved (checks.checked)."""
+def _checked(body: TxIn, exclude_id: int | None = None) -> tuple[dict, list[dict], dict | None]:
+    """The row, its issues and (a new trade) its rule check; 422 with the issues when it can't be saved
+    (checks.checked). Your trading rules add warnings to confirm, never errors."""
     row = _tx_row(body)
     with state.lock:
         if row["symbol"]:
             state.ensure(row["symbol"], missing="ignore")                # validate() reports the unknown symbol
-        return row, checks.checked(row, state.market(), body.confirm, exclude_id)
+        rc: dict = {}
+
+        def rules(r: dict) -> list[dict]:
+            rc["check"] = rulecheck.trade_check(state.market(), r)
+            return rulecheck.trade_issues(rc["check"])
+
+        issues = checks.checked(row, state.market(), body.confirm, exclude_id, None if exclude_id else rules)
+        return row, issues, rc.get("check")
 
 
 @router.get("/api/portfolio/transactions", response_model=list[TxRow])
@@ -73,10 +81,13 @@ def check_transaction(body: TxIn, id: int | None = None) -> dict:
     with state.lock:
         pc = checks.price_check(state.market(), row["symbol"], row["date"], row["price"]) \
             if row["symbol"] in state.market().closes.columns else None
+        rules = (rulecheck.trade_check(state.market(), row) if id is None
+                 and not any(i["level"] == "error" for i in issues) else None)
+    issues += rulecheck.trade_issues(rules)
     blocking = {i["field"] for i in issues if i["level"] == "error"} & {"symbol", "type", "date"}
     trade = row["type"] in userstore.TRADE_TYPES
     return {"issues": issues, "effect": checks.effect(row, exclude_id=id) if trade and not blocking else None,
-            "price": pc, "fee_estimate": _fee_estimate(row, pc) if trade and pc else None}
+            "price": pc, "fee_estimate": _fee_estimate(row, pc) if trade and pc else None, "rules": rules}
 
 
 def _fee_estimate(row: dict, pc: dict) -> dict | None:
@@ -91,16 +102,20 @@ def _fee_estimate(row: dict, pc: dict) -> dict | None:
 
 @router.post("/api/portfolio/transactions", response_model=TxResult)
 def add_transaction(body: TxIn) -> dict:
+    """Save a row. A new trade that breaks or comes close to one of your trading rules is saved only once
+    confirmed, and the check is logged with what you did and `rule_reason`."""
     trades.ensure_migrated()
-    row, issues = _checked(body)
-    return {"tx": userstore.get_tx(userstore.add_tx(row)), "issues": issues}
+    row, issues, rules = _checked(body)
+    tx_id = userstore.add_tx(row)
+    rulecheck.log_trade(rules, tx_id, body.rule_reason)
+    return {"tx": userstore.get_tx(tx_id), "issues": issues}
 
 
 @router.put("/api/portfolio/transactions/{tx_id}", response_model=TxResult)
 def edit_transaction(tx_id: int, body: TxIn) -> dict:
     if not userstore.get_tx(tx_id):
         raise HTTPException(404, f"No transaction {tx_id}.")
-    row, issues = _checked(body, exclude_id=tx_id)
+    row, issues, _ = _checked(body, exclude_id=tx_id)
     userstore.update_tx(tx_id, row)
     return {"tx": userstore.get_tx(tx_id), "issues": issues}
 

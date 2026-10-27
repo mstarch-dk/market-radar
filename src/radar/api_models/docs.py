@@ -74,6 +74,7 @@ class JournalMeta(Strict):
     action: str | None = None
     account: str | None = None
     horizon: str | None = None
+    style: str | None = None                # momentum, value, core or tactical: what a style-scoped trading rule reads
     status: str | None = None
     review_by: str | None = None
     views: list[Any] | None = None

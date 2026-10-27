@@ -4,6 +4,7 @@ or leaving. Unlike a backup (backup.py: an exact copy for this app to restore), 
     transactions.csv     every trade and cash row in every portfolio (UTF-8 with BOM so Excel reads æøå)
     portfolios.json      the portfolios: name, real/virtual, tax kind, dividends, tags, notes
     views.json           your market views with exposures and indicators
+    rules.json           your trading rules
     watchlist.csv        the watchlist edits made in the app
     regime_votes.json    which indicator groups vote in the regime
     tax.json             the tax estimate's persons (and the portfolios they own), instruments and openings
@@ -26,7 +27,7 @@ from typing import Any
 from .. import manifest, paths, userstore
 from ..jsonsafe import dumps
 from ..portfolios import trades
-from ..userstore import viewstore
+from ..userstore import rulestore, viewstore
 from . import home
 
 EXPORT_FORMAT = 1
@@ -35,6 +36,7 @@ BUNDLE_TX = "portfolio_transactions.csv"     # the same rows, as the holdings bu
 WATCHLIST = "watchlist.csv"
 YAHOO_WATCH = "yahoo_watch.json"
 VIEWS = "views.json"
+RULES = "rules.json"
 PORTFOLIOS = "portfolios.json"
 VOTES = "regime_votes.json"
 TAX = "tax.json"
@@ -50,6 +52,7 @@ Made {created} by Market Radar {version}. Export format {fmt}.
 | `transactions.csv` | Every trade and cash row, one per line, in every portfolio (real and virtual, archived too). |
 | `portfolios.json` | The portfolios: `name`, `mode` (real = yours, virtual = a simulation), `kind` (ask = aktiesparekonto, frie_midler, pension, other), `dividends` (reinvested or cash), `tags`, `note`, `archived`. |
 | `views.json` | Your market views: statement, conviction 1–5, horizon, rationale, what would prove it wrong, exposures and indicators. |
+| `rules.json` | Your trading rules: statement, kind and its parameters, scope (portfolios by name, account kind, tag, style), severity (hard, soft, reminder), why you have it, status. |
 | `watchlist.csv` | Symbols added to (`add`) or removed from (`remove`) the watchlist in the app. |
 | `regime_votes.json` | Which switchable indicator groups count in the regime vote. |
 | `tax.json` | The tax estimate's inputs: tax persons (with a capital-income rate and the portfolios each owns), each symbol's ISIN and tax class, and the losses carried in from before the history. |
@@ -80,7 +83,8 @@ Analysis, not advice. The market data itself is not exported: it belongs to its 
 
 
 def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str = BUNDLE_TX) -> None:
-    """Write the portfolio part: portfolios, their transactions, watchlists, views, vote choices and the tax inputs."""
+    """Write the portfolio part: portfolios, their transactions, watchlists, views, trading rules, vote choices and the
+    tax inputs."""
     universe_migrated()
     scope = "all" if include_virtual else "real"
     z.writestr(PORTFOLIOS, userstore.export_portfolios_json(scope))
@@ -89,6 +93,7 @@ def holdings_zip(z: zipfile.ZipFile, include_virtual: bool = False, tx_name: str
     z.writestr(WATCHLIST, userstore.export_watchlist_csv())
     z.writestr(YAHOO_WATCH, dumps(userstore.meta_get("yahoo_watch", [])))
     z.writestr(VIEWS, viewstore.export_views_json())
+    z.writestr(RULES, rulestore.export_rules_json())
     z.writestr(VOTES, dumps(userstore.meta_get("regime_votes", {})))
     z.writestr(TAX, userstore.export_tax_json())
 
@@ -122,6 +127,7 @@ def restore_holdings(z: zipfile.ZipFile, reason: str = "before-unbundle") -> dic
     if VOTES in names:
         userstore.meta_set("regime_votes", json.loads(z.read(VOTES)))
     out["views"] = viewstore.import_views_json(z.read(VIEWS).decode("utf-8")) if VIEWS in names else 0
+    out["rules"] = rulestore.import_rules_json(z.read(RULES).decode("utf-8")) if RULES in names else 0
     out["tax"] = userstore.import_tax_json(z.read(TAX).decode("utf-8")) if TAX in names else 0
     return out
 
