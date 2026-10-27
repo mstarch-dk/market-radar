@@ -77,6 +77,8 @@ De grå mærker i *Flags* er regler, der beskriver tilstanden. Hvilke der kan fo
 | *earnings in N d* / *earnings today* | beholdninger, watchlist | Aktien aflægger regnskab inden for {{settings:calendar.soon_days}} dage efter Yahoos dato eller forventede vindue (ikke bekræftet af selskabet). Samme dato som på [Calendar](brugervejledning/kalender) og i `radar calendar` |
 | *no data* | alle | Ingen kurs |
 
+*breaks a rule* (rødt) og *near a rule* (gult) betyder, at navnet i dag bryder eller er tæt på en af dine egne handelsregler: et loft pr. navn eller tema. Hold musen over mærket for at se reglen, og klik for at gå til [Trading rules](/rules); se [Mine handelsregler](brugervejledning/handelsregler).
+
 De røde mærker kommer fra niveauet: *near review level* og *below review level*, *above highest analyst target* og, med ATR-stoppet, *near stop*, *stop hit*, *near target* og *stop breached* + dato (et brud inden for den seneste måned).
 
 > **Tip:** *turning up* på watchlisten og *losing momentum* eller *below 200d* på beholdningerne er dem, `/market-brief` fremhæver. Brug dem som anledning til at kigge nærmere, ikke som handelssignaler.

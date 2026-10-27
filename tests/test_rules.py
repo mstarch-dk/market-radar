@@ -111,6 +111,8 @@ def test_position_cap_breaks_near_complies_and_the_largest_amount_fits_exactly()
     over = sr.max_position_weight(p, ctx(symbol="A", amount_dkk=1.0), BAND)
     assert over["status"] == "breaks" and "already at" in over["comply"]
     assert sr.max_position_weight(p, ctx(amount_dkk=None), BAND)["status"] == "unknown"
+    assert sr.max_position_weight(p, ctx(symbol="A", world={"A"}), BAND)["status"] == "not_applicable"
+    assert [v["symbol"] for v in sr.standing_max_position_weight(p, ctx(side=None, world={"A"}), BAND)] == ["B"]
     assert sr.max_position_weight(p, ctx(symbol="Z", unvalued=["Z"]), BAND)["status"] == "unknown"
 
 

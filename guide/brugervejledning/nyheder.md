@@ -4,6 +4,14 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 ## Næste version
 
+**Mine handelsregler.** Den nye side *Trading rules* under *Mine* er stedet, hvor du skriver de regler ned, du vil handle efter: "ingen aktie over 10 %", "ingen genkøb inden for 30 dage", "aldrig sælge mere end 15 % på en uge". Test en handling, og hver regel siger, om den brydes, er tæt på eller overholdes, med tallene og hvad der skal til for at overholde den. Reglerne er et spejl, aldrig en bom: intet blokeres. Se [Mine handelsregler](brugervejledning/handelsregler).
+
+- **Brud lige nu** vises på siden, som et flag i beholdningstabellen og i månedsbriefen.
+- **Når du registrerer en handel,** står de regler, den bryder, som advarsler, og du kan skrive, hvorfor du gør det alligevel.
+- **Ville reglerne have hjulpet?** kører dagens regler på dine egne tidligere handler.
+- **Claude:** den nye skill `/rules`; `/journal` tjekker en handling mod reglerne, og `/propose-portfolio` holder sig under dine lofter.
+- **Ved opdatering** får radar.db to nye tabeller; der tages en backup først. Du skal ikke gøre andet.
+
 **Claude kan bruge radaren direkte.** Åbner du programmappen i Claude Code, får Claude radarens tal som værktøjer i stedet for at køre kommandoer og læse hele filer. Første gang spørger Claude Code, om du vil bruge serveren `radar` fra projektet; svar ja. Se [Claude og radarens værktøjer](brugervejledning/claude-mcp).
 
 - **Skills læser mindre.** `/research`, `/compare`, `/journal`, `/market-brief`, `/propose-portfolio` og `/hindsight` henter kun det, de skal bruge. Et `/research`-notat læser cirka to tredjedele mindre og månedsbriefen omkring en fjerdedel mindre, og Claude skal ikke bede om lov til at læse i datamappen.

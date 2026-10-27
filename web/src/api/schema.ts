@@ -791,7 +791,11 @@ export interface paths {
         /** List Transactions */
         get: operations["list_transactions_api_portfolio_transactions_get"];
         put?: never;
-        /** Add Transaction */
+        /**
+         * Add Transaction
+         * @description Save a row. A new trade that breaks or comes close to one of your trading rules is saved only once
+         *     confirmed, and the check is logged with what you did and `rule_reason`.
+         */
         post: operations["add_transaction_api_portfolio_transactions_post"];
         delete?: never;
         options?: never;
@@ -1603,6 +1607,147 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rules
+         * @description Your trading rules (active and archived), the templates, the kinds and what you hold now against them.
+         */
+        get: operations["get_rules_api_rules_get"];
+        put?: never;
+        /** Add Rule */
+        post: operations["add_rule_api_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Rule */
+        put: operations["edit_rule_api_rules__rule_id__put"];
+        post?: never;
+        /**
+         * Delete Rule
+         * @description Delete a rule; the response is the deleted rule, which /restore puts back (undo).
+         */
+        delete: operations["delete_rule_api_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Rule */
+        post: operations["restore_rule_api_rules_restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Action
+         * @description Every active rule against a proposed action: breaks, near, unknown, complies, not applicable, each with
+         *     the numbers and the way to comply. `log` stores the check (when you go on to save the trade).
+         */
+        post: operations["check_action_api_rules_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/standing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Standing
+         * @description What you hold now against the rules about holdings (name, theme and core weights, the number of names).
+         */
+        get: operations["get_standing_api_rules_standing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/checks/{check_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Decision
+         * @description What you did after a logged check: went ahead (with the reason), changed it or dropped it.
+         */
+        post: operations["set_decision_api_rules_checks__check_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Replay
+         * @description Would your rules have helped? Your real trades from `start` to `end`, each checked against today's rules as
+         *     of its own day, with what the name did afterwards against ACWI. Descriptive, no significance claimed.
+         */
+        get: operations["get_replay_api_rules_replay_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1707,6 +1852,42 @@ export interface components {
             next_due?: string | null;
             /** Notes */
             notes: string[];
+        };
+        /**
+         * ActionIn
+         * @description A proposed action: one of amount_dkk, quantity or (a sale) fraction of the position.
+         */
+        ActionIn: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Ticker */
+            ticker: string;
+            /** Portfolio */
+            portfolio?: string | number | null;
+            /** Amount Dkk */
+            amount_dkk?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Fraction */
+            fraction?: number | null;
+            /** Price */
+            price?: number | null;
+            /** Date */
+            date?: string | null;
+            /** Style */
+            style?: ("momentum" | "value" | "core" | "tactical") | null;
+            /** Horizon */
+            horizon?: ("1m" | "3m" | "6m" | "12m" | "3y") | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Log
+             * @default false
+             */
+            log: boolean;
         };
         /**
          * AgendaEarnings
@@ -2212,6 +2393,21 @@ export interface components {
             /** Values */
             values: (number | null)[];
         };
+        /** CheckResult */
+        CheckResult: {
+            /** Disclaimer */
+            disclaimer: string;
+            /** Asof */
+            asof: string;
+            action: components["schemas"]["ResolvedAction"];
+            /** Verdicts */
+            verdicts: components["schemas"]["RuleVerdict"][];
+            summary: components["schemas"]["RuleCounts"];
+            /** Notes */
+            notes: string[];
+            /** Check Id */
+            check_id?: number | null;
+        };
         /** CliRow */
         CliRow: {
             /** Area */
@@ -2446,6 +2642,18 @@ export interface components {
             mirror?: string | null;
             /** Mirror Backups */
             mirror_backups: components["schemas"]["BackupRow"][];
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "went_ahead" | "changed" | "dropped";
+            /** Reason */
+            reason?: string | null;
+            /** Transaction Id */
+            transaction_id?: number | null;
         };
         /** DiscoveryMarket */
         DiscoveryMarket: {
@@ -3595,6 +3803,8 @@ export interface components {
             account?: string | null;
             /** Horizon */
             horizon?: string | null;
+            /** Style */
+            style?: string | null;
             /** Status */
             status?: string | null;
             /** Review By */
@@ -3847,6 +4057,13 @@ export interface components {
             regime?: ("Risk-on" | "Risk-off" | "Mixed") | null;
             /** Rows */
             rows: components["schemas"]["MyRow"][];
+            /**
+             * Rule Flags
+             * @default {}
+             */
+            rule_flags: {
+                [key: string]: components["schemas"]["StandingFlag"][];
+            };
         };
         /** MirrorIn */
         MirrorIn: {
@@ -5271,6 +5488,127 @@ export interface components {
             coverage: components["schemas"]["RegimeCoverage"];
         };
         /**
+         * ReplayAfter
+         * @description What the name did from the trade day's close to the last close, in DKK, and ACWI over the same days.
+         */
+        ReplayAfter: {
+            /** Ret */
+            ret?: number | null;
+            /** Acwi */
+            acwi?: number | null;
+            /** Rel */
+            rel?: number | null;
+            /** Days */
+            days?: number | null;
+        };
+        /** ReplayFlag */
+        ReplayFlag: {
+            /** Id */
+            id: number;
+            /** Date */
+            date: string;
+            /** Symbol */
+            symbol: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "breaks" | "near" | "complies" | "not_applicable" | "unknown" | "judgment";
+            /** Rel */
+            rel?: number | null;
+        };
+        /**
+         * ReplayResult
+         * @description Would your rules have helped? Today's rules on your past real trades, each as of its own day. Descriptive.
+         */
+        ReplayResult: {
+            /** Disclaimer */
+            disclaimer: string;
+            /** Asof */
+            asof: string;
+            /** Start */
+            start?: string | null;
+            /** End */
+            end?: string | null;
+            /** N Trades */
+            n_trades: number;
+            /** Rules */
+            rules: components["schemas"]["ReplayRule"][];
+            /** Trades */
+            trades: components["schemas"]["ReplayTrade"][];
+            /** Note */
+            note: string;
+        };
+        /** ReplayRule */
+        ReplayRule: {
+            /** Rule Id */
+            rule_id: number;
+            /** Statement */
+            statement: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** N Flagged */
+            n_flagged: number;
+            /** N Passed */
+            n_passed: number;
+            /** N Unknown */
+            n_unknown: number;
+            /** Flagged Rel */
+            flagged_rel?: number | null;
+            /** Passed Rel */
+            passed_rel?: number | null;
+            /** Flagged */
+            flagged: components["schemas"]["ReplayFlag"][];
+        };
+        /** ReplayTrade */
+        ReplayTrade: {
+            /** Id */
+            id: number;
+            /** Date */
+            date: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Symbol */
+            symbol: string;
+            /** Portfolio */
+            portfolio: string;
+            /** Amount Dkk */
+            amount_dkk?: number | null;
+            /** Error */
+            error?: string | null;
+            /** Verdicts */
+            verdicts: components["schemas"]["ReplayVerdict"][];
+            after?: components["schemas"]["ReplayAfter"] | null;
+        };
+        /** ReplayVerdict */
+        ReplayVerdict: {
+            /** Rule Id */
+            rule_id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "breaks" | "near" | "complies" | "not_applicable" | "unknown" | "judgment";
+            /** Message */
+            message: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+        };
+        /**
          * ReportHead
          * @description A study report's header row. `stale`: it tested another rule than today's (`rule_hash` vs `rule_hash_now`),
          *     or recorded none; `old_data`: an ok report whose last day of data is older than `evidence.max_age_days`.
@@ -5307,6 +5645,48 @@ export interface components {
             rule_hash_now?: string | null;
             /** Legacy */
             legacy: boolean;
+        };
+        /** ResolvedAction */
+        ResolvedAction: {
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "buy" | "sell";
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Portfolio */
+            portfolio: string;
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Portfolio Kind */
+            portfolio_kind: string;
+            /** Portfolio Mode */
+            portfolio_mode: string;
+            /** Date */
+            date: string;
+            /** Price */
+            price?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Rate */
+            rate?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Amount Dkk */
+            amount_dkk?: number | null;
+            /** Fraction */
+            fraction?: number | null;
+            /** Style */
+            style?: string | null;
+            /** Style From */
+            style_from?: ("action" | "journal") | null;
+            /** Horizon */
+            horizon?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** RestoreIn */
         RestoreIn: {
@@ -5601,6 +5981,248 @@ export interface components {
             quadrant: "Leading" | "Weakening" | "Lagging" | "Improving" | "n/a";
             /** Tail */
             tail: components["schemas"]["RrgPoint"][];
+        };
+        /** RuleCounts */
+        RuleCounts: {
+            /** By Status */
+            by_status: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+            /** Total */
+            total: {
+                [key: string]: number;
+            };
+        };
+        /** RuleIn */
+        RuleIn: {
+            /** Statement */
+            statement: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: unknown;
+            };
+            /**
+             * @default {
+             *       "portfolios": "real"
+             *     }
+             */
+            scope: components["schemas"]["RuleScope"];
+            /**
+             * Severity
+             * @default soft
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /** Rationale */
+            rationale?: string | null;
+            /** Template */
+            template?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
+        /** RuleKind */
+        RuleKind: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * When
+             * @enum {string}
+             */
+            when: "action" | "state" | "both";
+            /** Sides */
+            sides: ("buy" | "sell")[];
+            /** Needs */
+            needs?: string | null;
+            /** Params */
+            params: components["schemas"]["RuleParamSpec"][];
+        };
+        /** RuleParamSpec */
+        RuleParamSpec: {
+            /** Key */
+            key: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "pct" | "dkk" | "int" | "days" | "choice" | "tickers" | "exposures";
+            /** Label */
+            label: string;
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+            /** Default */
+            default?: unknown;
+            /** Choices */
+            choices?: unknown[] | null;
+        };
+        /** RuleRow */
+        RuleRow: {
+            /** Statement */
+            statement: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: unknown;
+            };
+            /**
+             * @default {
+             *       "portfolios": "real"
+             *     }
+             */
+            scope: components["schemas"]["RuleScope"];
+            /**
+             * Severity
+             * @default soft
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /** Rationale */
+            rationale?: string | null;
+            /** Template */
+            template?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Id */
+            id: number;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * RuleScope
+         * @description Which portfolios a rule covers: real, all, or a list of ids; narrowed by account kind, tag and style.
+         */
+        RuleScope: {
+            /**
+             * Portfolios
+             * @default real
+             */
+            portfolios: ("real" | "all") | number[];
+            /** Kind */
+            kind?: ("ask" | "frie_midler" | "pension" | "other") | null;
+            /** Tag */
+            tag?: string | null;
+            /** Style */
+            style?: ("momentum" | "value" | "core" | "tactical") | null;
+        };
+        /** RuleTemplate */
+        RuleTemplate: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Statement */
+            statement: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            scope: components["schemas"]["RuleScope"];
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /** Rationale */
+            rationale?: string | null;
+        };
+        /**
+         * RuleVerdict
+         * @description One rule's reading of an action (or of a holding, when standing). Weights are shares of the invested DKK
+         *     value of the rule's portfolios; the message says of what.
+         */
+        RuleVerdict: {
+            /** Rule Id */
+            rule_id: number;
+            /** Statement */
+            statement: string;
+            /** Kind */
+            kind: string;
+            /** Kind Label */
+            kind_label: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /** Rationale */
+            rationale?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "breaks" | "near" | "complies" | "not_applicable" | "unknown" | "judgment";
+            /** Value */
+            value?: number | null;
+            /** Limit */
+            limit?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Message */
+            message: string;
+            /** Comply */
+            comply?: string | null;
+            /** Symbol */
+            symbol?: string | null;
+            /** Symbols */
+            symbols?: string[] | null;
+        };
+        /** RulesCatalogue */
+        RulesCatalogue: {
+            /** Kinds */
+            kinds: components["schemas"]["RuleKind"][];
+            /** Styles */
+            styles: ("momentum" | "value" | "core" | "tactical")[];
+            /** Horizons */
+            horizons: ("1m" | "3m" | "6m" | "12m" | "3y")[];
+            /** Severities */
+            severities: ("hard" | "soft" | "reminder")[];
+            /** Account Kinds */
+            account_kinds: string[];
+            /** Exposure Kinds */
+            exposure_kinds: string[];
+            /** Etfs */
+            etfs: {
+                [key: string]: string;
+            }[];
+            /** Sectors */
+            sectors: string[];
+            /** Regions */
+            regions: string[];
+        };
+        /** RulesPage */
+        RulesPage: {
+            /** Disclaimer */
+            disclaimer: string;
+            /** Rules */
+            rules: components["schemas"]["RuleRow"][];
+            /** Templates */
+            templates: components["schemas"]["RuleTemplate"][];
+            catalogue: components["schemas"]["RulesCatalogue"];
+            standing?: components["schemas"]["StandingResult"] | null;
         };
         /** ScoreCard */
         ScoreCard: {
@@ -5946,6 +6568,42 @@ export interface components {
             last_success?: string | null;
             /** Error */
             error?: string | null;
+        };
+        /** StandingFlag */
+        StandingFlag: {
+            /** Rule Id */
+            rule_id: number;
+            /** Statement */
+            statement: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft" | "reminder";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "breaks" | "near" | "complies" | "not_applicable" | "unknown" | "judgment";
+        };
+        /**
+         * StandingResult
+         * @description What you hold now against the rules about holdings.
+         */
+        StandingResult: {
+            /** Disclaimer */
+            disclaimer: string;
+            /** Asof */
+            asof: string;
+            /** Rows */
+            rows: components["schemas"]["RuleVerdict"][];
+            summary: components["schemas"]["RuleCounts"];
+            /** Flags */
+            flags: {
+                [key: string]: components["schemas"]["StandingFlag"][];
+            };
+            /** Notes */
+            notes: string[];
         };
         /**
          * StressWindow
@@ -6416,6 +7074,7 @@ export interface components {
             effect?: components["schemas"]["Effect"] | null;
             price?: components["schemas"]["PriceCheck"] | null;
             fee_estimate?: components["schemas"]["FeeEstimate"] | null;
+            rules?: components["schemas"]["CheckResult"] | null;
         };
         /**
          * TxIn
@@ -6459,6 +7118,8 @@ export interface components {
              * @default false
              */
             confirm: boolean;
+            /** Rule Reason */
+            rule_reason?: string | null;
         };
         /** TxResult */
         TxResult: {
@@ -9831,6 +10492,280 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudyRunStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rules_api_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesPage"];
+                };
+            };
+        };
+    };
+    add_rule_api_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_rule_api_rules__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_api_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_rule_api_rules_restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleRow"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_action_api_rules_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_standing_api_rules_standing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandingResult"];
+                };
+            };
+        };
+    };
+    set_decision_api_rules_checks__check_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_replay_api_rules_replay_get: {
+        parameters: {
+            query?: {
+                start?: string | null;
+                end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayResult"];
                 };
             };
             /** @description Validation Error */

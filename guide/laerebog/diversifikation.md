@@ -146,6 +146,10 @@ Siden [X-ray](/xray) (se [Røntgen af porteføljen](brugervejledning/xray)) brug
 - **Par, der bevæger sig sammen**, er beholdninger med en ugentlig korrelation over {{settings:risk.xray.pair_corr}} i samme vindue (`signals/risk.py`, `correlation`, parvis komplet), med deres samlede vægt.
 - **Eksponeringen** efter sektor, region og valuta gennemlyser fondene, hvor data tillader det, og viser for hver dimension, hvor stor en del af værdien der kunne placeres. En fond, der ikke kan gennemlyses, bliver aldrig fordelt efter gæt.
 
+### Lofter pr. navn og tema
+
+Et loft ("ingen aktie over 10 %", "AI-chips højst 25 %") er den enkleste form for diversifikation: det sætter en grænse for, hvor meget ét selskab eller ét tema kan trække porteføljen ned. Det tager ikke højde for korrelation, så to navne under hvert sit loft kan stadig bevæge sig som ét; temaloftet tæller derfor også de aktier, der bevæger sig med temaets ETF i forhold til ACWI. Dine egne lofter skriver du på [Trading rules](/rules), og radaren viser, hvad et køb gør ved vægten, og det største beløb, der er plads til: med beholdning $h$, samlet investeret værdi $V$ og loft $p$ er det $(pV - h)/(1-p)$. Se [Mine handelsregler](brugervejledning/handelsregler).
+
 ### Værdi og momentum side om side
 
 Asness, Moskowitz og Pedersen (2013) fandt, at værdi- og momentumstrategier er negativt korrelerede, omkring −0,5, i mange markeder: når den ene halter, klarer den anden sig ofte godt. Radarens [A/B-test](brugervejledning/portefoljer-og-tags#ab-test-kvalitet-og-værdi-mod-momentum) undersøger det fremad i tid med tre virtuelle kurve (kvalitet+værdi, momentum og 50/50) og viser korrelationen mellem deres ugentlige afkast i DKK, når der er mindst {{settings:risk.min_weeks}} uger. Den viser også, om blandingen svinger mindre end hver kurv alene. Begge kurve er lange aktiekurve, så de vil være positivt korrelerede med markedet og med hinanden. Spørgsmålet er, hvor meget mindre end 1 korrelationen er.

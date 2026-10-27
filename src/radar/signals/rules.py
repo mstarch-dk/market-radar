@@ -14,7 +14,8 @@ selection (what the weights are a share of, in words), meta (per name: ticker, s
 ucits_of, corr) and theme_corr, trades (past trades in the rule's portfolios: symbol, date, type, value_dkk),
 avg_cost and price (the name's average cost and the day's close, quote currency), sma ({50: .., 200: ..}), ret_3m,
 score, horizon_months, account_kind, journal ({open, exit_rules} or None when unknown), only (the names a
-style-scoped standing check covers)."""
+style-scoped standing check covers), world (broad world funds: spread over thousands of names, never one name
+to cap)."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -89,6 +90,8 @@ def _cap(label: str, held: float, lim: float, band: float, ctx: dict) -> Verdict
 def max_position_weight(p: dict, ctx: dict, band: float) -> Verdict:
     if (miss := _amount(ctx)) is not None:
         return miss
+    if ctx["symbol"] in ctx.get("world", ()):
+        return verdict("not_applicable", f"{ctx['symbol']} is a world fund: spread over thousands of names")
     if ctx["symbol"] in ctx.get("unvalued", []):
         return verdict("unknown", f"{ctx['symbol']} is held without a DKK value, so its weight is unknown.")
     return _cap(ctx["symbol"], ctx["values"].get(ctx["symbol"], 0.0), p["pct"] / 100, band, ctx)
@@ -343,7 +346,7 @@ def standing_max_position_weight(p: dict, ctx: dict, band: float) -> list[Verdic
     out = []
     for s in _names(ctx):
         w = ctx["values"][s] / total if total > 0 else None
-        if w is None:
+        if w is None or s in ctx.get("world", ()):
             continue
         status = _max_status(w, lim, band)
         if status != "complies":

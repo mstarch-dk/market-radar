@@ -15,7 +15,7 @@ Under topbjælken er menuen i to rækker. Den øverste har tre grupper, og den n
 | Gruppe | Sider |
 |---|---|
 | *Markets* | *Regime*, *Sector rotation*, *Themes & factors*, *Momentum*, *Quality & value*, *Evidence*, *Discover*, *Positioning & cycle* |
-| *Mine* | *Holdings & watchlist*, *X-ray*, *Calendar*, *Portfolio*, *Returns*, *Experiments*, *Market views*, *Notebook* |
+| *Mine* | *Holdings & watchlist*, *X-ray*, *Calendar*, *Portfolio*, *Returns*, *Experiments*, *Market views*, *Trading rules*, *Notebook* |
 | *System* | *Data & coverage*, *Operations* |
 
 Klikker du på en gruppe, kommer du tilbage til den side, du sidst så i gruppen (første gang til dens første side). Rækkefølgen følger arbejdsgangen: først markedet, så dig selv og dine noter, og til sidst data og drift. Står du på en tickerprofil, viser menuen, hvor du kom fra: gruppen og siden, du åbnede profilen fra, er markeret, og yderst i siderækken står tickerens symbol som en ekstra fane. Over profilen står samme sti, fx *Mine › Holdings & watchlist › NOVO-B.CO*. Et klik på siden i stien fører tilbage til den med de filtre, du havde sat. Åbner du profilen fra forsiden, guiden eller et bogmærke, står den under *Markets*. Til højre i grupperækken står *? Om denne side*. Et kort over siderne står i [Hvad er Market Radar?](brugervejledning/hvad-er-market-radar#et-kort-over-siderne).

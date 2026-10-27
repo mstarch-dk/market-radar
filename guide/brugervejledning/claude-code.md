@@ -37,6 +37,7 @@ Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller
 | `/compare <t1> <t2> …` | `research/compare/ÅÅÅÅ-MM-DD_<tickere>.md` | En ærlig sammenligning, med ACWI som alternativet |
 | `/journal …` | `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` | En beslutning med tese og exitregler |
 | `/journal review` | `journal/reviews/ÅÅÅÅ-MM.md` | Den månedlige gennemgang af åbne beslutninger |
+| `/rules`, `/rules check …`, `/rules review` | radar.db (kun efter dit ja) | Dine handelsregler: skriv dem, test en handling, eller find regler i dine egne handler |
 | `/propose-portfolio <portefølje> <beløb>` | `research/proposals/ÅÅÅÅ-MM-DD_<portefølje>.md` | Et forslag til nye aktier for et beløb, testet mod ACWI og alternativerne |
 | `/propose-portfolio review` | `research/proposals/reviews/ÅÅÅÅ-MM.md` | Hvordan tidligere forslag er gået, og om deres exitkriterier er udløst |
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
@@ -82,9 +83,19 @@ Horisonten er 3 måneder, medmindre din profil eller du siger andet. Dine person
 
 Journalen gør beslutninger bevidste og mulige at efterprøve. Hver post siger, hvorfor du traf beslutningen, og hvad der ville vise, at den var forkert.
 
-**Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen. Handlen tjekkes som i appen, Claude viser dig tjekket og din position før og efter, og den gemmes først, når du siger ja.
+**Registrér en beslutning**, fx `/journal buy RHM.DE …`. Claude spørger én gang efter det, der mangler: handling (buy, add, trim, sell, pass), konto, tesen med dine egne ord, horisont og exitregel. Har du handelsregler, tjekker Claude handlingen mod dem og viser de regler, den bryder eller er tæt på, med tallene; går du videre alligevel, gemmes din begrundelse. Derefter tager Claude et øjebliksbillede af radarens tal, nævner markedssyn, navnet passer med, og skriver `journal/ÅÅÅÅ-MM-DD-<TICKER>-<handling>.md` med tese, radarens tal, exitregler og en pre-mortem. Er det en gennemført handel med antal og kurs, tilbyder Claude at registrere den i porteføljen. Handlen tjekkes som i appen, Claude viser dig tjekket og din position før og efter, og den gemmes først, når du siger ja.
 
 **Månedlig gennemgang** med `/journal review`. Claude opdaterer radaren, læser alle åbne poster, henter de aktuelle tal for alle deres aktier på én gang og sammenligner exitreglerne med dem. Hver post klassificeres som *Intact*, *Weakening* eller *Invalidated*. Lukkede handler fra de seneste 3 måneder gennemgås også: hvad skete der efter exit? Resultatet skrives i `journal/reviews/ÅÅÅÅ-MM.md` med 2–3 mønstre på tværs af beslutningerne, fx at sælge vindere for tidligt. Claude ændrer ikke status på en post uden at spørge dig.
+
+## /rules
+
+Hjælper dig med at holde dine [handelsregler](brugervejledning/handelsregler).
+
+- `/rules`: Claude viser dine regler og hvad dine beholdninger bryder nu, og laver det, du siger, om til regler af en bestemt slags med tal, porteføljer og strenghed. Hver regel vises, præcis som den ville blive gemt, og gemmes først, når du siger ja.
+- `/rules check sell NOVO-B.CO half`: regel for regel, om handlingen bryder, er tæt på eller overholder reglen, med tallene. *Judgment*-reglerne besvarer Claude som spørgsmål, markeret som Claudes vurdering.
+- `/rules review`: en gennemgang af dine egne handler for mønstre (mange salg på én dag efter et fald, genkøb kort efter et salg, tilkøb i tabere) og forslag til regler ud fra dem. Claude bruger `radar rules replay`, men kun beskrivende: få handler beviser ikke, at en regel virker.
+
+Reglerne er et spejl, aldrig en bom: Claude nægter ikke en handling og argumenterer ikke imod den.
 
 ## /propose-portfolio
 

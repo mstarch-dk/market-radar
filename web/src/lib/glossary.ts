@@ -41,7 +41,7 @@ export const GLOSSARY = {
   take_profit: "Off by default (settings stops.take_profit). When on: the lower of {{settings:stops.reward_risk}} × the stop width above the price and the analysts' mean target (needs at least {{settings:stops.min_analysts}} analysts).",
   k: "Stop width multiplier. Starts at {{settings:stops.k_base}}; each signal (momentum, trend, extension, regime, analysts) widens ▲ or tightens ▼ it.",
   atr: "Average True Range (Wilder, {{settings:stops.atr_days}} days: stops.atr_days in settings.yaml): the typical daily price range, used to size the stop.",
-  flags: "Rule-based notes: trend intact, losing momentum, below 200d, turning up, near 52w high, RS line at 52w high (the price divided by ACWI, both in DKK, at a new 52-week high in the last 5 sessions), golden cross / death cross (the 50-day average crossed above / below the 200-day in the last 20 sessions), and stop/target alerts.",
+  flags: "Rule-based notes: trend intact, losing momentum, below 200d, turning up, near 52w high, RS line at 52w high (the price divided by ACWI, both in DKK, at a new 52-week high in the last 5 sessions), golden cross / death cross (the 50-day average crossed above / below the 200-day in the last 20 sessions), and stop/target alerts. “breaks a rule” / “near a rule”: the name breaks or comes close to one of your own trading rules (My trading rules).",
   signal: "risk-on / risk-off rows vote in the regime; neutral rows inform only; n/a = no data; stale = data older than its limit, not counted.",
   cot_net: "Net position (long − short) as a percentage of open interest.",
   cot_chg: "Change in net % of open interest over the last 4 weeks.",

@@ -267,6 +267,8 @@ def _ctx(rule: dict, act: dict | None, data: Data, ids: list[int], label: str) -
     ctx: dict[str, Any] = {"values": values, "unvalued": unvalued, "selection": label,
                            "theme_corr": market_views.config()["theme_corr"]}
     kind = rule["kind"]
+    if kind == "max_position_weight":
+        ctx["world"] = exposure.look_through()
     if kind == "max_exposure_weight":
         names = list(dict.fromkeys([*values, *([act["symbol"]] if act else [])]))
         etfs = [e["key"] for e in rule["params"]["exposures"] if e["kind"] == "etf"]

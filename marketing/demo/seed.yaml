@@ -56,3 +56,21 @@ views:
     rationale: Demo – markedet for fedmemedicin vokser, men konkurrencen og prispresset er stigende.
 # A view that helps a whole region (e.g. europe_beats_us) marks every name there as "fits your views", which
 # makes the Views columns in the Momentum and Discover shots say nothing: prefer views that pick out names.
+
+# My trading rules, from the templates in config/rules.yaml (the numbers and the why are the fictional investor's).
+rules:
+  - template: cap_name
+    statement: No single stock above 15 % of my portfolios.
+    params: {pct: 15}
+    rationale: Demo – én virksomheds dårlige nyhed må ikke kunne vælte hele porteføljen.
+  - template: cap_theme_ai
+    params: {pct: 25, exposures: [{kind: etf, key: SMH}, {kind: industry, key: Semiconductors}]}
+    rationale: Demo – AI-temaet kan falde samlet; jeg vil kunne tåle at tage fejl.
+  - template: core_floor
+    statement: At least a quarter in the core (the world fund).
+    params: {pct: 25, core: [XDWD.DE]}
+    rationale: Demo – kernen er den del, jeg ikke behøver have ret om.
+  - template: no_rebuy
+  - template: sell_cooling
+  - template: exit_first
+  - template: explain_it

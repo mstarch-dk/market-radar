@@ -243,8 +243,17 @@ def seed() -> None:
                                         "exposures": t["exposures"], "indicators": t["indicators"],
                                         "template": t["key"], "conviction": v.get("conviction", 3),
                                         "horizon": v.get("horizon", "12m"), "rationale": v.get("rationale")})
+    rule_templates = {t["key"]: t for t in api("GET", "/api/rules")["templates"]}
+    for r in spec.get("rules", []):
+        t = rule_templates[r["template"]]
+        api("POST", "/api/rules", json={"statement": r.get("statement", t["statement"]), "kind": t["kind"],
+                                        "template": t["key"],
+                                        "params": r.get("params", t["params"]), "scope": t["scope"],
+                                        "severity": r.get("severity", t["severity"]),
+                                        "rationale": r.get("rationale", t.get("rationale"))})
     print(f"Seeded {len(ids)} portfolios, {len(spec.get('watchlist', []))} watchlist names, "
-          f"{len(spec.get('views', []))} views. Now `radar run` in .demo/ (analyst data, dashboard):")
+          f"{len(spec.get('views', []))} views, {len(spec.get('rules', []))} trading rules. Now `radar run` in .demo/ "
+          "(analyst data, dashboard):")
     run(["uv", "run", "--directory", str(DEMO), "radar", "run"])
     check_demo_db()
 

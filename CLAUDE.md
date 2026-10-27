@@ -20,6 +20,7 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `uv run radar attribution [NAME…] [--tag T] [--start D] [--end D] [--json]`: attribution vs ACWI (trading and fees, proxies vs ACWI, allocation / selection / interaction by sector and region, currency) and the factor regression's alpha with its t
 - `uv run radar evidence [--json]`: every study's status, age and rule, the scores' IC with t and holdout, and the forward record vs ACWI (the Evidence page)
 - `uv run radar tax year [YEAR] [--portfolio P] [--person N] [--json]` / `tax classify|isin|person|opening`: the Danish tax estimate per account and person (ASK and pension pools, share income with the progression limit, capital income), rules from `config/tax_dk.yaml`, and its inputs
+- `uv run radar rules [--json]` / `rules check buy|sell TICKER AMOUNT [--portfolio P] [--style S] [--json] [--log]` / `rules standing|replay|add|decision`: your trading rules and whether an action breaks them, rule by rule with the numbers (a mirror, never a gate)
 - `uv run radar calendar [NAME…] [--tag T] [--days N] [--json]`: the coming weeks for what you hold and watch (earnings and ex-dividend dates, your review dates, proposal time stops), each with why it is highlighted
 - `uv run radar study score [--exits 6]`: the momentum score tested at every past month-end (IC, quintiles, holdout, variants, the exit rule); `uv run radar sim picks …`: a basket picked on a past day, simulated
 - `uv run radar propose candidates|freeze|evaluate|shadow|review|check …` / `uv run radar study propose`: a fee-aware basket proposal for one portfolio, tested against ACWI and the alternatives; the rule tested at every past month-end
@@ -34,7 +35,8 @@ A personal investing toolkit for a Danish investor (frie midler + aktiesparekont
 - `/market-brief` → `briefs/YYYY-MM-DD.md` (also run monthly by a Claude desktop scheduled task on this machine)
 - `/research <ticker>` → `research/<TICKER>.md`
 - `/compare <t1> <t2> … [--personal]` → `research/compare/YYYY-MM-DD_<tickers>.md` (rubric incl. ACWI, bull/bear, red team, sizing, decision record)
-- `/journal …` and `/journal review` → `journal/`
+- `/journal …` and `/journal review` → `journal/` (checks the action against the trading rules first)
+- `/rules`, `/rules check <action>`, `/rules review` → `radar.db` (trading rules, written only after the user confirms each)
 - `/propose-portfolio <portfolio> <amount-dkk> [momentum|value|mix]` and `/propose-portfolio review` → `research/proposals/` (picks frozen in `exports/proposals/` before the model's numbers; the drift only from `radar study propose`; ACWI as the null; exit criteria re-checked by `radar propose check`)
 - `/hindsight [1M 3M 6M 1Y]` → `research/hindsight/YYYY-MM-DD_<name>.md` (a basket picked on a past day by score / views / Claude's judgment, simulated against ACWI, a score-only control, the equal-weight universe and random baskets; blind before the model's cutoff)
 - `/marketing` → `marketing/` (Danish brochure, HTML + PDF, with screenshots of a demo copy holding a fictional investor; the PDF and its sources are committed, the screenshots aren't)

@@ -595,6 +595,16 @@ details.card > summary { cursor: pointer; }
   border-radius: 8px; background: var(--surface); }
 .tpl p { margin: 0; font-size: 13px; }
 .tpl .btn { align-self: flex-start; }
+/* My trading rules */
+table.rule-verdicts td, table.rule-verdicts th { text-align: left; white-space: normal; vertical-align: top; padding: 5px 6px; }
+table.rule-verdicts td:first-child { white-space: nowrap; width: 1%; }
+table.rule-verdicts td:nth-child(2) { width: 32%; }
+.action-check .row { display: flex; gap: 6px; }
+.action-check .row input { flex: 1; min-width: 0; }
+.check-result { margin-top: 12px; }
+.tx-rules { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.tx-rules label { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.tx-rules input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
 .view-editor h3 { margin: 14px 0 4px; font-size: 13px; }
 .view-editor label.full { grid-column: 1 / -1; }
 .view-editor textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
