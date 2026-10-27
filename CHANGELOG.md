@@ -27,6 +27,12 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
   `/hindsight` prefer the `mcp__radar__*` tools and keep one line of CLI fallback (for a client without them). Measured
   on one data folder: `/research` reads about 66 % less, `/compare` 22–32 % less and `/market-brief` 28 % less than
   the CLI versions (`plans/mcp_server.md`, section 7). New guide chapter *Claude og radarens værktøjer*.
+- **Cash flow from the latest fiscal year**: when a company's cash-flow items (operating cash flow, capex,
+  dividends paid, buybacks, issuance) have no last-twelve-months figure within `fundamentals.ttm_max_age_days`
+  (Yahoo has only full-year cash flow statements for many non-US companies), the latest fiscal year within
+  `annual_max_age_days` is used, with a note on the card. FCF then comes wholly from that year and the FCF margin
+  uses that year's revenue. Shareholder yield and the FCF metrics no longer drop out for such companies
+  (e.g. SAN.MC, BBVA.MC, BARC.L) for half of each year.
 - **Positions in DKK**: the *Positions* table on *Portfolio* (and on *Experiments*) has a *Value (DKK)* column, each
   position's value at its last traded close converted at the DKK rate on that close's day, so it sorts by size
   across currencies. It shows "–" when the price or rate is missing; `/api/portfolio/positions` gains `value_dkk`.

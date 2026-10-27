@@ -14,6 +14,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 **Positioner i kroner.** Tabellen *Positions* på *Portfolio* har fået kolonnen *Value (DKK)*: værdien omregnet til kroner med valutakursen fra dagen for den seneste kurs, så du kan sortere dine positioner efter størrelse på tværs af valutaer. Se [Portefølje](brugervejledning/portefolje).
 
+**Shareholder yield for selskaber med helårlige pengestrømme.** Har Yahoo kun et selskabs pengestrømsopgørelse for hele år (mange europæiske og japanske selskaber, fx Santander og BBVA), manglede shareholder yield og FCF-tallene, så snart regnskabsåret var over {{settings:fundamentals.ttm_max_age_days}} dage gammelt. Nu bruges det seneste regnskabsår, med en note i kortet *Quality & value*. Se [Radarens kvalitets- og værdiscore](laerebog/kvalitetsscore).
+
 **En kalender over det, du ejer og følger.** Den nye side *Calendar* under *Mine* viser de næste {{settings:calendar.days}} dages regnskaber og udbyttedage for dine beholdninger og din watchlist, og dine egne datoer: gennemgangsdatoer i journalen og tidsstop i dine porteføljeforslag. Hvert punkt siger, hvorfor det er fremhævet, efter faste regler: hvor meget af porteføljen der står på spil, hvor tæt kursen er på dit gennemgangsniveau, svagt momentum, nedjusterede skøn, og hvor sikker datoen er. Se [Kalenderen](brugervejledning/kalender).
 
 - **Datoerne er Yahoos, og det står der.** Et vindue vises som et vindue, aldrig som dets første dag. En aktie uden kendt dato står under *No date known* med grunden; fonde tælles, men listes ikke.

@@ -112,6 +112,7 @@ export const GLOSSARY = {
   ey_vs_history: "Today's EBIT / EV as a percentile of the company's own fiscal year-ends over the last 5 years (100 = the cheapest it has been). Needs 4 points, today included.",
   roe: "Return on equity: net income over the last 12 months divided by average equity. The profitability measure for banks and insurers.",
   pb: "Price / book: market value divided by equity.",
+  bp: "Book / price: equity divided by market value, the inverse of price / book. Higher is cheaper.",
   ab_test: "A forward test: three virtual baskets bought on the scores of the first report each month, held to the next month. The picks are frozen when recorded, so the test can't look ahead or be tuned afterwards.",
   ab_corr: "Correlation of the baskets' weekly returns in DKK. Low or negative between quality+value and momentum means the two diversify each other. Needs 26 weeks.",
   turnover: "Share of the basket traded at the rebalance (half the sum of the absolute weight changes): 100% = everything replaced.",

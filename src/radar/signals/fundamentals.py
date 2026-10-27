@@ -117,7 +117,21 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     def annual(item):
         return _years(periods.annual(facts, item, known_by), asof, cfg["stability_years"], fy_age)
 
-    rev, ebit, cfo, capex = ttm("revenue"), ttm("operating_income"), ttm("cfo"), ttm("capex")
+    fy_items: dict[str, pd.Timestamp] = {}       # cash-flow items read from the latest fiscal year instead
+
+    def flow(item: str) -> periods.Value | None:
+        """A cash-flow item's last twelve months; when there is none within `ttm_max_age_days` (a company whose
+        cash flow statement comes only for the full year), its latest fiscal year within `annual_max_age_days`."""
+        v = ttm(item)
+        if v is not None:
+            return v
+        fy = periods.annual(facts, item, known_by).dropna()
+        if fy.empty or (asof - fy.index[-1]).days > fy_age:
+            return None
+        fy_items[item] = fy.index[-1]
+        return periods.Value(float(fy.iloc[-1]), fy.index[-1], "fy")
+
+    rev, ebit, cfo, capex = ttm("revenue"), ttm("operating_income"), flow("cfo"), flow("capex")
     ni, pretax, tax, dna, interest = ttm("net_income"), ttm("pretax"), ttm("income_tax"), ttm("dna"), ttm("interest")
     assets, cl, cash = bal("total_assets"), bal("current_liabilities"), bal("cash")
     equity = bal("equity")
@@ -152,6 +166,12 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
     r_, ebit_v, ni_v, cfo_v, capex_v = _v(rev), _v(ebit), _v(ni), _v(cfo), _v(capex)
     assets_v, equity_v, cl_v = _v(assets), _v(equity), _v(cl)
     fcf = cfo_v - capex_v if cfo_v is not None and capex_v is not None else None
+    fcf_rev = r_
+    if fcf is not None and cfo is not None and capex is not None and {"cfo", "capex"} & fy_items.keys():
+        # a fiscal year's FCF: both parts from that year, set against that year's revenue
+        fcf_rev = num(periods.annual(facts, "revenue", known_by).get(cfo.end))
+        if cfo.end != capex.end:
+            fcf = None
     vals["fcf"] = fcf
     if financial:
         eq = equity_v
@@ -170,8 +190,8 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
         if equity_v is not None and assets_v is not None and assets_v > 0:
             vals["equity_assets"] = equity_v / assets_v
     else:
-        if fcf is not None and r_ and r_ > 0:
-            vals["fcf_margin"] = check("fcf_margin", fcf / r_)
+        if fcf is not None and fcf_rev and fcf_rev > 0:
+            vals["fcf_margin"] = check("fcf_margin", fcf / fcf_rev)
         if ebit_v is not None and assets is not None and assets_v is not None and cash_v is not None and cl_v is not None:
             ic = assets_v - cash_v - (cl_v - debt_c)
             ago = assets.end - timedelta(days=300)
@@ -232,7 +252,7 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
         if mcap is None:
             notes.append("no market value (price, shares or exchange rate missing): value metrics left out")
     else:
-        vals["shareholder_yield"] = check("shareholder_yield", _shy(ttm, mcap))
+        vals["shareholder_yield"] = check("shareholder_yield", _shy(flow, mcap))
         if financial:
             if equity_v is not None and equity_v > 0:
                 vals["bp"] = equity_v / mcap
@@ -257,6 +277,9 @@ def metrics(facts: pd.DataFrame, asof, cfg: dict, financial: bool, mcap: float |
                 else:
                     notes.append("enterprise value ≤ 0 (more cash than market value and debt): EBIT/EV left out")
 
+    if fy_items:
+        notes.append(f"cash flow ({', '.join(sorted(fy_items))}) from the fiscal year ending "
+                     f"{max(fy_items.values()):%d %b %Y}: no 12-month figure within {ttm_age} days")
     rank = {}
     for m in ALL_METRICS:
         v = nd_rank if m == "nd_ebitda" else vals.get(m)
@@ -280,8 +303,8 @@ def _debt(facts, parts: list[periods.Value | None]) -> float | None:
     return None if any(periods.instant(facts, i) is not None for i in DEBT) else 0.0
 
 
-def _shy(ttm, mcap: float) -> float | None:
-    d, b, i = ttm("dividends_paid"), ttm("buybacks"), ttm("issuance")
+def _shy(flow, mcap: float) -> float | None:
+    d, b, i = flow("dividends_paid"), flow("buybacks"), flow("issuance")
     if d is None and b is None and i is None:
         return None
     # zero: one part is reported (checked above); a part not reported is none paid or issued

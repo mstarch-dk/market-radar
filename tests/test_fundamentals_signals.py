@@ -86,6 +86,27 @@ def test_missing_is_missing_never_zero(cfg):
     assert any("left out" in n for n in stale["notes"])
 
 
+def test_cash_flow_falls_back_to_the_latest_fiscal_year(cfg):
+    # quarterly income statement, cash flow only for the full year (as Yahoo has it for many European companies)
+    cash_items = ("cfo", "capex", "dividends_paid", "buybacks")
+    q = {k: v for k, v in BASE_Q.items() if k not in cash_items}
+    fy = {"revenue": [1000.0] * 5, "cfo": [180.0] * 5, "capex": [60.0] * 5, "dividends_paid": [30.0] * 5,
+          "buybacks": [50.0] * 5}
+    m = sf.metrics(yahoo(q, BASE_B, fy), ASOF, cfg, False, mcap=2000.0)    # FY 2025 ends 288 days before ASOF
+    v = m["values"]
+    assert v["shareholder_yield"] == pytest.approx((30 + 50) / 2000)
+    assert v["fcf_yield"] == pytest.approx(120 / 2000)
+    assert v["fcf_margin"] == pytest.approx(120 / 1000)          # against that year's revenue, not the last 4 quarters
+    assert any("fiscal year ending 31 Dec 2025" in n for n in m["notes"])
+    later = ASOF + pd.Timedelta(days=200)                          # past annual_max_age_days: missing, not 0
+    assert sf.metrics(yahoo(q, BASE_B, fy), later, cfg, False, mcap=2000.0)["values"]["shareholder_yield"] is None
+    mixed = sf.metrics(yahoo(q | {"capex": 12.5}, BASE_B, fy), ASOF, cfg, False, mcap=2000.0)
+    assert mixed["values"]["fcf_yield"] is None                    # FY operating cash flow, 4-quarter capex: no FCF
+    fresh = sf.metrics(yahoo(BASE_Q, BASE_B, fy), ASOF, cfg, False, mcap=2000.0)
+    assert fresh["values"]["shareholder_yield"] == pytest.approx((40 + 20) / 2000)
+    assert not any("fiscal year ending" in n for n in fresh["notes"])
+
+
 def test_debt_missing_from_the_latest_balance_is_unknown_not_zero(cfg):
     no_debt_b = {k: v for k, v in BASE_B.items() if not k.startswith("debt")}
     no_interest = {k: v for k, v in BASE_Q.items() if k != "interest"}

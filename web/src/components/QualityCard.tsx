@@ -89,7 +89,7 @@ export function QualityCard({ p }: { p: Profile }) {
           <table className="t">
             <thead><tr><th>Year end</th><th>Revenue{c.currency ? ` (${c.currency})` : ""}</th><th>Gross margin</th><th>FCF margin</th></tr></thead>
             <tbody>
-              {c.history.map((y) => (
+              {[...c.history].reverse().map((y) => (
                 <tr key={y.year}><td>{date(y.year)}</td><td className="num">{compact(y.revenue)}</td>
                   <td className="num">{pct(y.gross_margin, 1, false)}</td><td className="num">{pct(y.fcf_margin, 1, false)}</td></tr>
               ))}
@@ -115,5 +115,5 @@ export function QualityCard({ p }: { p: Profile }) {
 const TERMS: Record<string, GlossaryKey> = {
   fcf_margin: "fcf_margin", roic: "roic", gm_stability: "gm_stability", rev_stability: "rev_stability", nd_ebitda: "nd_ebitda",
   interest_cover: "interest_cover", div_years: "div_years", fcf_yield: "fcf_yield", ebit_ev: "ev_ebit",
-  shareholder_yield: "shareholder_yield", ey_vs_history: "ey_vs_history", ep_vs_history: "ey_vs_history", roe: "roe", bp: "pb",
+  shareholder_yield: "shareholder_yield", ey_vs_history: "ey_vs_history", ep_vs_history: "ey_vs_history", roe: "roe", bp: "bp",
 };
