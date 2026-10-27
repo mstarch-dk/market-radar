@@ -28,17 +28,18 @@ Claude Code spørger, før et værktøj bruges første gang. Du kan give lov til
 
 | Gruppe | Værktøjer | Hvad de gør |
 |---|---|---|
-| Læser | `investor_notes`, `market_views`, `summary`, `discovery`, `ticker_profile`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`, `evidence_view`, `study_reports`, `documents`, `journal_entries`, `read_document`, `data_paths` | Din investorprofil og dine markedssyn, rapporten i udsnit, Discover-scanningen, en eller flere tickere, dine porteføljer og deres afkast, X-ray, attribution, kalenderen, evidensen, studiernes alder og notesbogen |
+| Læser | `investor_notes`, `market_views`, `summary`, `discovery`, `ticker_profile`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`, `evidence_view`, `study_reports`, `documents`, `journal_entries`, `read_document`, `data_paths`, `trading_rules` | Din investorprofil, dine markedssyn og handelsregler, rapporten i udsnit, Discover-scanningen, en eller flere tickere, dine porteføljer og deres afkast, X-ray, attribution, kalenderen, evidensen, studiernes alder og notesbogen |
 | Læser (forslag) | `propose_candidates`, `propose_picks`, `propose_review`, `propose_check`, `sim_picks_candidates` | Et forslags kandidater, et låst forslags valg, gennemgangen af tidligere forslag og deres exitkriterier, universet som det så ud på en tidligere dag |
 | Job | `job_start`, `job_status` | Opdatér data, genopbyg rapporten eller kør et studie, og følg med |
-| Gemmer | `propose_freeze`, `propose_evaluate`, `propose_shadow`, `sim_picks`, `write_memo`, `add_trade` | Lås et forslag og regn det igennem, lav virtuelle kopier, simulér en kurv, skriv et dokument, registrér en handel |
+| Gemmer | `propose_freeze`, `propose_evaluate`, `propose_shadow`, `sim_picks`, `write_memo`, `add_trade`, `rules_check`, `add_rule`, `rule_decision` | Lås et forslag og regn det igennem, lav virtuelle kopier, simulér en kurv, skriv et dokument, registrér en handel, test en handling mod dine handelsregler (gemmes kun, når en skill beder om det), tilføj en regel og gem, hvad du gjorde efter et tjek |
 
 Hvert værktøj svarer med det samme som den tilsvarende kommando med `--json`; se [Kommandolinjen](brugervejledning/kommandolinjen).
 
 ## Det, der gemmer
 
 - **Dokumenter** (`write_memo`) skrives kun i notesbogens mapper i datamappen: `briefs/`, `research/`, `journal/` og deres undermapper. En fil skrives helt eller slet ikke, og et dokument, der findes i forvejen, erstattes kun, når Claude beder om det; det gør en skill først efter at have læst det og beholdt det gamle indhold. Se [Notesbogen](brugervejledning/notesbog).
-- **En handel** (`add_trade`) tjekkes på samme måde som i appen. Første gang gemmes intet: Claude får tjekkenes advarsler og din position før og efter, og viser dig dem. Først når du siger ja, gemmes handlen. En fejl i tjekket stopper den altid.
+- **En handelsregel** (`add_rule`) vises først, præcis som den ville blive gemt, og gemmes kun, når du har sagt ja. Se [Mine handelsregler](brugervejledning/handelsregler).
+- **En handel** (`add_trade`) tjekkes på samme måde som i appen, også mod dine handelsregler. Første gang gemmes intet: Claude får tjekkenes advarsler og din position før og efter, og viser dig dem. Først når du siger ja, gemmes handlen. En fejl i tjekket stopper den altid.
 - **Forslag og simuleringer** gemmer et låst forslag i `exports/proposals/`, dets beregning ved siden af og virtuelle porteføljer, som du ser under *Experiments* og på [Returns](/returns). De rører aldrig dine rigtige porteføljer.
 - **En opdatering** (`job_start` med `update`) henter data fra nettet, som knappen *Update data*.
 

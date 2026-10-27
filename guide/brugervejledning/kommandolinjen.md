@@ -141,6 +141,18 @@ uv run radar views --json                    # til Claude-skills
 
 Se [Mine markedssyn](brugervejledning/markedssyn).
 
+## Dine handelsregler
+
+```
+uv run radar rules                                            # aktive regler
+uv run radar rules check buy NOVO-B.CO 20000 --portfolio ASK  # bryder et køb for 20.000 kr. en regel?
+uv run radar rules check sell NVDA half --json                # et salg af halvdelen, som JSON
+uv run radar rules standing                                   # hvad dine beholdninger bryder lige nu
+uv run radar rules replay                                     # ville reglerne have hjulpet?
+```
+
+Se [Mine handelsregler](brugervejledning/handelsregler).
+
 ## Porteføljer
 
 `radar portfolios` styrer selve porteføljerne:
@@ -345,6 +357,7 @@ uv run radar unbundle-holdings --file min-radar.bundle     # på den nye compute
 | se mit afkast mod ACWI | `uv run radar performance` |
 | se hvad mine beholdninger er eksponeret mod | `uv run radar xray` |
 | se de kommende regnskaber for det, jeg ejer og følger | `uv run radar calendar` |
+| se om en handel bryder mine handelsregler | `uv run radar rules check buy NOVO-B.CO 20000` |
 | se hvorfor jeg slog eller haltede efter ACWI | `uv run radar attribution` |
 | teste momentumscoren | `uv run radar study score` |
 | teste scorens regel over årtier | `uv run radar study longrun` |

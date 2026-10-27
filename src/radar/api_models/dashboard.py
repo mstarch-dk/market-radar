@@ -16,6 +16,7 @@ from .common import (
     Strict,
 )
 from .profile import Breach, Reason, Watchout
+from .rules import StandingFlag
 
 
 class Outdated(Strict):
@@ -418,3 +419,4 @@ class MeView(Strict):
     generated: str
     regime: RegimeLabel | None = None
     rows: list[MyRow]
+    rule_flags: dict[str, list[StandingFlag]] = {}     # per symbol: your trading rules it breaks or is close to now

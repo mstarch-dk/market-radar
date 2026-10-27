@@ -17,6 +17,7 @@ import { Portfolio } from "./pages/Portfolio";
 import { Positioning } from "./pages/Positioning";
 import { Regime } from "./pages/Regime";
 import { Rotation } from "./pages/Rotation";
+import { Rules } from "./pages/Rules";
 import { Themes } from "./pages/Themes";
 import { Views } from "./pages/Views";
 import { Xray } from "./pages/Xray";
@@ -38,6 +39,7 @@ const ELEMENTS: Record<string, ReactNode> = {
   "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />, "/evidence": <Evidence />,
   "/discover": <Discover />, "/positioning": <Positioning />,
   "/me": <Me />, "/xray": <Xray />, "/calendar": <Calendar />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
+  "/rules": <Rules />,
   "/notebook": lazyPage(<Notebook />),
   "/data": <Data />, "/ops": <Ops />,
 };

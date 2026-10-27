@@ -26,6 +26,7 @@ export const NAV: NavGroup[] = [
       { path: "/returns", label: "Returns", blurb: "Returns over time vs ACWI, A/B comparisons" },
       { path: "/experiments", label: "Experiments", blurb: "Virtual portfolios: A/B tests, simulations, forks" },
       { path: "/views", label: "Market views", blurb: "Your beliefs, tested against the data" },
+      { path: "/rules", label: "Trading rules", blurb: "Your own rules, and whether an action breaks them" },
       { path: "/notebook", label: "Notebook", blurb: "Briefs, research memos and your decision journal" },
     ],
   },

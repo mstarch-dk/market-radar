@@ -7,10 +7,10 @@ function memory() {
 }
 
 describe("navigation groups", () => {
-  it("puts every page in exactly one group, with at most eight per group", () => {
+  it("puts every page in exactly one group, with at most nine per group", () => {
     const paths = ALL_PAGES.map((p) => p.path);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(NAV.every((g) => g.pages.length <= 8)).toBe(true);
+    expect(NAV.every((g) => g.pages.length <= 9)).toBe(true);
   });
 
   it("finds the group of a page, its sub-pages and ticker pages", () => {
@@ -19,6 +19,7 @@ describe("navigation groups", () => {
     expect(groupOf("/ops")?.id).toBe("system");
     expect(groupOf("/xray")?.id).toBe("mine");
     expect(groupOf("/calendar")?.id).toBe("mine");
+    expect(groupOf("/rules")?.id).toBe("mine");
     expect(groupOf("/evidence")?.id).toBe("markets");
     expect(groupOf("/ticker/NOVO-B.CO")?.id).toBe("markets");
     expect(groupOf("/")).toBeNull();

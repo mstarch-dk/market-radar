@@ -64,6 +64,8 @@ function Header({ p, onRefresh, refreshing }: { p: Profile; onRefresh: () => voi
         <div className={`num ${tone(p.price.change_1d)}`}>{pct(p.price.change_1d, 2)} on {date(p.price.asof)}</div>
         <div className="actions">
           <WatchButton symbol={id.symbol} status={id.my_status} />
+          <Link className="btn" to={`/rules?ticker=${encodeURIComponent(id.symbol)}`}
+            title="Test a buy or sell of this name against your own trading rules">Check against my rules</Link>
           <button className="btn" onClick={onRefresh} disabled={refreshing} title="Re-fetch fundamentals and estimates from Yahoo now, and any sessions missing from the prices">
             {refreshing ? "Refreshing…" : "Refresh Yahoo data"}
           </button>

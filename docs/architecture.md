@@ -7,10 +7,10 @@ and its docstrings do. The method behind each reading is explained for users in 
 ```
 interfaces       api, cli, mcp/
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
-                 reporting/, studyrun, tax, updater, xray
+                 reporting/, rulecheck, studyrun, tax, updater, xray
 kernel           model/
-domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot, universe,
-                 userstore/
+domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot,
+                 trading_rules, universe, userstore/
 data sources     discovery/, fundamentals/, sources/, updates
 pure readings    signals/
 infrastructure   config, config_schema, guard, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
@@ -50,6 +50,7 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
   `settings()` returns, which `typed()` doesn't see.
 
 - `config/views.yaml`: market-view templates and the indicator catalogue the evidence check can read.
+- `config/rules.yaml`: the trading-rule kinds (parameters, sides, the *near* band) and generic templates.
 - `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
 - `config/tax_dk.yaml`: Danish tax rates and limits per income year, each with its source and the day it was
   checked; checked on load against `config_schema.TaxRules` (`portfolios/taxrules.py`).
@@ -190,6 +191,13 @@ for one.
   coverage, ex-ante risk with per-position shares (hidden below `risk.xray.min_coverage`), realised figures,
   concentration, stress and factor tilts. It only assembles `portfolios/exposure.py` and `riskmodel.py`, the code
   proposals use, and computes live: nothing written.
+- `rulecheck.py`: your trading rules checked: a proposed action against every active rule (`check`), what you
+  hold against the rules about holdings (`standing`, feeding the Rules page, `/api/me`'s `rule_flags` and
+  `summary.json["rules"]`) and your past real trades against today's rules (`replay`). It builds the readings'
+  input as of the action's day (the book of each rule's portfolios in DKK, past trades, average cost, moving
+  averages, the 3-month return, the score, the journal), so a past day never sees a later price; the readings are
+  `signals/rules.py`'s pure functions. The editor's check reaches it through a callback passed to
+  `portfolios/checks.checked`. A mirror, never a gate: nothing is blocked; a check is written only when logged.
 - `attribution.py`: why a selection of portfolios beat or lagged ACWI over a period: Brinson–Fachler per day by
   sector and region (local returns), the currency effect and cross term, linked to months and the period, the
   reconciliation to *Returns* (trading and fees, benchmark proxies vs ACWI) and the factor regression. It assembles
@@ -231,7 +239,8 @@ for one.
 - `userstore/`: the user's own edits in `radar.db` (SQLite, versioned by `PRAGMA user_version` and an append-only
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
   symbol map, meta, the tax inputs (tax persons and who owns which account, instruments with ISIN and class, losses
-  carried in); market views in `viewstore.py`, backup copies in `backups.py`. It is the one place that decides which
+  carried in); market views in `viewstore.py`, trading rules and the logged checks against them (`trading_rules`,
+  `rule_checks`) in `rulestore.py`, backup copies in `backups.py`. It is the one place that decides which
   portfolios count, and holds the one list of row types. New stateful data gets a table here.
 - `portfolios/`: your portfolios, from the transactions in `userstore/`.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
@@ -258,6 +267,8 @@ for one.
     weights, stress windows, realised drawdown and factor tilts.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment.
+- `trading_rules.py`: the user's trading rules as they may be stored (`validate`), the kinds, templates and the
+  editor's catalogue from `config/rules.yaml` (generic templates only, never anyone's own rules).
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
 - `datahome/`: the data folder (see *Where data lives*).
   - `home.py`: its status, setup, moving in and layout migrations.

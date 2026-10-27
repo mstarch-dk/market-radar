@@ -149,7 +149,9 @@ def test_xray_api_contract(client, monkeypatch):
     paths_ = [p for p in client.get("/openapi.json").json()["paths"] if p.startswith("/api/")]
     at = paths_.index("/api/xray")                                         # each new router after the last one
     assert paths_[at:at + 4] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]
-    assert paths_[-2:] == ["/api/studies/run", "/api/studies/run/{key}"]   # newest last
+    at = paths_.index("/api/studies/run")
+    assert paths_[at:at + 2] == ["/api/studies/run", "/api/studies/run/{key}"]
+    assert paths_[-1] == "/api/rules/replay"                             # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")

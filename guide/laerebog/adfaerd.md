@@ -54,6 +54,18 @@ Klein (2007) foreslog **pre-mortem**: før beslutningen forestiller du dig, at d
 
 Popper (1959) argumenterede for, at en videnskabelig påstand skal kunne vises forkert. "AI vil ændre verden" kan ikke falsificeres; "halvlederaktier taber relativ styrke i et kvartal, mens estimaterne falder" kan. En investeringstese, der ikke kan vise sig forkert, kan aldrig give dig et signal om at genoverveje den. Tetlock og Gardner (2015) viste, at de bedste prognosemagere formulerer præcise, tidsbestemte påstande, holder regnskab med deres træfsikkerhed og justerer i små skridt.
 
+### Forpligtelse på forhånd
+
+Odysseus lod sig binde til masten, før skibet sejlede forbi sirenerne. Han vidste, at han ville ville noget andet, når sangen lød. Det kaldes en forpligtelse på forhånd (*pre-commitment*): du træffer beslutningen i rolige omgivelser, hvor du tænker klarest, og lader den gælde, når presset kommer (Thaler og Shefrin, 1981). En investor har sine sirener: et kursfald, der frister til at sælge alt, en aktie, der er steget lodret, og en position, der er vokset sig stor, fordi den har gået godt.
+
+Tre mekanismer gør regler skrevet i ro nyttige:
+
+- **De flytter beslutningen væk fra følelsen.** Tabsaversion og bagklogskab er stærkest i øjeblikket. En regel skrevet før øjeblikket er ikke farvet af det.
+- **Afkøling.** En pause mellem impuls og handling ("sov på det", højst 15 % solgt på en uge) giver plads til at tjekke, om grunden stadig holder i morgen. Barber og Odean (2000) fandt, at de mest aktive private investorer fik det laveste nettoafkast.
+- **Mindre fortrydelse.** At sælge halvdelen i stedet for det hele gør det mindre slemt at tage fejl i begge retninger: stiger aktien, har du stadig halvdelen; falder den, har du solgt halvdelen. Det er ikke optimalt i en model, men det gør det lettere at handle overhovedet, når du er i tvivl.
+
+En regel er kun værd at have, hvis du kan se, når du bryder den, og hvis du skriver ned, hvorfor du gjorde det alligevel. Så kan du bagefter se, om dine undtagelser var gode.
+
 ### Proces mod udfald
 
 Et godt udfald kan komme af en dårlig beslutning (held), og en god beslutning kan give et dårligt udfald (uheld). Duke (2018) kalder sammenblandingen *resulting*. Over få beslutninger dominerer heldet; først over mange viser processens kvalitet sig.
@@ -104,6 +116,10 @@ Hver indikator får en af fire tilstande:
 
 Samlet får synet en dom: *supported* (kun støtte), *contradicted* (kun modsigelse), *mixed* (begge dele), *unclear* (hverken støtte eller modsigelse, kun flade eller manglende) eller *no data*. Radaren vurderer ikke, om dit syn er rigtigt. Den rapporterer, hvad dens egne målinger har gjort, og lader det være op til dig, om falsifikatoren er opfyldt.
 
+### Handelsregler
+
+På [Trading rules](/rules) skriver du dine egne regler ned: lofter pr. navn og tema, en kerne, en genkøbspause, afkøling efter salg, ingen tilkøb i tabere, exitregel først, og spørgsmål, radaren ikke kan tjekke. En handling testes regel for regel med tallene bag, også når du registrerer en handel og når `/journal` skriver en beslutning ned. Bryder du en regel og gør det alligevel, gemmes din begrundelse med tjekket. *Would my rules have helped?* kører dagens regler på dine egne tidligere handler, hver som den så ud den dag. Det er beskrivende: med få handler viser det, hvad der skete, ikke at en regel virker. Radaren blokerer intet. Se [Mine handelsregler](brugervejledning/handelsregler).
+
 ## Regneeksempel
 
 ### Dispositionseffekten i din egen journal
@@ -151,6 +167,7 @@ Du købte en aktie med en nedskrevet tese og et stop. Seks uger efter udløses s
 - Terrance Odean, "Are Investors Reluctant to Realize Their Losses?", *Journal of Finance* 53(5), 1998.
 - Brad M. Barber og Terrance Odean, "Trading Is Hazardous to Your Wealth", *Journal of Finance* 55(2), 2000.
 - Hendrik Bessembinder, "Do Stocks Outperform Treasury Bills?", *Journal of Financial Economics* 129(3), 2018.
+- Richard H. Thaler og Hersh M. Shefrin, "An Economic Theory of Self-Control", *Journal of Political Economy* 89(2), 1981.
 - Gary Klein, "Performing a Project Premortem", *Harvard Business Review* 85(9), 2007.
 - Daniel Kahneman, *Thinking, Fast and Slow*, Farrar, Straus and Giroux, 2011.
 - Philip E. Tetlock og Dan Gardner, *Superforecasting*, Crown, 2015.

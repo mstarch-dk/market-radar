@@ -1,0 +1,230 @@
+# Your trading rules (the "My trading rules" page, `radar rules`, the skills): the kinds of rule the radar can
+# check, and generic templates to start from. Your own rules live in radar.db in the data folder, never here.
+#
+# A rule is a mirror, never a gate: the radar shows whether an action breaks it, comes close or complies, and
+# blocks nothing.
+#
+# kinds.<kind>:
+#   label      the kind's name in the editor
+#   when       action: needs a proposed action; state: also checked on what you hold now (standing); both
+#   sides      which sides of an action it checks (buy, sell)
+#   near       the "close to" band, as a share of the limit: a cap of 10 % with near 0.1 is "close" from 9 %
+#   params     each parameter's type (pct = percent, dkk, int, days, choice, tickers, exposures), range and default
+#   needs      what the check reads (shown in the editor; unknown when it is missing)
+
+near: 0.1
+
+kinds:
+  max_position_weight:
+    label: "Max weight per name"
+    when: both
+    sides: [buy]
+    needs: "Your holdings valued in DKK"
+    params:
+      pct: {type: pct, label: "Max weight (%)", min: 0.5, max: 100, default: 10}
+  max_exposure_weight:
+    label: "Max weight in a theme, sector or region"
+    when: both
+    sides: [buy]
+    needs: "Your holdings valued in DKK, and each name's sector, industry, region and returns"
+    params:
+      pct: {type: pct, label: "Max weight (%)", min: 0.5, max: 100, default: 25}
+      exposures: {type: exposures, label: "What counts (any of)"}
+  min_core_weight:
+    label: "Min weight in the core"
+    when: both
+    sides: [buy, sell]
+    needs: "Your holdings valued in DKK"
+    params:
+      pct: {type: pct, label: "Min core weight (%)", min: 1, max: 100, default: 50}
+      core: {type: tickers, label: "Core funds and stocks"}
+  min_ticket:
+    label: "Min trade size"
+    when: action
+    sides: [buy]
+    needs: "The trade's price and exchange rate"
+    params:
+      dkk: {type: dkk, label: "Min trade (DKK)", min: 0, max: 10000000, default: 10000}
+  max_positions:
+    label: "Max number of names"
+    when: both
+    sides: [buy]
+    needs: "Your holdings"
+    params:
+      n: {type: int, label: "Max names", min: 1, max: 500, default: 20}
+  no_rebuy_within:
+    label: "No buying back soon after a sale"
+    when: action
+    sides: [buy]
+    needs: "Your transactions"
+    params:
+      days: {type: days, label: "Days after a sale", min: 1, max: 3650, default: 30}
+  sell_cooling:
+    label: "Sell cooling-off"
+    when: action
+    sides: [sell]
+    needs: "Your transactions and holdings valued in DKK"
+    params:
+      pct: {type: pct, label: "Max sold (% of the portfolio)", min: 1, max: 100, default: 15}
+      days: {type: days, label: "Within (days)", min: 1, max: 365, default: 7}
+  max_trades_per_month:
+    label: "Max trades per month"
+    when: action
+    sides: [buy, sell]
+    needs: "Your transactions"
+    params:
+      n: {type: int, label: "Max trades in a calendar month", min: 1, max: 1000, default: 6}
+  no_average_down:
+    label: "No averaging down"
+    when: action
+    sides: [buy]
+    needs: "Your average cost and the last price"
+    params:
+      loss_pct: {type: pct, label: "Loss below the average cost (%)", min: 0, max: 100, default: 10}
+  trend_filter:
+    label: "Only buy above a moving average"
+    when: action
+    sides: [buy]
+    needs: "Prices for 50 or 200 days"
+    near: 0.02
+    params:
+      ma: {type: choice, label: "Moving average (days)", choices: [50, 200], default: 200}
+  no_chase:
+    label: "No chasing a run-up"
+    when: action
+    sides: [buy]
+    needs: "Prices for 3 months"
+    params:
+      ret_3m_pct: {type: pct, label: "Max 3-month rise (%)", min: 1, max: 1000, default: 100}
+  min_score_rank:
+    label: "Min momentum score"
+    when: action
+    sides: [buy]
+    needs: "The momentum score (a tracked stock with a year of prices)"
+    params:
+      score: {type: int, label: "Min score (0-100)", min: 0, max: 100, default: 70}
+  account_placement:
+    label: "Short-term trades in one account kind"
+    when: action
+    sides: [buy]
+    needs: "The action's horizon (or its journal entry's)"
+    params:
+      horizon_max: {type: int, label: "Short term is up to (months)", min: 1, max: 60, default: 6}
+      account_kind: {type: choice, label: "Account kind", choices: [ask, frie_midler, pension, other], default: ask}
+  exit_rule_first:
+    label: "Exit rule first"
+    when: action
+    sides: [buy]
+    needs: "Your journal (an open entry for the ticker with an Exit rules section)"
+    params: {}
+  judgment:
+    label: "Judgment (a question to ask yourself)"
+    when: action
+    sides: [buy, sell]
+    needs: "You: the radar can't check it"
+    params: {}
+
+styles: [momentum, value, core, tactical]
+horizons: {"1m": 1, "3m": 3, "6m": 6, "12m": 12, "3y": 36}
+
+# Generic starting points (never anyone's own numbers). rationale: a suggested "why I have this rule".
+templates:
+  - key: cap_name
+    kind: max_position_weight
+    statement: "No single stock above 10 % of my portfolios."
+    params: {pct: 10}
+    severity: hard
+    rationale: "One company's bad news shouldn't be able to sink the whole portfolio."
+  - key: cap_theme_ai
+    kind: max_exposure_weight
+    statement: "AI chips and semiconductors at most 25 % of my portfolios."
+    params: {pct: 25, exposures: [{kind: etf, key: SMH}, {kind: industry, key: Semiconductors}]}
+    severity: soft
+    rationale: "A popular theme can fall together; I want to survive being wrong about it."
+  - key: cap_sector
+    kind: max_exposure_weight
+    statement: "No sector above 35 % of my portfolios."
+    params: {pct: 35, exposures: [{kind: sector, key: Technology}]}
+    severity: soft
+    rationale: "Diversification across sectors, not just across names."
+  - key: core_floor
+    kind: min_core_weight
+    statement: "At least half of my money in the core (world funds)."
+    params: {pct: 50, core: [ACWI]}
+    severity: soft
+    rationale: "The core is the part I don't have to be right about."
+  - key: no_rebuy
+    kind: no_rebuy_within
+    statement: "No buying back within 30 days of selling."
+    params: {days: 30}
+    severity: soft
+    rationale: "Selling and buying back quickly is usually regret, not a new thesis."
+  - key: sell_cooling
+    kind: sell_cooling
+    statement: "Never sell more than 15 % of the portfolio in one week."
+    params: {pct: 15, days: 7}
+    severity: hard
+    rationale: "Big sales in a drawdown are the ones I regret: sleep on it first."
+  - key: trade_count
+    kind: max_trades_per_month
+    statement: "At most 6 trades a month."
+    params: {n: 6}
+    severity: reminder
+    rationale: "Every trade costs; more activity rarely means better returns."
+  - key: no_average_down_momentum
+    kind: no_average_down
+    statement: "No adding to a momentum position more than 10 % below my average cost."
+    params: {loss_pct: 10}
+    scope: {portfolios: real, style: momentum}
+    severity: hard
+    rationale: "Momentum is about what is working; a falling position is the signal weakening."
+  - key: trend_200
+    kind: trend_filter
+    statement: "No adding to a momentum position below its 200-day average."
+    params: {ma: 200}
+    scope: {portfolios: real, style: momentum}
+    severity: soft
+    rationale: "Below the 200-day average the trend I bought is gone."
+  - key: no_chase
+    kind: no_chase
+    statement: "No buying after a 3-month rise above 100 %."
+    params: {ret_3m_pct: 100}
+    severity: soft
+    rationale: "After a vertical move the odds of a sharp pullback are high."
+  - key: score_floor
+    kind: min_score_rank
+    statement: "Only buy momentum names with a score of 70 or more."
+    params: {score: 70}
+    scope: {portfolios: real, style: momentum}
+    severity: soft
+    rationale: "A momentum position should have momentum."
+  - key: tactical_ask
+    kind: account_placement
+    statement: "Short-term trades (6 months or less) only in the aktiesparekonto."
+    params: {horizon_max: 6, account_kind: ask}
+    severity: reminder
+    rationale: "Lager taxation in the ASK fits short holding periods; frie midler is for the long haul."
+  - key: exit_first
+    kind: exit_rule_first
+    statement: "Write the exit rule before buying."
+    params: {}
+    severity: soft
+    rationale: "Deciding when to sell is easiest before the money is in."
+  - key: min_ticket
+    kind: min_ticket
+    statement: "No trades below 10.000 DKK."
+    params: {dkk: 10000}
+    severity: reminder
+    rationale: "Small trades lose too much to the minimum commission."
+  - key: max_names
+    kind: max_positions
+    statement: "At most 20 names."
+    params: {n: 20}
+    severity: soft
+    rationale: "More names than I can follow is not diversification, it is noise."
+  - key: explain_it
+    kind: judgment
+    statement: "Only buy what I can explain in two sentences."
+    params: {}
+    severity: soft
+    rationale: "If I can't say why I own it, I won't know when to sell it."

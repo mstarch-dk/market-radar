@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError, api, type Issue, type TxIn, type TxRow } from "../api/client";
 import { num } from "../lib/format";
+import { attention } from "../lib/rules";
+import { RuleVerdicts } from "./RuleVerdicts";
 import { SymbolPicker } from "./SymbolPicker";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const PORTFOLIO_KEYS = [["transactions"], ["positions"], ["context"], ["me"], ["tickers"], ["profile"], ["portfolios"],
-  ["performance"], ["comparison"]];
+  ["performance"], ["comparison"], ["rules"]];
 
 type TxType = TxIn["type"];
 const TYPES: [TxType, string][] = [["BUY", "Buy"], ["SELL", "Sell"], ["DEPOSIT", "Deposit"], ["WITHDRAW", "Withdrawal"],
@@ -20,7 +22,9 @@ const isTrade = (t: TxType) => t === "BUY" || t === "SELL";
  *  in its portfolio; the price is prefilled with that day's close, in the stock's own currency, and the fee with
  *  the estimate from the portfolio's fee schedule until you type one. `portfolio` preselects a portfolio for a new
  *  row (default: the default portfolio); `scope` limits the choice to your accounts or to virtual portfolios, and
- *  `lock` to the one given. */
+ *  `lock` to the one given. A new trade is also checked against your trading rules: the ones it breaks or comes
+ *  close to are warnings like the others (a mirror, never a gate), and when it breaks one you can say why you go
+ *  ahead; the reason is logged with the trade. */
 export function TxForm({ edit, portfolio, type, scope, lock, onDone }: {
   edit?: TxRow | null;
   portfolio?: number | null;
@@ -47,6 +51,7 @@ export function TxForm({ edit, portfolio, type, scope, lock, onDone }: {
   const [priceTouched, setPriceTouched] = useState(!!edit);
   const [feeTouched, setFeeTouched] = useState(!!edit);
   const [confirm, setConfirm] = useState(false);
+  const [reason, setReason] = useState("");
   const set = (patch: Partial<TxIn>) => { setTx((t) => ({ ...t, ...patch })); setConfirm(false); };
   const trade = isTrade(tx.type);
   const needsSymbol = trade || tx.type === "DIVIDEND";
@@ -69,12 +74,16 @@ export function TxForm({ edit, portfolio, type, scope, lock, onDone }: {
     enabled: ready, retry: false });
 
   const save = useMutation({
-    mutationFn: () => (edit ? api.editTx(edit.id, { ...tx, confirm }) : api.addTx({ ...tx, confirm })),
+    mutationFn: () => (edit ? api.editTx(edit.id, { ...tx, confirm })
+      : api.addTx({ ...tx, confirm, rule_reason: reason.trim() || null })),
     onSuccess: () => { PORTFOLIO_KEYS.forEach((k) => qc.invalidateQueries({ queryKey: k })); onDone(); },
   });
   const issues: Issue[] = save.error instanceof ApiError && save.error.issues.length ? save.error.issues : check.data?.issues ?? [];
   const errors = issues.filter((i) => i.level === "error");
   const warnings = issues.filter((i) => i.level === "warning");
+  const rules = check.data?.rules;
+  const ruleRows = rules ? attention(rules.verdicts) : 0;
+  const breaks = rules?.verdicts.some((v) => v.status === "breaks") ?? false;
   const eff = check.data?.effect;
   const est = trade ? check.data?.fee_estimate : null;
   useEffect(() => {        // the schedule's estimate fills the fee until one is typed
@@ -151,7 +160,18 @@ export function TxForm({ edit, portfolio, type, scope, lock, onDone }: {
         </p>
       )}
       {errors.map((i) => <p key={i.message} className="small neg">✗ {i.message}</p>)}
-      {warnings.map((i) => <p key={i.message} className="small warn-text">⚠ {i.message}</p>)}
+      {warnings.filter((i) => i.field !== "rules" || !rules).map((i) => <p key={i.message} className="small warn-text">⚠ {i.message}</p>)}
+      {rules && ruleRows > 0 && (
+        <div className="tx-rules">
+          <p className="small"><b>Your trading rules</b> <span className="muted">(a mirror, never a gate)</span></p>
+          <RuleVerdicts rows={rules.verdicts} compact />
+          {breaks && (
+            <label className="small full">Why you go ahead anyway <span className="hint">(optional; kept with the trade)</span>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. the thesis changed: …" />
+            </label>
+          )}
+        </div>
+      )}
       {warnings.length > 0 && errors.length === 0 && (
         <label className="small confirm"><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
           I checked this; save anyway</label>

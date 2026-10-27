@@ -80,7 +80,9 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
    Skip the question entirely when the amount allows only one name and the tilt was given.
 
 4. **Candidates.** `propose_candidates(portfolio, amount, tilt, mode, n?, horizon?, max_position?, etf?)`.
-   `max_position` from the investor notes (a share: 0.10 = 10 %) when they give one. Read the notes and the gates.
+   `max_position` from the investor notes (a share: 0.10 = 10 %) when they give one, or from the user's own
+   trading rules when stricter: `trading_rules()` lists them, and an active `max_position_weight` rule in scope
+   for this portfolio sets it (its `pct` / 100). Read the notes and the gates.
 
 5. **Judgment, bounded.** Start from `draft_picks` (the rule basket). You may swap at most `propose.max_swaps`
    picks, each with a written `swap_reason`, and only for reasons the rule can't see:
@@ -94,6 +96,11 @@ the user's tolerance. Saying "buy ACWI instead" is a valid, often the right, ans
    score says, what the role in the portfolio is) and add 1–2 checkable thesis items under `exit.thesis`: either
    `{"text": …, "metric": "score"|"qv"|"r3m"|"from_high", "op": "<"|">", "value": …}` or a text-only item
    (marked as a suggestion). Leave the standard exits (review level, signal, time stop) as they are.
+   Check every pick against the user's trading rules with `rules_check("buy", <T>, amount_dkk=<its amount>,
+   portfolio, style=<the tilt's style: momentum for momentum, value for value>)` (not logged). A pick that
+   breaks a `max_position_weight`, `max_exposure_weight`, `min_ticket` or `max_positions` rule is replaced from the
+   shortlist (a swap with that `swap_reason`, within `propose.max_swaps`); any other break or near verdict stays in
+   the memo under *Dine handelsregler*, with the numbers, as something for the user to weigh.
    Then **freeze the picks before seeing any model number**: `propose_freeze(meta=draft_picks.meta, picks=[…],
    filler=draft_picks.filler)` returns the proposal's `id`. A frozen proposal is never changed.
 

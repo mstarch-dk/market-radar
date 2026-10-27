@@ -6,6 +6,7 @@ must be confirmed.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from typing import TYPE_CHECKING, Any, TypeGuard
 
@@ -196,10 +197,15 @@ def _cash_issues(rows: list[dict], market: Market, p: dict | None, candidate: di
     return out
 
 
-def checked(row: dict, market: Market, confirm: bool, exclude_id: int | None = None) -> list[dict]:
+def checked(row: dict, market: Market, confirm: bool, exclude_id: int | None = None,
+            rule_issues: Callable[[dict], list[dict]] | None = None) -> list[dict]:
     """The row's issues when it may be saved: errors always block, warnings only until confirmed. Invalid (with
-    the issues) otherwise. The app's save and `radar portfolio add` both go through it."""
+    the issues) otherwise. The app's save and `radar portfolio add` both go through it. `rule_issues` (passed in
+    by the caller, so this layer needs no rule checker) adds your trading rules' breaks and near ones as warnings:
+    a mirror, never a gate."""
     issues = validate(row, market, exclude_id=exclude_id)
+    if rule_issues is not None and not any(i["level"] == "error" for i in issues):
+        issues += rule_issues(row)
     errors = [i for i in issues if i["level"] == "error"]
     if errors or (issues and not confirm):
         raise Invalid(errors[0]["message"] if errors else "Please confirm the warnings.", issues)

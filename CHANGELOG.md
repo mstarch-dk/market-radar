@@ -6,6 +6,31 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **My trading rules (F12).** Write down the rules you want to trade by and check an action against them: a mirror,
+  never a gate (nothing is blocked or sent anywhere). New page *Trading rules* under *Mine*, `radar rules`, and the
+  tables `trading_rules` and `rule_checks` in radar.db (an append-only migration).
+  - Typed kinds with parameters from `config/rules.yaml` (caps per name and per theme / sector / region in the
+    market views' exposure vocabulary, a core floor, a minimum trade size, a maximum number of names, a buy-back
+    pause, sell cooling-off, trades per month, no averaging down, a moving-average filter, no chasing a 3-month
+    run-up, a minimum momentum score, account placement by horizon, exit rule first) plus free-text *judgment*
+    rules. Each has a scope (portfolios, account kind, tag, style), a severity (hard / soft / reminder: a label
+    only) and a rationale. Generic templates to start from.
+  - *Test an action* (`radar rules check`, `POST /api/rules/check`): one verdict per rule (breaks, near, unknown,
+    complies, doesn't apply, ask yourself) with the numbers and how to comply (the largest amount under a cap,
+    the first day a buy-back is allowed, when a cooling-off window clears). Weights say what they are a share of;
+    unknown never counts as complying. Checked as of the action's day.
+  - Standing breaches without an action: the page's *Breaks right now*, a *breaks a rule* / *near a rule* flag on
+    the holdings table (`rule_flags` on `/api/me`), and `summary.json["rules"]` for the monthly brief.
+  - The Portfolio editor (and `radar portfolio add`, the `add_trade` tool) shows a new trade's rule breaks as
+    warnings to confirm, and logs the check with your reason when you go ahead.
+  - *Would my rules have helped?* (`radar rules replay`): today's rules on your past real trades, each point in
+    time, with what the name did afterwards vs ACWI. Descriptive, small-n, no significance claimed.
+  - Skills: new `/rules`; `/journal` checks an action and records a *Rules* section and `style:`;
+    `/propose-portfolio` keeps to the caps; `/market-brief` lists the standing breaks. MCP tools `trading_rules`,
+    `rules_check`, `add_rule`, `rule_decision`.
+  - The holdings bundle and `radar export` carry `rules.json`. The cap per name leaves out the broad world funds
+    (`risk.world_funds`).
+
 - **The radar as tools for Claude (MCP server).** `uv run radar mcp` serves the radar over stdio to the Claude
   client that starts it (Claude Code starts it from the committed `.mcp.json`; approve it once, `/mcp` shows it).
   No port, no new data source, and `radar serve` needn't run. Every tool returns what the matching `--json`

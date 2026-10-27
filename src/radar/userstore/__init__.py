@@ -224,6 +224,29 @@ MIGRATIONS = [
          SELECT id, year, pool, portfolio_id, tax_person_id, amount, note, created_at FROM tax_openings""",
      "DROP TABLE tax_openings",
      "ALTER TABLE tax_openings_new RENAME TO tax_openings"),
+    # your trading rules (trading_rules.py; the kinds in config/rules.yaml) and the checks you logged against them,
+    # with what you then did and why
+    ("""CREATE TABLE trading_rules (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         statement TEXT NOT NULL CHECK (length(trim(statement)) > 0),
+         kind TEXT NOT NULL,
+         params TEXT NOT NULL DEFAULT '{}',
+         scope TEXT NOT NULL DEFAULT '{"portfolios": "real"}',
+         severity TEXT NOT NULL DEFAULT 'soft' CHECK (severity IN ('hard', 'soft', 'reminder')),
+         rationale TEXT,
+         template TEXT,
+         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL)""",
+     """CREATE TABLE rule_checks (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         at TEXT NOT NULL,
+         action TEXT NOT NULL,
+         rules_version TEXT NOT NULL,
+         verdicts TEXT NOT NULL,
+         decision TEXT CHECK (decision IN ('went_ahead', 'changed', 'dropped')),
+         reason TEXT,
+         transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL)"""),
 ]
 
 

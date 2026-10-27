@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { api, type MyRow } from "../api/client";
+import { api, type MyRow, type StandingFlag } from "../api/client";
 import { Check, Loaded, PageHead, Pct } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
 import { GaugeDots, Graded, worst } from "../components/Gauge";
@@ -42,15 +42,29 @@ const valuation: Col<MyRow>[] = [
   ...scoreCols<MyRow>(),
 ];
 
-const flags: Col<MyRow> = { key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} />, help: "flags",
-  filter: { kind: "enum", value: (r) => [...r.flags, ...(r.levels?.flags ?? [])] }, csv: (r) => r.flags };
+type RuleFlags = Record<string, StandingFlag[]>;
+const RULE_FLAG = "breaks a rule";
+const RULE_NEAR = "near a rule";
+const ruleWords = (f: StandingFlag[] = []) => [...new Set(f.map((x) => (x.status === "breaks" ? RULE_FLAG : RULE_NEAR)))];
 
-function Flags({ r }: { r: MyRow }) {
+/** The Flags column, with your trading rules' standing breaks (and near ones) per name from /api/me. */
+const flagsCol = (rules: RuleFlags): Col<MyRow> => ({ key: "flags", label: "Flags", align: "l", render: (r) => <Flags r={r} rules={rules[r.symbol]} />,
+  help: "flags", filter: { kind: "enum", value: (r) => [...r.flags, ...(r.levels?.flags ?? []), ...ruleWords(rules[r.symbol])] },
+  csv: (r) => [...r.flags, ...ruleWords(rules[r.symbol])] });
+const flags = flagsCol({});
+
+function Flags({ r, rules }: { r: MyRow; rules?: StandingFlag[] }) {
   const lv = r.levels;
   return (
     <div className="flags">
       {r.flags.map((f) => <Badge key={f}>{f}</Badge>)}
       {lv?.flags.map((f) => <Badge key={f} kind="neg">{f}</Badge>)}
+      {rules && rules.length > 0 && (
+        <Link to="/rules" title={rules.map((x) => `${x.status === "breaks" ? "Breaks" : "Close to"} (${x.severity}): ${x.statement}`).join(" · ")}>
+          <Badge kind={rules.some((x) => x.status === "breaks") ? "neg" : "warn"}>
+            {rules.some((x) => x.status === "breaks") ? RULE_FLAG : RULE_NEAR}</Badge>
+        </Link>
+      )}
       {lv && (
         <details className="why">
           <summary>{lv.k != null ? <>why (k {num(lv.k, 2)})</> : "why"}</summary>
@@ -106,6 +120,7 @@ export function Me() {
     <Loaded q={q} title="My holdings & watchlist">
       {(d) => {
         const by = (s: string) => d.rows.filter((r) => r.status === s);
+        const withRules = (cols: readonly Col<MyRow>[]) => cols.map((c) => (c.key === "flags" ? flagsCol(d.rule_flags ?? {}) : c));
         const sections = [
           // the Target column only when the rule has a take-profit (settings stops.take_profit)
           ["Holdings", by("holding"), d.rows.some((r) => r.levels?.take_profit != null) ? holdingCols
@@ -128,7 +143,7 @@ export function Me() {
             {sections.map(([title, rows, cols]) => rows.length > 0 && (
               <section key={title} className="group">
                 <h2>{title} ({rows.length})</h2>
-                <div className="card"><DataTable id={TABLE_ID[title] ?? title} csvName={`me-${TABLE_ID[title]}`} rows={[...rows]} cols={[...cols]} rowKey={(r) => r.symbol} /></div>
+                <div className="card"><DataTable id={TABLE_ID[title] ?? title} csvName={`me-${TABLE_ID[title]}`} rows={[...rows]} cols={withRules(cols)} rowKey={(r) => r.symbol} /></div>
                 {title === "Holdings" && (rows.some((r) => r.levels?.mode === "atr") ? (
                   <p className="note muted">Stop and target are a mechanical rule, not advice. Stop = highest close since entry − k × ATR(14),
                     where k starts at 3 and each signal (▲ more room, ▼ tighter) moves it: momentum score, 50/200-day trend, extension

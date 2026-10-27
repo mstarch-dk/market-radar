@@ -318,3 +318,25 @@ def test_a_console_on_another_code_page_gets_utf8(monkeypatch):
     print("Data → cache, ø")
     out.flush()
     assert out.buffer.getvalue().decode("utf-8").startswith("Data → cache, ø")
+
+
+def test_cli_rules(built, tmp_path):
+    assert "No trading rules yet" in run("rules")
+    f = tmp_path / "rule.json"
+    f.write_text(json.dumps({"statement": "Max 5 % per name", "kind": "max_position_weight", "params": {"pct": 5},
+                             "severity": "hard", "rationale": "Spread the risk"}), encoding="utf-8")
+    assert "Added rule #1" in run("rules", "add", "--from-json", str(f))
+    out = run("rules")
+    assert "Max 5 % per name" in out and "why: Spread the risk" in out and "never a gate" in out
+    assert run_json("rules", "--json")["rules"][0]["params"] == {"pct": 5.0}
+    out = run("rules", "check", "buy", "S1", "5000", "--log")
+    assert "BREAKS" in out and "Logged as check 1." in out
+    js = run_json("rules", "check", "sell", "S1", "half", "--json")
+    assert js["action"]["fraction"] == 0.5 and js["verdicts"][0]["status"] == "not_applicable"
+    assert "Check 1: went_ahead." in run("rules", "decision", "1", "went_ahead", "--reason", "conviction")
+    run("rules", "decision", "1", "maybe", code=1)
+    assert "S1" in run("rules", "standing") and run_json("rules", "standing", "--json")["flags"]["S1"]
+    assert "trades replayed" in run("rules", "replay")
+    assert run_json("rules", "replay", "--json")["n_trades"] >= 1
+    f.write_text(json.dumps({"statement": "x", "kind": "dsl"}), encoding="utf-8")
+    run("rules", "add", "--from-json", str(f), code=1)

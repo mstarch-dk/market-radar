@@ -187,6 +187,12 @@ Always run Python through uv; the frontend uses pnpm.
 - Environment: `MARKET_RADAR_HOME`, `MARKET_RADAR_CACHE`, `MARKET_RADAR_CONFIG` (the pointer file's folder).
 
 - `uv run radar views [--json] [--archived]`: your market views (the *Market views* page) with the radar's evidence
+- `uv run radar rules [--json] [--archived]`: your trading rules (the *Trading rules* page). Subcommands:
+  `rules check buy|sell TICKER AMOUNT [--portfolio P] [--style S] [--horizon H] [--date D] [--price X] [--log]
+  [--json]` (AMOUNT: DKK, `50sh` shares, or for a sale `half`, `all` or a fraction; exit code 0 whatever the
+  verdicts), `rules standing [--json]`, `rules replay [--start D] [--end D] [--json]`, `rules add --from-json FILE`
+  (one rule or a list, validated), `rules decision ID went_ahead|changed|dropped [--reason …]`.
+  `radar portfolio add … --rule-reason TEXT` logs why a trade goes ahead against a rule.
   for each. Personal; the skills read it.
 
 ## Single ticker
@@ -209,8 +215,10 @@ Always run Python through uv; the frontend uses pnpm.
   project's `.mcp.json` (approve it once; `/mcp` shows it connected); you never run it by hand. Tools: the readings
   (`data_paths`, `investor_notes`, `market_views`, `summary(sections)`, `discovery`, `study_reports`, `documents`,
   `journal_entries`, `read_document`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`,
-  `evidence_view`, `ticker_profile`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
-  (`propose_*`, `sim_picks_candidates`, `sim_picks`) and two writes (`write_memo`, `add_trade` with `confirm`). Each
+  `evidence_view`, `ticker_profile`, `trading_rules`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
+  (`propose_*`, `sim_picks_candidates`, `sim_picks`) the writes (`write_memo`, `add_trade` with `confirm`, which also returns the trade's rule
+  verdicts) and the trading rules (`rules_check`, which writes only with `log`; `add_rule` with `confirm`;
+  `rule_decision`). Each
   returns what the matching `--json` command prints. Needs a data folder, like the other data commands.
 
 ## Marketing material

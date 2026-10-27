@@ -5,6 +5,7 @@ from typing import Literal
 
 from .common import Num, Strict
 from .portfolios import FeeEstimate
+from .rules import CheckResult
 
 
 class ImportResult(Strict):
@@ -32,6 +33,7 @@ class TxIn(Strict):
     portfolio_id: int | None = None        # default: the default portfolio
     note: str | None = None
     confirm: bool = False                  # save despite warnings (errors always block)
+    rule_reason: str | None = None         # why you go ahead although it breaks one of your trading rules
 
 
 class TxRow(Strict):
@@ -88,6 +90,7 @@ class TxCheck(Strict):
     effect: Effect | None = None
     price: PriceCheck | None = None
     fee_estimate: FeeEstimate | None = None
+    rules: CheckResult | None = None       # a new BUY/SELL against your trading rules (None without rules)
 
 
 class TxResult(Strict):

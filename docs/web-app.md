@@ -54,6 +54,13 @@ Python computes every number; the frontend only formats and draws. It is the rad
   /api/views/{id}` (a delete returns the view; `POST /api/views/restore` undoes it), `POST /api/views/align`
   `{tickers, store: main|discovery}` (compact alignment for table columns, cached by the views' version). The ticker
   profile has a `views` section.
+- Trading rules: `GET /api/rules` (`RulesPage`: rules, templates, the kinds' catalogue, `standing` or null without
+  active rules), `POST /api/rules`, `PUT` / `DELETE /api/rules/{id}` (a delete returns the rule; `POST
+  /api/rules/restore` undoes it), `POST /api/rules/check` (`ActionIn`: one of `amount_dkk`, `quantity`, `fraction`;
+  `log` stores it and returns `check_id`), `GET /api/rules/standing`, `GET /api/rules/replay?start&end`, `POST
+  /api/rules/checks/{id}/decision`. `/api/me` carries `rule_flags` per symbol; `POST /api/portfolio/validate`
+  returns `rules` (a new trade's `CheckResult`) and adds its breaks and near ones as warnings with field `rules`;
+  `TxIn.rule_reason` is logged when a trade goes ahead against a rule.
 - `GET /api/discover`: the last discovery scan (`reports/discovery.json`), stale after
   `coverage.max_age.discovery_prices`; 503 until the first scan. `GET` / `POST /api/discover/scan`: run the scan from
   the app (`updater.DISCOVER_JOB`, same status shape as `/api/update`).
