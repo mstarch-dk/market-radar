@@ -7,6 +7,7 @@ from datetime import date
 
 from .. import errors, notebook, paths, propose
 from .. import market_views as mv
+from ..config import typed
 from ..datahome import home as homes
 from ..model import artifacts
 from .common import freshness
@@ -56,6 +57,41 @@ def summary(sections: list[str] | None = None) -> dict:
     if unknown:
         raise errors.Invalid(f"No section {', '.join(unknown)} in summary.json (known: {', '.join(known)}).")
     return head | {k: s[k] for k in sections}
+
+
+def discovery(top: int = 8, markets: list[str] | None = None) -> dict:
+    """The last discovery scan (names outside the radar's own lists: Nordic, European, positive-list ETFs), cut to
+    what a brief needs: per market, the off-radar rows that aren't thin, `check_data` or stale, as the `top` by
+    score, the `top` biggest score rises (`d_score`) and those with a `new_high` or `trend_turn`, without the price
+    sparklines. `stale` once the scan is older than its price limit in settings (run it weekly: the Discover page,
+    or `uv run radar discover`). `markets`: only these keys."""
+    from ..discovery import scan
+
+    d = scan.load_report()
+    if d is None:
+        raise errors.NotFound("No discovery scan yet: start one on the Discover page or run `uv run radar discover`.")
+    age = (date.today() - date.fromisoformat(d["asof"][:10])).days
+    head = {"asof": d["asof"], "age_days": age, "stale": age > typed().coverage.max_age["discovery_prices"],
+            "thresholds": d.get("thresholds")}
+    known = [m["key"] for m in d["markets"]]
+    unknown = [k for k in markets or [] if k not in known]
+    if unknown:
+        raise errors.Invalid(f"No market {', '.join(unknown)} in the scan (known: {', '.join(known)}).")
+    out = []
+    for m in d["markets"]:
+        if markets and m["key"] not in markets:
+            continue
+        ok = [{k: v for k, v in r.items() if k != "spark"} for r in m["rows"]
+              if r.get("off_radar") and not (r.get("thin") or r.get("check_data") or r.get("stale"))]
+        by_score = sorted((r for r in ok if r.get("score") is not None), key=lambda r: -r["score"])
+        risers = sorted((r for r in ok if r.get("d_score") is not None), key=lambda r: -r["d_score"])[:top]
+        flagged = [r for r in by_score if r.get("new_high") or r.get("trend_turn")][:top]
+        rows = {r["ticker"]: r for r in [*by_score[:top], *risers, *flagged]}
+        out.append({"key": m["key"], "label": m["label"], "kind": m["kind"], "names": m["names"],
+                    "scored": m["scored"], "off_radar_ok": len(ok), "top": [r["ticker"] for r in by_score[:top]],
+                    "risers": [r["ticker"] for r in risers], "flagged": [r["ticker"] for r in flagged],
+                    "rows": sorted(rows.values(), key=lambda r: -(r.get("score") or 0))})
+    return head | {"markets": out}
 
 
 def _study(key: str, got: artifacts.Loaded, command: str, today: date) -> dict:
@@ -109,4 +145,5 @@ def read_document(kind: str, name: str) -> dict:
                               f"(kinds: {', '.join(notebook.FOLDERS)}).") from None
 
 
-TOOLS = (data_paths, investor_notes, market_views, summary, study_reports, documents, journal_entries, read_document)
+TOOLS = (data_paths, investor_notes, market_views, summary, discovery, study_reports, documents, journal_entries,
+         read_document)

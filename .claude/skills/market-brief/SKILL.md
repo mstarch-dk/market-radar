@@ -5,9 +5,9 @@ description: Refresh the market radar and write a dated market brief in Danish (
 
 # Market brief
 
-Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice. Read `notes/investor.md` first if it exists: the user's accounts, horizon and preferences.
+Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the radar's numbers into understanding. It's analysis to support the user's own decisions, not advice. Read `investor_notes` first (the user's accounts, horizon and preferences); if it has none yet, go on without.
 
-**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+Read and write through the `mcp__radar__*` tools; their descriptions carry the units and the fields. Two have no tool and are read from their folder in `data_paths` (`folders`): `factset_latest.txt` (`folders.cache`) and the reading notes in `folders.notes`. If the `radar` tools aren't connected (a scheduled run may not load them), use the CLI instead: `uv run radar paths --json` for the folders, `uv run radar run`, `sim picks …`, `views --json`, `propose check --json`, `portfolios list --json`, and read `reports/summary.json` and write the brief in those folders.
 
 **Write the brief in Danish.** Follow `guide/STIL.md` for tone ("du", plain and precise), number format (decimal comma, thousands with a dot, "5 %") and its fixed terminology table (fører / svækkes / halter / forbedres, markedsbredde, positivlisten, ASK / frie midler, markedssyn …). Keep tickers, indicator names and the app's UI terms as they appear in the app. Your reply to the user is in Danish too.
 
@@ -15,9 +15,9 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 
 ## Steps
 
-1. **Refresh the data**: run `uv run radar run` from the project root. If the output lists tickers with no data, mention them at the end of the brief.
-   - **The score's paper trail**, the only test of the momentum score free of hindsight. Once per calendar month, if `uv run radar portfolios list --json` has no portfolio named `live-YYYY-MM · hold` for this month, run `uv run radar sim picks --asof today --rule top-n --n 15 --max-per-sector 4 --name live-YYYY-MM --tag picks-live`. Then run `uv run radar sim picks --rerun tag:picks-live --json` to bring every earlier month's basket up to date. Nothing in it is the user's: these are virtual portfolios.
-2. **Read `reports/summary.json`**:
+1. **Refresh the data**: `job_start(kind="update")`, then `job_status(kind="update")` now and then until it is `done` (several minutes; if it is refused because an update runs in the app or a terminal, wait for that one to finish). If its log lists tickers with no data, mention them at the end of the brief.
+   - **The score's paper trail**, the only test of the momentum score free of hindsight. Once per calendar month, if `portfolios` has no portfolio named `live-YYYY-MM · hold` for this month, call `sim_picks(asof="today", rule="top-n", n=15, max_per_sector=4, name="live-YYYY-MM", tags=["picks-live"])`. Then `sim_picks(rerun="tag:picks-live")` brings every earlier month's basket up to date. Nothing in it is the user's: these are virtual portfolios.
+2. **Read the summary**: `summary(sections=[…])` with the sections below (one call; `stale` says whether the report is older than the price limit):
    - `regime` and `indicators`. These now include breadth (200d and 50d), net new highs, RSP/SPY, the VIX term structure, copper/gold, oil, the OECD CLI and FactSet revisions.
    - `rotation` per group: quadrant, relative returns, rank and rank change. `quadrant_local` is the European sectors' quadrant vs the STOXX 600 rather than ACWI.
    - `momentum_top10` (with sector and industry), new entrants and drop-outs per region, and `momentum_clusters`: industries or sectors over-represented among a region's leaders.
@@ -35,10 +35,10 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
    - `calendar`: the coming weeks (`days`, counted from `today` = `asof`) for the user's real portfolios and watchlist. `items` are earnings and ex-dividend dates of held and watched stocks, open journal reviews (`review`) and proposal time stops (`time_stop`), each with a `level` (`high` / `normal` / `info`) and its `reasons` (`key`, an English `text` with the number in it, and `value`). An earnings item's `earnings` says how sure the date is: `is_range` (Yahoo's expected window, `date` to `date_end`), `source`, `read_on`, `moved_from` and the quarter's consensus (`eps_avg`, `eps_low`, `eps_high`). `soon` lists the ids of the high items within the next days; `no_date` the stocks with no known date and why; `excluded_funds` how many funds it left out (funds have no earnings). `null` = the calendar couldn't be built: say so, don't write "nothing coming".
    - `coverage`: how many regime indicators have current data (`regime.na` = no data, `regime.stale` = too old, both left out of the vote), failing or stale sources, and the radar's blind spots. If any indicator is n/a or stale, or a source failed, say which near the regime reading and how much that weakens it. Fill a blind spot with web research only when it matters for this month's story (for example valuation when leadership looks stretched).
 
-   - If `reports/discovery.json` exists and its `asof` is under 10 days old, read it too: per market, rows with `off_radar` true and a high `score`, a big `d_score`, `new_high` or `trend_turn`, leaving out `thin`, `check_data` and `stale` rows. These are names outside the radar's own lists. If it is older, say the discovery scan is stale and skip it.
-   - Run `uv run radar views --json` for the user's market views (their subjective beliefs from the app's *My market views* page) with the radar's evidence per view. If there are none, skip the views section.
+   - `discovery()`: the last discovery scan, already cut to the off-radar rows with a high `score`, a big `d_score`, `new_high` or `trend_turn` per market (leaving out `thin`, `check_data` and `stale` rows). These are names outside the radar's own lists. If it is `stale` (or missing), say the discovery scan is stale and skip it.
+   - `market_views` for the user's market views (their subjective beliefs from the app's *My market views* page) with the radar's evidence per view. If there are none, skip the views section.
 
-   If `earnings_factset` is present, also read `data/factset_latest.txt` (in the cache folder) (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
+   If `earnings_factset` is present, also read `factset_latest.txt` in `folders.cache` (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
 3. **Pick what matters (at most 6–8 items).** Prioritise:
    - A change in the regime reading or in any indicator's status
    - ETFs that moved **Improving → Leading** or **Leading → Weakening**, and the biggest rank changes
@@ -55,10 +55,10 @@ Produce `briefs/YYYY-MM-DD.md`: a short, source-linked brief that turns the rada
 
    - For each `high` earnings item in `calendar`: what the market is watching in the report (consensus and its recent revisions, the company's guidance, the last quarter's surprise), with links.
 
-   **The user's own notes:** if `notes/` has reading notes (e.g. `notes/bloomberg.md`), read the entries from the last month. They are takeaways the user pasted from paid sources. Treat them as leads to verify and link, not as sources to cite.
-5. **Write the brief** in the structure below. Keep it under about 900 words, and use tables for numbers.
+   **The user's own notes:** if `folders.notes` has reading notes (e.g. `bloomberg.md`), read the entries from the last month. They are takeaways the user pasted from paid sources. Treat them as leads to verify and link, not as sources to cite.
+5. **Write the brief** in the structure below with `write_memo(kind="briefs", name="YYYY-MM-DD", markdown=…)`. Keep it under about 900 words, and use tables for numbers.
 6. Reply in Danish with a 3–5 line summary and a link to the file.
-7. **Only with `podcast`: write the listening version** `briefs/lyt/YYYY-MM-DD.md` (see *Listening version* below). It lives in a subfolder so the app's Notebook page doesn't list it as a second brief. Add one line to the reply with its path and "upload it in NotebookLM and pick Dansk".
+7. **Only with `podcast`: write the listening version** `briefs/lyt/YYYY-MM-DD.md` with `write_memo(kind="listening", name="YYYY-MM-DD", …)` (see *Listening version* below). It lives in a subfolder so the app's Notebook page doesn't list it as a second brief. Add one line to the reply with its path and "upload it in NotebookLM and pick Dansk".
 
 ## Brief structure
 
@@ -103,7 +103,7 @@ Only when the user has active views. One line per view (highest conviction first
   - The watched names in one line.
   - The held stocks in `no_date`: "ingen dato kendt", with the reason. Say how many funds were left out.
   - Never suggest acting before a report. Add the caveat that a stop level doesn't protect against an overnight gap at a report.
-- Proposals (`/propose-portfolio`): run `uv run radar propose check --json`; list each pick whose status is Triggered (and Weakening ones in one line), with the criterion and its value, as a reason to review, not a trade. Skip the line when there are no open proposals.
+- Proposals (`/propose-portfolio`): `propose_check()`; list each pick whose status is Triggered (and Weakening ones in one line), with the criterion and its value, as a reason to review, not a trade. Skip the line when there are no open proposals.
 - The score's paper trail (`picks-live`): one line on how the monthly top-15 baskets have done so far against ACWI and the equal-weight universe (`return_dkk`, `yardsticks`), and their mean percentile among random baskets. Only once at least three baskets are 3 months old; until then just say how many there are.
 
 ## Research-kø
@@ -119,7 +119,7 @@ Only when the user has active views. One line per view (highest conviction first
 - **Prose only**: no tables, no inline links, no ticker lists. Round numbers and say them in words ("knap 3 procent bedre end ACWI over tre måneder"). Name a company or fund in full before its ticker.
 - **Explain as you go**: spell out each acronym the first time (RRG, CAPE, ERP, ASK, OECD CLI) and give the "why" behind every move. Keep the confirmation/divergence logic: what supports a move and what makes it fragile.
 - **Length**: about 600–900 words, in the brief's order (TL;DR as an opening, then regime, positioning and cycle, rotation, momentum, quality and value, Discover, research queue).
-- **Private by default**: the file is uploaded to Google, so leave out everything personal: *Dine markedssyn mod data*, *Din portefølje i den sammenhæng*, holdings, watchlist, sold names and anything from `notes/`. With `personal`, include them in the same spoken style.
+- **Private by default**: the file is uploaded to Google, so leave out everything personal: *Dine markedssyn mod data*, *Din portefølje i den sammenhæng*, holdings, watchlist, sold names and anything from the user's notes. With `personal`, include them in the same spoken style.
 - Say "dette er analyse, ikke rådgivning" in the opening, and frame actions as things to review, as in the brief.
 - End with a short plain list of the sources (publisher and title, then the URL).
 

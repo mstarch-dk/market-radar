@@ -200,6 +200,26 @@ have more of what the tools cut. `/market-brief` reads about 15 sections of `sum
 measured on what it migrates: `/market-brief`'s data step is compared against the CLI the same way before task 6.13
 releases it.
 
+**`/market-brief` measured 2026-10-27 (TASK-6.12)**, the same way, on the user's data folder. The update and the
+paper trail's `sim picks` write data, so they weren't run. Their output is the same text either way. FactSet's text
+(6k) is read by path in both versions.
+
+| Version | Calls (reads) | Context | Of which `discovery.json` |
+|---|---|---|---|
+| CLI | 8 | 283k chars | 100k (the Read limit; the file is 3.1M chars) |
+| MCP | 8 | 203k chars | 50k (`discovery()`: the rows the brief asks for) |
+
+**−28 %.** The saving is mostly the discovery scan. The skill asked for the off-radar rows with a high score, a big
+Δscore or a flag, and the CLI version could only read the first 100k chars of a 3.1M-char file, so it never saw
+most markets. The new `discovery` tool returns those rows per market (64 rows, 50k). The summary saves 16 %
+(`summary(sections)` 119k vs the whole file 142k), because the brief uses nearly every section. The MCP version
+adds calls to follow the update (`job_status`, about 1–2k chars each), where the CLI waits in one `radar run`.
+
+**The scheduled brief** (`market-radar-monthly-brief`, the 1st of each month at 07:00, no runs yet) works in the main
+checkout. Until this branch is merged, that checkout has neither `.mcp.json` nor the migrated skills, so it runs on
+the CLI. Its prompt names the CLI steps itself, which is the skills' fallback. Whether a scheduled run loads
+project MCP servers (section 8, question 1) can only be seen from a run after the merge.
+
 ## 8. Open questions
 
 1. Does the Claude desktop scheduled task load project MCP servers? This decides whether `/market-brief` can rely

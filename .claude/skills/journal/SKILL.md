@@ -8,25 +8,25 @@ argument-hint: "[review] | <action> <ticker> [notes]"
 
 The journal makes decisions deliberate and reviewable. Each entry records *why* a decision was made and *what would prove it wrong*.
 
-**Where files are.** The user's data lives in their data folder, outside this project. Run `uv run radar paths --json` once and use its `folders`: in this skill `notes/…`, `briefs/…`, `research/…`, `journal/…` and `exports/…` are those folders inside `folders.data`, `reports/…` is `folders.reports` and `data/…` is `folders.cache`. Read and write them by their full path (pass full paths to `--out` too). If `state` is `unset` or `missing`, ask the user to start the app or run `uv run radar setup` first.
+Read and write through the `mcp__radar__*` tools; their descriptions carry the units and the fields. If the `radar` tools aren't connected, use the CLI instead: `uv run radar paths --json` for the folders, then `radar info`, `views --json`, `portfolios list --json`, `propose check --json`, `portfolio add`, and read and write the files in those folders.
 
 ## Mode 1: record a decision (`/journal buy RHM.DE …`)
 
-1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (the user's real portfolios from `uv run radar portfolios list --json`, read with what `notes/investor.md` says each is for; without either, e.g. aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.
-2. Run `uv run radar info <TICKER>` and snapshot the key numbers into the entry. If its `views` section shows the name lines up with (or against) any of the user's market views, list those view ids in `views:` and ask in the same question whether the decision expresses one of them (the user's subjective beliefs; `uv run radar views --json` has the full text).
-3. Link `research/<TICKER>.md` if it exists.
-   If the decision is an executed trade (buy, add, trim, sell) and the user gives the quantity and price, offer to record it in the portfolio too: `uv run radar portfolio add <BUY|SELL> <TICKER> <qty> <price> --date <date> --portfolio <portfolio name>` (the name exactly as `radar portfolios list` shows it; it checks the trade like the app does; show any warnings before adding `--yes`).
-4. Write `journal/YYYY-MM-DD-<TICKER>-<action>.md`:
+1. Collect the details from the user's message. If any of these are missing, ask once in a single AskUserQuestion call: action (buy, add, trim, sell, pass), account (the user's real portfolios from `portfolios`, read with what `investor_notes` says each is for; without either, e.g. aktiesparekonto or frie midler), the thesis in their own words, horizon, and the exit rule.
+2. Call `ticker_profile([<TICKER>])` and snapshot the key numbers into the entry. If its `views` section shows the name lines up with (or against) any of the user's market views, list those view ids in `views:` and ask in the same question whether the decision expresses one of them (the user's subjective beliefs; `market_views` has the full text).
+3. Link `research/<TICKER>.md` if `documents(kind="research", ticker=<TICKER>)` lists it.
+   If the decision is an executed trade (buy, add, trim, sell) and the user gives the quantity and price, offer to record it in the portfolio too: `add_trade(type, symbol, quantity, price, date, portfolio=<name as portfolios shows it>)` first without `confirm`: it saves nothing and returns the checks' issues and the position before and after, as the app checks a trade. Show them, and call it again with `confirm=true` only after the user says yes.
+4. Write the entry with `write_memo(kind="journal", name="YYYY-MM-DD-<TICKER>-<action>", markdown=…)`:
 
 ```markdown
 ---
 date: YYYY-MM-DD
 ticker: <TICKER>
 action: buy|add|trim|sell|pass
-account: <real portfolio name from `radar portfolios list`, e.g. ASK | frie midler>
+account: <real portfolio name from `portfolios`, e.g. ASK | frie midler>
 horizon: <e.g. 3 months>
 status: open        # open → closed when the position is exited or the thesis is resolved
-views: []           # ids of the user's market views this decision expresses (from `radar views`), if any
+views: []           # ids of the user's market views this decision expresses (from `market_views`), if any
 review_by: YYYY-MM-DD
 ---
 # <Action> <Name> (<TICKER>)
@@ -46,12 +46,12 @@ If this goes wrong, the most likely reason is: …
 
 Keep the user's own wording for the thesis. Suggest a concrete invalidation rule if they give none, and mark it as a suggestion.
 
-**From a proposal** (`/propose-portfolio`): when the buy comes from a frozen proposal (`exports/proposals/<date>_<portfolio>.json`), take the pick's `why` as the starting thesis (and ask the user to confirm or reword it), and copy its exit criteria into *Exit rules* as written there: the review level (close below the 200-day average), the signal exit (momentum score or K+V below its level), each thesis check, and the time stop as `review_by`. Add `proposal: <file name>` to the front matter, so the review can find it.
+**From a proposal** (`/propose-portfolio`): when the buy comes from a frozen proposal (`propose_picks(id)`; `propose_review` lists the ids), take the pick's `why` as the starting thesis (and ask the user to confirm or reword it), and copy its exit criteria into *Exit rules* as written there: the review level (close below the 200-day average), the signal exit (momentum score or K+V below its level), each thesis check, and the time stop as `review_by`. Add `proposal: <id>.json` to the front matter, so the review can find it.
 
 ## Mode 2: monthly review (`/journal review`)
 
-1. Run `uv run radar run`, then read every journal entry with `status: open`.
-2. For each entry, compare the exit rules with the current `uv run radar info <TICKER>` and the rotation context. For entries with `proposal:`, also run `uv run radar propose check --json` once and use its status per pick (Intact / Weakening / Triggered, with the evidence; `older_rule` means the criteria were set under other settings). Classify it as **Intact**, **Weakening** (some rules are close to triggering) or **Invalidated** (a rule has triggered). For entries with `views:`, also give each linked view's current evidence from `uv run radar views --json` (and say if the user has archived it): a position resting on a view the data now contradicts deserves a question.
-3. Also go through closed trades from the last 3 months: what happened after the exit, and what can be learned from it.
-4. Write `journal/reviews/YYYY-MM.md` with a table (ticker | thesis | status | evidence | linked views and their data | question to consider) and 2–3 patterns noticed across decisions, such as selling winners too early, adding to losers, or theme concentration.
+1. Bring the data up to date: `job_start(kind="update")`, then `job_status(kind="update")` now and then until it is `done` (several minutes; if it is refused because an update runs elsewhere, wait for that one). Then `journal_entries(status="open")`, and `read_document(kind="journal", name=…)` for each entry's exit rules.
+2. Call `ticker_profile([<every open entry's ticker>], personal=true)` once (each name's profile under `tickers`) and `summary(["rotation"])`, and compare each entry's exit rules with them. For entries with `proposal:`, also call `propose_check()` once and use its status per pick (Intact / Weakening / Triggered, with the evidence; `older_rule` means the criteria were set under other settings). Classify it as **Intact**, **Weakening** (some rules are close to triggering) or **Invalidated** (a rule has triggered). For entries with `views:`, also give each linked view's current evidence from `market_views(archived=true)` (and say if the user has archived it): a position resting on a view the data now contradicts deserves a question.
+3. Also go through closed trades from the last 3 months (`journal_entries(status="closed")`): what happened after the exit, and what can be learned from it.
+4. Write the review with `write_memo(kind="reviews", name="YYYY-MM", markdown=…)`, with a table (ticker | thesis | status | evidence | linked views and their data | question to consider) and 2–3 patterns noticed across decisions, such as selling winners too early, adding to losers, or theme concentration.
 5. Don't change any entry's status without asking the user first.

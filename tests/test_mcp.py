@@ -170,6 +170,29 @@ def test_study_reports(radar):
     assert studies["score-study:qv"]["command"] == "uv run radar study score --signal qv"
 
 
+def test_discovery_is_cut_to_what_a_brief_reads(radar):
+    assert "No discovery scan yet" in refused("discovery")
+    row = {"off_radar": True, "thin": False, "check_data": False, "stale": False, "new_high": False,
+           "trend_turn": False, "spark": [1, 2, 3]}
+    rows = [row | {"ticker": f"N{i}", "score": 90 - i, "d_score": i} for i in range(6)]
+    rows += [row | {"ticker": "THIN", "score": 99, "d_score": 50, "thin": True},
+             row | {"ticker": "MINE", "score": 98, "d_score": 50, "off_radar": False},
+             row | {"ticker": "HIGH", "score": 10, "d_score": 0, "new_high": True}]
+    f = paths.REPORTS.now() / "discovery.json"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"asof": "2026-01-02", "generated": "x", "universe_asof": "x", "thresholds": {},
+                             "markets": [{"key": "nordic", "label": "Norden", "kind": "stock", "names": 9,
+                                          "scored": 9, "rows": rows}]}), encoding="utf-8")
+    got = ok("discovery", top=2)
+    assert got["asof"] == "2026-01-02" and got["stale"]
+    m = got["markets"][0]
+    assert m["off_radar_ok"] == 7 and m["top"] == ["N0", "N1"] and m["risers"] == ["N5", "N4"]
+    assert m["flagged"] == ["HIGH"]
+    assert [r["ticker"] for r in m["rows"]] == ["N0", "N1", "N4", "N5", "HIGH"]
+    assert all("spark" not in r for r in m["rows"])
+    assert "No market us" in refused("discovery", markets=["us"])
+
+
 # ---------------- jobs ----------------
 
 @pytest.fixture
