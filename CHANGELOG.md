@@ -6,6 +6,10 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **X-ray: no longer fails when a holding has no fund data date.** With pandas 3 a missing `detail_asof` became NaN
+  instead of None and `/api/xray` answered 500 for any book mixing a fund with stocks.
+- **XDWD.DE (Xtrackers MSCI World) counts as a broad world fund** (`risk.world_funds`): the X-ray spreads it with
+  ACWI's weights, and the per-name cap in the trading rules leaves it out, like the other funds on that list.
 - **My trading rules (F12).** Write down the rules you want to trade by and check an action against them: a mirror,
   never a gate (nothing is blocked or sent anywhere). New page *Trading rules* under *Mine*, `radar rules`, and the
   tables `trading_rules` and `rule_checks` in radar.db (an append-only migration).

@@ -41,6 +41,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 - **Indskudsloftet på aktiesparekontoen** måles nu som hos SKAT: mod kontoens værdi den 31. december året før. Har du sat `propose.ask_deposit_cap` eller `propose.ask_cap_year` i din egen `settings.yaml`, så slet dem; loftet står nu i `tax_dk.yaml`.
 - **Din database opdateres** med personer, ISIN-koder og fremførte tab; der tages en backup først. Alle dine konti tilhører personen *Me*, indtil du ændrer det.
 
+**Rettelser.** Siden *X-ray* fejlede med *Internal Server Error*, når en portefølje havde både en fond og aktier; det gør den ikke længere. Xtrackers MSCI World (XDWD.DE) regnes nu som en bred verdensfond som de andre på listen `risk.world_funds`: røntgenbilledet spreder den med ACWI's vægte, og loftet pr. aktie i dine handelsregler tæller den ikke med.
+
 ## 0.2.0
 
 **Dine data har fået deres egen mappe.** Porteføljer, handler, markedssyn, watchlist, noter, briefs, research, journal og den historik, radaren har samlet op, ligger nu i en datamappe uden for programmappen, som standard `Market Radar` i din brugermappe. Markedsdata ligger i en cache-mappe for sig og kan altid hentes igen. Fremover pakker du bare en ny version ud og starter den; den finder selv dine data, og du skal ikke kopiere mapper.
