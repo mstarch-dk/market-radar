@@ -8,7 +8,7 @@
 sets the version in pyproject.toml and web/package.json and writes tests/fixtures/homes/v0.3.0/: a small data
 folder made by this version, with synthetic data. tests/test_upgrade.py opens every fixture home with the current
 code, so a later version that can't read what an earlier one wrote fails its tests instead of a user's data.
-Then: run the tests, publish (scripts/publish_public.py), tag v0.3.0 in the public repo.
+Then: run the tests, merge, and push the tag v0.3.0 (the release workflow builds the zip).
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def prepare(version: str) -> None:
         print("The fixture home is made by the code as it is now: run `uv sync` so the new version number is in "
               "place, then: uv run python scripts/release.py fixture v" + version)
     print(f"Version {version} set. Next: uv sync, the fixture (if new), uv run pytest -q, pnpm -C web test, "
-          "then scripts/publish_public.py and the tag.")
+          "then merge and push the tag.")
 
 
 # ---------------- fixture data folders ----------------
