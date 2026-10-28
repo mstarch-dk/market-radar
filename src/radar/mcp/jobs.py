@@ -4,7 +4,7 @@ recorded in the operations log, and check the same locks first, so a job already
 is reported, not started twice."""
 from __future__ import annotations
 
-from .. import errors, locks, studyrun, updater
+from .. import errors, locks, ops, studyrun, updater
 from ..config import AnyPath
 
 KINDS = ("update", "report", "study")
@@ -26,8 +26,14 @@ def _free(lock: AnyPath, busy: str) -> None:
 
 
 def _view(kind: str, tail: int) -> dict:
+    """The job of `kind` this process runs or ran; when it runs none, an update another process runs (the app, a
+    terminal), marked `elsewhere`. Paused hosts come along: they are why a step goes quiet or fails."""
     s = _job(kind).state
-    return {"kind": kind, **s, "log": s["log"][-tail:] if tail > 0 else []}
+    if s["status"] != "running" and kind == "update" and (other := updater.elsewhere()):
+        s = other
+    return {"kind": kind, **s, "log": s["log"][-tail:] if tail > 0 else [],
+            "paused_hosts": [{"host": c["host"], "until": c["cooldown_until"], "reason": c["reason"]}
+                             for c in ops.cooldowns()]}
 
 
 def job_start(kind: str, study: str | None = None) -> dict:
@@ -59,8 +65,12 @@ def job_start(kind: str, study: str | None = None) -> dict:
 
 def job_status(kind: str, tail: int = 20) -> dict:
     """The status of the job of `kind` (update, report, study) started from this session: idle, running, done or
-    failed, when it started and finished, the error if it failed, its progress, the study's key, and the last
-    `tail` log lines. A job started in the app or a terminal shows on the Operations page, not here."""
+    failed, when it started and finished, the error if it failed, the study's key, and the last `tail` log lines.
+    Progress: `step` (i of n, the step's label), `progress` (the running phase within it: label, done of total),
+    `steps` (every step with status pending, running, ok or failed and its one-line result) and `issues` (the
+    newest problems so far: level warn or error, source, message; `issues_total` counts them all), plus
+    `paused_hosts` (hosts paused after too many 429s). An update another process runs (the app, a terminal) is
+    shown when this session runs none, with `elsewhere` set to its kind. The app's Operations page shows the same."""
     return _view(kind, tail)
 
 

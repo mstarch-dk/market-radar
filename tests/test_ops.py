@@ -35,7 +35,7 @@ def test_timestamps_are_utc_and_old_local_ones_are_converted():
     with closing(sqlite3.connect(ops.DB)) as con, con:                 # as an older version wrote them
         con.execute("UPDATE requests SET ts = '2026-01-15T12:00:00.000'")
         con.execute("UPDATE host_state SET cooldown_until = '2026-07-01T09:00:00.000', updated = '2026-07-01T08:45:00.000'")
-        con.execute(f"PRAGMA user_version = {len(ops.MIGRATIONS) - 1}")
+        con.execute("PRAGMA user_version = 1")                          # before the UTC step
     assert ops.requests()[0]["ts"] == ops.timestamp(datetime(2026, 1, 15, 12))          # winter offset
     assert ops.host_state("a.org")["cooldown_until"] == ops.timestamp(datetime(2026, 7, 1, 9))   # summer offset
     assert ops.local(ops.timestamp(datetime(2026, 7, 1, 9))).replace(tzinfo=None) == datetime(2026, 7, 1, 9)

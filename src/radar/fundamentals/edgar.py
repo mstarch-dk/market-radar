@@ -22,6 +22,7 @@ from .. import guard, locks, net, sourcelog
 from ..config import typed, write_csv
 from ..config_schema import Edgar
 from ..paths import CACHE
+from ..progress import tick
 from ..signals import periods
 from . import schedule, store
 from .items import ITEMS
@@ -198,7 +199,7 @@ def us_tickers(stocks: list[str]) -> list[str]:
 
 
 def update_edgar(stocks: list[str], contact: str | None, today: date | None = None, force: bool = False,
-                 tickers: list[str] | None = None) -> str:
+                 tickers: list[str] | None = None, progress=None) -> str:
     """Fetch company facts for the US tickers among the tracked `stocks` that are due (or `tickers`, or all with `force`); store per ticker.
     A ticker whose fresh answer has less than what is stored keeps its stored values (and counts as failed)."""
     from ..sources import tracked
@@ -236,7 +237,8 @@ def update_edgar(stocks: list[str], contact: str | None, today: date | None = No
 
     with net.pool(len(batch), HOST) as ex:
         futures = {t: ex.submit(one, t) for t in batch}
-        for t, f in futures.items():
+        for i, (t, f) in enumerate(futures.items()):
+            tick(progress, i, len(batch), "Company facts from SEC, per US stock")
             try:
                 results[t] = f.result()
             except NotGaap as e:

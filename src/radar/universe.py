@@ -9,13 +9,14 @@ from . import net
 from .config import typed, write_csv
 from .paths import CACHE
 from .portfolios import trades
+from .progress import tick
 from .sources import fxrates
 from .sources.tracked import attribution_tickers, benchmark, etfs, group_benchmarks, macro_yahoo, stock_groups
 
 # ---------- MSCI ACWI's own weights (iShares MSCI ACWI UCITS holdings) ----------
 
 
-def names(tickers: list[str]) -> dict[str, str]:
+def names(tickers: list[str], progress=None) -> dict[str, str]:
     """Display names: config ETFs, SPY holdings file, then a cached Yahoo lookup for the rest."""
     out = {e.ticker: e.name for e in etfs()}
     us_file = CACHE / "constituents_us.csv"
@@ -35,15 +36,19 @@ def names(tickers: list[str]) -> dict[str, str]:
                 return t, info.get("longName") or info.get("shortName")
             except Exception:
                 return t, None
+        found = {}
         with net.pool(8) as ex:
-            found = {t: n for t, n in ex.map(lookup, missing) if n}   # a failed lookup is shown as the ticker,
-        if found:                                                     # not remembered: it's asked again next time
+            for i, (t, n) in enumerate(ex.map(lookup, missing), start=1):
+                tick(progress, i, len(missing), "Names from Yahoo")
+                if n:                     # a failed lookup is shown as the ticker, not remembered: it's asked again
+                    found[t] = n
+        if found:
             cached |= found
             write_csv(pd.DataFrame(list(cached.items()), columns=["ticker", "name"]), cache_file, index=False)
     return {t: out.get(t) or cached.get(t, t) for t in tickers}
 
 
-def sectors(tickers: list[str]) -> pd.DataFrame:
+def sectors(tickers: list[str], progress=None) -> pd.DataFrame:
     """Yahoo sector and industry per stock (cached in data/sectors.csv; ETFs and unknowns stay blank)."""
     cache_file = CACHE / "sectors.csv"
     cached = (pd.read_csv(cache_file, keep_default_na=False) if cache_file.exists()
@@ -61,7 +66,11 @@ def sectors(tickers: list[str]) -> pd.DataFrame:
                 return None  # an empty answer (throttled, or Yahoo trouble) isn't "no sector": ask again next run
             return {"ticker": t, "sector": info.get("sector") or "", "industry": info.get("industry") or ""}
         with net.pool(8) as ex:
-            found = [r for r in ex.map(lookup, missing) if r]
+            found = []
+            for i, r in enumerate(ex.map(lookup, missing), start=1):
+                tick(progress, i, len(missing), "Sectors from Yahoo")
+                if r:
+                    found.append(r)
         cached = pd.concat([cached, pd.DataFrame(found)], ignore_index=True)
         CACHE.mkdir(parents=True, exist_ok=True)
         write_csv(cached, cache_file, index=False)

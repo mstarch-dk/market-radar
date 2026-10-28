@@ -12,9 +12,15 @@ Den nemmeste vej er knappen *Update data*. Den findes tre steder:
 
 Når du klikker, starter den samme opdatering som `radar run` i terminalen. Undervejs viser panelet:
 
-- Knappen skifter til *Updating…*, og ved siden af står fremskridtet, fx "Downloading prices: 350 of 700 tickers (50%)".
-- En bjælke viser, hvor langt kursdownloaden er.
+- Knappen skifter til *Updating…*, og ved siden af står trinnet og fremskridtet i det, fx "Step 1 of 20: Prices · Known tickers (new bars): 320 of 560 (57%)". Kursdownloaden har op til fire dele (nye tickers, kendte tickers, tickers hvis historik skal hentes igen, og tickers der manglede den seneste dag), og hver del tæller fra 0 til fuld.
+- En bjælke viser, hvor langt det aktuelle trin er.
+- Problemer vises, så snart de opstår, ikke først til sidst: en kilde der fejlede (den beholder sine gemte data), tickers uden data, og tickers der mangler den seneste handelsdag.
+- *Steps* folder alle trinene ud med ✓ for færdig, ✗ for fejlet og › for det, der kører nu.
 - *What it did (N lines)* folder loggen ud: én linje pr. trin, med hvad der blev hentet, eller hvad der fejlede.
+
+Når opdateringen er færdig, står problemerne stadig under panelet, til næste opdatering.
+
+Har du startet opdateringen i terminalen, eller har Claude startet den (fx til månedsbriefen), viser panelet den også, med *Started in a terminal* eller *Started by Claude or another window* foran. Knappen er så låst, til den er færdig.
 
 Du kan bruge appen imens. Når opdateringen er færdig, står der *Updated* med tidspunktet, og alle sider henter deres data igen af sig selv. Der kan kun køre én opdatering ad gangen, også på tværs af appen og terminalen: starter du `radar update` eller `radar run`, mens appen opdaterer (eller omvendt), stopper den nye med det samme med beskeden *an update is already running*. Det samme gælder Discover-scanningen. At slå en ticker op i appen virker hele tiden.
 
@@ -69,6 +75,8 @@ uv run radar run       # hent data og byg dashboardet
 uv run radar update    # kun hentningen
 uv run radar report    # kun rapporten, ud fra de data, der allerede ligger lokalt
 ```
+
+`radar run` og `radar update` skriver hvert trin i terminalen, fx `[4/20] CFTC positioning…`, fremskridtet i lange trin hvert femte sekund og hvert problem med `!` foran, så snart det opstår. Kørslen vises samtidig i appen (panelet *Update data* og siden *Operations*).
 
 `radar report` er nyttig, hvis du har ændret en indstilling i `config/settings.yaml` og vil se virkningen uden at hente noget nyt. Den gør det samme som knappen *Rebuild the readings* (se [Byg aflæsningerne igen](brugervejledning/data-og-opdatering#byg-aflæsningerne-igen)). `radar update --refresh-constituents` henter desuden listen over S&P 500-selskaber igen (ellers sker det automatisk efter {{settings:constituents_max_age_days}} dage). Se [Kommandolinjen](brugervejledning/kommandolinjen).
 

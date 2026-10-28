@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, type DoctorCheck, type OpsEvent, type OpsJob, type OpsRequest, type OpsRow } from "../api/client";
+import { api, type DoctorCheck, type OpsEvent, type OpsJob, type OpsRequest, type OpsRow, type OpsRunningJob } from "../api/client";
 import { PageHead } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
+import { JobProgressView } from "../components/JobProgress";
 import { Badge } from "../components/ui";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -94,6 +95,7 @@ function JobLog({ id }: { id: number }) {
   return (
     <div className="up-log">
       <p className="small muted">{j.requests.toLocaleString()} requests, {j.errors.toLocaleString()} failed.</p>
+      {j.progress && <JobProgressView p={j.progress} />}
       {j.log.length ? <pre>{j.log.join("\n")}</pre> : <p className="small muted">No log lines were kept for this job.</p>}
     </div>
   );
@@ -161,6 +163,45 @@ function Doctor() {
   );
 }
 
+/** Who runs a job (the operations log's kind). */
+const KIND_LABEL: Record<string, string> = {
+  update: "Data update (the app or Claude)", cli_run: "radar run (a terminal)", cli_update: "radar update (a terminal)",
+  discover: "Discovery scan (the app)", cli_discover: "radar discover (a terminal)", report: "Rebuilding the readings (the app or Claude)",
+  cli_report: "radar report (a terminal)", study: "A study",
+};
+const ago = (s: number | null | undefined) => (s == null ? "never" : s < 90 ? `${Math.round(s)} s ago` : `${Math.round(s / 60)} min ago`);
+
+/** The jobs running now, whichever process runs them, with their step, phase, problems so far and log tail. */
+function RunningNow({ jobs }: { jobs: OpsRunningJob[] }) {
+  if (!jobs.length) return null;
+  return (
+    <>
+      <h2>Running now</h2>
+      {jobs.map((j) => (
+        <div key={j.id} className="card running-job" aria-live="polite">
+          <div className="up-row">
+            <b>{KIND_LABEL[j.kind] ?? j.kind}</b>
+            <span className="small muted">#{j.id} · started {ts(j.started)} · {j.requests.toLocaleString()} requests
+              {j.errors > 0 && <span className="neg">, {j.errors.toLocaleString()} failed</span>} · last sign of life {ago(j.quiet_s)}</span>
+            {j.stale && <Badge kind="warn">not responding</Badge>}
+          </div>
+          {j.stale && (
+            <p className="small warn-text">No sign of life for a few minutes: the process that ran it may have stopped (a closed terminal, a
+              crash). If nothing else is running, a new update can be started; it is refused while the old one still holds its lock.</p>
+          )}
+          {j.progress ? <JobProgressView p={j.progress} /> : <p className="small muted">This job reports no progress (an older version runs it).</p>}
+          {j.log.length > 0 && (
+            <details className="up-log">
+              <summary className="small muted">The last {j.log.length} log lines</summary>
+              <pre>{j.log.join("\n")}</pre>
+            </details>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
 const WINDOWS = [1, 7, 30];
 
 export function Ops() {
@@ -170,6 +211,15 @@ export function Ops() {
   const summary = useQuery({ queryKey: ["ops-summary", days], queryFn: () => api.opsSummary(days), refetchInterval: 30_000 });
   const events = useQuery({ queryKey: ["ops-events"], queryFn: api.opsEvents, refetchInterval: 30_000 });
   const jobs = useQuery({ queryKey: ["ops-jobs"], queryFn: api.opsJobs, refetchInterval: 30_000 });
+  // fast while something runs, so its steps and problems show as they happen
+  const running = useQuery({ queryKey: ["ops-running"], queryFn: api.opsRunning,
+    refetchInterval: (q) => ((q.state.data?.length ?? 0) > 0 ? 2_000 : 15_000) });
+  const nRunning = running.data?.length ?? 0;
+  const had = useRef(nRunning);
+  useEffect(() => {                 // a job ended: the tiles, events and jobs now have its outcome
+    if (nRunning < had.current) qc.invalidateQueries({ predicate: (q) => ["ops-summary", "ops-events", "ops-jobs"].includes(String(q.queryKey[0])) });
+    had.current = nRunning;
+  }, [nRunning, qc]);
   const [showRequests, setShowRequests] = useState(false);
   const requests = useQuery({ queryKey: ["ops-requests"], queryFn: api.opsRequests, enabled: showRequests });
   const clear = useMutation({
@@ -193,6 +243,8 @@ export function Ops() {
         and its data stays as it was. Limits are in config/settings.yaml (<code>network:</code>); the log is kept in
         data/ops.db (<code>ops:</code> says for how long). This page is about the plumbing, not the markets.
       </PageHead>
+
+      {running.data && <RunningNow jobs={running.data} />}
 
       {summary.isError && (
         <div className="error">Couldn&apos;t load the operations log: {summary.error.message}{" "}

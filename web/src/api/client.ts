@@ -113,6 +113,8 @@ export type OpsRow = S["OpsRow"];
 export type OpsEvent = S["OpsEvent"];
 export type OpsJob = S["OpsJob"];
 export type OpsJobDetail = S["OpsJobDetail"];
+export type OpsRunningJob = S["OpsRunningJob"];
+export type JobProgress = S["JobProgress"];
 export type OpsRequest = S["OpsRequest"];
 export type DoctorCheck = S["DoctorCheck"];
 export type GuideTree = S["GuideTree"];
@@ -205,6 +207,7 @@ export const api = {
   opsRequests: () => get<OpsRequest[]>("/api/ops/requests?limit=300"),
   opsJobs: () => get<OpsJob[]>("/api/ops/jobs"),
   opsJob: (id: number) => get<OpsJobDetail>(`/api/ops/jobs/${id}`),
+  opsRunning: () => get<OpsRunningJob[]>("/api/ops/running"),
   opsDoctor: (probe: boolean) => get<DoctorCheck[]>(`/api/ops/doctor?probe=${probe}`),
   clearCooldown: (host: string) => get<boolean>(`/api/ops/cooldown/${enc(host)}`, "DELETE"),
   discover: () => get<DiscoveryView>("/api/discover"),

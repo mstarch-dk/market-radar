@@ -23,6 +23,7 @@ from .. import locks, net, sourcelog
 from ..config import typed
 from ..config_schema import YahooFundamentals
 from ..paths import CACHE
+from ..progress import tick
 from ..signals import periods
 from . import schedule, store
 from .items import ITEMS
@@ -128,7 +129,7 @@ def _earnings_dates() -> dict[str, pd.Timestamp]:
 
 
 def update_yahoo(stocks: list[str], today: date | None = None, force: bool = False,
-                 tickers: list[str] | None = None) -> str:
+                 tickers: list[str] | None = None, progress=None) -> str:
     """Fetch statements for the tracked `stocks` that are due (or `tickers`, or all with `force`); add what is new."""
     cfg = _cfg()
     today = today or date.today()
@@ -147,7 +148,8 @@ def update_yahoo(stocks: list[str], today: date | None = None, force: bool = Fal
     ccy = _currencies()
 
     frames, errors, throttled = {}, {}, None
-    for t in batch:
+    for i, t in enumerate(batch):
+        tick(progress, i, len(batch), "Statements from Yahoo, per stock")
         try:
             raw = fetch_statements(t)
         except net.Throttled as e:

@@ -6,6 +6,28 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Follow an update live, wherever it runs.** The data update now reports which step of how many runs (prices,
+  names and sectors, FRED, the 16 other sources, the report), the phase within it (done of total), and each
+  problem the moment it is known: a source that failed (its cached data kept), tickers without data or without the
+  last session, tickers Yahoo answered without closes. New `progress.py`; the update's steps are planned up front.
+  - The price download names its phases (new, known, re-based and late tickers) and counts each to the end
+    (before, it reported 0 of N before each batch and never reached N). The slow per-stock steps (Yahoo's
+    screener and lookups, SEC EDGAR, Yahoo statements, names and sectors) count too.
+  - A running job writes its progress and log to the operations log as it goes (`ops.Live`, the new `job_live`
+    table in ops.db; at most every two seconds, a new step or issue at once, a sign of life every 30 s). So the
+    app sees an update the MCP server or a terminal runs, and Claude sees one the app or a terminal runs.
+  - Operations page: *Running now* at the top, for any process's job: step and phase bar, problems so far, every
+    step's outcome, requests and errors so far, the log tail and *not responding* after three minutes without a
+    sign of life. A finished job's log shows its steps and problems. `GET /api/ops/running`.
+  - *Update data* panel: the step and its phase, problems as they happen, the steps, and an update started in a
+    terminal or by Claude, read-only (`elsewhere`; starting another is refused with 409).
+  - `radar run` / `update` print `[4/20] CFTC positioning…`, a long step's progress every five seconds and each
+    problem as it happens (stderr).
+  - MCP `job_status`: `step`, `steps`, `issues`, `issues_total`, `paused_hosts`, and an update another process
+    runs. `/market-brief` now posts a short line on each check while the update runs, says at once what a failed
+    source means for the brief, and sums up the problems when it is done.
+  - A new server no longer marks the MCP server's running update as interrupted (it has a recent sign of life).
+
 - **My trading rules (F12).** Write down the rules you want to trade by and check an action against them: a mirror,
   never a gate (nothing is blocked or sent anywhere). New page *Trading rules* under *Mine*, `radar rules`, and the
   tables `trading_rules` and `rule_checks` in radar.db (an append-only migration).
