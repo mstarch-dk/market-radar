@@ -3,6 +3,7 @@ the CLI's --json prints, JSON without NaN, and what the domain refuses as a tool
 import json
 import threading
 import time
+from datetime import timedelta
 
 import anyio
 import pytest
@@ -250,6 +251,26 @@ def test_a_job_started_here_is_in_the_operations_log(radar, monkeypatch):
     assert st["status"] == "done" and st["log"][-1].endswith("rebuilt")
     assert ok("job_status", kind="report", tail=0)["log"] == []
     assert any(j["kind"] == "report" and j["status"] == "done" for j in ops.jobs())
+
+
+def test_job_status_follows_an_update_a_terminal_runs_with_its_issues_and_paused_hosts(radar, monkeypatch):
+    from radar.progress import Progress
+
+    monkeypatch.setattr(updater, "JOB", updater.UpdateJob(lambda log, progress: None))
+    jid = ops.job_start("cli_run")
+    p = Progress()
+    p.plan(updater.STEPS)
+    p.step("prices", "Prices")
+    p.issue("warn", "no data for 1: XYZ")
+    ops.Live(jid).close(p.snapshot(), ["12:00:00 Updating 3 tickers…"])
+    ops.set_cooldown("query1.finance.yahoo.com", ops.now() + timedelta(minutes=10), "3 × HTTP 429", 1)
+    st = ok("job_status", kind="update")
+    assert st["status"] == "running" and st["elsewhere"] == "cli_run"
+    assert st["step"] == {"i": 1, "n": len(updater.STEPS), "key": "prices", "label": "Prices"}
+    assert st["issues"][0]["message"] == "no data for 1: XYZ" and st["log"] == ["12:00:00 Updating 3 tickers…"]
+    assert st["paused_hosts"][0]["host"] == "query1.finance.yahoo.com"
+    ops.job_finish(jid, "done")
+    assert ok("job_status", kind="update")["status"] == "idle"
 
 
 # ---------------- writes ----------------

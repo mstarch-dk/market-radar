@@ -4,6 +4,13 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 ## Næste version
 
+**Følg en opdatering, mens den kører.** En dataopdatering viser nu, hvilket trin den er nået til (fx trin 4 af 20), hvor langt den er i trinnet, og hvert problem i det øjeblik, det opstår: en kilde der fejler (den beholder sine gemte data), tickers uden data eller uden den seneste handelsdag. Før så du kun et tal for kursdownloaden, og problemerne først i loggen til sidst. Se [Data og opdatering](brugervejledning/data-og-opdatering) og [Drift](brugervejledning/drift#kører-nu).
+
+- **Uanset hvor den er startet.** En opdatering fra Claude (fx til månedsbriefen) eller fra `radar run` i en terminal vises nu i appen: på siden *Operations* under *Running now* og i panelet *Update data*.
+- **Månedsbriefen fortæller undervejs.** Kører du `/market-brief`, skriver Claude en kort linje om, hvor langt opdateringen er, og hvilke problemer der er opstået, og siger med det samme, hvad en fejlet kilde betyder for briefen.
+- **I terminalen** skriver `radar run` hvert trin og hvert problem, når det sker.
+- **Ved opdatering** får driftsloggen (ops.db i cache-mappen) en ny tabel. Du skal ikke gøre noget.
+
 **Mine handelsregler.** Den nye side *Trading rules* under *Mine* er stedet, hvor du skriver de regler ned, du vil handle efter: "ingen aktie over 10 %", "ingen genkøb inden for 30 dage", "aldrig sælge mere end 15 % på en uge". Test en handling, og hver regel siger, om den brydes, er tæt på eller overholdes, med tallene og hvad der skal til for at overholde den. Reglerne er et spejl, aldrig en bom: intet blokeres. Se [Mine handelsregler](brugervejledning/handelsregler).
 
 - **Brud lige nu** vises på siden, som et flag i beholdningstabellen og i månedsbriefen.

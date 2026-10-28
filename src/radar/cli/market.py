@@ -1,7 +1,7 @@
 """Market data and readings: update, report, run, discover, your market views, ticker profiles."""
 import typer
 
-from .common import job, portfolio_ids, to_json
+from .common import job, portfolio_ids, to_json, tracked_job
 from .root import app
 from .server import serve
 
@@ -11,8 +11,8 @@ def update(refresh_constituents: bool = typer.Option(False, help="Re-fetch the S
     """Download new prices (incremental) and macro series. Each source is logged in sources.json (in the cache folder)."""
     from .. import updater
 
-    with job("cli_update") as log:
-        updater.update(log, refresh_constituents)
+    with tracked_job("cli_update") as (log, progress):
+        updater.update(log, refresh_constituents, progress)
 
 
 @app.command(name="report")
@@ -32,11 +32,12 @@ def run(refresh_constituents: bool = False):
     from .. import updater
     from ..datahome import backup
 
-    with job("cli_run") as log:
+    with tracked_job("cli_run") as (log, progress):
+        updater.plan(progress, [*updater.STEPS, updater.REPORT_STEP])
         if (b := backup.daily()):
             log(f"Backup: {b.name}")
-        updater.update(log, refresh_constituents)
-        res = updater.build_report(log)
+        updater.update(log, refresh_constituents, progress)
+        res = updater.build_report(log, progress=progress)
     typer.echo(f"{res['dashboard']} – view it with `uv run radar serve --open`")
 
 

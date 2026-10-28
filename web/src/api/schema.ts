@@ -465,6 +465,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ops/running": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ops Running
+         * @description The jobs running now, whichever process runs them (the app, the MCP server, a terminal), with progress.
+         */
+        get: operations["ops_running_api_ops_running_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ops/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -718,7 +738,8 @@ export interface paths {
         };
         /**
          * Update Status
-         * @description The data refresh started from the app: status, log lines and price-download progress.
+         * @description The data refresh started from the app: status, log lines and progress. While the app runs none, an update
+         *     another process runs (a terminal, the MCP server) is shown instead, with `elsewhere` set.
          */
         get: operations["update_status_api_update_get"];
         put?: never;
@@ -3791,6 +3812,72 @@ export interface components {
             message: string;
         };
         /**
+         * JobIssue
+         * @description A problem met while the job runs: warn (data missing or late), error (a step failed; cached data kept).
+         */
+        JobIssue: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "warn" | "error";
+            /** Source */
+            source?: string | null;
+            /** Message */
+            message: string;
+        };
+        /**
+         * JobProgress
+         * @description A job's progress (progress.Progress): its steps, the running one and its phase, and the newest issues.
+         */
+        JobProgress: {
+            step?: components["schemas"]["JobStep"] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["JobStepRow"][];
+            phase?: components["schemas"]["UpdateProgress"] | null;
+            /**
+             * Issues
+             * @default []
+             */
+            issues: components["schemas"]["JobIssue"][];
+            /**
+             * Issues Total
+             * @default 0
+             */
+            issues_total: number;
+        };
+        /**
+         * JobStep
+         * @description The step running: the i-th of n.
+         */
+        JobStep: {
+            /** I */
+            i: number;
+            /** N */
+            n: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** JobStepRow */
+        JobStepRow: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "running" | "ok" | "failed";
+            /** Message */
+            message?: string | null;
+        };
+        /**
          * JournalMeta
          * @description A journal entry's front matter (missing fields are None, never guessed).
          */
@@ -4601,6 +4688,9 @@ export interface components {
             requests: number;
             /** Errors */
             errors: number;
+            progress?: components["schemas"]["JobProgress"] | null;
+            /** Heartbeat */
+            heartbeat?: string | null;
         };
         /** OpsRequest */
         OpsRequest: {
@@ -4668,6 +4758,39 @@ export interface components {
             cooldown_until?: string | null;
             /** Daily */
             daily: number[];
+        };
+        /**
+         * OpsRunningJob
+         * @description A job running now in any process. `stale`: no sign of life for minutes (its process may have died).
+         */
+        OpsRunningJob: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Started */
+            started: string;
+            /** Finished */
+            finished?: string | null;
+            /** Status */
+            status: string;
+            /** Error */
+            error?: string | null;
+            /** Duration S */
+            duration_s?: number | null;
+            /** Heartbeat */
+            heartbeat?: string | null;
+            /** Quiet S */
+            quiet_s?: number | null;
+            /** Stale */
+            stale: boolean;
+            progress?: components["schemas"]["JobProgress"] | null;
+            /** Log */
+            log: string[];
+            /** Requests */
+            requests: number;
+            /** Errors */
+            errors: number;
         };
         /** OpsSummary */
         OpsSummary: {
@@ -6652,6 +6775,24 @@ export interface components {
             progress?: components["schemas"]["UpdateProgress"] | null;
             /** Error */
             error?: string | null;
+            step?: components["schemas"]["JobStep"] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["JobStepRow"][];
+            /**
+             * Issues
+             * @default []
+             */
+            issues: components["schemas"]["JobIssue"][];
+            /**
+             * Issues Total
+             * @default 0
+             */
+            issues_total: number;
+            /** Elsewhere */
+            elsewhere?: string | null;
             /** Study */
             study?: string | null;
         };
@@ -7230,7 +7371,10 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
-        /** UpdateProgress */
+        /**
+         * UpdateProgress
+         * @description The running phase within a step: done of total.
+         */
         UpdateProgress: {
             /** Done */
             done: number;
@@ -7239,7 +7383,11 @@ export interface components {
             /** Label */
             label: string;
         };
-        /** UpdateStatus */
+        /**
+         * UpdateStatus
+         * @description A job as the app polls it. `elsewhere` names the kind of a job another process runs (cli_run = a terminal,
+         *     update = the MCP server), shown because this one runs none; it can't be stopped or started from here.
+         */
         UpdateStatus: {
             /**
              * Status
@@ -7255,6 +7403,24 @@ export interface components {
             progress?: components["schemas"]["UpdateProgress"] | null;
             /** Error */
             error?: string | null;
+            step?: components["schemas"]["JobStep"] | null;
+            /**
+             * Steps
+             * @default []
+             */
+            steps: components["schemas"]["JobStepRow"][];
+            /**
+             * Issues
+             * @default []
+             */
+            issues: components["schemas"]["JobIssue"][];
+            /**
+             * Issues Total
+             * @default 0
+             */
+            issues_total: number;
+            /** Elsewhere */
+            elsewhere?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -8423,6 +8589,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpsJob"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ops_running_api_ops_running_get: {
+        parameters: {
+            query?: {
+                tail?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpsRunningJob"][];
                 };
             };
             /** @description Validation Error */

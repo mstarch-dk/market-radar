@@ -146,14 +146,17 @@ for one.
   by the package.
 - `cli/`: the `radar` command, one module per command group. A command parses its options, calls one function of
   the module that owns the work and prints the result; rules and lookups live in those modules, for the CLI and
-  the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout.
+  the API alike. A command run as an ops job writes its progress to stderr, so `--json` stays valid on stdout;
+  `common.tracked_job` adds a tracker (`radar run` / `update`: "[4/20] Prices…", the phase every few seconds, each
+  issue) and writes it to the operations log as it runs, for the app and the MCP server to follow.
 - `mcp/`: the MCP server (`radar mcp`, started by `.mcp.json`), the radar as tools for Claude and the skills. It
   runs over stdio, in the client's own process tree, never on a port, and doesn't need `radar serve`. Each tool is a
   function that returns the same view as the matching `--json` command or API route, through `common.tool` (JSON
   without NaN; a domain error becomes a tool error with its message). `home.py`: the data folder, notes, views, the
   summary and discovery scan in slices, study ages, the notebook. `book.py`: portfolios, returns, X-ray,
   attribution, calendar, evidence, ticker profiles. `jobs.py`: the update, the rebuild and a study, run like the
-  app's, checking the same locks. `engine.py`: proposals (`radar.propose`) and the hindsight basket (`radar sim` as
+  app's, checking the same locks; `job_status` shows the steps, phase, issues and paused hosts, and an update
+  another process runs when this one runs none. `engine.py`: proposals (`radar.propose`) and the hindsight basket (`radar sim` as
   a child). `writes.py`: `write_memo` (the notebook's folders only, atomic, never over a document unless asked) and
   `add_trade` (checked like the app, saved only with `confirm`). `server.py` registers them with annotations that
   say which only read, which may replace a file and which reach the network (`tests/test_mcp.py`,
@@ -164,7 +167,10 @@ for one.
   command (allow-listed from `model/artifacts.py`), with its log and a cancel. It shares `study.lock` with
   `radar study …` in a terminal, and it doesn't run during an update or a rebuild.
 - `updater.py`: the update steps behind `radar update` / `run` and the app's *Update data* job. Each source is
-  logged; a failure keeps its cache.
+  logged; a failure keeps its cache. The steps (`STEPS`, `REPORT_STEP`) are planned up front on a
+  `progress.Progress`, each one reports its start and end, and a failure or a ticker without data is an issue the
+  moment it is known. `UpdateJob` writes that state to the operations log as it goes; `elsewhere()` reads an update
+  another process runs.
 - `reporting/`: the report build (see *The report's build*) and what it serves.
   - `report.py`: builds `dashboard.json` and `summary.json`, saves the snapshots, refreshes the A/B test.
   - `dashboard.py`: computes every market-wide reading as data, without side effects.
@@ -312,10 +318,15 @@ fails loudly and keeps its cache. Their terms are in `DATA_LICENSE.md`.
 - `net.py`: the one network layer: per-host pacing and concurrency, retries with backoff, every request recorded,
   a host paused after repeated 429s (shared by the CLI and the server). One honest User-Agent; no proxies or
   identity rotation.
-- `ops.py`: the operations log in `ops.db` (requests, events, jobs, host state). A failed write never breaks the
-  work; nothing here feeds a market reading. Timestamps are UTC with their offset (`ops.timestamp`), so they
+- `ops.py`: the operations log in `ops.db` (requests, events, jobs, host state, and `job_live`: a running job's
+  progress and log, written by `Live` at most every two seconds, a new step or issue at once, with a sign of life
+  every 30 s; `running_jobs()` reads them). A failed write never breaks the work; nothing here feeds a market
+  reading. Timestamps are UTC with their offset (`ops.timestamp`), so they
   compare as text across a change of the clocks; `ops.local` turns one into local time for showing and daily
   grouping, and a day's budget runs from `ops.local_midnight()`.
+- `progress.py`: a long job's progress (planned steps, the running phase, the newest issues). Work reports through
+  `tick` / `issue`, which take a tracker, a plain `progress(done, total)` callback or nothing; `labelled` names a
+  phase for work that only ticks (`ingest.download_bars`).
 - `sourcelog.py`: the update log `sources.json`; a failure keeps the last success.
 - `guard.py`, `locks.py`, `jsonsafe.py`: see *Writing files*.
 - `manifest.py`: the data folder's `market-radar.json` (format, the versions that opened it, its log) and the

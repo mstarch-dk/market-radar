@@ -19,6 +19,20 @@ Er et websted på pause, står der en gul boks under felterne med webstedet, hvo
 
 Siden opdaterer sig selv hvert halve minut.
 
+## Kører nu
+
+Kører der et job lige nu, står det øverst under *Running now*, uanset hvor det er startet: fra appen, fra Claude (fx til månedsbriefen) eller med `radar run` i en terminal. For hvert job ser du:
+
+- hvem der kører det, fx *radar run (a terminal)*, hvornår det startede, hvor mange forespørgsler det har sendt, og hvor mange der fejlede;
+- trinnet og fremskridtet i det, fx "Step 4 of 20: CFTC positioning", med en bjælke;
+- problemerne indtil nu, nyeste sidst: en kilde der fejlede (*error*: den beholder sine gemte data) og tickers uden data eller uden den seneste handelsdag (*warn*);
+- *Steps* med alle trinene: ✓ færdig, ✗ fejlet, › kører nu, · kommer senere;
+- de sidste linjer af loggen.
+
+Mens et job kører, opdaterer afsnittet sig hvert andet sekund. Når jobbet er færdigt, forsvinder det herfra og står under [Job og logs](#job-og-logs).
+
+*Last sign of life* er, hvornår jobbet sidst meldte sig. Et job melder sig mindst hvert halve minut, også i et trin, der arbejder uden at tælle. Har det været stille i over tre minutter, får det mærket *not responding*: processen, der kørte det, er sandsynligvis stoppet (en lukket terminal, et nedbrud). Så kan du starte en ny opdatering.
+
 ## Websteder og kilder
 
 Tabellen under *Sites and sources* har én række pr. kombination af websted (*Host*) og datakilde (*Source*). Knapperne *24 h*, *7 days* og *30 days* vælger vinduet; valget står i adressen som `?days=`.
@@ -55,7 +69,7 @@ Kolonnerne kan filtreres, så du fx kun ser fejl af typen *parse*. Har en fejl e
 
 ## Job og logs
 
-Under *Jobs* står de seneste kørsler: dataopdateringer fra appen (`update`), Discover-scanninger (`discover`) og kørsler fra kommandolinjen (`cli_run`, `cli_update`, `cli_discover`). Hver har status (*done*, *failed*, *running* eller *interrupted*), starttid, varighed og eventuel fejl. *Log* folder jobbets log ud med antal forespørgsler og fejl.
+Under *Jobs* står de seneste kørsler: dataopdateringer fra appen eller Claude (`update`), Discover-scanninger (`discover`) og kørsler fra kommandolinjen (`cli_run`, `cli_update`, `cli_discover`). Hver har status (*done*, *failed*, *running* eller *interrupted*), starttid, varighed og eventuel fejl. *Log* folder jobbets log ud med antal forespørgsler og fejl og, for en opdatering, dens trin og de problemer, den mødte.
 
 *interrupted* betyder, at appen blev lukket, mens jobbet kørte. Det markeres næste gang appen starter.
 

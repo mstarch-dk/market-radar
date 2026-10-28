@@ -431,6 +431,13 @@ nav.tabs::-webkit-scrollbar { display: none; }
 .up-bar { height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 8px; overflow: hidden; }
 .up-bar div { height: 100%; background: var(--accent); transition: width 0.4s; }
 .up-log pre { max-height: 220px; overflow: auto; font-size: 11.5px; background: var(--surface-2); padding: 8px; border-radius: 6px; white-space: pre-wrap; }
+/* a job's live progress: its steps and the issues met so far (JobProgressView) */
+.jp-steps { list-style: none; margin: 8px 0 0; padding: 0; columns: 2 260px; column-gap: 24px; font-size: 12.5px; }
+.jp-steps li { break-inside: avoid; padding: 1px 0; display: flex; gap: 6px; }
+.jp-steps .jp-mark { width: 14px; flex: none; text-align: center; }
+.jp-mark.accent { color: var(--accent); font-weight: 700; }
+.jp-issues { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; }
+.running-job { margin-bottom: 12px; }
 .import-card h2 { font-size: 15px; margin: 0 0 6px; text-transform: none; letter-spacing: 0; color: var(--ink); }
 .import-card ol { padding-left: 18px; color: var(--ink-2); }
 .import-details { margin-top: 24px; }

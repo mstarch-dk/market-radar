@@ -21,6 +21,7 @@ from .. import guard, money, net
 from ..config import discovery_config, typed, write_parquet
 from ..config_schema import Valuation as ValuationSettings
 from ..paths import CACHE, HISTORY
+from ..progress import tick
 from ..values import num
 
 STOCKS_FILE = HISTORY / "valuation" / "stocks.parquet"     # weekly snapshots: history
@@ -185,9 +186,10 @@ def store_snapshot(path, old: pd.DataFrame, new: pd.DataFrame, today: date | Non
     return len(carried)
 
 
-def update_stocks(stocks: list[str], force: bool = False, today: date | None = None) -> str:
+def update_stocks(stocks: list[str], force: bool = False, today: date | None = None, progress=None) -> str:
     """The weekly stock snapshot: Yahoo's screener per exchange, then one-by-one lookups for the tracked `stocks`
-    it missed. An exchange returning fewer names than expected raises (the last snapshot stays)."""
+    it missed. An exchange returning fewer names than expected raises (the last snapshot stays). `progress` hears
+    the exchanges, then the lookups."""
     from ..discovery import scan, sources
 
     cfg = _cfg()
@@ -198,7 +200,9 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
     rng = cfg.pe_range
     rows: dict = {}
     short: list = []
-    for code, c in screen_codes().items():
+    codes = screen_codes()
+    for i, (code, c) in enumerate(codes.items()):
+        tick(progress, i, len(codes), "Yahoo's screener, per exchange")
         qs = [q for q in sources.screen_exchange(code, min_cap=c["min_cap"]) if q.get("quoteType") == "EQUITY"]
         if len(qs) < c["min_count"]:
             short.append(f"{code} {len(qs)} < {c['min_count']}")
@@ -207,7 +211,7 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
     if short:
         raise ValueError("too few names from Yahoo's screener (" + ", ".join(short) + "): keeping the last snapshot")
     missing = [t for t in stocks if t not in rows][: cfg.fallback_max]
-    looked, failed = look_up(missing, fx, rng, rows)
+    looked, failed = look_up(missing, fx, rng, rows, progress)
     df = pd.DataFrame(list(rows.values())).reindex(columns=STOCK_COLS)
     carried = store_snapshot(STOCKS_FILE, old, df, today)
     have = sum(t in rows for t in stocks)
@@ -217,7 +221,7 @@ def update_stocks(stocks: list[str], force: bool = False, today: date | None = N
             + (f"; {carried} carried from this week's earlier snapshot" if carried else ""))
 
 
-def look_up(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> tuple[int, list[str]]:
+def look_up(tickers: list[str], fx: dict, rng: tuple, rows: dict, progress=None) -> tuple[int, list[str]]:
     """Look up names the screener missed, one by one: (how many were added, the ones whose lookup failed)."""
     import logging
 
@@ -225,7 +229,8 @@ def look_up(tickers: list[str], fx: dict, rng: tuple, rows: dict) -> tuple[int, 
 
     logging.getLogger("yfinance").setLevel(logging.CRITICAL)
     n, failed = 0, []
-    for t in tickers:
+    for i, t in enumerate(tickers):
+        tick(progress, i, len(tickers), "Stocks the screener missed, one by one")
         try:
             info = yf.Ticker(t).info or {}
         except Exception:

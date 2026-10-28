@@ -9,8 +9,9 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - `uv run radar ticker <TICKER>`: open one ticker's page, starting the server if needed.
 - Frontend work: run `pnpm -C web dev` (port 5173, proxies `/api` to 8780) next to `radar serve`.
 - The MCP server (`radar mcp`, see [commands.md](commands.md#claude-mcp-server)) is a separate interface on the same
-  feature functions. It doesn't call this API and doesn't need `radar serve` running; a job it starts shows on the
-  *Operations* page, not in the app's progress bar.
+  feature functions. It doesn't call this API and doesn't need `radar serve` running. A job it starts writes its
+  progress to the operations log as it runs (`ops.Live`), so the *Operations* page shows it live and the app's
+  *Update data* panel shows an update it runs, read-only (`elsewhere`); so does `radar run` in a terminal.
 
 ## Contract
 - `src/radar/api_models/` defines every response with `extra="forbid"` (one module per area, every model
@@ -67,11 +68,14 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Operations (`ops.py`, the Operations page): `GET /api/ops/summary?days=` (tiles, rows per host and source with
   errors, 429s, p50/p95, today vs budget, requests per day, cooldowns), `GET
   /api/ops/events?level=&kind=&source=&limit=&before=`, `GET /api/ops/requests?host=&source=&status=&limit=&before=`,
-  `GET /api/ops/jobs`, `GET /api/ops/jobs/{id}` (with its log and request counts), `GET /api/ops/doctor?probe=`
+  `GET /api/ops/jobs`, `GET /api/ops/jobs/{id}` (with its log, request counts and `progress`: the steps and issues,
+  live while it runs), `GET /api/ops/running?tail=` (the jobs running now in any process, with progress, the log
+  tail, requests and errors so far, the last sign of life and `stale` after `ops.STALE_S`, three minutes), `GET /api/ops/doctor?probe=`
   (`radar doctor`; with `probe` every source is contacted once), `DELETE /api/ops/cooldown/{host}` (resume a paused
   host; 404 if it isn't paused). A middleware records every 5xx except 503 ("no data yet") as an `api` event with its
   traceback, and attributes the app's own Yahoo calls to `app:<area>`. At startup the server marks its own jobs left
-  `running` by an earlier server as `interrupted` and prunes the log.
+  `running` by an earlier server as `interrupted` (not one with a recent sign of life: the MCP server runs the same
+  kinds) and prunes the log.
 - `GET /api/coverage` overlays the live `sources.json` (last attempt, success, error, `failing`) on the built section,
   so a failure after the last report shows at once.
 - Notebook (`notebook.py`, read-only): `GET /api/notebook` (briefs, research memos, comparisons, journal entries with
@@ -80,8 +84,10 @@ Python computes every number; the frontend only formats and draws. It is the rad
 - Guide (`guide.py`): `GET /api/guide` (books, parts, chapters, `page_links`, `glossary_links`), `GET
   /api/guide/{book}/{slug}` (Markdown with settings filled in, `headings` with ids, part, prev/next, last change; 404
   for anything not in `guide/guide.yaml`), `GET /api/guide/search?q=` (sections holding every word, with a snippet).
-- `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines,
-  price-download progress; 409 while running).
+- `GET` / `POST /api/update`: the data refresh run from the app (`updater.JOB`: one at a time, log lines; `step` i
+  of n, `progress` the running phase, `steps` with how each ended, the newest `issues` and `issues_total`; 409 while
+  running). While the app runs none, `GET` returns an update another process runs (`elsewhere`: its kind) and
+  `POST` is refused with 409.
 - `GET` / `POST /api/report`: rebuild the readings from the data already downloaded (`updater.REPORT_JOB`, same status
   shape; 409 while an update or another rebuild runs). The dashboard sections carry `outdated` (`{reason: format |
   inputs, changed, rebuilding}`, `dashboard.outdated`; null while the update job runs), shown as a *Rebuild the

@@ -27,7 +27,10 @@ router = APIRouter()
 
 @router.get("/api/update", response_model=UpdateStatus)
 def update_status() -> dict:
-    """The data refresh started from the app: status, log lines and price-download progress."""
+    """The data refresh started from the app: status, log lines and progress. While the app runs none, an update
+    another process runs (a terminal, the MCP server) is shown instead, with `elsewhere` set."""
+    if updater.JOB.state["status"] != "running" and (other := updater.elsewhere()):
+        return other
     return updater.JOB.state
 
 
@@ -37,6 +40,8 @@ def start_update() -> dict:
     study started from the app runs (it reads the prices the update rewrites)."""
     if studyrun.STUDY_JOB.running:
         raise HTTPException(409, "A study is running: update the data when it has finished.")
+    if updater.JOB.state["status"] != "running" and updater.elsewhere():
+        raise HTTPException(409, "An update is already running (in a terminal or from Claude): it shows here.")
     if not updater.JOB.start():
         raise HTTPException(409, "An update is already running.")
     return updater.JOB.state

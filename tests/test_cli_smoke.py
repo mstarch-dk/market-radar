@@ -77,7 +77,7 @@ def test_updates_says_the_check_is_off(fresh):
 def test_run_updates_then_builds_the_report(built, monkeypatch):
     from radar import updater
 
-    monkeypatch.setattr(updater, "update", lambda log, refresh=False: log("updated (stand-in)"))
+    monkeypatch.setattr(updater, "update", lambda log, refresh=False, progress=None: log("updated (stand-in)"))
     assert "radar serve --open" in run("run")
 
 

@@ -10,7 +10,7 @@ Alt sker lokalt. Radaren henter selv data, læser dine porteføljer, markedssyn 
 
 En planlagt opgave i Claude-appen (*Scheduled tasks*) kører den første i hver måned om morgenen:
 
-1. Den opdaterer radaren, ligesom knappen *Update data* (med værktøjet `job_start` eller `uv run radar run`). En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
+1. Den opdaterer radaren, ligesom knappen *Update data* (med værktøjet `job_start` eller `uv run radar run`). Kører du `/market-brief` selv, skriver Claude en kort linje om cirka hvert halve til hele minut: hvilket trin opdateringen er nået til, og hvilke problemer der er opstået (en kilde der fejlede, tickers uden data, et websted på pause). Du kan også følge den på siden [Operations](/ops) under *Running now* (se [Drift](brugervejledning/drift#kører-nu)). En kilde, der fejler, beholder sine gemte data, og briefen siger, hvad det betyder for den. En gang om måneden opretter den også månedens kurv i scorens papirspor (tagget `picks-live`) og bringer de tidligere kurve up to date; se [Test momentumscoren på historikken](brugervejledning/scoretest#papirsporet).
 2. Den læser `summary.json` (i cache-mappens `reports/`), dine markedssyn (`uv run radar views --json`), den seneste Discover-scanning, hvis den er under 10 dage gammel, din investorprofil i `notes/investor.md` og dine læsenoter i `notes/` i datamappen.
 3. Den søger efter årsagerne til det vigtigste på nettet og skriver briefen i `briefs/` i datamappen.
 

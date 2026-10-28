@@ -7,18 +7,57 @@ from .common import Num, Strict
 
 
 class UpdateProgress(Strict):
+    """The running phase within a step: done of total."""
     done: int
     total: int
     label: str
 
 
+class JobStep(Strict):
+    """The step running: the i-th of n."""
+    i: int
+    n: int
+    key: str
+    label: str
+
+
+class JobStepRow(Strict):
+    key: str
+    label: str
+    status: Literal["pending", "running", "ok", "failed"]
+    message: str | None = None
+
+
+class JobIssue(Strict):
+    """A problem met while the job runs: warn (data missing or late), error (a step failed; cached data kept)."""
+    level: Literal["warn", "error"]
+    source: str | None = None
+    message: str
+
+
+class JobProgress(Strict):
+    """A job's progress (progress.Progress): its steps, the running one and its phase, and the newest issues."""
+    step: JobStep | None = None
+    steps: list[JobStepRow] = []
+    phase: UpdateProgress | None = None
+    issues: list[JobIssue] = []
+    issues_total: int = 0
+
+
 class UpdateStatus(Strict):
+    """A job as the app polls it. `elsewhere` names the kind of a job another process runs (cli_run = a terminal,
+    update = the MCP server), shown because this one runs none; it can't be stopped or started from here."""
     status: Literal["idle", "running", "done", "failed"]
     started: str | None = None
     finished: str | None = None
     log: list[str]
     progress: UpdateProgress | None = None
     error: str | None = None
+    step: JobStep | None = None
+    steps: list[JobStepRow] = []
+    issues: list[JobIssue] = []
+    issues_total: int = 0
+    elsewhere: str | None = None
 
 
 class StudyRunStatus(UpdateStatus):
@@ -37,6 +76,19 @@ class OpsJob(Strict):
 
 
 class OpsJobDetail(OpsJob):
+    log: list[str]
+    requests: int
+    errors: int
+    progress: JobProgress | None = None
+    heartbeat: str | None = None
+
+
+class OpsRunningJob(OpsJob):
+    """A job running now in any process. `stale`: no sign of life for minutes (its process may have died)."""
+    heartbeat: str | None = None
+    quiet_s: Num = None
+    stale: bool
+    progress: JobProgress | None = None
     log: list[str]
     requests: int
     errors: int

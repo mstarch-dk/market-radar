@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from radar import net
+from radar.progress import Progress, labelled
 from radar.sources import ingest
 
 # ---------------- Yahoo price download ----------------
@@ -49,9 +50,18 @@ def test_the_download_asks_in_batches_and_concatenates_them(fake_yf):
     progress = []
     out = ingest.download_bars(["A", "B", "C", "D", "E"], date(2026, 10, 1), lambda d, t: progress.append((d, t)))
     assert fake.asked == [["A", "B"], ["C", "D"], ["E"]]
-    assert progress == [(0, 5), (2, 5), (4, 5)]
+    assert progress == [(0, 5), (2, 5), (4, 5), (5, 5)]          # 0 before the first batch, done after each
     assert sorted(out["ticker"].unique()) == ["A", "B", "C", "D", "E"] and len(out) == 15
     assert list(out.columns) == ingest.COLUMNS
+
+
+def test_a_tracker_hears_the_phase_by_name_and_unusable_tickers_at_once(fake_yf):
+    fake_yf(lambda b: _multi(b, A=_bars(adj=False)))
+    p = Progress()
+    ingest.download_bars(["A", "B", "C"], date(2026, 10, 1), labelled(p, "Known tickers (new bars)"))
+    s = p.snapshot()
+    assert s["phase"] == {"done": 3, "total": 3, "label": "Known tickers (new bars)"}
+    assert [i["level"] for i in s["issues"]] == ["warn"] and "A" in s["issues"][0]["message"]
 
 
 def test_a_ticker_missing_from_its_batch_is_skipped(fake_yf):

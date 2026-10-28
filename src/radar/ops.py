@@ -2,6 +2,9 @@
 throttling), job runs with their log, and per-host throttling state. Stored in `ops.db` in the cache folder (SQLite, WAL), which
 can be deleted at any time: nothing here feeds a market reading. The Operations page and `radar ops` read it.
 
+A running job also writes its progress and log as it goes (`Live`, the `job_live` table), so the app, the MCP
+server and a terminal can each follow a job another process runs.
+
 Recording never breaks the work it records: a write that fails (locked or broken database) is dropped with a
 warning on the `radar.ops` logger.
 
@@ -11,10 +14,12 @@ update steps, the discovery scan and the API. Work handed to threads keeps it wh
 from __future__ import annotations
 
 import contextvars
+import json
 import logging
 import sqlite3
 import statistics
 import threading
+import time
 import traceback
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime, timedelta
@@ -61,6 +66,9 @@ MIGRATIONS = [
           f"WHERE {c} IS NOT NULL AND {c} NOT LIKE '%+00:00'"
           for t, c in (("requests", "ts"), ("events", "ts"), ("jobs", "started"), ("jobs", "finished"),
                        ("host_state", "cooldown_until"), ("host_state", "updated"))),
+    # a running job's progress (JSON: progress.Progress's state) and log as it goes, with its last sign of life
+    ("""CREATE TABLE IF NOT EXISTS job_live (
+        job_id INTEGER PRIMARY KEY, heartbeat TEXT NOT NULL, progress TEXT, log TEXT)""",),
 ]
 
 
@@ -215,6 +223,57 @@ def job_finish(job_id: int | None, status: str, error: str | None = None, lines:
            (timestamp(), status, error, "\n".join(lines or []), job_id))
 
 
+LIVE_EVERY = 2.0    # seconds between writes of a job's progress (a new step or issue is written at once)
+LIVE_BEAT = 30.0    # seconds between signs of life while a step reports nothing
+STALE_S = 180       # a running job silent for longer is shown as not responding (its process may be gone)
+
+
+class Live:
+    """A running job's progress and log in ops.db as they change, for other processes to read: at most every
+    `LIVE_EVERY` seconds (an urgent change at once), and a sign of life every `LIVE_BEAT` seconds from a thread
+    while the work is quiet. `close` writes the final state and stops the thread."""
+
+    def __init__(self, job_id: int | None, every: float = LIVE_EVERY, beat: float = LIVE_BEAT):
+        self._id, self._every = job_id, every
+        self._lock = threading.Lock()
+        self._progress: dict | None = None
+        self._lines: list[str] = []
+        self._last = 0.0
+        self._stop = threading.Event()
+        if job_id is not None:
+            self._flush()
+            threading.Thread(target=self._beat, args=(beat,), name="radar-live", daemon=True).start()
+
+    def update(self, progress: dict | None = None, lines: list[str] | None = None, urgent: bool = False) -> None:
+        with self._lock:
+            if progress is not None:
+                self._progress = progress
+            if lines is not None:
+                self._lines = list(lines)
+            due = urgent or time.monotonic() - self._last >= self._every
+        if due:
+            self._flush()
+
+    def close(self, progress: dict | None = None, lines: list[str] | None = None) -> None:
+        self._stop.set()
+        self.update(progress, lines, urgent=True)
+
+    def _beat(self, every: float) -> None:
+        while not self._stop.wait(every):
+            self._flush()
+
+    def _flush(self) -> None:
+        if self._id is None:
+            return
+        with self._lock:
+            self._last = time.monotonic()
+            prog = json.dumps(self._progress, ensure_ascii=False) if self._progress is not None else None
+            text = "\n".join(self._lines)
+        _write("INSERT INTO job_live (job_id, heartbeat, progress, log) VALUES (?,?,?,?) ON CONFLICT(job_id) DO "
+               "UPDATE SET heartbeat = excluded.heartbeat, progress = excluded.progress, log = excluded.log",
+               (self._id, timestamp(), prog, text))
+
+
 @contextmanager
 def job(kind: str, lines: list[str] | None = None):
     """Record a job (start, end, status, log) around a block; its requests and events carry its id. `lines` is
@@ -287,6 +346,7 @@ def prune() -> None:
             old = timestamp(t - timedelta(days=cfg.keep_events_days))
             con.execute("DELETE FROM events WHERE ts < ?", (old,))
             con.execute("DELETE FROM jobs WHERE started < ? AND status != 'running'", (old,))
+            con.execute("DELETE FROM job_live WHERE job_id NOT IN (SELECT id FROM jobs)")
     except sqlite3.Error as e:
         log.warning("ops prune skipped (%s: %s)", type(e).__name__, e)
 
@@ -296,9 +356,12 @@ SERVER_KINDS = ("update", "discover", "report")   # the jobs the server runs; CL
 
 def mark_interrupted() -> None:
     """The server's own jobs still 'running' from an earlier server can't be: a new one starts with none. A CLI
-    run in another process is left alone."""
+    run in another process is left alone, and so is a job with a recent sign of life (the MCP server runs the
+    same kinds)."""
+    fresh = timestamp(now() - timedelta(seconds=STALE_S))
     _write("UPDATE jobs SET status = 'interrupted', finished = COALESCE(finished, started) "
-           f"WHERE status = 'running' AND kind IN ({','.join('?' * len(SERVER_KINDS))})", SERVER_KINDS)
+           f"WHERE status = 'running' AND kind IN ({','.join('?' * len(SERVER_KINDS))}) "
+           "AND id NOT IN (SELECT job_id FROM job_live WHERE heartbeat >= ?)", (*SERVER_KINDS, fresh))
 
 
 def interrupt(kind: str, since: str, error: str) -> None:
@@ -389,13 +452,47 @@ def jobs(limit: int = 50) -> list[dict]:
     return [_job_row(r) for r in _read("SELECT * FROM jobs ORDER BY id DESC LIMIT ?", (limit,))]
 
 
+def _live_row(job_id: int) -> dict | None:
+    rows = _read("SELECT * FROM job_live WHERE job_id = ?", (job_id,))
+    return rows[0] if rows else None
+
+
 def job_detail(job_id: int) -> dict | None:
+    """One job with its log, its requests and errors, and its progress: a running job's as it stands now (its
+    log so far), a finished one's steps and issues."""
     rows = _read("SELECT * FROM jobs WHERE id = ?", (job_id,))
     if not rows:
         return None
     out = _job_row(rows[0], with_log=True)
     out["requests"] = _read("SELECT COUNT(*) AS n FROM requests WHERE job_id = ?", (job_id,))[0]["n"]
     out["errors"] = _read("SELECT COUNT(*) AS n FROM requests WHERE job_id = ? AND ok = 0", (job_id,))[0]["n"]
+    live = _live_row(job_id)
+    out["progress"] = json.loads(live["progress"]) if live and live["progress"] else None
+    out["heartbeat"] = live["heartbeat"] if live else None
+    if live and not out["log"]:
+        out["log"] = live["log"].splitlines() if live["log"] else []
+    return out
+
+
+def running_jobs(tail: int = 20) -> list[dict]:
+    """The jobs running now, in any process, newest first: progress, the last `tail` log lines, requests and
+    errors so far, its last sign of life and whether that is too long ago (`stale`: it may have died; a job from
+    a version without live progress has none and counts as stale)."""
+    t = now()
+    out = []
+    for r in _read("SELECT * FROM jobs WHERE status = 'running' ORDER BY id DESC"):
+        live = _live_row(r["id"])
+        beat = live["heartbeat"] if live else None
+        quiet = (t - datetime.fromisoformat(beat)).total_seconds() if beat else None
+        log_text = (live["log"] if live else None) or ""
+        out.append(_job_row(r) | {
+            "heartbeat": beat, "quiet_s": round(quiet, 1) if quiet is not None else None,
+            "stale": quiet is None or quiet > STALE_S,
+            "progress": json.loads(live["progress"]) if live and live["progress"] else None,
+            "log": log_text.splitlines()[-tail:] if tail > 0 else [],
+            "requests": _read("SELECT COUNT(*) AS n FROM requests WHERE job_id = ?", (r["id"],))[0]["n"],
+            "errors": _read("SELECT COUNT(*) AS n FROM requests WHERE job_id = ? AND ok = 0", (r["id"],))[0]["n"],
+        })
     return out
 
 

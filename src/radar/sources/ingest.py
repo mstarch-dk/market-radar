@@ -14,6 +14,7 @@ from .. import guard, locks, net
 from ..config import typed, write_parquet, write_text
 from ..jsonsafe import dumps
 from ..paths import CACHE, FRED_FILE, FRED_ROLLING_FILE, PRICES_FILE
+from ..progress import issue, labelled, tick
 
 # high/low/close are adjusted for dividends and splits; raw_close is the traded price (split-adjusted only)
 COLUMNS = ["date", "ticker", "high", "low", "close", "raw_close", "volume"]
@@ -30,29 +31,34 @@ def load_prices() -> pd.DataFrame:
 
 
 def download_bars(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
-    """Yahoo daily bars from `start`, in batches; `progress(done, total)` is called after each batch."""
+    """Yahoo daily bars from `start`, in batches. `progress` (a tracker, see progress.py, or `progress(done,
+    total)`) hears 0 before the first batch and done after each, ending at done == total; a batch's tickers
+    without usable closes are reported to a tracker as an issue as soon as the batch is in."""
     net.install_yfinance()
     frames, unusable = [], []
+    tick(progress, 0, len(tickers))
     for i in range(0, len(tickers), BATCH):
         batch = tickers[i:i + BATCH]
-        if progress:
-            progress(i, len(tickers))
         raw = yf.download(batch, start=start.isoformat(), auto_adjust=False, group_by="ticker",
                           threads=True, progress=False)
-        if raw is None or raw.empty:
-            continue
-        if not isinstance(raw.columns, pd.MultiIndex):
-            raw.columns = pd.MultiIndex.from_product([batch, raw.columns])
-        for t in batch:
-            if t not in raw.columns.get_level_values(0):
-                continue
-            if not {"Close", "Adj Close"} <= set(raw[t].columns):
-                unusable.append(t)        # skipped (reported as missing); the others still arrive
-                continue
-            sub = raw[t].dropna(subset=["Close", "Adj Close"])
-            if sub.empty:
-                continue
-            frames.append(adjust(sub.reset_index(), t))
+        if raw is not None and not raw.empty:
+            if not isinstance(raw.columns, pd.MultiIndex):
+                raw.columns = pd.MultiIndex.from_product([batch, raw.columns])
+            bad = []
+            for t in batch:
+                if t not in raw.columns.get_level_values(0):
+                    continue
+                if not {"Close", "Adj Close"} <= set(raw[t].columns):
+                    bad.append(t)         # skipped (reported as missing); the others still arrive
+                    continue
+                sub = raw[t].dropna(subset=["Close", "Adj Close"])
+                if sub.empty:
+                    continue
+                frames.append(adjust(sub.reset_index(), t))
+            if bad:
+                issue(progress, "warn", f"prices: no Close / Adj Close from Yahoo for {', '.join(bad)}")
+            unusable += bad
+        tick(progress, min(i + BATCH, len(tickers)), len(tickers))
     if unusable and not frames:   # no ticker came with both closes: Yahoo's or yfinance's format changed
         raise ValueError(f"no Close / Adj Close columns in Yahoo's answer ({', '.join(unusable[:5])}…): "
                          "has yfinance changed its download format?")
@@ -98,7 +104,8 @@ def _save_from(d: dict[str, str]) -> None:
 
 def update_prices(tickers: list[str], progress=None, start: date | None = None, bench: str | None = None,
                   today: date | None = None) -> dict:
-    """Incremental price update (full history for new tickers). `progress(done, total)` reports batches.
+    """Incremental price update (full history for new tickers). `progress` hears each download's batches, the
+    download named (new tickers, known tickers, re-based, late tickers).
 
     The full history starts `history_years` back, or at `start` when that is earlier (universe.history_start:
     deep enough for your first trade). A stored history that starts later than that is downloaded again in full
@@ -126,16 +133,18 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     deepen = known if legacy else [t for t in known if pd.Timestamp(fetched_from.get(t) or first[t]) > limit]
     known = [t for t in known if t not in deepen]
 
-    full = download_bars(new + deepen, full_start, progress) if new or deepen else pd.DataFrame(columns=COLUMNS)
+    full = (download_bars(new + deepen, full_start, labelled(progress, "New tickers (full history)"))
+            if new or deepen else pd.DataFrame(columns=COLUMNS))
     inc = pd.DataFrame(columns=COLUMNS)
     rebased: list[str] = []
     if known:
         since = pd.Timestamp(last[known].min()).date() - timedelta(days=OVERLAP_DAYS)
-        inc = norm_dates(download_bars(known, since, progress))
+        inc = norm_dates(download_bars(known, since, labelled(progress, "Known tickers (new bars)")))
         rebased = rescaled(existing, inc)
         if rebased:
             inc = inc[~inc["ticker"].isin(rebased)]
-            full = pd.concat([full, download_bars(rebased, full_start)], ignore_index=True)
+            again = download_bars(rebased, full_start, labelled(progress, "Re-based tickers (full history)"))
+            full = pd.concat([full, again], ignore_index=True)
     full = norm_dates(full)
 
     # Yahoo sometimes answers without the latest session for a whole exchange; ask once more for those
@@ -144,7 +153,7 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     late = behind(df, tickers, bench)
     if late:
         since = min(date.fromisoformat(d) for d in late.values()) - timedelta(days=OVERLAP_DAYS)
-        more = norm_dates(download_bars(sorted(late), since))
+        more = norm_dates(download_bars(sorted(late), since, labelled(progress, "Late tickers (asked again)")))
         more = more[~more["ticker"].isin(rescaled(df, more))]   # another basis: the next run downloads it in full
 
     with locks.file_lock(PRICES_FILE, what="the price store is busy: another update is writing it"):

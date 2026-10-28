@@ -13,6 +13,7 @@ from ..api_models import (
     OpsJob,
     OpsJobDetail,
     OpsRequest,
+    OpsRunningJob,
     OpsSummary,
 )
 
@@ -41,6 +42,12 @@ def ops_requests(host: str | None = None, source: str | None = None, status: int
 @router.get("/api/ops/jobs", response_model=list[OpsJob])
 def ops_jobs(limit: int = Query(50, ge=1, le=500)) -> list[dict]:
     return ops.jobs(limit)
+
+
+@router.get("/api/ops/running", response_model=list[OpsRunningJob])
+def ops_running(tail: int = Query(20, ge=0, le=200)) -> list[dict]:
+    """The jobs running now, whichever process runs them (the app, the MCP server, a terminal), with progress."""
+    return ops.running_jobs(tail)
 
 
 @router.get("/api/ops/jobs/{job_id}", response_model=OpsJobDetail)

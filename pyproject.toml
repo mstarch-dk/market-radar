@@ -99,7 +99,7 @@ layers = [
     "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : trading_rules : universe : userstore",
     "discovery : fundamentals : sources : updates",
     "signals",
-    "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : sourcelog : values",
+    "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : progress : sourcelog : values",
 ]
 
 # The linter (CI runs `uv run ruff check`). Lint only, no formatter: the code keeps its own layout.

@@ -62,9 +62,9 @@ def test_a_failing_name_lookup_does_not_stop_the_other_sources(tmp_data, monkeyp
     monkeypatch.setattr(universe, "all_price_tickers", lambda *a, **k: ["A"])
     monkeypatch.setattr(ingest, "update_prices", lambda *a, **k: {"rows": 0, "new": 0, "rebased": [], "missing": [],
                                                                    "behind": {}, "short": {}})
-    monkeypatch.setattr(universe, "names", lambda t: (_ for _ in ()).throw(ValueError("names.csv is broken")))
+    monkeypatch.setattr(universe, "names", lambda t, progress=None: (_ for _ in ()).throw(ValueError("names.csv is broken")))
     monkeypatch.setattr(ingest, "update_fred", lambda series: ran.append("fred") or [])
-    monkeypatch.setattr(updater, "update_external", lambda log: ran.append("external"))
+    monkeypatch.setattr(updater, "update_external", lambda log, progress=None: ran.append("external"))
     lines = []
     updater.update(lines.append)
     assert ran == ["fred", "external"]
@@ -80,11 +80,11 @@ def test_the_prices_step_says_which_tickers_are_late_short_or_missing(tmp_data, 
     monkeypatch.setattr(ingest, "update_prices", lambda *a, **k: {
         "rows": 1234, "new": 1, "asof": "2026-10-16", "behind": set(late), "short": {"S1"}, "deepened": 2,
         "rebased": ["R1"], "missing": ["M1", "M2"]})
-    monkeypatch.setattr(universe, "names", lambda t: None)
-    monkeypatch.setattr(universe, "sectors", lambda t: None)
+    monkeypatch.setattr(universe, "names", lambda t, progress=None: None)
+    monkeypatch.setattr(universe, "sectors", lambda t, progress=None: None)
     monkeypatch.setattr(tracked, "stock_groups", lambda: {})
     monkeypatch.setattr(ingest, "update_fred", lambda series: ["DGS10"])
-    monkeypatch.setattr(updater, "update_external", lambda log: None)
+    monkeypatch.setattr(updater, "update_external", lambda log, progress=None: None)
     updater.update(lambda m: None)
     log = sourcelog.load_log()
     msg = log["prices"]["detail"]

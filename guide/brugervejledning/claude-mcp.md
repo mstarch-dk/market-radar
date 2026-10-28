@@ -51,7 +51,9 @@ Hvert værktøj svarer med det samme som den tilsvarende kommando med `--json`; 
 - **report** bygger rapporten igen ud fra de data, der allerede er hentet;
 - **study** kører et af studierne fra siden *Evidence* (fra nogle minutter til en time).
 
-Der kører kun ét job af hver slags ad gangen, på tværs af appen, terminalen og Claude. Kører et allerede et andet sted, siger værktøjet det i stedet for at starte et til. Et job, Claude starter, vises på siden *Operations* (se [Drift](brugervejledning/drift)), men ikke i appens statuslinje, fordi det kører i Claudes server og ikke i appen.
+`job_status` siger, hvilket trin der kører (fx trin 4 af 20), hvor langt det er, og hvilke problemer der er opstået indtil nu: kilder der fejlede, tickers uden data og websteder på pause. Claude fortæller dig det undervejs, fx under månedsbriefen.
+
+Der kører kun ét job af hver slags ad gangen, på tværs af appen, terminalen og Claude. Kører et allerede et andet sted, siger værktøjet det i stedet for at starte et til, og `job_status` viser så den opdatering, der kører. Et job, Claude starter, vises live på siden *Operations* (se [Drift](brugervejledning/drift#kører-nu)), og en opdatering også i panelet *Update data*.
 
 Lukker du Claude Code, mens et job kører, stopper jobbet. Dine data tager ikke skade, fordi hver fil skrives helt eller slet ikke; start jobbet igen.
 
