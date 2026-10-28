@@ -138,6 +138,14 @@ def demo_home() -> None:
         shutil.copy2(disc, demo.reports / "discovery.json")
     else:
         print("Note: no discovery.json; the Discover page will show its empty state.")
+    # The studies test rules on the market universe (no portfolio in them) and take up to an hour to run: the
+    # Evidence page reads them. Its forward record comes from the demo's own database.
+    studies = [s for s in real.reports.glob("*-study*.json") if s.is_file()]
+    for s in studies:
+        demo.reports.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(s, demo.reports / s.name)
+    if not studies:
+        print("Note: no study reports; the Evidence page will say the studies haven't run.")
     for d in ("notes", "briefs", "research", "journal", "exports"):
         assert not any((demo.home / d).iterdir()), f".demo/home/{d} must be empty"
     assert not (demo.home / home.DB_NAME).exists(), "the demo database starts empty"
@@ -243,6 +251,8 @@ def seed() -> None:
                                         "exposures": t["exposures"], "indicators": t["indicators"],
                                         "template": t["key"], "conviction": v.get("conviction", 3),
                                         "horizon": v.get("horizon", "12m"), "rationale": v.get("rationale")})
+    for symbol, isin in spec.get("isins", {}).items():
+        api("PUT", f"/api/tax/instruments/{symbol}", json={"isin": isin})
     rule_templates = {t["key"]: t for t in api("GET", "/api/rules")["templates"]}
     for r in spec.get("rules", []):
         t = rule_templates[r["template"]]
@@ -255,6 +265,8 @@ def seed() -> None:
           f"{len(spec.get('views', []))} views, {len(spec.get('rules', []))} trading rules. Now `radar run` in .demo/ "
           "(analyst data, dashboard):")
     run(["uv", "run", "--directory", str(DEMO), "radar", "run"])
+    for s in spec.get("simulations", []):
+        run(["uv", "run", "--directory", str(DEMO), "radar", "sim", "picks", "--name", s["name"], *map(str, s["args"])])
     check_demo_db()
 
 
@@ -272,11 +284,13 @@ def check_demo_db() -> None:
         sys.exit("No .demo/home/radar.db: run `seed`.")
     spec = load(SEED)
     want = {p["name"] for p in spec["portfolios"]} | {f["name"] for f in spec.get("forks", [])}
+    # a simulation's arms; a rule-only basket is its own control and has none
+    sims = {f"{s['name']} · {arm}" for s in spec.get("simulations", []) for arm in ("hold", "exits", "control")}
     with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
         have = {r[0] for r in con.execute("SELECT name FROM portfolios")}
-    if have != want:
-        sys.exit(f"Demo database portfolios {sorted(have)} differ from the seed {sorted(want)}.")
-    print(f"Demo database: only the seed's {len(want)} portfolios.")
+    if not want <= have <= want | sims:
+        sys.exit(f"Demo database portfolios {sorted(have)} differ from the seed {sorted(want | sims)}.")
+    print(f"Demo database: only the seed's {len(have)} portfolios.")
 
 
 # ---------------- shots: marketing/shots.yaml → site/img ----------------

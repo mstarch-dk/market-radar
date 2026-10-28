@@ -117,7 +117,8 @@ def ticker_meta(tickers, prices: Prices) -> pd.DataFrame:
                              "sector": top if w >= 0.5 else NOT_LOOKED_THROUGH, "sector_weights": dict(weights)}
         else:
             rows[t] = row | {"class": "fund", "sector": NOT_LOOKED_THROUGH}
-    return pd.DataFrame.from_dict(rows, orient="index")[cols]
+    # object, not pandas' string dtype, which would turn a missing detail_asof (None) into NaN
+    return pd.DataFrame.from_dict(rows, orient="index", dtype=object)[cols]
 
 
 DIMS = ("sector", "region", "currency")

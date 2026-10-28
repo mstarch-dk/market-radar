@@ -140,7 +140,7 @@ td:first-child { font-family: var(--f-mono); font-size: .9rem; white-space: nowr
   .case { padding-block: 20px; }
   .case:first-of-type { padding-top: 0; }
   figure a.shot { box-shadow: none; }
-  #discover, #ticker, #views, #holdings, #returns, #research, #funktioner, #data > header, #start { break-before: page; }
+  #discover, #quality, #ticker, #views, #holdings, #xray, #returns, #tax, #rules, #evidence, #research, #funktioner, #data > header, #start { break-before: page; }
 }
 
 footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); display: flex; flex-direction: column; gap: 8px; max-width: 90ch; }
@@ -158,7 +158,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
   <div class="hero">
     <span class="eyebrow">Trends · rotation · momentum på 1–6 måneder</span>
     <h1>Se hvor markedet roterer hen, og mål hver idé mod verdensindekset</h1>
-    <p class="lede">Market Radar er et personligt analyseværktøj til dig, der investerer selv i frie midler og på aktiesparekonto. Værktøjet samler markedsregime, sektor- og temarotation, momentum og din egen portefølje ét sted. Alt måles op mod MSCI ACWI, så hver idé skal kunne svare på spørgsmålet: <em>er det bedre end bare at eje verdensindekset?</em></p>
+    <p class="lede">Market Radar er et personligt analyseværktøj til dig, der investerer selv i frie midler og på aktiesparekonto. Værktøjet samler markedsregime, sektor- og temarotation, momentum, kvalitet og værdi og din egen portefølje ét sted. Alt måles op mod MSCI ACWI, så hver idé skal kunne svare på spørgsmålet: <em>er det bedre end bare at eje verdensindekset?</em></p>
     <div class="quads" aria-label="De fire faser i en rotationsgraf">
       <span class="q improve">Forbedres</span><span class="q lead">Fører</span><span class="q weak">Svækkes</span><span class="q lag">Halter</span>
     </div>
@@ -180,7 +180,11 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
       </div>
       <div>
         <h3>Ét benchmark, alle beslutninger</h3>
-        <p>Alt måles mod MSCI ACWI, inklusive din egen portefølje. Hver position får en <em>skyggeposition</em>: de samme kroner investeret i ACWI på de samme datoer. Så kan du se, om dine valg har tilført noget i forhold til den passive løsning, opgjort i DKK.</p>
+        <p>Alt måles mod MSCI ACWI, inklusive din egen portefølje. Hver position får en <em>skyggeposition</em>: de samme kroner investeret i ACWI på de samme datoer. Så kan du se, om dine valg har tilført noget i forhold til den passive løsning, opgjort i DKK, og bagefter hvor forskellen kom fra.</p>
+      </div>
+      <div>
+        <h3>Metoden testes, ikke kun aktierne</h3>
+        <p>Scorerne er testet på hver tidligere månedsafslutning, med en holdout-periode, som reglerne aldrig er justeret på, og et t-tal ved hvert gennemsnit. Resultaterne står i appen, også hvor de er svage, og det, der vælges fremad, følges mod ACWI uden mulighed for at rette bagefter.</p>
       </div>
       <div>
         <h3>Sandhed om data</h3>
@@ -188,7 +192,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
       </div>
       <div>
         <h3>Dansk virkelighed indbygget</h3>
-        <p>Tema-ETF’er får et UCITS-alternativ med ISIN, tjekket mod SKATs positivliste. Konti skelner mellem aktiesparekonto (17 % lagerbeskatning) og frie midler (realisation for aktier, lager for positivliste-fonde). Import fra Saxo, Nordnet og Danske Bank.</p>
+        <p>Tema-ETF’er får et UCITS-alternativ med ISIN, tjekket mod SKATs positivliste. Konti skelner mellem aktiesparekonto (17 % lagerbeskatning), frie midler og pension, og et skøn over skatten regnes pr. konto og person. Import fra Saxo, Nordnet og Danske Bank.</p>
       </div>
     </div>
   </section>
@@ -196,7 +200,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
   <section id="brug">
     <header>
       <span class="eyebrow">Hovedanvendelser</span>
-      <h2>Otte måder værktøjet bruges på</h2>
+      <h2>Tretten måder værktøjet bruges på</h2>
     </header>
 
     <div>
@@ -206,14 +210,14 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
           <h3>1. Det ugentlige overblik</h3>
           <p>Start øverst og arbejd dig ned. Rækkefølgen er pointen: først vejret, så hvor pengene flytter hen, så de konkrete navne.</p>
           <ol>
-            <li><b>Regime:</b> er markedet risk-on, risk-off eller blandet? 17 indikatorer stemmer: trend, bredde i fire regioner, nye højder mod nye lavpunkter, volatilitet og VIX-terminsstruktur, kreditspænd, rentekurve og 10-årig rente, dollar, kobber/guld, olie, OECD-cyklus og indtjeningsrevisioner.</li>
+            <li><b>Regime:</b> er markedet risk-on, risk-off eller blandet? 18 indikatorer stemmer: trend, bredde i fire regioner, nye højder mod nye lavpunkter, lige- mod kapitalvægtet indeks, volatilitet og VIX-terminsstruktur, kreditspænd i USA og Europa, rentekurve og 10-årig rente, dollar, kobber/guld, olie, OECD-cyklus og indtjeningsrevisioner.</li>
             <li><b>Rotation:</b> hvilke sektorer, regioner og temaer bevæger sig mod <em>Fører</em>?</li>
             <li><b>Momentum:</b> hvilke aktier er nye i top 20, og hvor klumper de sig sammen?</li>
           </ol>
         </div>
         <figure>
-          <a class="shot" href="img/regime.png" target="_blank" rel="noopener"><img src="img/regime.png" alt="Regime-side med samlet vurdering og graderet indikatortabel" loading="lazy"></a>
-          <figcaption><b>Regime.</b> Samlet vurdering med hver indikators aflæsning, gradering og kontekst. Kun risk-on- og risk-off-stemmer tæller: netto = (on − off) / (on + off), og over +0,33 er risk-on, under −0,33 risk-off. Her giver 6 risk-on og 3 risk-off netto 0,333, lige over grænsen til <em>Risk-on</em>, med 8 neutrale. Linjen under vurderingen siger, hvor mange indikatorer der har friske data.</figcaption>
+          <a class="shot" href="img/regime.png" target="_blank" rel="noopener"><img src="img/regime.png" alt="Regimets indikatortabel med aflæsning, stemme, gradering og kontekst" loading="lazy"></a>
+          <figcaption><b>Regime.</b> Hver indikator med aflæsning, stemme, gradering og kontekst. Kun risk-on- og risk-off-stemmer tæller: netto = (on − off) / (on + off), og over +0,33 er risk-on, under −0,33 risk-off. Den 27. oktober gav 6 risk-on og 3 risk-off netto 0,33 med 9 neutrale, lige over grænsen til <em>Risk-on</em>. Rækker mærket <em>context</em> (momentumafkast, spredning, crash-risiko) og værdiansættelsen vises, men stemmer ikke, medmindre du selv slår værdiansættelsen til.</figcaption>
         </figure>
       </div>
 
@@ -221,7 +225,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
         <div class="pair">
           <figure>
             <a class="shot" href="img/momentum.png" target="_blank" rel="noopener"><img src="img/momentum.png" alt="Momentum-tabel for europæiske large caps med klynger, HELD-markering og kolonnen Views" loading="lazy"></a>
-            <figcaption><b>Momentum-ledere</b> pr. region (USA, Europa, Norden, Asien). Score 0–100 er gennemsnittet af percentilerne for 12-1-måneds-, 6-måneds- og 3-månedsafkast i regionen. Radaren markerer klynger (“Banks – Diversified: 4 navne mod ~2 forventet”), dine egne beholdninger og, i kolonnen <em>Views</em>, de navne, der passer med dine markedssyn.</figcaption>
+            <figcaption><b>Momentum-ledere</b> pr. region (USA, Europa, Norden, Asien). Score 0–100 er gennemsnittet af percentilerne for 12-1-måneds-, 6-måneds- og 3-månedsafkast i regionen. Radaren markerer klynger af navne fra samme branche, dine egne beholdninger og, i kolonnen <em>Views</em>, de navne, der passer med dine markedssyn.</figcaption>
           </figure>
           <figure id="themes">
             <a class="shot" href="img/themes.png" target="_blank" rel="noopener"><img src="img/themes.png" alt="Tematabel med UCITS-alternativ, ISIN og positivliste-status" loading="lazy"></a>
@@ -234,7 +238,7 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
         <div class="txt">
           <span class="who">Ugentligt · når du leder efter nye idéer</span>
           <h3>2. Find navne, før de når radarens egne lister</h3>
-          <p><em>Discover</em> er et bredere net end momentum-siden: ca. 700 nordiske aktier, ca. 1.500 europæiske aktier og ca. 570 UCITS-ETF’er fra positivlisten, scoret med samme formel og rangeret inden for hvert marked. En nordisk small cap konkurrerer altså med nordiske navne, ikke med Nvidia.</p>
+          <p><em>Discover</em> er et bredere net end momentum-siden: ca. 740 nordiske aktier, ca. 1.650 europæiske, de 500 i S&amp;P 500 og ca. 720 UCITS-ETF’er fra positivlisten, scoret med samme formel og rangeret inden for hvert marked. En nordisk small cap konkurrerer altså med nordiske navne, ikke med Nvidia.</p>
           <ul>
             <li><b>Heatmap</b> grupperet efter sektor, land eller størrelse og farvet efter afkast eller score. Feltstørrelsen følger √ markedsværdi, så små selskaber stadig kan ses</li>
             <li><b>Genveje:</b> <em>Under the radar</em>, <em>Emerging</em>, <em>Breakouts</em>, <em>Turnarounds</em> og <em>Leaders</em> sætter tabellens filtre</li>
@@ -261,37 +265,56 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
         </div>
       </div>
 
+      <div class="case" id="quality">
+        <div class="txt">
+          <span class="who">Når momentum ikke er hele historien</span>
+          <h3>3. Kvalitet og værdi ud fra regnskaberne</h3>
+          <p>Siden <em>Quality &amp; value</em> rangerer aktierne på deres regnskaber i stedet for kursen. Regnskaberne kommer fra SEC EDGAR for amerikanske selskaber og fra Yahoo for resten. To scorer fra 0 til 100:</p>
+          <ul>
+            <li><b>Kvalitet:</b> lønsomhed (FCF-margin, ROIC), holdbarhed (stabile marginer og omsætning), balance (nettogæld/EBITDA, rentedækning) og udbytterække</li>
+            <li><b>Værdi:</b> FCF yield, EBIT/EV, shareholder yield og prisen mod selskabets egen historik</li>
+            <li><b>K+V</b> er gennemsnittet. Begge er percentiler blandt selskaber i <b>samme sektor på tværs af regioner</b>, så en dansk medicinalaktie sammenlignes med medicinalaktier i USA og Europa, ikke med danske banker. Banker og forsikring har deres egne nøgletal</li>
+          </ul>
+          <p>Scorerne står også på momentum-siden, i beholdningerne og på tickersiden. En billig aktie kan være billig af en god grund; derfor læses værdi sammen med kvalitet. Kolonnen <em>Basis</em> viser, hvor mange dele en score hviler på.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/quality.png" target="_blank" rel="noopener"><img src="img/quality.png" alt="Top 20 nordiske aktier efter kvalitet plus værdi med nøgletal og kilde" loading="lazy"></a>
+          <figcaption><b>Norden efter K+V.</b> Top 20 med kvalitet, værdi, momentum og nøgletallene bag. Demoens Novo Nordisk står med <em>HELD</em> og Vestas med <em>WATCH</em>. Kolonnen <em>Statements</em> viser kilde og seneste regnskabsperiode; uden for USA er det Yahoo, ofte med kun fire års historik.</figcaption>
+        </figure>
+      </div>
+
       <div class="case" id="ticker">
         <div class="txt">
           <span class="who">Før et køb eller salg</span>
-          <h3>3. Vurdering af én aktie eller ETF</h3>
+          <h3>4. Vurdering af én aktie eller ETF</h3>
           <p>Søg på et hvilket som helst Yahoo-symbol (tast <span class="mono">/</span>). Tickersiden samler det, man ellers skal hente fra fem faner:</p>
           <ul>
-            <li>Kursgraf med 50/200-dages snit, Bollinger, RSI og relativ styrke mod ACWI</li>
+            <li>Kursgraf fra 1 uge til 5 år med 50/200-dages snit, Bollinger, RSI og relativ styrke mod ACWI</li>
             <li>Momentum og trend med rang i aktiegruppen</li>
             <li>Risiko mod ACWI i DKK: beta, alpha, Sharpe/Sortino, max drawdown og faktortilt</li>
             <li>Analytikerkonsensus, EPS-revisioner, værdiansættelse, peers og fondsgennemlysning</li>
-            <li>Regelbaseret stop og take-profit og positionsstørrelse ved 1 % risiko</li>
-            <li>Hvordan navnet passer med dine egne markedssyn</li>
+            <li>Kvalitet og værdi med nøgletal, percentiler og regnskabsår</li>
+            <li>Et gennemgangsniveau ved 200-dages snittet</li>
+            <li>Dine markedssyn, dine noter om navnet og en genvej til at teste et køb mod dine handelsregler</li>
           </ul>
         </div>
         <figure>
-          <a class="shot" href="img/ticker_chart.png" target="_blank" rel="noopener"><img src="img/ticker_chart.png" alt="Tickerside for NVIDIA med kursgraf, stop, take-profit og analytikermål" loading="lazy"></a>
-          <figcaption><b>Tickerprofil.</b> Stop, take-profit og analytikernes middelkursmål tegnet direkte i grafen, med “watch-outs” øverst. Under kursen: RSI og relativ styrke mod ACWI.</figcaption>
+          <a class="shot" href="img/ticker_chart.png" target="_blank" rel="noopener"><img src="img/ticker_chart.png" alt="Tickerside for NVIDIA med kursgraf og analytikermål" loading="lazy"></a>
+          <figcaption><b>Tickerprofil.</b> Niveauer og analytikernes middelkursmål tegnet direkte i grafen, med “watch-outs” øverst. Under kursen: RSI og relativ styrke mod ACWI.</figcaption>
         </figure>
       </div>
 
       <div class="case wide">
         <figure>
-          <a class="shot" href="img/ticker_cards.png" target="_blank" rel="noopener"><img src="img/ticker_cards.png" alt="Kort med kursudvikling, momentum, teknik, stop, risiko mod ACWI og analytikerestimater" loading="lazy"></a>
-          <figcaption><b>Graderede kort.</b> Hver måling får en farve på en nitrinsskala fra advarsel til gunstig, og ordet står altid ved siden af, så farven aldrig er det eneste signal. Stoppet forklarer sig selv linje for linje, og alle fagudtryk har en forklaring, når man holder musen over.</figcaption>
+          <a class="shot" href="img/ticker_cards.png" target="_blank" rel="noopener"><img src="img/ticker_cards.png" alt="Kort med kursudvikling, momentum, teknik, risiko mod ACWI og analytikerestimater" loading="lazy"></a>
+          <figcaption><b>Graderede kort.</b> Hver måling får en farve på en nitrinsskala fra advarsel til gunstig, og ordet står altid ved siden af, så farven aldrig er det eneste signal. Alle fagudtryk har en forklaring, når man holder musen over, med link til lærebogen.</figcaption>
         </figure>
       </div>
 
       <div class="case" id="views">
         <div class="txt">
           <span class="who">Når du har en mening om markedet</span>
-          <h3>4. Dine egne markedssyn, holdt op mod data</h3>
+          <h3>5. Dine egne markedssyn, holdt op mod data</h3>
           <p>De fleste investorer har en række overbevisninger: at AI-investeringerne fortsætter, at forsvarsudgifterne stiger, at renterne falder. På siden <em>My market views</em> skriver du dem ned: hvad du tror, hvor sikker du er (1–5), horisonten, og hvad der ville få dig til at skifte mening. Du kan starte fra færdige skabeloner, hvor modsatte synspunkter står side om side.</p>
           <ul>
             <li><b>Evidens:</b> hvert syn har indikatorer (fx halvledere mod ACWI, 10-årig rente, OECD CLI), og radaren viser, om de seneste tre måneder <em>understøtter</em> eller <em>modsiger</em> det, eller om der mangler data</li>
@@ -312,40 +335,45 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
             <a class="shot" href="img/ticker_views.png" target="_blank" rel="noopener"><img src="img/ticker_views.png" alt="Kortet Your market views på en tickerside" loading="lazy"></a>
             <figcaption><b>På tickersiden:</b> hvilke af dine syn der gælder for navnet, og hvorfor (her via sektoren Technology).</figcaption>
           </figure>
+          <figure class="narrow">
+            <a class="shot" href="img/ticker_quality.png" target="_blank" rel="noopener"><img src="img/ticker_quality.png" alt="Kortet Quality &amp; value for Novo Nordisk med nøgletal og percentiler" loading="lazy"></a>
+            <figcaption><b>Kvalitet og værdi for Novo Nordisk:</b> hvert nøgletal med percentilen blandt sektorens selskaber og regnskabsårene bag. Søjlerne viser placeringen, ikke om tallet er godt i sig selv.</figcaption>
+          </figure>
         </div>
       </div>
 
       <div class="case" id="holdings">
         <div class="txt">
           <span class="who">Løbende</span>
-          <h3>5. Opfølgning på din egen portefølje</h3>
+          <h3>6. Opfølgning på din egen portefølje</h3>
           <p>Handlerne er kilden til sandheden: positioner, gennemsnitskurs inkl. kurtage og afkast regnes ud fra dem. Siden <em>My holdings &amp; watchlist</em> viser for hver position:</p>
           <ul>
             <li>Totalafkast i DKK siden køb (valuta og udbytter med) mod skyggepositionen i ACWI</li>
-            <li>Momentum-score, trend og afstand til 52-ugers top</li>
-            <li>Mekanisk trailing stop (højeste lukkekurs − k × ATR) og kursmål</li>
+            <li>Momentum-score, trend, afstand til 52-ugers top, kvalitet og værdi</li>
+            <li>Et gennemgangsniveau ved 200-dages snittet: en lukkekurs under det er en grund til at se på positionen igen, ikke et salgssignal</li>
+            <li>Flag for et regnskab inden for få dage og for en position, der bryder eller er tæt på en af dine handelsregler</li>
             <li>Watchlist med de samme målinger, og solgte positioner: hvordan aktien har klaret sig, siden du solgte</li>
           </ul>
-          <p>Siden <em>Calendar</em> viser de næste fem uger for det, du ejer og følger: regnskaber, udbyttedage og dine egne gennemgangsdatoer. Hvert punkt siger, <b>hvorfor</b> det er fremhævet, efter faste regler: positionens andel af porteføljen, afstanden til stoppet, svagt momentum og nedjusterede EPS-skøn. Yahoos forventede vindue vises som et vindue, og en aktie uden kendt dato står på en liste for sig i stedet for at forsvinde.</p>
+          <p>Siden <em>Calendar</em> viser de næste 35 dage for det, du ejer og følger: regnskaber, udbyttedage og dine egne gennemgangsdatoer. Hvert punkt siger, <b>hvorfor</b> det er fremhævet, efter faste regler: positionens andel af porteføljen, afstanden til gennemgangsniveauet, svagt momentum og nedjusterede EPS-skøn. Yahoos forventede vindue vises som et vindue, og en aktie uden kendt dato står på en liste for sig i stedet for at forsvinde.</p>
         </div>
         <figure>
-          <a class="shot" href="img/holdings.png" target="_blank" rel="noopener"><img src="img/holdings.png" alt="Beholdningstabel med afkast i DKK mod ACWI, stop og mål" loading="lazy"></a>
-          <figcaption><b>Beholdninger mod ACWI.</b> Kolonnen <em>Since buy (DKK)</em> står ved siden af <em>ACWI (DKK)</em>: de samme kroner i ACWI på de samme datoer. En bred indeksfond får ingen stop eller mål. Demoportefølje.</figcaption>
+          <a class="shot" href="img/holdings.png" target="_blank" rel="noopener"><img src="img/holdings.png" alt="Beholdningstabel med afkast i DKK mod ACWI, kvalitet, værdi og gennemgangsniveau" loading="lazy"></a>
+          <figcaption><b>Beholdninger mod ACWI.</b> Kolonnen <em>Since buy (DKK)</em> står ved siden af <em>ACWI (DKK)</em>: de samme kroner i ACWI på de samme datoer. En bred indeksfond får intet gennemgangsniveau. Demoportefølje.</figcaption>
         </figure>
       </div>
 
       <div class="case wide" id="calendar">
         <figure>
           <a class="shot" href="img/calendar.png" target="_blank" rel="noopener"><img src="img/calendar.png" alt="Kalender med de næste regnskaber for beholdninger og watchlist og grundene til fremhævningen" loading="lazy"></a>
-          <figcaption><b>Kalenderen.</b> Øverst de regnskaber de næste syv dage, der er værd at se på før, med grundene som mærker; nedenfor ugerne med alle datoer. Et stop beskytter ikke mod et kursgab ved et regnskab, så kalenderen viser, hvor et gab ville betyde mest, ikke hvad du skal gøre. Demoportefølje.</figcaption>
+          <figcaption><b>Kalenderen.</b> Øverst de regnskaber de næste syv dage, der er værd at se på før, med grundene som mærker; nedenfor ugerne med alle datoer. Et regnskab kan give et kursgab, som intet niveau beskytter mod, så kalenderen viser, hvor et gab ville betyde mest, ikke hvad du skal gøre. Demoportefølje.</figcaption>
         </figure>
       </div>
 
       <div class="case wide" id="portfolio">
         <div class="pair">
           <figure>
-            <a class="shot" href="img/portfolio.png" target="_blank" rel="noopener"><img src="img/portfolio.png" alt="Porteføljeside med positioner og kontantbeholdning" loading="lazy"></a>
-            <figcaption><b>Porteføljeeditor.</b> Indtast, ret eller slet handler og kontantbevægelser (indskud, udbytte, gebyrer). Hver række tjekkes mod dagens lukkekurs, før den gemmes. Positioner vises samlet eller pr. portefølje, og alt kan eksporteres som CSV.</figcaption>
+            <a class="shot" href="img/portfolio.png" target="_blank" rel="noopener"><img src="img/portfolio.png" alt="Porteføljeside med kontokort og positioner i lokal valuta og DKK" loading="lazy"></a>
+            <figcaption><b>Porteføljen.</b> Et kort pr. konto øverst og fanerne <em>Positions</em>, <em>Transactions</em>, <em>Imports</em>, <em>Accounts</em> og <em>Tax</em>. Positionerne står i egen valuta og i kroner (<em>Value (DKK)</em>), så de kan sorteres efter størrelse. Hver ny handel tjekkes mod dagens lukkekurs og dine handelsregler, før den gemmes, og kurtagen kan udfyldes ud fra kontoens kurtageskema.</figcaption>
           </figure>
           <figure>
             <a class="shot" href="img/import.png" target="_blank" rel="noopener"><img src="img/import.png" alt="Importguide for handler fra Saxo, Nordnet, Danske Bank eller regneark" loading="lazy"></a>
@@ -358,21 +386,55 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
         </div>
       </div>
 
+      <div class="case" id="xray">
+        <div class="txt">
+          <span class="who">Før du lægger nye penge i</span>
+          <h3>7. Røntgen af porteføljen</h3>
+          <p>Siden <em>X-ray</em> viser, hvad dine porteføljer tilsammen er eksponeret mod, og hvor risikoen sidder, målt mod ACWI i kroner med dagens vægte:</p>
+          <ul>
+            <li><b>Eksponering</b> pr. sektor, region og valuta mod ACWI’s vægte (fra iShares’ beholdningsfil). Den aktive vægt er det væddemål, du har lavet mod verdensindekset, bevidst eller ej</li>
+            <li><b>Risiko:</b> volatilitet, beta, tracking error og hver positions andel af den samlede og den aktive risiko, beregnet på 156 ugers afkast i DKK</li>
+            <li><b>Koncentration:</b> det effektive antal positioner og par, der bevæger sig næsten som én</li>
+            <li><b>Stress:</b> dagens vægte lagt på kendte faldperioder som coronakrakket og rentechokket i 2022</li>
+          </ul>
+          <p>Fonde gennemlyses kun, hvor deres vægte er kendt; en bred verdensfond regnes med ACWI’s vægte. Resten står som det er og bliver aldrig gættet. Det er en beskrivelse, ikke en prognose.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/xray.png" target="_blank" rel="noopener"><img src="img/xray.png" alt="X-ray med nøgletal og sektoreksponering mod ACWI" loading="lazy"></a>
+          <figcaption><b>Demoens eksponering.</b> Teknologi vejer 60,8 % mod ACWI’s 31,3 %, en aktiv vægt på +29,5 procentpoint, og tracking error er 15,2 %: en helt anden portefølje end indekset. Seks positioner svarer til 5,4 lige store.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <figure>
+          <a class="shot" href="img/xray_risk.png" target="_blank" rel="noopener"><img src="img/xray_risk.png" alt="Risikobidrag pr. position, koncentration, faktortilt og stresstest" loading="lazy"></a>
+          <figcaption><b>Hvor risikoen sidder.</b> ASML vejer 22,0 %, men bærer 29,2 % af risikoen; verdensfonden vejer 25,9 % og bærer 11,8 %. Stresstabellen viser, at dagens vægte faldt 25,9 % i rentechokket i 2022 mod ACWI’s 13,7 %. Faktortilt er en regression på amerikanske faktor-ETF’er og beskriver, hvordan porteføljen har opført sig.</figcaption>
+        </figure>
+      </div>
+
       <div class="case" id="returns">
         <div class="txt">
           <span class="who">Månedligt · og før du ændrer strategi</span>
-          <h3>6. Afkast over tid, og A/B-test med virtuelle porteføljer</h3>
+          <h3>8. Afkast over tid, hvor det kom fra, og A/B-test</h3>
           <p>Hver konto er en <em>rigtig</em> portefølje med sin skattetype (ASK, frie midler, pension). Siden <em>Returns</em> viser udviklingen over tid i DKK mod ACWI:</p>
           <ul>
             <li><b>Tidsvægtet afkast (TWR):</b> investeringernes eget afkast, uafhængigt af hvornår du satte penge ind</li>
             <li><b>Pengevægtet afkast (MWR):</b> den årlige rente, dine faktiske ind- og udbetalinger gav. Afkast pr. år vises først, når perioden er mindst et år</li>
             <li>ACWI over samme periode og med de samme pengestrømme, forskellen til ACWI og max drawdown</li>
+            <li><b>Attribution:</b> forskellen til ACWI delt op i handel og gebyrer, allokering, udvælgelse og samspil pr. sektor og region (Brinson–Fachler), valuta, og en faktorregression, der siger, om alfaen kan skelnes fra held (t ≥ 2)</li>
           </ul>
-          <p><b>Virtuelle porteføljer</b> tæller ikke med som dine. Lav en kopi af en konto, som den så ud ved lukketid en given dag, og ændr den derfra. Så ser du, hvad en anden beslutning ville have givet fra samme udgangspunkt. Med tags kan flere porteføljer lægges sammen til én linje.</p>
+          <p><b>Virtuelle porteføljer</b> tæller ikke med som dine og har deres egen side, <em>Experiments</em>. Lav en kopi af en konto, som den så ud ved lukketid en given dag, og ændr den derfra. Så ser du, hvad en anden beslutning ville have givet fra samme udgangspunkt. Simuleringer og A/B-testen af kvalitet og værdi mod momentum lander samme sted.</p>
         </div>
         <figure>
           <a class="shot" href="img/returns.png" target="_blank" rel="noopener"><img src="img/returns.png" alt="Returns-siden: udviklingen i to konti over et år mod ACWI" loading="lazy"></a>
           <figcaption><b>Afkast over tid.</b> Begge demokonti fra en fælles start, rebaseret til 100, mod ACWI i DKK. En manglende kurs eller valutakurs giver et hul i linjen, aldrig et nul.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <figure>
+          <a class="shot" href="img/attribution.png" target="_blank" rel="noopener"><img src="img/attribution.png" alt="Attribution: vandfald fra ACWI til porteføljens afkast og effekter pr. sektor" loading="lazy"></a>
+          <figcaption><b>Attribution over et år.</b> Demokontiene lå 4,5 procentpoint efter ACWI. Allokeringen hjalp (+1,55), mens samspillet (−2,63) og valutaen (−2,00) trak ned: overvægten i teknologi valgte papirer, der steg mindre end sektoren. Diagrammet viser effekterne måned for måned. Med under 52 ugers historik regnes ingen faktorregression, og noten siger det.</figcaption>
         </figure>
       </div>
 
@@ -383,27 +445,91 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
             <figcaption><b>A/B-test.</b> Kontoen <em>Frie midler</em> mod en virtuel kopi, hvor NVIDIA blev solgt den dag, kopien blev lavet. Begge linjer starter samme dag, så forskellen skyldes alene den ene beslutning.</figcaption>
           </figure>
           <figure>
-            <a class="shot" href="img/portfolios.png" target="_blank" rel="noopener"><img src="img/portfolios.png" alt="Liste over rigtige og virtuelle porteføljer med tags" loading="lazy"></a>
-            <figcaption><b>Porteføljer.</b> Rigtige og virtuelle porteføljer med tags, kopiering (<em>fork</em>), arkivering og en standardkonto for nye handler.</figcaption>
+            <a class="shot" href="img/experiments.png" target="_blank" rel="noopener"><img src="img/experiments.png" alt="Siden Experiments med en fork og en simuleret kurv" loading="lazy"></a>
+            <figcaption><b>Eksperimenter.</b> Kopien uden NVIDIA (<em>Fork</em>) og en kurv af momentumscorens top 10 valgt for seks måneder siden (<em>Simulation</em>): beholdt gav den +7,7 % mod ACWI’s +12,4 %, med stopreglen fulgt +1,8 %. Én kurv over én periode er et eksempel, ikke et bevis.</figcaption>
           </figure>
         </div>
+      </div>
+
+      <div class="case" id="tax">
+        <div class="txt">
+          <span class="who">I løbet af året og før årsopgørelsen</span>
+          <h3>9. Et skøn over skatten</h3>
+          <p>Fanen <em>Tax</em> på porteføljesiden regner den danske skat af dine egne handler for et indkomstår:</p>
+          <ul>
+            <li><b>Aktiesparekonto og pension</b> hver for sig som ét lagerbeskattet regnskab (17 % på aktiesparekontoen, PAL-skat på pension), med fremført negativ skat</li>
+            <li><b>Frie midler pr. person</b> på tværs af konti, fordi gennemsnitsmetoden og aktieindkomsten opgøres pr. person: realiserede gevinster og tab, udbytte, lager på positivlistefonde og aktieindkomsten mod progressionsgrænsen</li>
+            <li>Hver fond slås op på positivlisten for netop det år, så en ETF, der forlader listen, skifter beskatning</li>
+          </ul>
+          <p>Satserne står med kilde og dato i en konfigurationsfil, og et år uden tjekkede satser viser beløbene, men ingen skat. Det er et estimat, ikke skatterådgivning: udenlandsk kildeskat, overførsel mellem ægtefæller og fradragsbetingelser er ikke med, og din årsopgørelse gælder.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/tax.png" target="_blank" rel="noopener"><img src="img/tax.png" alt="Skatteskøn for 2026 pr. person og konto" loading="lazy"></a>
+          <figcaption><b>Demoens 2026 indtil videre.</b> Aktiesparekontoen har givet 30.375 kr., og skatten er 5.164 kr. (17 %). Salget af SAP gav et tab på 10.810 kr., der fremføres. Personens kort er mærket <em>incomplete</em>: kurserne viser udbytter, som demoen ikke har bogført, og så står udbyttet som ukendt, ikke som 0.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case" id="rules">
+        <div class="txt">
+          <span class="who">Mens det er roligt, og før hver handel</span>
+          <h3>10. Dine egne handelsregler</h3>
+          <p>På siden <em>Trading rules</em> skriver du de regler ned, du vil handle efter: et loft pr. aktie eller tema, en kerne der ikke må komme under et gulv, ingen genkøb kort efter et salg, en afkølingsperiode for salg, exitreglen skrevet før købet. Du kan starte fra skabeloner og skifte tal og begrundelse til dine egne.</p>
+          <ul>
+            <li><b>Test en handling:</b> regel for regel, om et køb eller salg <em>bryder</em>, er <em>tæt på</em> eller <em>overholder</em> reglen, med tallene og hvad der skal til for at overholde den. Mangler et input, står der <em>Unknown</em>, aldrig “overholder”</li>
+            <li><b>Brud lige nu</b> på siden, som flag i beholdningerne, i månedsbriefen og som advarsel, når du registrerer en handel</li>
+            <li><b>Ville reglerne have hjulpet?</b> kører dagens regler på dine egne tidligere handler, beskrivende og uden påstand om signifikans</li>
+          </ul>
+          <p>Reglerne er et spejl, ikke en bom: intet blokeres, og intet sendes til din mægler.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/rules.png" target="_blank" rel="noopener"><img src="img/rules.png" alt="Brud på handelsregler lige nu med tallene bag" loading="lazy"></a>
+          <figcaption><b>Brud lige nu i demoen.</b> ASML vejer 22,0 % mod et loft på 15 %, og AI-chips (SMH og branchen Semiconductors) 38,4 % mod 25 %. Vægte er altid af den investerede værdi i reglens porteføljer, og beskeden siger hvilke.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case wide">
+        <figure>
+          <a class="shot" href="img/rules_check.png" target="_blank" rel="noopener"><img src="img/rules_check.png" alt="Test af et køb af Novo Nordisk for 25.000 kr. mod syv handelsregler" loading="lazy"></a>
+          <figcaption><b>Et køb for 25.000 kr. i Novo Nordisk, testet.</b> Det bryder loftet pr. aktie (højst 5.612 kr. kan være under det), trækker kernen under sit gulv og mangler en exitregel i journalen. En regel, radaren ikke kan tjekke, vises som et spørgsmål til dig. Intet gemmes.</figcaption>
+        </figure>
+      </div>
+
+      <div class="case" id="evidence">
+        <div class="txt">
+          <span class="who">Før du stoler på en score</span>
+          <h3>11. Hvor godt har scorerne virket?</h3>
+          <p>Siden <em>Evidence</em> samler testene af radarens egne metoder:</p>
+          <ul>
+            <li><b>Scorerne på hver tidligere månedsafslutning:</b> rangkorrelation (IC) med afkastet bagefter, femtedele, de bedste 15 mod gennemsnitsaktien og mod ACWI i DKK, før og i en holdout-periode fra oktober 2024, som reglerne aldrig er justeret på. Et t-tal står ved hvert gennemsnit</li>
+            <li><b>Momentumreglen over årtier</b> på 49 amerikanske brancher siden 1926 og udviklede lande siden 1986, data uden survivorship bias fra Kenneth R. French og JKP</li>
+            <li><b>Resultaterne fremad:</b> A/B-testen, månedlige kurve og frosne porteføljeforslag mod ACWI, valgt før afkastet var kendt</li>
+          </ul>
+          <p>Hver rapport har en status (<em>current</em>, <em>old data</em>, <em>older rule</em>, <em>not run yet</em>), og en test kan startes fra siden. Den største begrænsning står der også: universet er dagens, så aktier, der er røget ud, mangler, og det får momentum til at se bedre ud.</p>
+        </div>
+        <figure>
+          <a class="shot" href="img/evidence.png" target="_blank" rel="noopener"><img src="img/evidence.png" alt="Evidens-siden med status pr. test og momentumscorens resultater pr. horisont" loading="lazy"></a>
+          <figcaption><b>Momentumscoren testet</b> på 617 aktier fra 2017. Rangkorrelationen er lille (0,037 ved 6 måneder, t 1,6), mens de bedste 15 har slået ACWI med 14,6 % i gennemsnit over 6 måneder (t 3,7). Det er de samme data, læst ærligt: scoren sorterer toppen bedre end resten af listen.</figcaption>
+        </figure>
       </div>
 
       <div class="case" id="research">
         <div class="txt">
           <span class="who">Valgfrit · kræver Claude Code</span>
-          <h3>7. Skriftlig research og beslutningsdisciplin</h3>
-          <p>Med Claude Code kan radarens data bruges som udgangspunkt for skriftlige analyser. De gemmes som Markdown-filer på din egen computer.</p>
+          <h3>12. Skriftlig research og beslutningsdisciplin</h3>
+          <p>Med Claude Code kan radarens data bruges som udgangspunkt for skriftlige analyser. Claude henter tallene direkte fra radaren som værktøjer (en MCP-server, der følger med), i stedet for at læse hele filer. Det, der gemmer noget, spørger først. Dokumenterne gemmes som Markdown i din datamappe og kan læses på siden <em>Notebook</em>.</p>
           <p>Pointen er ikke at få et svar, men at tvinge tankegangen igennem en fast skabelon: tese, modargumenter, hvad der ville bevise den forkert, og hvordan positionen skal dimensioneres. Bagefter kan du måle beslutningen mod udfaldet.</p>
         </div>
         <div class="tbl">
           <table>
             <thead><tr><th>Kommando</th><th>Resultat</th></tr></thead>
             <tbody>
-              <tr><td>/market-brief</td><td>Dateret brief på ca. 900 ord med kildehenvisninger: hvad har ændret sig i regime, rotation og momentum, hvorfor (webresearch), nye navne fra Discover, dine markedssyn mod data, og hvad det betyder for dine beholdninger og din watchlist.</td></tr>
-              <tr><td>/research NOVO-B.CO</td><td>Researchnotat: tese, momentum- og rotationskontekst, værdiansættelse, UCITS-alternativer, risici, kriterier for at tesen er forkert, og hvilken konto den hører hjemme på.</td></tr>
+              <tr><td>/market-brief</td><td>Dateret brief med kildehenvisninger: hvad har ændret sig i regime, rotation og momentum, hvorfor (webresearch), nye navne fra Discover, kvalitet og værdi, dine markedssyn mod data, de kommende uger, brud på dine regler, og hvad det betyder for dine beholdninger.</td></tr>
+              <tr><td>/research NOVO-B.CO</td><td>Researchnotat: tese, momentum- og rotationskontekst, kvalitet og værdiansættelse, UCITS-alternativer, risici, kriterier for at tesen er forkert, og hvilken konto den hører hjemme på.</td></tr>
               <tr><td>/compare NVDA AMD MU</td><td>Fast scoringsskema inklusive ACWI, bull- og bear-case pr. navn, red team, pre-mortem, størrelse og en beslutningsrapport.</td></tr>
-              <tr><td>/journal · /journal review</td><td>Beslutningsdagbog med tese, horisont og exit-regler, og en månedlig gennemgang af åbne teser mod radarens aktuelle signaler.</td></tr>
+              <tr><td>/journal · /journal review</td><td>Beslutningsdagbog med tese, horisont og exit-regler, tjekket mod dine handelsregler først, og en månedlig gennemgang af åbne teser mod radarens aktuelle signaler.</td></tr>
+              <tr><td>/rules</td><td>Skriv dine handelsregler, test en handling, eller find mønstre i dine egne handler. En regel gemmes først, når du har sagt ja.</td></tr>
+              <tr><td>/propose-portfolio ASK 50000</td><td>Forslag til en spredt kurv af nye aktier for et beløb, med mindst 10.000 kr. pr. aktie og lofter for sektor, region og valuta mod ACWI. Valget låses, før modellens tal ses; notatet sammenligner med ACWI og andre alternativer, og konklusionen kan sagtens være “køb ACWI”.</td></tr>
+              <tr><td>/hindsight 6M</td><td>En kurv valgt, som den kunne være valgt for 1–12 måneder siden ud fra det, radaren vidste dengang, simuleret frem til i dag mod ACWI og tilfældige kurve.</td></tr>
             </tbody>
           </table>
         </div>
@@ -412,8 +538,8 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
       <div class="case" id="positioning">
         <div class="txt">
           <span class="who">Når noget ser for godt ud</span>
-          <h3>8. Krydstjek med cyklus og positionering</h3>
-          <p>Prisbaserede signaler bekræftes eller udfordres af data, der ikke kommer fra kurser: S&amp;P 500-indtjeningsrevisioner (FactSet), OECD’s ledende indikatorer for G20, USA, Europa og Kina, og CFTC-futurespositionering med 3-års percentiler.</p>
+          <h3>13. Krydstjek med cyklus og positionering</h3>
+          <p>Prisbaserede signaler bekræftes eller udfordres af data, der ikke kommer fra kurser: S&amp;P 500-indtjeningsrevisioner (FactSet), OECD’s ledende indikatorer for G20, USA, Europa og Kina, CFTC-futurespositionering med 3-års percentiler og sentiment fra AAII og Cboe.</p>
           <p>Positionering er ikke et timingsignal i sig selv, men den fortæller, hvilken vej en vending ville gøre mest ondt.</p>
         </div>
         <figure>
@@ -430,18 +556,26 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
       <h2>Hvad der er i værktøjet</h2>
     </header>
     <div class="feat">
-      <div><h3>Markedsregime</h3><p>17 indikatorer med <b>risk-on/risk-off-afstemning</b>, graderede aflæsninger og grafer for trend, bredde i fire regioner, VIX og VIX-terminsstruktur, high-yield-spænd, nye højder minus nye lavpunkter, kobber/guld og OECD CLI.</p></div>
+      <div><h3>Markedsregime</h3><p>18 indikatorer med <b>risk-on/risk-off-afstemning</b>, graderede aflæsninger, kontekstrækker for momentum og grafer for trend, bredde i fire regioner, VIX og VIX-terminsstruktur, high-yield-spænd, nye højder minus nye lavpunkter, kobber/guld og OECD CLI.</p></div>
       <div id="rotation"><h3>Rotationsgrafer (RRG)</h3><p>Amerikanske og europæiske sektorer, regioner og lande, temaer og faktorer mod ACWI og, hvor det giver mening, også mod <b>hjemmemarkedet</b> (fx STOXX 600). Justérbar halelængde, labels og filtre.</p></div>
-      <div><h3>Momentum-ledere</h3><p>Ca. 700 aktier og ETF’er på tværs af S&amp;P 500, europæiske large caps, C25 og nordiske large caps samt asiatiske ledere. <b>Klyngedetektion</b>, markering af nye navne og ændring i rang.</p></div>
-      <div><h3>Discover</h3><p>Ca. 2.800 nordiske og europæiske aktier og UCITS-ETF’er fra positivlisten i et <b>heatmap og en screener</b> med færdige filtre, scoret inden for hvert marked.</p></div>
+      <div><h3>Momentum-ledere</h3><p>Godt 700 aktier og ETF’er på tværs af S&amp;P 500, europæiske large caps, C25 og nordiske large caps samt asiatiske ledere. <b>Klyngedetektion</b>, markering af nye navne og ændring i rang.</p></div>
+      <div><h3>Kvalitet og værdi</h3><p>To scorer fra regnskaberne (SEC EDGAR og Yahoo), <b>sammenlignet inden for sektoren på tværs af regioner</b>, med nøgletallene bag og en A/B-test mod momentum, der kører fremad.</p></div>
+      <div><h3>Discover</h3><p>Ca. 3.600 nordiske, europæiske og amerikanske aktier og UCITS-ETF’er fra positivlisten i et <b>heatmap og en screener</b> med færdige filtre, scoret inden for hvert marked.</p></div>
       <div><h3>Temaer med UCITS-tjek</h3><p>Tema-ETF’er (cybersikkerhed, halvledere, uran, forsvar, vand …) med <b>UCITS-alternativ, ISIN og positivliste-status</b> fra SKATs liste.</p></div>
+      <div><h3>Evidens</h3><p>Scorerne testet på hver tidligere månedsafslutning med <b>holdout og t-tal</b>, momentumreglen over årtier og resultaterne fremad mod ACWI. Testene kan startes fra siden.</p></div>
       <div><h3>Mine markedssyn</h3><p>Dine overbevisninger med overbevisningsgrad og “hvad ville ændre min mening”, <b>holdt op mod radarens data</b> og koblet til de tickere, de taler for eller imod.</p></div>
-      <div><h3>Tickerprofil</h3><p>Graf, teknik, risiko mod ACWI i DKK, faktortilt, analytikere og EPS-revisioner, værdiansættelse, peers, <b>fondsgennemlysning</b> og de sidste 20 handelsdage. Hover-kort med sparkline på alle tickerlinks.</p></div>
-      <div><h3>Portefølje og konti</h3><p>Handler og kontantbevægelser indtastes eller <b>importeres</b> fra Saxo, Nordnet, Danske Bank, Yahoo Finance eller et regneark. Konti for ASK, frie midler og pension, automatiske backups og CSV-eksport.</p></div>
-      <div><h3>Afkast over tid</h3><p>TWR og MWR i DKK mod ACWI med de samme pengestrømme, drawdown og <b>virtuelle kopier til A/B-test</b>, grupperet med tags.</p></div>
+      <div><h3>Tickerprofil</h3><p>Graf, teknik, risiko mod ACWI i DKK, faktortilt, analytikere og EPS-revisioner, værdiansættelse, kvalitet og værdi, peers, <b>fondsgennemlysning</b> og de sidste 20 handelsdage. Hover-kort med sparkline på alle tickerlinks.</p></div>
+      <div><h3>Portefølje og konti</h3><p>Handler og kontantbevægelser indtastes eller <b>importeres</b> fra Saxo, Nordnet, Danske Bank, Yahoo Finance eller et regneark. Konti for ASK, frie midler og pension, kurtage-estimat og CSV-eksport.</p></div>
+      <div><h3>Beholdninger og watchlist</h3><p>Afkast i DKK mod <b>skyggeposition i ACWI</b>, gennemgangsniveau, kvalitet og værdi, flag for regnskaber og regelbrud og opfølgning på solgte positioner. Tilføj til watchlist med ☆ overalt.</p></div>
+      <div><h3>X-ray</h3><p>Eksponering mod ACWI pr. sektor, region og valuta, <b>risikobidrag pr. position</b>, tracking error, koncentration, faktortilt og stresstest på dagens vægte.</p></div>
       <div><h3>Kalender</h3><p>Regnskaber og udbyttedage for <b>det, du ejer og følger</b>, og dine egne gennemgangsdatoer, med faste regler for, hvad der fremhæves og hvorfor. Også som bånd på forsiden, flag i beholdningerne og afsnit i månedsbriefen.</p></div>
-      <div><h3>Beholdninger og watchlist</h3><p>Afkast i DKK mod <b>skyggeposition i ACWI</b>, regelbaseret stop og mål, advarselsflag og opfølgning på solgte positioner. Tilføj til watchlist med ☆ overalt.</p></div>
-      <div><h3>Data og dækning</h3><p>Kildernes alder og status, en <b>opdateringsknap</b> med log, forklaring af beregningerne og en liste over blinde vinkler. Tabeller kan sorteres, filtreres og eksporteres som CSV.</p></div>
+      <div><h3>Afkast og attribution</h3><p>TWR og MWR i DKK mod ACWI med de samme pengestrømme, drawdown og <b>attribution</b> af forskellen pr. sektor, region og valuta, med en faktorregression for alfa.</p></div>
+      <div><h3>Eksperimenter</h3><p>Virtuelle porteføljer på en side for sig: <b>kopier af dine konti til A/B-test</b>, simulerede kurve og A/B-testen, hver med beholdning, handler og afkast mod ACWI.</p></div>
+      <div><h3>Skatteskøn</h3><p>Dansk skat pr. konto og person: aktiesparekonto, pension, <b>gennemsnitsmetoden og lager</b> efter årets positivliste, progressionsgrænse og fremførte tab, med kilde på hver sats.</p></div>
+      <div><h3>Handelsregler</h3><p>Dine egne regler, og om en handling bryder dem, <b>regel for regel med tallene</b>. Vist på siden, i beholdningerne, i briefen og når du registrerer en handel.</p></div>
+      <div><h3>Notesbog og Claude</h3><p>Briefs, researchnotater, sammenligninger, forslag og din journal samlet på én side. Claude Code får radarens tal som <b>værktøjer</b>, og det, der gemmer, spørger først.</p></div>
+      <div><h3>Data og drift</h3><p>Kildernes alder og status, en <b>opdateringsknap</b> med log, forklaring af beregningerne og en liste over blinde vinkler. Siden <em>Operations</em> viser hver forespørgsel, fejl og pause.</p></div>
+      <div><h3>Dine data og backup</h3><p>Dine data i en <b>datamappe for sig</b>, uden for programmet: daglig backup (også til en anden mappe), gendannelse, der kan fortrydes, og eksport til CSV, JSON og Markdown.</p></div>
       <div id="interface"><h3>Lokal og privat</h3><p>Kører på din egen computer på <span class="mono">127.0.0.1</span> uden login og uden konto. Dine handler og noter forlader aldrig maskinen. <b>Lyst og mørkt tema</b> og mobil-layout.</p></div>
     </div>
 
@@ -481,15 +615,15 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
     <header>
       <span class="eyebrow">Datagrundlag</span>
       <h2>Hvor tallene kommer fra, og hvad de ikke dækker</h2>
-      <p class="col">Radaren bygger udelukkende på gratis, offentlige kilder: Yahoo Finance (kurser, navne, analytikere), FRED (amerikanske renter, kreditspænd, dollar), CFTC Commitments of Traders, OECD Composite Leading Indicators, FactSet Earnings Insight, SPDR’s S&amp;P 500-beholdninger og SKATs positivliste. Kurserne er dagslukkekurser, justeret for udbytter og splits.</p>
+      <p class="col">Radaren bygger udelukkende på gratis, offentlige kilder: Yahoo Finance (kurser, navne, analytikere, regnskaber og regnskabsdatoer), SEC EDGAR (amerikanske regnskaber), FRED og ECB (renter, kreditspænd, dollar), CFTC Commitments of Traders, OECD Composite Leading Indicators, FactSet Earnings Insight, AAII og Cboe (sentiment), Shiller-CAPE og Damodarans risikopræmie, iShares’ og SPDR’s fondsbeholdninger (bl.a. ACWI’s vægte), Kenneth R. French Data Library og JKP Global Factor Data (lange faktorhistorier) og SKATs positivliste. Kurserne er dagslukkekurser, justeret for udbytter og splits.</p>
     </header>
     <figure>
-      <a class="shot" href="img/data.png" target="_blank" rel="noopener"><img src="img/data.png" alt="Data og dækning: kilder, alder og status" loading="lazy"></a>
-      <figcaption><b>Data og dækning.</b> Hver kilde med dækning, dato, alder mod grænse og status. Forældede input markeres <em>stale</em> og tæller ikke med i regimeafstemningen.</figcaption>
+      <a class="shot" href="img/data_home.png" target="_blank" rel="noopener"><img src="img/data_home.png" alt="Afsnittet Your data med mapperne og backupperne" loading="lazy"></a>
+      <figcaption><b>Dine data for sig.</b> Siden <em>Data &amp; coverage</em> viser datamappen, hvad der ikke kan hentes igen, og backupperne, som tages en gang om dagen og før en ny version første gang bruger dine data. Længere nede står hver kilde med dato, alder mod grænse og status; forældede input markeres <em>stale</em> og tæller ikke med i regimeafstemningen.</figcaption>
     </figure>
     <figure>
       <a class="shot" href="img/blindspots.png" target="_blank" rel="noopener"><img src="img/blindspots.png" alt="Liste over hvad radaren ikke ser" loading="lazy"></a>
-      <figcaption><b>Blinde vinkler</b> står i selve værktøjet: ingen P/E-baseret værdiansættelse i signalerne, ingen fund flows eller sentiment, revisioner kun for S&amp;P 500, survivorship bias i bredde-historikken.</figcaption>
+      <figcaption><b>Blinde vinkler</b> står i selve værktøjet: værdiansættelse fra Yahoos konsensus, revisioner fra FactSet kun for S&amp;P 500, ingen fund flows, makro mest amerikansk, regnskaber fra Yahoo kun ca. fire år tilbage, og survivorship bias i bredde-historikken.</figcaption>
     </figure>
   </section>
 
@@ -503,20 +637,22 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
         <h3><span class="dot" style="background: var(--q-lead)"></span>Det gør værktøjet godt</h3>
         <ul>
           <li>Giver et struktureret, gentageligt overblik over markedet på få minutter i stedet for spredte nyheder og fora.</li>
-          <li>Holder dig ærlig over for benchmark: hver position og hver idé måles mod ACWI i DKK.</li>
-          <li>Tager højde for danske forhold: ASK, frie midler, positivliste og UCITS.</li>
+          <li>Holder dig ærlig over for benchmark: hver position og hver idé måles mod ACWI i DKK, og forskellen forklares.</li>
+          <li>Tester sine egne metoder og viser resultatet, også hvor det er svagt.</li>
+          <li>Tager højde for danske forhold: ASK, frie midler, positivliste, UCITS og et skatteskøn.</li>
           <li>Er gennemsigtigt: hver beregning er forklaret, alle tærskler står i en konfigurationsfil, og manglende data vises som manglende.</li>
-          <li>Koster ikke abonnement, og dine data bliver på din egen computer.</li>
+          <li>Koster ikke abonnement, og dine data bliver på din egen computer, med daglig backup.</li>
         </ul>
       </div>
       <div class="box">
         <h3><span class="dot" style="background: var(--q-lag)"></span>Det skal du vide</h3>
         <ul>
-          <li><b>Det er analyse, ikke rådgivning.</b> Stop og mål er mekaniske regler til eftertanke, ikke anbefalinger.</li>
+          <li><b>Det er analyse, ikke rådgivning.</b> Gennemgangsniveauer og handelsregler er værktøjer til eftertanke, ikke anbefalinger.</li>
           <li>Momentum er en dokumenteret faktor, men den har perioder med skarpe vendinger. Et højt score er et sted at starte research, ikke en købsliste.</li>
-          <li>Yahoo-data er uofficielle og uden kvalitetsgaranti. Kun dagslukkekurser, intet realtid.</li>
-          <li>Makro- og revisionsdata er overvejende amerikanske. Europa ses primært gennem OECD og kurstrends.</li>
-          <li>Ingen skatteberegning og ingen fuld porteføljestyring. Din bank og Yahoo Finance er stadig der, du holder regnskab.</li>
+          <li>Testene bruger dagens aktieunivers, så aktier, der er røget ud, mangler. Det får især momentum til at se bedre ud.</li>
+          <li>Yahoo-data er uofficielle og uden kvalitetsgaranti. Kun dagslukkekurser, intet realtid. Regnskaber uden for USA går kun ca. fire år tilbage.</li>
+          <li>Makro- og revisionsdata er overvejende amerikanske. Europa ses primært gennem OECD, euro-kreditspænd og kurstrends.</li>
+          <li>Skatten er et skøn: udenlandsk kildeskat, overførsel mellem ægtefæller og fradragsbetingelser er ikke med. Din årsopgørelse gælder, og din bank er stadig der, du holder regnskab.</li>
           <li>Brugerfladen er på engelsk, og der kræves en Windows- eller Mac-computer. AI-funktionerne kræver Claude Code.</li>
         </ul>
       </div>
@@ -531,14 +667,15 @@ footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
     <ol class="steps">
       <li><b>Pak zip-filen ud</b> i en mappe, du beholder, fx <span class="mono">Dokumenter\Market Radar</span>.</li>
       <li><b>Dobbeltklik på startfilen</b> (<span class="mono">Start Market Radar.cmd</span> eller <span class="mono">.command</span> på Mac). Første gang sætter den alt op selv på et par minutter.</li>
-      <li><b>Klik “Download market data”</b> på velkomstsiden. Den første hentning af ca. 700 aktier og ETF’er tager 1–5 minutter.</li>
-      <li><b>Tilføj din portefølje</b> (valgfrit): indtast handler eller importér fra din bank. Markér konto som ASK eller frie midler.</li>
+      <li><b>Vælg din datamappe.</b> Som standard <span class="mono">Market Radar</span> i din brugermappe. Har du en ældre version, kopierer appen dine data over og tjekker kopien.</li>
+      <li><b>Klik “Download market data”</b> på velkomstsiden. Den første hentning af godt 700 aktier og ETF’er tager typisk et par minutter.</li>
+      <li><b>Tilføj din portefølje</b> (valgfrit): indtast handler eller importér fra din bank. Markér konto som ASK, frie midler eller pension.</li>
     </ol>
-    <p class="col muted">Data opdateres med ét klik på <em>Update data</em>; en gul bjælke minder dig om det, når data er en uge gamle. Ved en ny version pakker du den ud og kopierer dine datamapper med over.</p>
+    <p class="col muted">Data opdateres med ét klik på <em>Update data</em>; en gul bjælke minder dig om det, når data er en uge gamle. En ny version pakker du bare ud og starter: den finder selv din datamappe og tager en backup, før den bruger dine data.</p>
   </section>
 
   <footer>
-    <p>Skærmbillederne er taget den 14. oktober 2026 med rigtige markedsdata og en <b>fiktiv demoinvestor</b>: en aktiesparekonto (Xtrackers MSCI World og ASML), en frie midler-konto (DSV, Microsoft, Novo Nordisk, NVIDIA og en solgt SAP-position), en virtuel A/B-kopi uden NVIDIA, en watchlist (NKT, Saab, Vestas) og tre markedssyn fra skabelonerne. Det er ikke nogens faktiske beholdninger eller holdninger.</p>
+    <p>Skærmbillederne er taget den 27. oktober 2026 med rigtige markedsdata og en <b>fiktiv demoinvestor</b>: en aktiesparekonto (Xtrackers MSCI World og ASML), en frie midler-konto (DSV, Microsoft, Novo Nordisk, NVIDIA og en solgt SAP-position), en virtuel A/B-kopi uden NVIDIA, en simuleret kurv af momentumscorens top 10 valgt for seks måneder siden, en watchlist (NKT, Saab, Vestas), tre markedssyn og syv handelsregler fra skabelonerne. Det er ikke nogens faktiske beholdninger, holdninger eller regler.</p>
     <p>Market Radar er et analyseværktøj, ikke investeringsrådgivning. Data kommer fra gratis kilder uden garanti. Tjek alt vigtigt, før du handler.</p>
   </footer>
 </div>

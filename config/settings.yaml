@@ -162,7 +162,7 @@ risk:                      # signals/risk.py: weekly returns in DKK
     history_weeks: 156
     min_weeks: 26          # a name with fewer weeks is left out of the model (listed as missing)
     shrink: 0.3            # this share pulled towards a constant-correlation matrix
-  world_funds: [IWDA.AS, IWDA.L, SWDA.L, EUNL.DE, VWCE.DE, VWRL.AS, VWRL.L, ISAC.L, SPYI.DE]  # broad world funds
+  world_funds: [IWDA.AS, IWDA.L, SWDA.L, EUNL.DE, XDWD.DE, VWCE.DE, VWRL.AS, VWRL.L, ISAC.L, SPYI.DE]  # broad world funds
                            # counted with ACWI's weights (an approximation: MSCI World leaves out emerging markets)
   stress:                  # historical episodes replayed on today's weights (only where the price history covers them)
     - {key: covid, label: "Covid crash", start: 2020-02-19, end: 2020-03-23}

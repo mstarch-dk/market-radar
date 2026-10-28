@@ -27,7 +27,7 @@ shots:
   - id: regime
     feature: regime
     path: /regime
-    clip: {css: .page-head, to: {css: h2, has_text: "^Charts", edge: top}}
+    clip: {css: h2, has_text: "^Indicators", to: {css: h2, has_text: "^Charts", edge: top}}
 
   - id: regime_charts
     feature: regime
@@ -107,18 +107,14 @@ shots:
   - id: portfolio
     feature: portfolio
     path: /portfolio
-    clip: {css: .page-head, to: {css: section.group, has_text: "^Positions"}}
-
-  - id: portfolios
-    feature: returns
-    path: /portfolio
-    clip: {css: .card, has_text: "^Portfolios"}
+    clip: {css: .page-head, to: {css: ".card:has(table)"}}
 
   - id: import
     feature: portfolio
-    path: /portfolio
+    path: /portfolio?tab=imports
     actions:
-      - {css: button, has_text: "^Import", do: click, settle: 1000}
+      - {css: button, has_text: "^Import a file", do: click, settle: 1000}
+    clip: {css: .card, has_text: "^Import trades"}
 
   - id: returns
     feature: returns
@@ -135,10 +131,10 @@ shots:
     path: /positioning
     clip: {css: .page-head, to: {css: "h2", has_text: "^Futures positioning", edge: top}}
 
-  - id: data
+  - id: data_home
     feature: data
     path: /data
-    clip: {css: .page-head, to: {css: h2, has_text: "^How the readings", edge: top}}
+    clip: {css: h2, has_text: "^Your data", to: {css: h2, has_text: "^New versions", edge: top}}
 
   - id: blindspots
     feature: data
@@ -167,3 +163,63 @@ shots:
     feature: interface
     path: /me
     viewport: mobile
+
+  - id: quality
+    feature: quality
+    path: /quality
+    clip: {css: "section.group#nordic"}
+
+  - id: ticker_quality
+    feature: quality
+    path: /ticker/NOVO-B.CO
+    wait_for: section.card
+    settle: 2500
+    clip: {css: section.card, has_text: "^Quality & value"}
+
+  - id: evidence
+    feature: evidence
+    path: /evidence
+    clip: {css: .page-head, to: {css: h3, has_text: "^In-sample vs holdout", edge: top}}
+
+  - id: xray
+    feature: xray
+    path: /xray
+    settle: 2500
+    clip: {css: .page-head, to: {css: "section.group:has(h2:text-is('Where the risk sits'))", edge: top}}
+
+  - id: xray_risk
+    feature: xray
+    path: /xray
+    settle: 2500
+    clip: {css: "section.group:has(h2:text-is('Where the risk sits'))", to: {css: h2, has_text: "^Notes", edge: top}}
+
+  - id: attribution
+    feature: returns
+    path: /returns?tab=attribution
+    settle: 2500
+    clip: {css: "section.group:has(h2:text-is('From ACWI to your return'))", to: {css: "section.group:has(h2:text-is('Where it came from')) .card"}, max_height: 1500, pad: 4}
+
+  - id: experiments
+    feature: returns
+    path: /experiments
+    clip: {css: .page-head, to: {css: "section.group .card"}, pad: 4}
+
+  - id: tax
+    feature: tax
+    path: /portfolio?tab=tax
+    settle: 2000
+    clip: {css: section.group, has_text: "^Income year", max_height: 500}   # above the person card's notes
+
+  - id: rules
+    feature: rules
+    path: /rules
+    clip: {css: section.card, has_text: "^Breaks right now"}
+
+  - id: rules_check
+    feature: rules
+    path: /rules
+    actions:
+      - {css: "section.action-check input[aria-label='Ticker']", do: fill, text: NOVO-B.CO, settle: 1200}
+      - {css: "section.action-check input[placeholder='DKK']", do: fill, text: "25000"}
+      - {css: "section.action-check button[type=submit]", settle: 2500}
+    clip: {css: section.action-check}

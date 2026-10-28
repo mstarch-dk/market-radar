@@ -64,6 +64,7 @@ def test_fund_classes(meta):
     assert m.loc["BARE.L", ["class", "sector", "region", "currency"]].tolist() == [
         "fund", ex.NOT_LOOKED_THROUGH, ex.NOT_LOOKED_THROUGH, ex.NOT_LOOKED_THROUGH]
     assert m.loc["S1", ["class", "sector", "region", "currency"]].tolist() == ["stock", "Technology", "us", "USD"]
+    assert m.loc["S1", "detail_asof"] is None                       # None, not pandas' NaN: the API wants str | None
     assert m.loc["RY.TO", ["region", "currency"]].tolist() == ["other", "CAD"]          # Canada: ACWI's "other"
     assert m.loc["NOVO-B.CO", "region"] == "nordic"
     assert m.loc["MYSTERY.L", ["class", "sector", "region", "currency"]].tolist() == ["unknown"] + [ex.UNKNOWN] * 3
