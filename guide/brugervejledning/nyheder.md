@@ -2,7 +2,9 @@
 
 Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der kræves noget af dig, når du opdaterer. Hvordan du opdaterer, står i [Dine data, backup og opdatering](brugervejledning/dine-data#opdatering-til-en-ny-version).
 
-## Næste version
+## 0.4.0
+
+Versionen efter 0.2.0; der er ingen 0.3.0. Du skal ikke gøre noget, når du opdaterer: den nye version finder selv dine data og tager en backup først.
 
 **Følg en opdatering, mens den kører.** En dataopdatering viser nu, hvilket trin den er nået til (fx trin 4 af 20), hvor langt den er i trinnet, og hvert problem i det øjeblik, det opstår: en kilde der fejler (den beholder sine gemte data), tickers uden data eller uden den seneste handelsdag. Før så du kun et tal for kursdownloaden, og problemerne først i loggen til sidst. Se [Data og opdatering](brugervejledning/data-og-opdatering) og [Drift](brugervejledning/drift#kører-nu).
 
@@ -48,7 +50,7 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 - **Indskudsloftet på aktiesparekontoen** måles nu som hos SKAT: mod kontoens værdi den 31. december året før. Har du sat `propose.ask_deposit_cap` eller `propose.ask_cap_year` i din egen `settings.yaml`, så slet dem; loftet står nu i `tax_dk.yaml`.
 - **Din database opdateres** med personer, ISIN-koder og fremførte tab; der tages en backup først. Alle dine konti tilhører personen *Me*, indtil du ændrer det.
 
-**Rettelser.** Siden *X-ray* fejlede med *Internal Server Error*, når en portefølje havde både en fond og aktier; det gør den ikke længere. Xtrackers MSCI World (XDWD.DE) regnes nu som en bred verdensfond som de andre på listen `risk.world_funds`: røntgenbilledet spreder den med ACWI's vægte, og loftet pr. aktie i dine handelsregler tæller den ikke med.
+**Rettelser.** Siden *X-ray* fejlede med *Internal Server Error*, når en portefølje havde både en fond og aktier; det gør den ikke længere. Xtrackers MSCI World (XDWD.DE) regnes nu som en bred verdensfond som de andre på listen `risk.world_funds`: røntgenbilledet spreder den med ACWI's vægte, og loftet pr. aktie i dine handelsregler tæller den ikke med. Peger du en ny version på en datamappe, du allerede har (opsætningsskærmen eller `radar setup --use`), tages der nu en backup, før den nye version ændrer noget, som når du bare starter den.
 
 ## 0.2.0
 

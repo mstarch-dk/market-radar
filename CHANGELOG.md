@@ -4,7 +4,10 @@ What changed in each release, newest first. The user-facing version, in Danish, 
 (`guide/brugervejledning/nyheder.md`). `scripts/release.py prepare X.Y.Z` refuses to bump the version until both
 have a `## X.Y.Z` section; the release workflow uses this file's section as the release notes.
 
-## Unreleased
+## 0.4.0
+
+The radar as tools for Claude, your own trading rules, a tax estimate, a calendar, and live progress for the
+data update wherever it runs. (The version after 0.2.0; there is no 0.3.0.)
 
 - **Follow an update live, wherever it runs.** The data update now reports which step of how many runs (prices,
   names and sectors, FRED, the 16 other sources, the report), the phase within it (done of total), and each
@@ -30,6 +33,9 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 - **X-ray: no longer fails when a holding has no fund data date.** With pandas 3 a missing `detail_asof` became NaN
   instead of None and `/api/xray` answered 500 for any book mixing a fund with stocks.
+- **Pointing a new version at an existing data folder backs it up first.** `radar setup --use` and the setup
+  screen's *use this folder* recorded the new version before the first-start backup, so an older version's data
+  wasn't backed up before the new version changed it. The release's upgrade test caught it.
 - **XDWD.DE (Xtrackers MSCI World) counts as a broad world fund** (`risk.world_funds`): the X-ray spreads it with
   ACWI's weights, and the per-name cap in the trading rules leaves it out, like the other funds on that list.
 

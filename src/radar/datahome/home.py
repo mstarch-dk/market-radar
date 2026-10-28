@@ -296,7 +296,8 @@ def create(home: Path | None = None, cache: Path | None = None, pointer: bool = 
 
 
 def use(home: Path, cache: Path | None = None, pointer: bool = True) -> paths.Locations:
-    """Point this computer at an existing data home (moved, or set up by another version)."""
+    """Point this computer at an existing data home (moved, or set up by another version). The version isn't
+    recorded here: opening the home does that after the backup an older version's data gets first."""
     home = Path(home).expanduser()
     if not (home / manifest.MANIFEST).exists():
         raise HomeError(f"{home} is not a Market Radar data folder (no {manifest.MANIFEST} in it)")
@@ -305,7 +306,6 @@ def use(home: Path, cache: Path | None = None, pointer: bool = True) -> paths.Lo
     if pointer:
         paths.write_pointer(home, cache)
     paths.configure(loc, source="pointer" if pointer else "option")
-    touch(home)
     return loc
 
 
