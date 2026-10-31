@@ -54,6 +54,10 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
 - `config/fee_presets.yaml`: broker fee schedules, each with the date and source of its price list.
 - `config/tax_dk.yaml`: Danish tax rates and limits per income year, each with its source and the day it was
   checked; checked on load against `config_schema.TaxRules` (`portfolios/taxrules.py`).
+- `config/index_funds.yaml`: index funds Yahoo can't look through (mostly Danish investment funds, listed by Yahoo as
+  stocks) and the index each tracks, as a list of countries; `portfolios/exposure.py` counts such a fund as ACWI's
+  holdings in those countries (a hedged share class in its hedge currency). Checked on load against
+  `config_schema.IndexFunds` (`config.index_funds()`).
 - `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
 
 ## Where data lives

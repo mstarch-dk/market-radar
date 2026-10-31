@@ -347,6 +347,10 @@ Eksempler: RSI ({{settings:gauges.rsi14.ticks}} som tærskler), momentumscoren (
 
 Et symbol, der ikke findes på Yahoo, dukker op under *Missing tickers* på siden [Data & coverage](/data).
 
+### index_funds.yaml
+
+`config/index_funds.yaml` holder de indeksfonde, Yahoo ikke kan gennemlyse, mest danske investeringsforeninger, og det indeks, hver følger. Et indeks er en liste af lande. Radaren tæller fonden som ACWI's beholdning i de lande, i [porteføljens røntgen](brugervejledning/xray#sådan-placeres-fondene), attributionen og porteføljeforslagene. `hedged: DKK` betyder, at andelsklassen er valutasikret til kroner. Hver fond er tjekket mod udbyderens faktaark. Tilføjer du en fond, så brug Yahoos symbol og det indeks, der står i fondens faktaark. Et land, der staves forkert, giver en fejl i testene, ikke et stille hul.
+
 ### tax_dk.yaml
 
 `config/tax_dk.yaml` holder de danske satser pr. indkomstår til fanen *Tax*: aktieindkomstens to satser og progressionsgrænsen, aktiesparekontoens sats og indskudsloft, PAL-satsen og reglerne for tab. Hvert tal har sin kilde på skat.dk og den dato, det er tjekket (`verified`). Et år uden afsnit, eller uden `verified`, giver grundlaget uden skat; radaren låner aldrig et andet års tal. Et nyt år tilføjer du ved at kopiere det seneste afsnit og tjekke hvert tal mod kilden. Se [Skat: radarens skatteestimat](brugervejledning/skat).

@@ -4,9 +4,9 @@ from collections import Counter
 import pytest
 
 from radar import universe
-from radar.config import settings, universe_config
+from radar.config import index_funds, settings, universe_config
 from radar.reporting import coverage
-from radar.sources import fxrates, positive_list, tracked
+from radar.sources import constituents, fxrates, positive_list, tracked
 from test_levels import CFG as LEVELS_CFG
 from test_signals import CFG as REGIME_CFG
 
@@ -137,3 +137,19 @@ def test_typed_and_settings_read_the_same_file(monkeypatch):
     raw = with_settings(monkeypatch, backtest={"fee_bps": 3}, history_years=2)
     assert config.settings() is raw and raw["backtest"]["fill"] == "next"         # merged into the file's section
     assert config.typed().backtest.fee_bps == 3 and config.typed().history_years == 2
+
+
+def test_index_funds_name_real_countries_currencies_and_isins():
+    cfg = index_funds()
+    known = set(constituents.COUNTRY_EN.values())
+    for key, d in cfg.indexes.items():
+        listed = [*([] if d.countries == "all" else d.countries), *d.exclude]
+        assert listed or d.countries == "all", key
+        assert set(listed) <= known, (key, set(listed) - known)   # a misspelt country would silently drop out
+    world = set(settings()["risk"]["world_funds"])
+    for t, f in cfg.funds.items():
+        assert t not in world, t                                   # one fund, one way of counting it
+        assert f.hedged is None or f.hedged in fxrates.FX_DKK, t
+        assert f.isin is None or (positive_list.ISIN_RE.match(f.isin) and _isin_ok(f.isin)), t
+    isins = [f.isin for f in cfg.funds.values() if f.isin]
+    assert len(isins) == len(set(isins))

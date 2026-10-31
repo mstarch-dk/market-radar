@@ -1,6 +1,6 @@
-"""What you hold and what it is exposed to: the book in DKK, each name's class (world fund, sector fund, other
-fund, stock), sector / region / currency per name with funds looked through where the data allows, and exposures
-against ACWI's own weights with their coverage."""
+"""What you hold and what it is exposed to: the book in DKK, each name's class (world fund, index fund, sector
+fund, other fund, stock), sector / region / currency per name with funds looked through where the data allows, and
+exposures against ACWI's own weights with their coverage."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from .. import money, universe
-from ..config import typed, universe_config
-from ..sources import external, tracked
+from ..config import index_funds, typed, universe_config
+from ..sources import constituents, external, tracked
 from . import trades
 from .prices import Prices
 
@@ -51,14 +51,36 @@ def look_through() -> set[str]:
     return {t for t in named if t is not None}
 
 
+def diversified() -> set[str]:
+    """Tickers spread over a whole index rather than one company: the world funds and the index funds of
+    config/index_funds.yaml (a per-name cap doesn't apply to them, and the concentration figures say so)."""
+    return look_through() | set(index_funds().funds)
+
+
+def index_weights(index: str, holdings: pd.DataFrame | None) -> dict[str, dict[str, float]] | None:
+    """An index of config/index_funds.yaml as a slice of ACWI's holdings (constituents.acwi_holdings): its weights
+    by sector, region and currency, each summing to 1; None when the holdings are unknown or the slice is empty."""
+    if holdings is None or holdings.empty:
+        return None
+    d = index_funds().indexes[index]
+    country = holdings["country"].map(constituents.country_en)
+    keep = (country.isin(d.countries) if d.countries != "all" else pd.Series(True, index=holdings.index))         & ~country.isin(d.exclude)
+    sub = holdings[keep]
+    total = float(sub["weight"].sum())
+    if total <= 0:
+        return None
+    return {k: {str(g): float(w) / total for g, w in sub.groupby(k)["weight"].sum().items()} for k in DIMS}
+
+
 # Keys that are not a real sector, region or currency: they count against coverage and never as active weight
 WORLD = "fund: world (ACWI's weights)"
 NOT_LOOKED_THROUGH = "fund: not looked through"
 FUND_OTHER = "fund: other"                  # the part of a fund's sector weights that Yahoo leaves unnamed
+SPREAD = "fund: spread over its index"      # an index fund's column when its weights span several keys
 UNKNOWN = "?"
 ACWI_UNKNOWN = "ACWI (look-through unknown)"
-UNCOVERED = frozenset({NOT_LOOKED_THROUGH, FUND_OTHER, UNKNOWN, ACWI_UNKNOWN})
-CLASSES = ("world", "sector_fund", "fund_sectors", "fund", "stock", "unknown")
+UNCOVERED = frozenset({NOT_LOOKED_THROUGH, FUND_OTHER, SPREAD, UNKNOWN, ACWI_UNKNOWN})
+CLASSES = ("world", "index_fund", "sector_fund", "fund_sectors", "fund", "stock", "unknown")
 
 
 def _fund_sectors(raw: dict | None) -> list[tuple[str, float]]:
@@ -70,15 +92,20 @@ def _fund_sectors(raw: dict | None) -> list[tuple[str, float]]:
 
 
 def ticker_meta(tickers, prices: Prices) -> pd.DataFrame:
-    """Per ticker its class, sector, region and currency, and for funds the sector weights to spread over.
+    """Per ticker its class, sector, region and currency, and for funds the weights to spread over
+    (`sector_weights`, `region_weights`, `currency_weights`).
 
-    world: counted with ACWI's weights. sector_fund: a universe.yaml sector ETF (its sector, and its region; USD
+    world: counted with ACWI's weights. index_fund: a fund of config/index_funds.yaml, counted as its index (ACWI's
+    holdings in the index's countries, read from the cache; `detail_asof` is the holdings file's date), with its
+    hedge currency as its currency when the share class is hedged; without ACWI's holdings it is a 'fund' (its
+    hedge currency still known). sector_fund: a universe.yaml sector ETF (its sector, and its region; USD
     for the US map), or a fund with one sector at 50 % or more in its cached Yahoo detail (the detail's weights).
     fund_sectors: another fund whose detail has sector weights. fund: a fund without them. stock: a stock with a
     known sector, its listing region and quote currency. unknown: neither a known fund nor a stock with a sector.
     A fund is looked through or labelled 'fund: not looked through': never filed under where it is listed. The
     fund detail is read from the cache only (no request), and its date is in `detail_asof`."""
-    cols = ["class", "sector", "region", "currency", "sector_weights", "detail_asof"]
+    cols = ["class", "sector", "region", "currency", "sector_weights", "region_weights", "currency_weights",
+            "detail_asof"]
     tickers = list(dict.fromkeys(tickers))
     if not tickers:
         return pd.DataFrame(columns=cols)
@@ -87,13 +114,22 @@ def ticker_meta(tickers, prices: Prices) -> pd.DataFrame:
     etf_sec = _sector_etf_map()
     lt = look_through()
     tracked_funds = {x for e in tracked.etfs() for x in (e.ticker, e.ucits) if x}
+    funds = index_funds().funds
+    held = [funds[t] for t in tickers if t in funds and t not in lt]
+    acwi = constituents.acwi_holdings(offline=True) if held else None
+    slices = {f.index: index_weights(f.index, acwi) for f in held}
+    asof = str(acwi["asof"].iat[0]) if acwi is not None and len(acwi) and acwi["asof"].iat[0] else None
     rows = {}
     for t in tickers:
         s = sec["sector"].get(t) if t in sec.index else None
         s = s if isinstance(s, str) and s else None
-        row: dict[str, Any] = {"sector_weights": None, "detail_asof": None}
+        row: dict[str, Any] = {"sector_weights": None, "region_weights": None, "currency_weights": None,
+                               "detail_asof": None}
         if t in lt:
             rows[t] = row | {"class": "world", "sector": WORLD, "region": WORLD, "currency": WORLD}
+            continue
+        if t in funds:
+            rows[t] = row | _index_row(funds[t].hedged, slices.get(funds[t].index), asof)
             continue
         if t in etf_sec:
             sector, region = etf_sec[t]
@@ -121,6 +157,22 @@ def ticker_meta(tickers, prices: Prices) -> pd.DataFrame:
     return pd.DataFrame.from_dict(rows, orient="index", dtype=object)[cols]
 
 
+def _index_row(hedged: str | None, spread: dict[str, dict[str, float]] | None, asof: str | None) -> dict[str, Any]:
+    """An index fund's ticker_meta row: each dimension's one key when the index sits in one, else SPREAD, with the
+    weights to spread over; a hedged class's currency is its hedge currency."""
+    if spread is None:
+        return {"class": "fund", "sector": NOT_LOOKED_THROUGH, "region": NOT_LOOKED_THROUGH,
+                "currency": hedged or NOT_LOOKED_THROUGH, "currency_weights": {hedged: 1.0} if hedged else None}
+    spread = spread | ({"currency": {hedged: 1.0}} if hedged else {})
+
+    def one(d: str) -> str:
+        w = spread[d]
+        return next(iter(w)) if len(w) == 1 else SPREAD
+
+    return {"class": "index_fund", **{d: one(d) for d in DIMS}, **{f"{d}_weights": spread[d] for d in DIMS},
+            "detail_asof": asof}
+
+
 DIMS = ("sector", "region", "currency")
 
 
@@ -130,9 +182,9 @@ def annotate(df: pd.DataFrame, meta: pd.DataFrame) -> pd.DataFrame:
 
 
 def exposures(values: dict[str, float], meta: pd.DataFrame, acwi: dict | None) -> dict:
-    """Weights by sector, region and currency of DKK `values` (world funds with ACWI's weights, funds by their
-    sector weights), the coverage per dimension (the share of value with a real key, not 'fund: not looked
-    through' or unknown), and active weights vs ACWI for the real keys only."""
+    """Weights by sector, region and currency of DKK `values` (world funds with ACWI's weights, index funds by
+    their index's weights, other funds by their sector weights), the coverage per dimension (the share of value with
+    a real key, not 'fund: not looked through' or unknown), and active weights vs ACWI for the real keys only."""
     lt = look_through()
     total = sum(v for v in values.values() if v)
     weights: dict[str, dict[str, float]] = {d: {} for d in DIMS}
@@ -157,7 +209,7 @@ def exposures(values: dict[str, float], meta: pd.DataFrame, acwi: dict | None) -
             continue
         m = meta.loc[t] if t in meta.index else None
         for d in DIMS:
-            spread = m.get("sector_weights") if m is not None and d == "sector" else None
+            spread = m.get(f"{d}_weights") if m is not None else None
             if isinstance(spread, dict) and spread:
                 for k, w in spread.items():
                     add(d, k, v * w)

@@ -1,0 +1,95 @@
+# Index funds Yahoo can't look through (portfolios/exposure.py): mostly Danish investment funds
+# (investeringsforeninger), which Yahoo lists as stocks with no sector and no fund data. Each fund is counted as the
+# index it tracks, built as a slice of ACWI's own holdings (the iShares MSCI ACWI holdings file): the index's
+# countries, re-weighted to sum to 1. That gives its sector, region and currency weights in the X-ray, the
+# attribution and the proposals. A share class hedged to a currency (`hedged: DKK`) has that currency as its
+# currency exposure; its sectors and regions are still the index's.
+#
+# An approximation, and the notes say so: ACWI holds large and mid caps only, so an "all cap" index is read as its
+# large and mid caps; an ESG, climate or screened variant as its parent index; STOXX Europe 600 as MSCI Europe; a
+# capped Danish index (OMXC Cap, OMXC25, OMXC All Cap) as ACWI's Danish stocks without the cap. Left out on purpose,
+# because a country slice of ACWI would misstate them: small-cap, growth, value, minimum-volatility, GDP-weighted,
+# sector or theme indexes, "ex OMXC20" and narrow leader indexes. A fund that isn't here is never guessed: Yahoo
+# lists it as a stock without a sector, and it stays "unknown".
+#
+# Tickers are Yahoo Finance symbols (the Nasdaq Copenhagen short name + .CO), each checked to have prices on Yahoo
+# (2026-10-28). The benchmark and hedging of each come from the provider's factsheet, annual report or fund page,
+# read 2026-10-28 (Danske Invest, Sparindex, Nordea Invest, BankInvest, Sydinvest). Country names are English, as
+# constituents.country_en gives them. The list is the listed Danish index equity funds found, not anyone's holdings.
+
+indexes:
+  msci_world:
+    label: MSCI World
+    countries: &developed [United States, Canada, United Kingdom, Ireland, Germany, France, Netherlands, Switzerland,
+                           Spain, Italy, Belgium, Austria, Portugal, Denmark, Sweden, Norway, Finland, Japan,
+                           Australia, Hong Kong, Singapore, New Zealand, Israel]
+  msci_acwi:
+    label: MSCI ACWI
+    countries: all
+    note: "India, Brazil and Saudi Arabia are held through funds in ACWI's holdings file, so they are missing from it"
+  msci_usa:
+    label: MSCI USA
+    countries: [United States]
+  msci_north_america:
+    label: MSCI North America
+    countries: [United States, Canada]
+  msci_europe:
+    label: MSCI Europe
+    countries: &europe [United Kingdom, Ireland, Germany, France, Netherlands, Switzerland, Spain, Italy, Belgium,
+                        Austria, Portugal, Denmark, Sweden, Norway, Finland]
+  msci_nordic:
+    label: MSCI Nordic
+    countries: [Denmark, Sweden, Norway, Finland]
+  denmark:
+    label: Danish stocks
+    countries: [Denmark]
+    note: "read as ACWI's Danish large and mid caps, without the index's cap or its smaller companies"
+  msci_germany:
+    label: MSCI Germany
+    countries: [Germany]
+  msci_japan:
+    label: MSCI Japan
+    countries: [Japan]
+  msci_pacific_ex_japan:
+    label: MSCI Pacific ex Japan
+    countries: [Australia, Hong Kong, Singapore, New Zealand]
+  msci_em:
+    label: MSCI Emerging Markets
+    countries: all
+    exclude: *developed
+    note: "India, Brazil and Saudi Arabia are held through funds in ACWI's holdings file, so the slice leaves them out
+      and leans towards China, Taiwan and Korea"
+
+funds:
+  # Danske Invest (annual report 2025, factsheets 2026-10-28)
+  DKIGI.CO: {name: Danske Invest Global Indeks KL DKK d, index: msci_world, isin: DK0010263052}
+  DKIGIADKKH.CO: {name: Danske Invest Global Indeks Akk KL DKK h, index: msci_world, hedged: DKK, isin: DK0016248222}
+  DKIGI2AKK.CO: {name: Danske Invest Global Indeks 2 Akk, index: msci_world, isin: DK0063068028}
+  DKIUSAIKLDKKD.CO: {name: Danske Invest USA Indeks KL DKK d, index: msci_usa, isin: DK0010257757}
+  DKIUSAIAKKDKKH.CO: {name: Danske Invest USA Indeks Akk KL DKK h, index: msci_usa, hedged: DKK, isin: DK0016290349}
+  DKIEUIX.CO: {name: Danske Invest Europa Indeks KL DKK d, index: msci_europe, isin: DK0010266311}
+  DKIDKIX.CO: {name: Danske Invest Danmark Indeks KL DKK d (OMX Copenhagen Cap), index: denmark, isin: DK0010266238}
+  # formerly Fjernøsten Indeks (MSCI AC Asia ex Japan): counted with today's benchmark, also for earlier dates
+  DKINMAI.CO: {name: Danske Invest Nye Markeder Indeks KL DKK d, index: msci_em, isin: DK0010207141}
+  # Sparindex (sparindex.dk fund pages)
+  SPIIMA.CO: {name: Sparindex INDEX MSCI ACWI, index: msci_acwi, isin: DK0064866222}
+  SPVIGAKL.CO: {name: Sparindex INDEX Globale Aktier KL (Morningstar Global All Cap), index: msci_acwi, isin: DK0060747822}
+  SPVIBGKL.CO: {name: Sparindex INDEX Bæredygtige Global KL (MSCI ACWI Climate Choice), index: msci_acwi, isin: DK0060747905}
+  SPIDJB.CO: {name: Sparindex INDEX Dow Jones Best-in-Class World KL, index: msci_acwi, isin: DK0010297464}
+  SPVBUSAKL.CO: {name: Sparindex INDEX Bæredygtige USA KL (MSCI USA Climate Choice), index: msci_usa, isin: DK0060748200}
+  SPIISE.CO: {name: Sparindex INDEX STOXX Europe 600, index: msci_europe, isin: DK0064866149}
+  SPVBEUKL.CO: {name: Sparindex INDEX Bæredygtige Europa KL (MSCI Europe Climate Choice), index: msci_europe, isin: DK0060748044}
+  SPIBJAKL.CO: {name: Sparindex INDEX Bæredygtige Japan KL (MSCI Japan Climate Choice), index: msci_japan, isin: DK0010297977}
+  SPIEMIKL.CO: {name: Sparindex INDEX Emerging Markets KL, index: msci_em, isin: DK0060300762}
+  SPIC25KL.CO: {name: Sparindex INDEX OMX C25 KL, index: denmark, isin: DK0060442556}
+  # Nordea Invest (nordeafunds.com)
+  NDIGAIKL1.CO: {name: Nordea Invest Globale Aktier Indeks KL 1, index: msci_world, isin: DK0060451623}
+  # BankInvest (annual report 2024, prospectus 2025)
+  BXIGAI.CO: {name: BIX Globale Aktier Indeks KL, index: msci_world, isin: DK0061133709}
+  BXIGAIAKKA.CO: {name: BIX Globale Aktier Indeks Akk. A, index: msci_world, isin: DK0063180534}
+  BXIUSAAIA.CO: {name: BIX USA Aktier Indeks A (screened), index: msci_usa, isin: DK0061279163}
+  BXIDKAIA.CO: {name: "BIX Danske Aktier Indeks A (OMX Copenhagen Cap, screened)", index: denmark, isin: DK0061532322}
+  BXIDKAIAA.CO: {name: "BIX Danske Aktier Indeks Akk. A (OMX Copenhagen Cap, screened)", index: denmark, isin: DK0061532595}
+  # Sydinvest (prospectus August 2026)
+  SYIIDKADKK.CO: {name: Sydinvest Indeks Danmark A DKK (OMXC All Cap), index: denmark, isin: DK0061541232}
+  SYIITYADKK.CO: {name: Sydinvest Indeks Tyskland A DKK, index: msci_germany, isin: DK0060033116}

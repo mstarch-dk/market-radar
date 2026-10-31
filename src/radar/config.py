@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import yaml
 
 if TYPE_CHECKING:
-    from .config_schema import Settings
+    from .config_schema import IndexFunds, Settings
 
 ROOT = Path(__file__).resolve().parents[2]   # the install folder: app files only; data lives where paths.py says
 CONFIG = ROOT / "config"
@@ -55,6 +55,14 @@ def universe_config() -> dict:
 @cache
 def discovery_config() -> dict:
     return load_yaml("discovery.yaml")
+
+
+@cache
+def index_funds() -> IndexFunds:
+    """config/index_funds.yaml as the checked model: the funds counted as the index they track."""
+    from .config_schema import check_index_funds
+
+    return check_index_funds(load_yaml("index_funds.yaml"))
 
 
 def _tmp(path: Path) -> Path:

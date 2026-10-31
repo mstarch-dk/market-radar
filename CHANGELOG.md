@@ -28,6 +28,22 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
   - Guide: a new chapter *Scout: hypoteser fra markedets snak* and a textbook chapter *Rygter, opmærksomhed og
     fortællinger*. The open web, searched by Claude, is listed in `DATA_LICENSE.md` (links and own summaries only).
 
+- **Danish index funds are looked through in the X-ray.** Yahoo lists Danish investment funds
+  (investeringsforeninger) as stocks with no sector and no fund data, so they showed as `unknown`. The new
+  `config/index_funds.yaml` maps 26 listed Danish index equity funds (Danske Invest, Sparindex, Nordea Invest,
+  BankInvest, Sydinvest) to the index each tracks, from the providers' factsheets and reports. An index is a list
+  of countries, and the fund is counted as ACWI's holdings in them (the iShares ACWI file the X-ray already
+  reads), re-weighted to 1. No new data source.
+  - New class `index_fund` in `exposure.ticker_meta`, with region and currency weights next to the sector
+    weights; `exposures` spreads every dimension. A share class hedged to DKK (`hedged: DKK`) counts as DKK under
+    currency, with the index's sectors and regions.
+  - Attribution spreads index funds by their index's sector, region and currency mix.
+  - Index funds count as diversified (`exposure.diversified`): the per-name cap rule doesn't apply to them, and
+    the concentration card's world-fund weight includes them.
+  - The X-ray notes say what each held index fund is counted as, and the index's caveat (large and mid caps only;
+    India, Brazil and Saudi Arabia missing from emerging markets). Small-cap, style, minimum-volatility, sector
+    and theme index funds are left out on purpose: a country slice would misstate them.
+
 ## 0.4.0
 
 The radar as tools for Claude, your own trading rules, a tax estimate, a calendar, and live progress for the

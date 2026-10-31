@@ -91,7 +91,7 @@ def max_position_weight(p: dict, ctx: dict, band: float) -> Verdict:
     if (miss := _amount(ctx)) is not None:
         return miss
     if ctx["symbol"] in ctx.get("world", ()):
-        return verdict("not_applicable", f"{ctx['symbol']} is a world fund: spread over thousands of names")
+        return verdict("not_applicable", f"{ctx['symbol']} is a world or index fund: spread over a whole index")
     if ctx["symbol"] in ctx.get("unvalued", []):
         return verdict("unknown", f"{ctx['symbol']} is held without a DKK value, so its weight is unknown.")
     return _cap(ctx["symbol"], ctx["values"].get(ctx["symbol"], 0.0), p["pct"] / 100, band, ctx)

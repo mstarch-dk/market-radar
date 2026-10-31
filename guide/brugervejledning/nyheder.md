@@ -12,6 +12,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 - **Lærebogen** har et nyt kapitel: [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed).
 - **Ved opdatering** får radar.db en ny kolonne; der tages en backup først. Du skal ikke gøre andet.
 
+**Danske indeksfonde i porteføljens røntgen.** Yahoo viser danske investeringsforeninger som aktier uden sektor, så røntgenbilledet kunne ikke placere dem og viste dem som *unknown*. Nu kender radaren 26 børsnoterede danske indeksfonde fra Danske Invest, Sparindex, Nordea Invest, BankInvest og Sydinvest og tæller hver som det indeks, den følger. En valutasikret andelsklasse (*DKK h*) tæller som kroner. Noterne siger, hvilket indeks hver fond er talt som. Se [Porteføljens røntgen](brugervejledning/xray#sådan-placeres-fondene). Du skal ikke gøre noget, når du opdaterer.
+
 ## 0.4.0
 
 Versionen efter 0.2.0; der er ingen 0.3.0. Du skal ikke gøre noget, når du opdaterer: den nye version finder selv dine data og tager en backup først.

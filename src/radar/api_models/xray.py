@@ -9,7 +9,7 @@ from pydantic import Field
 from .common import Num, Strict
 from .profile import Factors
 
-FundClass = Literal["world", "sector_fund", "fund_sectors", "fund", "stock", "unknown"]   # exposure.CLASSES
+FundClass = Literal["world", "index_fund", "sector_fund", "fund_sectors", "fund", "stock", "unknown"]   # exposure.CLASSES
 
 
 class XraySelection(Strict):

@@ -7328,7 +7328,7 @@ export interface components {
              * Class
              * @enum {string}
              */
-            class: "world" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
+            class: "world" | "index_fund" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
             /** Avg Weight */
             avg_weight?: number | null;
         };
@@ -7743,7 +7743,7 @@ export interface components {
              * Class
              * @enum {string}
              */
-            class: "world" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
+            class: "world" | "index_fund" | "sector_fund" | "fund_sectors" | "fund" | "stock" | "unknown";
             /** Value Dkk */
             value_dkk: number;
             /** Weight */

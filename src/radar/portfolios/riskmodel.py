@@ -127,8 +127,8 @@ def active_contributions(w: pd.Series, cov: pd.DataFrame, bench: str) -> dict[st
 
 def concentration(values: dict[str, float], ctr: dict[str, float] | None = None) -> dict:
     """How concentrated DKK position `values` are: effective N (1/Σw²), the top-5 share, the largest position, the
-    largest share of total risk (from `ctr`, ex_ante_risk's contributions) and the weight in world funds, which
-    count as one position each here and so understate the diversification."""
+    largest share of total risk (from `ctr`, ex_ante_risk's contributions) and the weight in world and index
+    funds (exposure.diversified), which count as one position each here and so understate the diversification."""
     pos = {t: x for t, x in values.items() if x and x > 0}
     total = sum(pos.values())
     out: dict[str, Any] = {"effective_n": None, "top5_share": None, "largest": None, "largest_ctr": None,
@@ -136,10 +136,10 @@ def concentration(values: dict[str, float], ctr: dict[str, float] | None = None)
     if total <= 0:
         return out
     w = sorted(((t, x / total) for t, x in pos.items()), key=lambda kv: -kv[1])
-    lt = exposure.look_through()
+    wide = exposure.diversified()
     out |= {"effective_n": 1 / sum(x ** 2 for _, x in w), "top5_share": sum(x for _, x in w[:5]),
             "largest": {"symbol": w[0][0], "weight": w[0][1]},
-            "world_fund_weight": sum(x for t, x in w if t in lt)}
+            "world_fund_weight": sum(x for t, x in w if t in wide)}
     if ctr:
         t, s = max(ctr.items(), key=lambda kv: kv[1])
         out["largest_ctr"] = {"symbol": t, "share": s}
