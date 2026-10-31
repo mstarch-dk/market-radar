@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from . import universe, userstore
-from .config import typed
+from .config import index_funds, typed
 from .fundamentals import context as fcontext
 from .portfolios import exposure, performance, riskmodel
 from .portfolios.prices import Prices
@@ -154,6 +154,23 @@ def _tilts(market: Market, values: dict[str, float], notes: list[str]) -> list[d
             score_tilt("qv", values, qv, t["qv"].astype(float) if not t.empty else pd.Series(dtype=float), notes)]
 
 
+def _index_fund_notes(classes: list[dict]) -> list[str]:
+    """What each held index fund of config/index_funds.yaml is counted as, and the index's own caveat."""
+    cfg = index_funds()
+    out = []
+    for c in classes:
+        f = cfg.funds.get(c["symbol"])
+        if f is None or c["class"] not in ("index_fund", "fund"):
+            continue
+        d = cfg.indexes[f.index]
+        hedge = f", hedged to {f.hedged}" if f.hedged else ""
+        out.append(f"{c['symbol']}: counted as {d.label} (ACWI's holdings in its countries){hedge}"
+                   + (f"; {d.note}" if d.note else "") if c["class"] == "index_fund" else
+                   f"{c['symbol']}: an index fund ({d.label}{hedge}), but ACWI's holdings are unknown, so it isn't "
+                   "looked through")
+    return out
+
+
 def cached(market: Market, ids: list[int] | None = None, scope: str | None = None) -> dict:
     """`build`, kept until a trade or portfolio edit, a price update or a newly cached fund detail changes it."""
     ids = userstore.portfolio_ids() if ids is None else ids
@@ -188,7 +205,9 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
     unknown = [c["symbol"] for c in classes if c["class"] == "unknown"]
     if unknown:
         notes.append(f"{', '.join(unknown)}: neither a known fund nor a stock with a sector. Opening its profile "
-                     "caches Yahoo's fund data, so a fund can be looked through next time")
+                     "caches Yahoo's fund data, so a fund can be looked through next time; an index fund Yahoo lists "
+                     "as a stock (as it does Danish investment funds) can be added to config/index_funds.yaml")
+    notes += _index_fund_notes(classes)
 
     rc = typed().risk
     risk: dict[str, Any] | None = None
@@ -212,8 +231,8 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
             notes.append("Factor tilts are a regression on US factor ETFs (as spreads over ACWI): descriptive, "
                          "not a forecast")
         if conc["world_fund_weight"]:
-            notes.append("A world fund counts as one position in the concentration figures, which understates how "
-                         "spread out it is")
+            notes.append("A world or index fund counts as one position in the concentration figures, which "
+                         "understates how spread out it is")
     else:
         notes.append("No valued holdings in this selection")
     if cash is not None and cash < 0:

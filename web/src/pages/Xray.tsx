@@ -22,8 +22,8 @@ type Window = XrayView["stress"][number];
 const DIMS: [Dim, string][] = [["sector", "Sector"], ["region", "Region"], ["currency", "Currency"]];
 
 const CLASS_LABEL: Record<ClassRow["class"], string> = {
-  world: "world fund (ACWI's weights)", sector_fund: "sector fund", fund_sectors: "fund (Yahoo's sector weights)",
-  fund: "fund, not looked through", stock: "stock", unknown: "unknown",
+  world: "world fund (ACWI's weights)", index_fund: "index fund (its index's weights)", sector_fund: "sector fund",
+  fund_sectors: "fund (Yahoo's sector weights)", fund: "fund, not looked through", stock: "stock", unknown: "unknown",
 };
 
 const ticker = <T,>(get: (r: T) => string, key = "symbol", label = "Name"): Col<T> => ({

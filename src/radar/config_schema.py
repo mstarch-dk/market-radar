@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 
 class _Section(BaseModel):
@@ -541,3 +541,40 @@ class TaxRules(_Section):
 def check_tax(raw: dict, source: str = "config/tax_dk.yaml") -> TaxRules:
     """The checked tax rules; SettingsError naming every key that is missing, unknown or of the wrong type."""
     return _validate(TaxRules, raw, source)
+
+
+# ---------------- config/index_funds.yaml ----------------
+
+class IndexDef(_Section):
+    """An index as a slice of ACWI's holdings: its countries (English names, as constituents.country_en gives
+    them), or every country but `exclude`."""
+    label: str
+    countries: list[str] | Literal["all"]
+    exclude: list[str] = []
+    note: str | None = None
+
+
+class IndexFund(_Section):
+    """A fund counted as the index it tracks; `hedged`: the currency its share class hedges to (its currency
+    exposure, instead of the index's)."""
+    name: str
+    index: str
+    hedged: str | None = None
+    isin: str | None = None
+
+
+class IndexFunds(_Section):
+    indexes: dict[str, IndexDef]
+    funds: dict[str, IndexFund]
+
+    @model_validator(mode="after")
+    def _known_indexes(self) -> IndexFunds:
+        bad = sorted(f"{t} ({f.index})" for t, f in self.funds.items() if f.index not in self.indexes)
+        if bad:
+            raise ValueError(f"funds name an index that isn't under indexes: {', '.join(bad)}")
+        return self
+
+
+def check_index_funds(raw: dict, source: str = "config/index_funds.yaml") -> IndexFunds:
+    """The checked index-fund map; SettingsError naming every key that is missing, unknown or of the wrong type."""
+    return _validate(IndexFunds, raw, source)

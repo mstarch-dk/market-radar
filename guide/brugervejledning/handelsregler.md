@@ -45,7 +45,7 @@ Strengheden er din egen etiket. Den bestemmer kun rækkefølge og farve, aldrig 
 
 Et tema bruger samme ordforråd som dine [markedssyn](brugervejledning/markedssyn): ETF (navnet selv og alle aktier, hvis afkast i forhold til ACWI følger ETF'en), sektor, branche, region og ticker. "AI-chips højst 25 %" kan fx være ETF'en SMH plus branchen Semiconductors.
 
-Brede verdensfonde (listen `risk.world_funds` i indstillingerne) tæller ikke under *Max weight per name*: de er spredt over tusindvis af selskaber.
+Brede verdensfonde (listen `risk.world_funds` i indstillingerne) og indeksfonde (`config/index_funds.yaml`) tæller ikke under *Max weight per name*: de er spredt over et helt indeks.
 
 ### Stil
 

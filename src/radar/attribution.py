@@ -68,9 +68,10 @@ def _key(meta: pd.DataFrame, t: str, dim: str) -> str:
 def _portfolio_segments(dim: str, w: pd.DataFrame, r: pd.DataFrame, meta: pd.DataFrame, wb: pd.DataFrame,
                         rb: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """The portfolio's segment weights and returns per day from its holdings' weights `w` (at the previous close)
-    and returns `r`. A world fund is spread with ACWI's weights `wb`, a fund with sector weights by them (sector
-    only); each slice gets the segment's benchmark return `rb` plus the fund's own difference to that mix, so the
-    slices add up to the fund's return. Everything else sits in its own segment or in `unclassified`."""
+    and returns `r`. A world fund is spread with ACWI's weights `wb`, an index fund with its index's weights, a fund
+    with sector weights by them (sector only); each slice gets the segment's benchmark return `rb` plus the fund's
+    own difference to that mix, so the slices add up to the fund's return. Everything else sits in its own segment
+    or in `unclassified`."""
     wseg: dict[str, pd.Series] = {}
     contrib: dict[str, pd.Series] = {}
     big_rb = (wb * rb).sum(axis=1, min_count=1)
@@ -82,10 +83,10 @@ def _portfolio_segments(dim: str, w: pd.DataFrame, r: pd.DataFrame, meta: pd.Dat
 
     for t in w.columns:
         cls = meta.at[t, "class"] if t in meta.index else "unknown"
-        spread = meta.at[t, "sector_weights"] if t in meta.index else None
+        spread = meta.at[t, f"{dim}_weights"] if t in meta.index else None
         if cls == "world":
             shares = wb
-        elif cls == "fund_sectors" and dim == "sector" and isinstance(spread, dict) and spread:
+        elif cls in ("fund_sectors", "index_fund") and isinstance(spread, dict) and spread:
             shares = pd.DataFrame({k: v for k, v in spread.items()}, index=w.index)
             rest = 1 - sum(spread.values())
             if rest > 1e-9:
@@ -105,7 +106,8 @@ def _portfolio_segments(dim: str, w: pd.DataFrame, r: pd.DataFrame, meta: pd.Dat
 def _currency_weights(w: pd.DataFrame, cash_w: pd.Series, meta: pd.DataFrame, acwi_ccy: pd.DataFrame
                       ) -> pd.DataFrame:
     """The portfolio's value shares by currency per day: a stock its quote currency, a world fund ACWI's currency
-    mix, a US sector fund USD, cash DKK; a fund not looked through `unknown`."""
+    mix, an index fund its index's mix (or its hedge currency), a US sector fund USD, cash DKK; a fund not looked
+    through `unknown`."""
     out: dict[str, pd.Series] = {"DKK": cash_w.copy()}
     for t in w.columns:
         cls = meta.at[t, "class"] if t in meta.index else "unknown"
@@ -113,10 +115,20 @@ def _currency_weights(w: pd.DataFrame, cash_w: pd.Series, meta: pd.DataFrame, ac
             for c in acwi_ccy.columns:
                 out[c] = out.get(c, 0.0) + w[t] * acwi_ccy[c]
             continue
+        if isinstance(mix := _ccy_mix(meta, t), dict):
+            for c, x in mix.items():
+                out[c] = out.get(c, 0.0) + w[t] * x
+            continue
         c = meta.at[t, "currency"] if t in meta.index else None
         c = c if isinstance(c, str) and c and c not in exposure.UNCOVERED and c != exposure.WORLD else UNKNOWN_CCY
         out[c] = out.get(c, 0.0) + w[t]
     return pd.DataFrame(out, index=w.index).fillna(0.0)   # zero: a currency nobody holds that day
+
+
+def _ccy_mix(meta: pd.DataFrame, t: str) -> dict[str, float] | None:
+    """An index fund's fixed currency mix (its index's, or its hedge currency), None for anything else."""
+    mix = meta.at[t, "currency_weights"] if t in meta.index else None
+    return mix if isinstance(mix, dict) and mix else None
 
 
 def _mix_return(mix: pd.DataFrame, fx: pd.DataFrame) -> pd.Series:
@@ -348,6 +360,8 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
         cls, c = meta.at[t, "class"], meta.at[t, "currency"]
         if cls == "world":
             f_sym[t] = _mix_return(wb_ccy_prev, fx)
+        elif (mix := _ccy_mix(meta, t)) is not None:
+            f_sym[t] = _mix_return(pd.DataFrame(mix, index=dates), fx)
         elif isinstance(c, str) and c in fx:
             f_sym[t] = fx[c]
         else:
@@ -411,7 +425,7 @@ def build(market: Market, ids: list[int] | None = None, scope: str | None = None
 
     # unclassified value, listed (never counted as a 0 % return)
     for t in syms:
-        if _key(meta, t, "sector") == UNCLASSIFIED and meta.at[t, "class"] not in ("world", "fund_sectors"):
+        if _key(meta, t, "sector") == UNCLASSIFIED and meta.at[t, "class"] not in ("world", "index_fund", "fund_sectors"):
             share = w[t][day_ok]
             view["unclassified"].append({"symbol": t, "class": meta.at[t, "class"],
                                          "avg_weight": num(float(share.mean())) if len(share) else None})

@@ -44,6 +44,7 @@ Fold *How each name is classified* ud for at se, hvordan hvert papir er placeret
 | Klasse | Hvornår | Sektor | Region og valuta |
 |---|---|---|---|
 | *world fund (ACWI's weights)* | En bred verdensfond fra listen `risk.world_funds` | ACWI's vægte | ACWI's vægte |
+| *index fund (its index's weights)* | En indeksfond fra `config/index_funds.yaml`, fx en dansk investeringsforening | Indeksets vægte | Indeksets vægte; en valutasikret andelsklasse tæller i den valuta, den er sikret til |
 | *sector fund* | En sektor-ETF fra radarens lister, eller en fond, hvor én sektor vejer mindst 50 % i Yahoos fonddata | Fondens sektor | Regionen, hvis radaren kender den; ellers ikke gennemlyst |
 | *fund (Yahoo's sector weights)* | En anden fond med sektorvægte i Yahoos fonddata | Yahoos vægte | Ikke gennemlyst |
 | *fund, not looked through* | En fond uden brugbare data | Ikke gennemlyst | Ikke gennemlyst |
@@ -51,6 +52,10 @@ Fold *How each name is classified* ud for at se, hvordan hvert papir er placeret
 | *unknown* | Hverken en kendt fond eller en aktie med en sektor | Ukendt | Ukendt |
 
 En fond, der ikke kan gennemlyses, bliver aldrig lagt i den region, den er noteret i: en S&P 500-fond noteret i Amsterdam er ikke europæisk. Fonddata læses kun fra det, der allerede ligger i cachen. Kolonnen *Fund data* viser datoen. Åbner du en fonds [tickerprofil](brugervejledning/tickerprofil), hentes dens data, så den kan gennemlyses næste gang.
+
+Danske investeringsforeninger viser Yahoo som aktier uden sektor og uden fonddata, så tickerprofilen hjælper ikke for dem. De står i stedet i `config/index_funds.yaml` med det indeks, de følger. Radaren tæller en sådan fond som sit indeks: ACWI's beholdning i indeksets lande, vægtet op til 100 %. Det giver fonden sektorer, regioner og valutaer, og kolonnen *Fund data* viser datoen for ACWI's beholdningsfil. En andelsklasse, der er valutasikret til kroner (fx *DKK h*), tæller som kroner under *Currency*, men med indeksets sektorer og regioner. Noterne siger for hver fond, hvilket indeks den er talt som. Står din fond ikke på listen, er den *unknown*.
+
+> **Bemærk:** En indeksfond tælles som ACWI's udsnit af indekset, ikke som indekset selv. ACWI har kun store og mellemstore selskaber, så et indeks med små selskaber læses som sine store selskaber. Et S&P 500-indeks læses som MSCI USA, et ESG-indeks som det indeks, det bygger på, og et indeks med loft over den største aktie uden loftet. For emerging markets mangler Indien, Brasilien og Saudi-Arabien, fordi ACWI-fonden ejer dem gennem andre fonde. Noterne siger det.
 
 > **Bemærk:** Verdensfonde, der følger MSCI World, tælles med ACWI's vægte, selv om MSCI World udelader emerging markets. Det er en tilnærmelse, og noterne siger det.
 
@@ -91,7 +96,7 @@ Samme regel gælder eksponeringen: hver dimension har sin egen dækning. Ingen m
 
 ## Koncentration
 
-Kortet *Concentration* viser *Effective N*, de fem største positioners andel (*Top 5*), den største position (*Largest position*) og den position, der bærer mest af risikoen (*Largest share of risk*). *In world funds* er andelen i verdensfonde. En verdensfond tæller som én position, så koncentrationen ser større ud, end den er; derfor står andelen der.
+Kortet *Concentration* viser *Effective N*, de fem største positioners andel (*Top 5*), den største position (*Largest position*) og den position, der bærer mest af risikoen (*Largest share of risk*). *In world funds* er andelen i verdens- og indeksfonde. En sådan fond tæller som én position, så koncentrationen ser større ud, end den er; derfor står andelen der.
 
 *Holdings that move together* lister par af beholdninger, hvis ugentlige afkast har haft en korrelation over {{settings:risk.xray.pair_corr}}, med deres samlede vægt. To sådanne papirer opfører sig næsten som én større position.
 
