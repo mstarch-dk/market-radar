@@ -201,6 +201,7 @@ class EvidenceForward(Strict):
     abtest: ForwardGroup
     paper_trail: ForwardGroup
     proposals: ForwardGroup
+    scout: ForwardGroup
 
 
 class EvidenceView(Strict):

@@ -96,7 +96,7 @@ layers = [
     "__main__ : api : cli : mcp",
     "abtest : agenda : api_models : attribution : backtest : evidence : health : mine : profile : propose : reporting : rulecheck : studyrun : tax : updater : xray",
     "model",
-    "datahome : guide : importers : market : market_views : notebook : portfolios : snapshot : trading_rules : universe : userstore",
+    "datahome : guide : importers : market : market_views : notebook : portfolios : scout : snapshot : trading_rules : universe : userstore",
     "discovery : fundamentals : sources : updates",
     "signals",
     "config : config_schema : errors : guard : jsonsafe : locks : manifest : money : net : ops : paths : progress : sourcelog : values",

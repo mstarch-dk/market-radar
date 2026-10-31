@@ -47,6 +47,7 @@ class Evidence(Strict):
 
 class ViewRow(ViewIn):
     id: int
+    origin: str | None = None               # scout:<date>:<slug> when adopted from a /scout run; set once, never edited
     created_at: str
     updated_at: str
     evidence: Evidence | None = None

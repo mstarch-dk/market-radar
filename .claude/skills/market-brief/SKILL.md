@@ -41,6 +41,7 @@ Read and write through the `mcp__radar__*` tools; their descriptions carry the u
 
    - `discovery()`: the last discovery scan, already cut to the off-radar rows with a high `score`, a big `d_score`, `new_high` or `trend_turn` per market (leaving out `thin`, `check_data` and `stale` rows). These are names outside the radar's own lists. If it is `stale` (or missing), say the discovery scan is stale and skip it.
    - `market_views` for the user's market views (their subjective beliefs from the app's *My market views* page) with the radar's evidence per view. If there are none, skip the views section.
+   - `/scout`: the newest report from `documents(kind="scout")` (its date and candidates) and `scout_review()` for how the frozen candidates have done. Skip the line if there has never been a scout run.
 
    If `earnings_factset` is present, also read `factset_latest.txt` in `folders.cache` (FactSet's own text on revisions and valuation) and cite the PDF URL at its top.
 3. **Pick what matters (at most 6–8 items).** Prioritise:
@@ -113,6 +114,8 @@ Only when the user has active views. One line per view (highest conviction first
 
 ## Research-kø
 2–4 concrete candidates for `/research <ticker>`, each with a one-line reason.
+
+**Scout** (one line, only when a scout report exists): the date of the latest `/scout` run, its candidates with stage and decision, and the frozen candidates' mean excess vs ACWI per decision once `scout_review` says `enough` (until then, how many there are). If the latest run is more than about 30 days old, add "kør `/scout` for nye hypoteser". Is something from this month's research a theme the scout should look at? Say so in the same line.
 
 ## Kilder
 ```

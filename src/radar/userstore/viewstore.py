@@ -10,6 +10,8 @@ from ..jsonsafe import dumps
 from . import backup, connect, exists, timestamp
 
 VIEW_FIELDS = ("statement", "conviction", "horizon", "rationale", "falsifier", "template", "status")
+# set when a view is added (or restored) and never by an edit: where it came from (scout:<date>:<slug>), or None
+ADDED_FIELDS = ("origin",)
 
 
 def _view_rows(con, where: str = "", args: tuple = ()) -> list[dict]:
@@ -50,7 +52,8 @@ def write_children(con, view_id: int, v: dict) -> None:
 
 
 def save_view(v: dict, view_id: int | None = None) -> int:
-    """Add a view, or replace one (statement, fields, exposures and indicators). Returns its id."""
+    """Add a view, or replace one (statement, fields, exposures and indicators; an edit keeps its `origin`).
+    Returns its id."""
     with closing(connect()) as con, con:
         return _save_view(con, v, view_id)
 
@@ -62,9 +65,10 @@ def _save_view(con, v: dict, view_id: int | None = None) -> int:
     vals["conviction"] = int(vals["conviction"] or 3)
     vals["horizon"] = vals["horizon"] or "12m"
     if view_id is None:
-        cur = con.execute(f"INSERT INTO views ({', '.join(VIEW_FIELDS)}, created_at, updated_at) "
-                          f"VALUES ({', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
-                          (*vals.values(), v.get("created_at") or now, now))
+        cols = (*VIEW_FIELDS, *ADDED_FIELDS)
+        cur = con.execute(f"INSERT INTO views ({', '.join(cols)}, created_at, updated_at) "
+                          f"VALUES ({', '.join('?' * len(cols))}, ?, ?)",
+                          (*vals.values(), *(v.get(k) for k in ADDED_FIELDS), v.get("created_at") or now, now))
         view_id = cur.lastrowid
     else:
         con.execute(f"UPDATE views SET {', '.join(f'{k} = ?' for k in VIEW_FIELDS)}, updated_at = ? WHERE id = ?",
@@ -83,10 +87,11 @@ def delete_view(view_id: int) -> dict | None:
 
 
 def restore_view(v: dict) -> int:
+    cols = (*VIEW_FIELDS, *ADDED_FIELDS)
     with closing(connect()) as con, con:
-        con.execute(f"INSERT INTO views (id, {', '.join(VIEW_FIELDS)}, created_at, updated_at) "
-                    f"VALUES (?, {', '.join('?' * len(VIEW_FIELDS))}, ?, ?)",
-                    (v["id"], *(v.get(k) for k in VIEW_FIELDS), v["created_at"], timestamp()))
+        con.execute(f"INSERT INTO views (id, {', '.join(cols)}, created_at, updated_at) "
+                    f"VALUES (?, {', '.join('?' * len(cols))}, ?, ?)",
+                    (v["id"], *(v.get(k) for k in cols), v["created_at"], timestamp()))
         write_children(con, v["id"], v)
     return v["id"]
 

@@ -1,14 +1,18 @@
-"""The two tools that write: a memo into the notebook's folders, and one trade into a portfolio. Narrow on purpose:
-a memo goes only to a folder of its kind (all in the data folder's `home` tier, paths.REGISTRY), written atomically
-and never over an existing one unless asked; a trade is checked as the app checks it and saved only on `confirm`."""
+"""The tools that write: a memo into the notebook's folders, one trade into a portfolio, and one market view.
+Narrow on purpose: a memo goes only to a folder of its kind (all in the data folder's `home` tier, paths.REGISTRY),
+written atomically and never over an existing one unless asked; a trade and a view are checked as the app checks
+them and saved only on `confirm`."""
 from __future__ import annotations
 
 import re
 from datetime import date as _date
 
 from .. import errors, notebook, paths, profile, rulecheck, userstore
+from .. import market_views as mv
 from ..config import write_text
 from ..portfolios import checks, trades
+from ..signals import views as sv
+from ..userstore import viewstore
 
 FOLDERS = notebook.FOLDERS | {"hindsight": paths.HOME / "research" / "hindsight",   # the /hindsight memos
                              "listening": paths.HOME / "briefs" / "lyt"}             # a brief's NotebookLM version
@@ -17,10 +21,10 @@ NAME = re.compile(r"\w[\w.^+ -]{0,150}")      # a file name, no folders: NVDA, 2
 
 def write_memo(kind: str, name: str, markdown: str, replace: bool = False) -> dict:
     """Write a skill's Markdown document into the data folder: `kind` research (research/<TICKER>), compare,
-    proposals, proposal_reviews, hindsight, briefs, listening (a brief's NotebookLM version), journal or reviews;
-    `name` the file name without .md (e.g. NVDA, 2026-10-27_NVDA-AMD). An existing document is replaced only with
-    `replace` (read it first with `read_document` and keep its content). Written whole or not at all; returns where
-    it went."""
+    proposals, proposal_reviews, hindsight, scout (a /scout report), briefs, listening (a brief's NotebookLM version),
+    journal or reviews; `name` the file name without .md (e.g. NVDA, 2026-10-27_NVDA-AMD). An existing document is
+    replaced only with `replace` (read it first with `read_document` and keep its content). Written whole or not at
+    all; returns where it went."""
     if kind not in FOLDERS:
         raise errors.Invalid(f"kind must be one of {', '.join(FOLDERS)}")
     stem = name.removesuffix(".md").strip()
@@ -72,4 +76,56 @@ def add_trade(type: str, symbol: str, quantity: float, price: float, date: str |
             "effect": checks.effect(row, exclude_id=tx_id)}
 
 
-TOOLS = (write_memo, add_trade)
+ORIGIN = re.compile(r"scout:\d{4}-\d{2}-\d{2}:[a-z0-9-]{1,40}")    # where a skill's view came from
+
+
+def _view_issues(v: dict) -> list[dict]:
+    """What the user should see before saying yes: a view already adopted from the same candidate (error), active
+    views it overlaps (same exposure, same direction) or contradicts (same exposure, the other way)."""
+    out = []
+    for o in viewstore.views("active"):
+        if v.get("origin") and o.get("origin") == v["origin"]:
+            out.append({"level": "error", "message": f"View #{o['id']} was already adopted from {v['origin']}."})
+            continue
+        mine = {(e["kind"], e["key"].strip().lower()): int(e["effect"]) for e in v.get("exposures") or []}
+        theirs = {(e["kind"], e["key"].strip().lower()): int(e["effect"]) for e in o["exposures"]}
+        same = sorted(k for k in mine.keys() & theirs.keys() if mine[k] == theirs[k])
+        other = sorted(k for k in mine.keys() & theirs.keys() if mine[k] != theirs[k])
+        if other:
+            out.append({"level": "warning", "message": f"Contradicts view #{o['id']} ({o['statement']}) on "
+                                                       f"{', '.join(f'{k}: {x}' for k, x in other)}."})
+        elif same:
+            out.append({"level": "warning", "message": f"Overlaps view #{o['id']} ({o['statement']}) on "
+                                                       f"{', '.join(f'{k}: {x}' for k, x in same)}."})
+    return out
+
+
+def add_view(statement: str, conviction: int = 3, horizon: str = "12m", rationale: str | None = None,
+             falsifier: str | None = None, exposures: list[dict] | None = None, indicators: list[dict] | None = None,
+             origin: str | None = None, confirm: bool = False) -> dict:
+    """Add one market view (a subjective belief, shown on the app's My market views page): `statement`,
+    `conviction` 1-5, `horizon` 3m | 6m | 12m | 3y, `rationale`, `falsifier` (what would change the user's mind),
+    `exposures` [{kind: etf | sector | industry | region | ticker, key, effect: 1 or -1}], `indicators`
+    [{indicator: a key from market_views' catalogue, expect: up | down}], `origin` scout:<YYYY-MM-DD>:<slug> when it
+    comes from a /scout candidate. Without `confirm` nothing is saved: it returns the view as it would be stored,
+    the radar's evidence for it now, and issues (errors block: a view already adopted from the same `origin`;
+    warnings: active views it overlaps or contradicts). Show them to the user, and call again with `confirm` only
+    once the user has agreed to add this view."""
+    if origin is not None and not ORIGIN.fullmatch(origin):
+        raise errors.Invalid("origin is scout:<YYYY-MM-DD>:<slug> (lower-case letters, digits and -).")
+    v = mv.validate({"statement": statement, "conviction": conviction, "horizon": horizon, "rationale": rationale,
+                     "falsifier": falsifier, "template": None, "status": "active", "origin": origin,
+                     "exposures": [{**e, "key": str(e.get("key") or "").strip()} for e in exposures or []],
+                     "indicators": indicators or []})
+    issues = _view_issues(v)
+    blocked = any(i["level"] == "error" for i in issues)
+    if not confirm or blocked:
+        if confirm:
+            raise errors.Invalid("Not saved: " + " ".join(i["message"] for i in issues if i["level"] == "error"))
+        return {"saved": False, "view": v, "evidence": sv.evidence(v, mv.reads()), "issues": issues,
+                "blocked": blocked, "disclaimer": mv.DISCLAIMER}
+    view_id = viewstore.save_view(v)
+    return {"saved": True, "id": view_id, "view": viewstore.get_view(view_id), "issues": issues}
+
+
+TOOLS = (write_memo, add_trade, add_view)

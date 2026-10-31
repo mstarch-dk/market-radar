@@ -53,7 +53,7 @@ def test_listing_newest_first_with_journal_fields(folders):
     assert nb["briefs"][0]["title"] == "Markedsbrief – 2026-10-01"
     assert nb["research"][0]["ticker"] == "NOVO-B.CO" and nb["compare"][0]["title"] == "NVDA vs AMD"
     entry = next(e for e in nb["journal"] if e["name"] == "2026-09-01-RHM.DE-buy")
-    assert entry["meta"] == {"ticker": "RHM.DE", "action": "buy", "account": "ASK", "horizon": "3 months",
+    assert entry["meta"] == {"type": None, "ticker": "RHM.DE", "action": "buy", "account": "ASK", "horizon": "3 months",
                              "style": None, "status": "open", "review_by": "2026-10-01", "views": [4]}
     assert entry["review_due"] and entry["date"] == "2026-09-01" and entry["title"] == "Buy Rheinmetall (RHM.DE)"
     broken = next(e for e in nb["journal"] if e["name"] == "2026-09-02-X-pass")

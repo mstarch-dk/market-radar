@@ -41,6 +41,7 @@ Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller
 | `/propose-portfolio <portefølje> <beløb>` | `research/proposals/ÅÅÅÅ-MM-DD_<portefølje>.md` | Et forslag til nye aktier for et beløb, testet mod ACWI og alternativerne |
 | `/propose-portfolio review` | `research/proposals/reviews/ÅÅÅÅ-MM.md` | Hvordan tidligere forslag er gået, og om deres exitkriterier er udløst |
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
+| `/scout [stikord]` | `research/scout/ÅÅÅÅ-MM-DD.md`, frosne kandidater i `exports/scout/`, og efter dit ja et markedssyn og en journalpost | 3–5 hypoteser fra det, markedet er begyndt at tale om, holdt op mod radarens tal |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
 Alle mapperne ligger i din datamappe og er lokale og personlige; de kommer med i dine backupper, men aldrig i git. Undtagelsen er `marketing/`, som ligger i programmappen; se nedenfor.
@@ -138,6 +139,10 @@ Metoden er beskrevet i [Porteføljeforslag: forventet afkast, drawdown og nulhyp
 Claude henter universet, som det så ud på dagen (`radar sim picks-candidates`), lægger sig fast på valget, før noget resultat er kendt, og kører simuleringen (`radar sim picks`). Notatet viser kurven beholdt og med stopreglen fulgt mod ACWI, mod scorens egne bedste aktier og mod gennemsnitsaktien, kurvens placering blandt tilfældige kurve og scorens test over alle måneder (`uv run radar study score`). Én kurv over én periode er et eksempel, ikke et bevis, og det står i notatet.
 
 Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger Claude blindt, med aktierne skjult bag C001, C002 …. Se [Test momentumscoren på historikken](brugervejledning/scoretest).
+
+## /scout
+
+`/scout` søger på nettet efter de historier, investorer og medier er begyndt at fortælle, og giver dig 3–5 hypoteser. Hver har et stadie (hvisken, bekræftes eller konsensus), point på syv akser, en *red team* og en proxy-kurv. Du vælger for hver: adoptér den som markedssyn, følg den eller afvis den. Alle kandidater fryses og følges mod ACWI, også de afviste. Se [Scout: hypoteser fra markedets snak](brugervejledning/scout).
 
 ## /marketing
 

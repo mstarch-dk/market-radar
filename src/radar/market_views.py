@@ -22,6 +22,7 @@ SECTORS = ["Basic Materials", "Communication Services", "Consumer Cyclical", "Co
            "Financial Services", "Healthcare", "Industrials", "Real Estate", "Technology", "Utilities"]
 REGIONS = ["us", "europe", "nordic", "asia"]
 HORIZONS = ["3m", "6m", "12m", "3y"]
+EXPOSURE_KINDS = ["etf", "sector", "industry", "region", "ticker"]
 
 
 @cache
@@ -30,13 +31,21 @@ def config() -> dict:
 
 
 def validate(view: dict) -> dict:
-    """A view as it can be stored: a statement (trimmed), conviction 1-5 and only known indicators; Invalid
-    naming the first problem. The app's add, edit and restore all go through it."""
+    """A view as it can be stored: a statement (trimmed), conviction 1-5, a known horizon, exposures of a known
+    kind with an effect of +1 or -1, and only known indicators expecting up or down; Invalid naming the first
+    problem. The app's add, edit and restore and the skills' add_view all go through it."""
     v = dict(view, statement=(view.get("statement") or "").strip())
     if not v["statement"]:
         raise Invalid("A view needs a statement.")
     if not 1 <= int(v.get("conviction") or 0) <= 5:
         raise Invalid("Conviction is 1 (a hunch) to 5 (very sure).")
+    if v.get("horizon") is not None and v["horizon"] not in HORIZONS:
+        raise Invalid(f"Horizon is one of {', '.join(HORIZONS)}.")
+    for e in v.get("exposures") or []:
+        if e.get("kind") not in EXPOSURE_KINDS or not str(e.get("key") or "").strip() or e.get("effect") not in (1, -1):
+            raise Invalid(f"An exposure is {{kind: {' | '.join(EXPOSURE_KINDS)}, key, effect: 1 or -1}}, not {e}.")
+    if any(i.get("expect") not in ("up", "down") for i in v.get("indicators") or []):
+        raise Invalid("An indicator expects up or down.")
     known = set(config()["indicators"])
     bad = [i["indicator"] for i in v.get("indicators") or [] if i["indicator"] not in known]
     if bad:

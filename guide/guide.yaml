@@ -52,6 +52,7 @@ books:
           - {slug: claude-mcp, title: Claude og radarens værktøjer}
           - {slug: kommandolinjen, title: Kommandolinjen}
           - {slug: maanedsbrief, title: Månedsbriefen}
+          - {slug: scout, title: "Scout: hypoteser fra markedets snak"}
       - title: Appendiks
         chapters:
           - {slug: indstillinger, title: Indstillinger}
@@ -100,6 +101,7 @@ books:
         chapters:
           - {slug: cot, title: Futurespositionering (CFTC COT)}
           - {slug: sentiment, title: "Put/call og AAII: kontrær sentiment"}
+          - {slug: rygter-og-opmaerksomhed, title: "Rygter, opmærksomhed og fortællinger"}
       - title: VII. Risiko og porteføljestyring
         chapters:
           - {slug: volatilitet-og-drawdown, title: "Volatilitet, drawdown, Sharpe og Sortino"}

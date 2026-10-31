@@ -247,6 +247,9 @@ MIGRATIONS = [
          decision TEXT CHECK (decision IN ('went_ahead', 'changed', 'dropped')),
          reason TEXT,
          transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL)"""),
+    # where a view came from when a skill wrote it (scout:<date>:<slug> for a /scout candidate you adopted); set
+    # once when the view is added, kept through edits; NULL for views you wrote yourself
+    "ALTER TABLE views ADD COLUMN origin TEXT",
 ]
 
 

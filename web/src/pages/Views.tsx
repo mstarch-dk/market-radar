@@ -49,6 +49,10 @@ function ViewCard({ v, onEdit }: { v: ViewRow; onEdit: () => void }) {
         <span title={`Conviction ${v.conviction} of 5`} className="dots">{dots(v.conviction)}</span>
         <span>{HORIZON[v.horizon]}</span>
         <span>since {date(v.created_at)}</span>
+        {v.origin?.startsWith("scout:") && (
+          <Badge title={`Adopted from a /scout candidate (${v.origin}); its frozen basket is followed on the Evidence page`}>
+            from scout {date(v.origin.split(":")[1])}</Badge>
+        )}
         {v.status === "archived" && <Badge>archived</Badge>}
       </div>
       {v.exposures.length > 0 && (

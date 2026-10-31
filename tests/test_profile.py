@@ -1,5 +1,6 @@
 """profile.build() on the synthetic world: known returns, scores and sections, and honest gaps."""
 import json
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -30,6 +31,8 @@ def env(tmp_data, monkeypatch):
 def _yahoo(monkeypatch, name, **info):
     raw = json.loads((FIXTURES / f"yahoo_{name}.json").read_text(encoding="utf-8"))
     raw["info"] |= info
+    if "calendar" in raw:                          # the fixture's date passes with the wall clock; keep it ahead
+        raw["calendar"]["Earnings Date"] = [(date.today() + timedelta(days=30)).isoformat()]
     monkeypatch.setattr(external, "detail", lambda *a, **k: (raw, "ok"))
     return raw
 

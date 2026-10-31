@@ -419,6 +419,8 @@ export function Evidence() {
                     help="Each month's top 15 by the score, bought and kept, against ACWI from its own day." />
                   <ForwardBlock id="evpr" title="Frozen proposals" g={d.forward.proposals}
                     help="Each proposal's picks, frozen before the model's numbers, against ACWI over the same days." />
+                  <ForwardBlock id="evsc" title="Scout candidates" g={d.forward.scout}
+                    help="Each /scout hypothesis, adopted, dismissed or watched, frozen with its proxy basket the day it was shown, against ACWI over the same days. The dismissed are the control group." />
                 </div>
               ) : <p className="note">{d.notes.join(" ")}</p>}
             </section>

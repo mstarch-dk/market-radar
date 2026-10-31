@@ -139,7 +139,7 @@ def shadow(market: Market, doc: dict, name: str) -> dict:
             "returns_link": f"/returns?pf={','.join(str(v) for v in ids.values())}&from={day.date().isoformat()}"}
 
 
-def _basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
+def basket_path(prices: Prices, tickers: list[str], start: pd.Timestamp, sma: int | None = None) -> dict:
     """Equal DKK weights bought at the close of `start`: kept, and with the trend exit (model.paths: a close below
     the average after the buy day, sold at the next close, parked in ACWI)."""
     bench = tracked.benchmark()
@@ -186,8 +186,8 @@ def review(market: Market) -> dict:
             rows.append({"file": fname, "date": when, "portfolio": m.portfolio, "note": "no prices since yet"})
             continue
         ticks = [x.ticker for x in d.picks]
-        mine = _basket_path(prices, ticks, start, st.trend_sma)
-        rule = _basket_path(prices, m.rule_basket, start) if m.rule_basket else {}
+        mine = basket_path(prices, ticks, start, st.trend_sma)
+        rule = basket_path(prices, m.rule_basket, start) if m.rule_basket else {}
         band = _band(fname)
         rows.append({"file": fname, "date": when, "portfolio": m.portfolio, "tilt": m.tilt,
                      "tickers": ticks, "days": mine.get("days"), "ret": mine.get("ret"), "acwi": mine.get("acwi"),
@@ -288,7 +288,7 @@ def check_exits(market: Market, portfolio: str | None = None) -> dict:
             names.append({"ticker": t, "held": None if held is None else t in held, "status": status, "items": items,
                           "days_to_time_stop": days})
         start = pd.Timestamp(m.date)
-        path = _basket_path(prices, [x.ticker for x in d.picks], start) if start < today else {}
+        path = basket_path(prices, [x.ticker for x in d.picks], start) if start < today else {}
         band = _band(fname)
         drawdown = {"max_dd": path.get("max_dd"), "bad_case": band[0] if band else None,
                     "status": None if not band or path.get("max_dd") is None else
