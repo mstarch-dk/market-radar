@@ -87,6 +87,7 @@ evidence:                  # src/radar/evidence.py: the Evidence page, read-only
   forward_min_months: 12   # a forward line younger than this is "too short", never ranked
   cohort_age_months: 3     # a paper-trail basket counts towards the cohort's mean from this age
   cohort_min: 6            # the paper trail's mean is shown from this many such baskets
+  scout_min: 6             # /scout's frozen candidates: a mean (overall, per decision, per stage) from this many
 
 propose:                   # src/radar/propose.py: `radar propose` and /propose-portfolio (analysis, not advice)
   # --- the rule (pre-registered: a change here makes reports/propose-study.json stale; re-run `radar study propose`)

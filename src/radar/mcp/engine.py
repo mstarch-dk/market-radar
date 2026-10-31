@@ -1,5 +1,6 @@
 """Tools on the engines: a basket proposal for one of your portfolios, from shortlist to frozen picks, evaluation,
-shadow portfolios, review and exit check; and the hindsight basket (`radar sim picks`). A proposal's picks go in as
+shadow portfolios, review and exit check; the hindsight basket (`radar sim picks`); and /scout's frozen hypothesis
+candidates and their follow-up. A proposal's picks go in as
 structured input and are frozen before the model's numbers are seen; a frozen proposal is named by its id.
 
 The sim tools run `radar sim …` as a child process: the server, like the app, never runs a study in its own process
@@ -13,7 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .. import errors, propose, studyrun
+from .. import errors, evidence, profile, propose, scout, studyrun
 from ..config import write_text
 from ..jsonsafe import dumps
 from .common import market
@@ -175,5 +176,40 @@ def sim_picks(asof: str | None = None, name: str | None = None, picks: list[dict
     return out
 
 
+def scout_freeze(slug: str, statement: str, stage: str, decision: str, horizon: str, proxies: list[str] | None = None,
+                 stocks: list[str] | None = None, reason: str | None = None, view_id: int | None = None,
+                 report: str | None = None) -> dict:
+    """Freeze one /scout candidate as shown today, whatever the user decided, so its follow-up can later say whether
+    the rumour paid off and whether the decision added anything: `slug` (e.g. nuclear-smr), `statement` (the
+    hypothesis), `stage` whisper | confirming | consensus, `decision` adopted | dismissed | watch, `horizon` 3m | 6m
+    | 12m | 3y, `proxies` the proxy ETFs and `stocks` the representative stocks (Yahoo symbols, at most 12 each;
+    the proxies are the basket that is scored, the stocks when there is none), `reason` the user's own words,
+    `view_id` the view add_view saved (adopted only), `report` the scout report's name. Each ticker's prices are
+    downloaded now if the radar doesn't have them, and the daily update keeps them from then on. Stored in
+    exports/scout/, dated today, never overwritten. Freeze every shortlisted candidate: the dismissed are the
+    control group."""
+    c = scout.check({"slug": slug, "statement": statement, "stage": stage, "decision": decision, "horizon": horizon,
+                     "proxies": proxies, "stocks": stocks, "reason": reason, "view_id": view_id, "report": report})
+    m, unknown = market(), []
+    for t in (*c["proxies"], *c["stocks"]):
+        try:
+            m = profile.ensure_prices(t, m)
+        except profile.TickerNotFound:
+            unknown.append(t)
+    if unknown:
+        raise errors.Invalid(f"Not frozen: no Yahoo prices for {', '.join(unknown)} (check the symbols, e.g. with "
+                             f"ticker_profile, or leave them out).")
+    return scout.freeze(c)
+
+
+def scout_review() -> dict:
+    """Every frozen /scout candidate since its day: its basket (`basket`: the proxy ETFs, or the stocks without one)
+    against ACWI over the same days (`ret`, `acwi`, `excess`, `max_dd`), its stocks' `stocks_excess`, tickers with
+    no prices (`missing`), and the means per decision (`by_decision`: did the adopted beat the dismissed?) and per
+    stage (`by_stage`: did whispers beat consensus?), shown once `need` candidates are `min_months` old. Few
+    candidates say nothing yet: say so."""
+    return evidence.scout_review(market())
+
+
 TOOLS = (propose_candidates, propose_freeze, propose_evaluate, propose_shadow, propose_picks, propose_review,
-         propose_check, sim_picks_candidates, sim_picks)
+         propose_check, sim_picks_candidates, sim_picks, scout_freeze, scout_review)

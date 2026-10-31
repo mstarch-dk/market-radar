@@ -1,10 +1,11 @@
 """The Evidence page: how well the scores have worked, read from the study reports and the forward record.
 
 One card per score study (momentum, quality, value, K+V) and the long-run study, a header row for each rule study
-(proposals, exits, redeploy), and a forward scoreboard of the A/B test, the `picks-live` paper trail and the frozen
-proposals, each against ACWI over the same days. It only reads: the reports through model/artifacts.py (never
-backtest/), the portfolios through portfolios/, and computes nothing a study or the portfolio code doesn't already
-give. A report of another rule is `stale` and its numbers stay inside its own card; missing is None with a note.
+(proposals, exits, redeploy), and a forward scoreboard of the A/B test, the `picks-live` paper trail, the frozen
+proposals and /scout's frozen hypothesis candidates, each against ACWI over the same days. It only reads: the
+reports through model/artifacts.py (never backtest/), the portfolios through portfolios/, and computes nothing a
+study or the portfolio code doesn't already give. A report of another rule is `stale` and its numbers stay inside
+its own card; missing is None with a note.
 
 The plan: plans/F2-evidence-page.md; the guide: brugervejledning/scoretest.md."""
 from __future__ import annotations
@@ -14,11 +15,12 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from . import abtest, userstore
+from . import abtest, scout, userstore
 from .config import settings, typed
 from .model import artifacts as art
 from .model.stats import mean
 from .portfolios import performance, simulate
+from .portfolios.prices import Prices
 from .propose import rules, store
 
 if TYPE_CHECKING:
@@ -255,9 +257,73 @@ def forward_proposals(market: Market) -> dict:
             "note": None}
 
 
+def _group(rows: list[dict], key: str, values: tuple[str, ...], need: int, min_months: float) -> list[dict]:
+    """Per decision or stage: how many candidates are old enough to judge, and their mean excess vs ACWI once
+    there are `need` of them (else None, with how many there are)."""
+    out = []
+    for v in values:
+        judged = [r["excess"] for r in rows if r.get(key) == v and r.get("excess") is not None
+                  and (_months(r.get("days")) or 0) >= min_months]
+        enough = len(judged) >= need
+        out.append({key: v, "count": len(judged), "need": need, "enough": enough,
+                    "mean_excess": mean(judged) if enough else None,
+                    "beat_acwi": mean([float(x > 0) for x in judged]) if enough else None})
+    return out
+
+
+def scout_review(market: Market) -> dict:
+    """Each frozen /scout candidate since its day: its proxy basket (the proxy ETFs, equal DKK weights; the stocks
+    when it has no proxy) and its stocks against ACWI over the same days, then the means per decision (did the
+    adopted beat the dismissed?) and per stage (did whispers beat consensus?). A ticker without prices is listed
+    under `missing`, never counted as flat."""
+    ev = typed().evidence
+    prices = Prices(market)
+    last = market.closes.index[-1]
+    rows: list[dict] = []
+    for r in scout.records():
+        if "problem" in r:
+            rows.append({"id": r["id"], "note": r["problem"]})
+            continue
+        head = {k: r[k] for k in ("id", "date", "slug", "statement", "stage", "decision", "horizon", "view_id")}
+        start = pd.Timestamp(r["date"])
+        if start >= last:
+            rows.append(head | {"note": "no prices since yet"})
+            continue
+        basket = r["proxies"] or r["stocks"]
+        missing = [t for t in (*r["proxies"], *r["stocks"])
+                   if (s := prices.dkk(t)) is None or s.loc[start:].empty]
+        main = store.basket_path(prices, basket, start)
+        names = store.basket_path(prices, r["stocks"], start) if r["proxies"] and r["stocks"] else {}
+        ret, acwi = main.get("ret"), main.get("acwi")
+        rows.append(head | {"basket": basket, "days": main.get("days"), "ret": ret, "acwi": acwi,
+                            "excess": None if ret is None or acwi is None else ret - acwi,
+                            "max_dd": main.get("max_dd"), "stocks_ret": names.get("ret"),
+                            "stocks_excess": None if names.get("ret") is None or acwi is None
+                            else names["ret"] - acwi, "missing": missing,
+                            "note": None if main else "no prices for its basket"})
+    need = ev.scout_min
+    return {"candidates": rows,
+            "by_decision": _group(rows, "decision", scout.DECISIONS, need, ev.cohort_age_months),
+            "by_stage": _group(rows, "stage", scout.STAGES, need, ev.cohort_age_months),
+            "min_months": ev.cohort_age_months}
+
+
+def forward_scout(market: Market) -> dict:
+    """/scout's frozen candidates since their day against ACWI over the same days (scout_review)."""
+    rv = scout_review(market)
+    rows = rv["candidates"]
+    if not rows:
+        return {"running": False, "records": [], "cohort": None, "note": "No /scout candidates frozen yet"}
+    ev = typed().evidence
+    recs = [_record(f"{r.get('slug') or r['id']} · {r.get('decision') or '?'} · {r.get('stage') or '?'}",
+                    r.get("date"), r.get("days"), r.get("ret"), r.get("acwi"), r.get("excess"), r.get("max_dd"),
+                    ev.cohort_age_months, r.get("note")) for r in rows]
+    return {"running": True, "records": recs, "cohort": _cohort(recs, ev.scout_min, "candidate(s)"), "note": None}
+
+
 def forward(market: Market, today: date) -> dict:
     return {"abtest": forward_abtest(market, today), "paper_trail": forward_paper_trail(market),
-            "proposals": forward_proposals(market)}
+            "proposals": forward_proposals(market), "scout": forward_scout(market)}
 
 
 _cache: dict = {}
@@ -272,12 +338,13 @@ def _stamp(f) -> tuple:
 
 
 def cached(market: Market | None, today: date | None = None) -> dict:
-    """`build`, kept until a study report, the prices, a trade, a frozen proposal, the settings or the day change."""
+    """`build`, kept until a study report, the prices, a trade, a frozen proposal or scout candidate, the settings
+    or the day change."""
     today = today or date.today()
     reports = [art.path("score-study", s.file) for s in art.SCORE_SIGNALS.values()]
     reports += [art.path(n) for n in ("longrun-study", *(n for n, _ in RULE_STUDIES))]
-    frozen = sorted(_stamp(f) for f in rules.PROPOSALS.glob("*.json")) if rules.PROPOSALS.exists() else []
-    key = (tuple(_stamp(f) for f in reports), tuple(frozen), market.mtime if market is not None else None,
+    frozen = [_stamp(f) for d in (rules.PROPOSALS, scout.RECORDS) if d.exists() for f in d.glob("*.json")]
+    key = (tuple(_stamp(f) for f in reports), tuple(sorted(frozen)), market.mtime if market is not None else None,
            userstore.transactions_version(), id(settings()), today)
     if key not in _cache:
         _cache.clear()

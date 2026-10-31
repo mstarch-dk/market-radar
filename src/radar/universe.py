@@ -5,7 +5,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import net
+from . import net, scout
 from .config import typed, write_csv
 from .paths import CACHE
 from .portfolios import trades
@@ -113,6 +113,7 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     tickers |= trades.portfolio_symbols()                  # virtual portfolios need prices too
     tickers |= set(fxrates.FX_TICKERS)
     tickers |= attribution_tickers()                       # attribution's benchmark segments
+    tickers |= scout.symbols()                             # /scout's frozen candidates, for their follow-up
     return sorted(tickers)
 
 

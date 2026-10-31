@@ -122,6 +122,10 @@ Always run Python through uv; the frontend uses pnpm.
   exits, in DKK vs ACWI after costs: mean, median, 10/90 %, Newey-West t, effective N, hit rate, drawdowns, holdout
   and regime splits, the composite's IC, turnover. Writes `reports/propose-study.json` with the rule's settings hash
   (a changed rule makes it stale). Value and mix: US stocks only.
+- `uv run radar scout review [--json]`: /scout's frozen hypothesis candidates (`exports/scout/`) since their day:
+  each one's proxy basket (its ETFs, or its stocks without one) vs ACWI, tickers without prices, and the mean excess
+  per decision (adopted / watch / dismissed) and per stage (whisper / confirming / consensus) once
+  `evidence.scout_min` candidates are `evidence.cohort_age_months` old. The skill freezes them (`scout_freeze`).
 - `uv run radar evidence [--json]`: the Evidence page on the command line (`evidence.py`): each study report's status
   (ok, older rule, not run yet, unreadable), age and rule; each score's IC with t over all dates and the holdout and
   the top N vs ACWI with t; the long-run panels; and the forward record (A/B test, `picks-live` baskets, frozen
@@ -216,8 +220,9 @@ Always run Python through uv; the frontend uses pnpm.
   (`data_paths`, `investor_notes`, `market_views`, `summary(sections)`, `discovery`, `study_reports`, `documents`,
   `journal_entries`, `read_document`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`,
   `evidence_view`, `ticker_profile`, `trading_rules`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
-  (`propose_*`, `sim_picks_candidates`, `sim_picks`) the writes (`write_memo`, `add_trade` with `confirm`, which also returns the trade's rule
-  verdicts) and the trading rules (`rules_check`, which writes only with `log`; `add_rule` with `confirm`;
+  (`propose_*`, `sim_picks_candidates`, `sim_picks`, `scout_freeze`, `scout_review`), the writes (`write_memo`,
+  `add_trade` with `confirm`, which also returns the trade's rule verdicts; `add_view` with `confirm`, which first
+  returns the view's evidence and the views it overlaps or contradicts) and the trading rules (`rules_check`, which writes only with `log`; `add_rule` with `confirm`;
   `rule_decision`). Each
   returns what the matching `--json` command prints. Needs a data folder, like the other data commands.
 

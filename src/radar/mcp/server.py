@@ -1,5 +1,5 @@
-"""The server: one MCPServer named `radar` with its tools (readings, jobs, engines and two narrow writes), run over
-stdio by `radar mcp`."""
+"""The server: one MCPServer named `radar` with its tools (readings, jobs, engines and three narrow writes), run
+over stdio by `radar mcp`."""
 from __future__ import annotations
 
 import inspect
@@ -16,16 +16,17 @@ INSTRUCTIONS = (
     "Market Radar: a Danish investor's local market radar (trends, sector and theme rotation, 1–6-month momentum) "
     "and their portfolios, benchmarked against MSCI ACWI. Read the user's investor notes before advising on "
     "placement. Everything here is analysis, not advice. The tools that are not read-only save into the user's data "
-    "folder (a memo, a trade, a trading rule, a frozen proposal, virtual portfolios) or start a job. " + UNITS)
+    "folder (a memo, a trade, a market view, a trading rule, a frozen proposal or scout candidate, virtual "
+    "portfolios) or start a job. " + UNITS)
 
 READS: tuple[Callable[..., object], ...] = (
     *home.TOOLS, *book.TOOLS, jobs.job_status, engine.propose_candidates, engine.propose_picks,
-    engine.propose_review, engine.propose_check, engine.sim_picks_candidates, *rules.READS)
+    engine.propose_review, engine.propose_check, engine.sim_picks_candidates, engine.scout_review, *rules.READS)
 TOOLS: tuple[Callable[..., object], ...] = (*home.TOOLS, *book.TOOLS, *jobs.TOOLS, *engine.TOOLS, *writes.TOOLS,
                                             *rules.TOOLS)
 REPLACES = {writes.write_memo}          # may replace a document (only when asked to)
 # download: an untracked ticker's prices and Yahoo's details (a profile, a trade's symbol), the update's sources
-REACHES_OUT = {book.ticker_profile, jobs.job_start, writes.add_trade}
+REACHES_OUT = {book.ticker_profile, jobs.job_start, writes.add_trade, engine.scout_freeze}
 
 
 def description(fn: Callable[..., object]) -> str:

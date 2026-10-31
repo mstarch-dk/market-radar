@@ -231,6 +231,7 @@ class Evidence(_Section):
     forward_min_months: int
     cohort_age_months: int
     cohort_min: int
+    scout_min: int
 
 
 class Analyst(_Section):

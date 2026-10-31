@@ -20,7 +20,7 @@ type Tab = (typeof TABS)[number][0];
 
 const TAB_OF: Record<string, Tab> = {
   briefs: "briefs", research: "research", compare: "research", proposals: "research", proposal_reviews: "research",
-  journal: "journal", reviews: "journal",
+  scout: "research", journal: "journal", reviews: "journal",
 };
 const docPath = (e: Pick<NotebookEntry, "kind" | "name">) => `/notebook/${e.kind}/${encodeURIComponent(e.name)}`;
 const STATUS_KIND: Record<string, string> = { open: "accent", closed: "", invalidated: "neg" };
@@ -57,7 +57,8 @@ function DocList({ rows, empty }: { rows: NotebookEntry[]; empty: React.ReactNod
 const journalCols: Col<NotebookEntry>[] = [
   { key: "date", label: "Date", sort: (e) => e.date, render: (e) => date(e.date) },
   { key: "ticker", label: "Ticker", align: "l", sort: (e) => e.ticker ?? "", search: (e) => `${e.ticker ?? ""} ${e.title}`,
-    render: (e) => (e.ticker ? <TickerLink symbol={e.ticker} /> : <span className="muted">–</span>) },
+    render: (e) => (e.ticker ? <TickerLink symbol={e.ticker} />
+      : e.meta?.type === "hypothesis" ? <Badge>hypotheses</Badge> : <span className="muted">–</span>) },
   { key: "action", label: "Action", align: "l", sort: (e) => e.meta?.action ?? "", filter: { kind: "enum", value: (e) => e.meta?.action ?? "(none)" },
     render: (e) => e.meta?.action ?? <span className="muted">–</span> },
   { key: "account", label: "Account", align: "l", sort: (e) => e.meta?.account ?? "", filter: { kind: "enum", value: (e) => e.meta?.account ?? "(none)" },
@@ -84,7 +85,7 @@ function Listing() {
   const nb: NotebookListing | undefined = q.data;
   const counts: Record<Tab, number> = {
     briefs: nb?.briefs.length ?? 0,
-    research: (nb?.research.length ?? 0) + (nb?.compare.length ?? 0) + (nb?.proposals.length ?? 0),
+    research: (nb?.research.length ?? 0) + (nb?.compare.length ?? 0) + (nb?.proposals.length ?? 0) + (nb?.scout.length ?? 0),
     journal: (nb?.journal.length ?? 0) + (nb?.reviews.length ?? 0),
   };
   const due = nb?.journal.filter((e) => e.review_due).length ?? 0;
@@ -114,6 +115,9 @@ function Listing() {
           <h2>Proposals</h2>
           <DocList rows={nb.proposals} empty={<>None yet. Ask for a basket with <code>/propose-portfolio &lt;portfolio&gt; &lt;amount&gt;</code> in
             Claude Code: it is tested against ACWI and the alternatives.</>} />
+          <h2>Scout reports</h2>
+          <DocList rows={nb.scout} empty={<>None yet. Run <code>/scout</code> in Claude Code: it searches what investors and the media
+            are starting to talk about and gives you a short list of hypotheses to adopt or dismiss.</>} />
           {nb.proposal_reviews.length > 0 && <>
             <h2>Proposal reviews</h2>
             <DocList rows={nb.proposal_reviews} empty="" />

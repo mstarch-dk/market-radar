@@ -299,6 +299,7 @@ Vægtene (`quality.weights`, `value.weights`, `financial_value.weights`), branch
 | `evidence.forward_min_months` | {{settings:evidence.forward_min_months}} | Måneder, en kurv i A/B-testen skal have kørt, før den sammenlignes; før det står den som *for kort* |
 | `evidence.cohort_age_months` | {{settings:evidence.cohort_age_months}} | Måneder, en kurv i papirsporet skal være gammel for at tælle med i gennemsnittet |
 | `evidence.cohort_min` | {{settings:evidence.cohort_min}} | Så mange kurve i papirsporet skal være gamle nok, før gennemsnittet vises |
+| `evidence.scout_min` | {{settings:evidence.scout_min}} | Så mange frosne `/scout`-kandidater skal være gamle nok, før et gennemsnit vises (samlet, pr. valg og pr. stadie) |
 
 Se [Test momentumscoren på historikken](brugervejledning/scoretest).
 

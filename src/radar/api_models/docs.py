@@ -65,11 +65,12 @@ class GuideHit(Strict):
     snippet: str
 
 
-NotebookKind = Literal["briefs", "research", "compare", "proposals", "proposal_reviews", "journal", "reviews"]
+NotebookKind = Literal["briefs", "research", "compare", "proposals", "proposal_reviews", "scout", "journal", "reviews"]
 
 
 class JournalMeta(Strict):
     """A journal entry's front matter (missing fields are None, never guessed)."""
+    type: str | None = None                 # hypothesis: a /scout run's decisions (no ticker); else a trade decision
     ticker: str | None = None
     action: str | None = None
     account: str | None = None
@@ -98,6 +99,7 @@ class NotebookListing(Strict):
     compare: list[NotebookEntry]
     proposals: list[NotebookEntry]
     proposal_reviews: list[NotebookEntry]
+    scout: list[NotebookEntry]
     journal: list[NotebookEntry]
     reviews: list[NotebookEntry]
 

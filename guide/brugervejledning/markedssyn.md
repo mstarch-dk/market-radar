@@ -16,6 +16,8 @@ Du kan starte på to måder:
 - *Start from a ready-made view*: en liste af færdige syn, ordnet efter område. Modsatte syn står side om side (fx "AI bliver ved med at drive indtjeningen" og "AI-aktier er i en boble"); vælg det, du faktisk tror på, eller ingen af dem. *Use this* åbner synet i editoren med udsagn, eksponeringer, indikatorer og et forslag til falsifikation udfyldt.
 - *Write your own view*: en tom editor.
 
+Et syn kan også komme fra Claude: når du adopterer en kandidat fra [`/scout`](brugervejledning/scout), skriver Claude synet med dit ja. Kortet har så mærket *from scout* med datoen, og kandidatens proxy-kurv følges på [Evidens-siden](brugervejledning/scoretest#resultaterne-fremad). Du kan redigere og arkivere det som ethvert andet syn; mærket bliver stående.
+
 Editoren har disse felter:
 
 | Felt | Indhold |
@@ -100,7 +102,7 @@ Det samlede mærke vægter de syn, der gælder for navnet, med din overbevisning
 
 - På [tickerprofilen](brugervejledning/tickerprofil) i kortet *Your market views*: det samlede mærke, de syn der gælder med begrundelse, og hvad data siger om hvert syn.
 - På [Momentum](brugervejledning/momentum) og [Discover](brugervejledning/discover) i kolonnen *Views* (den vises, når du har mindst ét aktivt syn).
-- I Claude-skills `/research`, `/compare` (kun med `--personal`), `/market-brief` og `/journal`. Se [Claude Code-skills](brugervejledning/claude-code).
+- I Claude-skills `/research`, `/compare` (kun med `--personal`), `/market-brief`, `/journal` og `/scout` (som ser, hvad du allerede tror på, før den foreslår noget nyt). Se [Claude Code-skills](brugervejledning/claude-code).
 
 ## Personlige data
 

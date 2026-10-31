@@ -10,10 +10,12 @@ Fanen *Briefs* viser den nyeste markedsbrief i fuld længde og en liste over de 
 
 ## Research
 
-Fanen *Research* har to lister:
+Fanen *Research* har disse lister:
 
 - **Research memos**: ét notat pr. ticker fra `/research <ticker>`, med link til tickerprofilen.
 - **Comparisons**: sammenligninger fra `/compare <t1> <t2> …`, nyeste først.
+- **Proposals**: porteføljeforslag fra `/propose-portfolio`.
+- **Scout reports**: hypoteser fra `/scout`, med dine valg (se [Scout](brugervejledning/scout)).
 
 ## Journal
 
@@ -21,6 +23,8 @@ Fanen *Journal* viser dine beslutninger i en tabel med dato, ticker, handling (*
 
 - **review due** betyder, at en åben beslutning har passeret sin gennemgangsdato. Antallet står også på fanen.
 - Under tabellen ligger de månedlige gennemgange fra `/journal review`.
+
+En post fra `/scout` har ingen ticker; i stedet står *hypotheses* i kolonnen *Ticker*. Den samler kørslens valg, katalysatorer og hvad der ville modbevise hver hypotese.
 
 En beslutning skriver du med fx `/journal buy RHM.DE …` i Claude Code. Claude spørger efter din tese, konto, horisont og exit-regel og gemmer radarens tal fra beslutningsøjeblikket. Status ændres kun, når du selv beder om det.
 

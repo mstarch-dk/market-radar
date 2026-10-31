@@ -52,6 +52,7 @@ If you want to do any of these, see [Offering Market Radar to others](#offering-
 | **SKAT** positive list (shipped in `imports/`; refresh it from skat.dk) | UCITS / positive-list flag; every year's sheet classifies funds for the tax estimate (positive-list fund or not, per income year) | Danish public-sector data. | Yes | Yes |
 | **skat.dk** and the tax ministry: tax rates and limits (typed in by hand into `config/tax_dk.yaml`, each with its source and the day it was checked; nothing downloaded) | The tax estimate: share-income rates and progression limit, the aktiesparekonto's rate and deposit cap, the PAL rate, the loss rules | Danish public-sector information; the numbers are facts of law, restated with their source. | Yes | Yes, with the source |
 | **Saxo, Danske Bank** public price lists (copied by hand into `config/fee_presets.yaml`, dated, nothing downloaded) | Fee presets for estimating a trade's commission | A few published prices, restated as facts with their source. | Yes | Yes, with the source and date |
+| **The open web, searched by Claude** (Claude Code's WebSearch, in the `/market-brief` and `/scout` skills; the code downloads nothing) | The "why" behind the brief's moves; `/scout`'s hypothesis candidates (what investors and the media are starting to talk about) | Each publisher's own terms and copyright. Headlines and free summaries only, never past a paywall; what is kept is links and Claude's own summary, in your briefs and scout reports. | Yes | Your notes are yours; the articles are not: link, don't copy |
 
 **Test fixtures** (`tests/fixtures/`): small samples in each source's format, so the parsers can be tested
 offline. From the open sources they are trimmed real answers; from the others only a handful of numbers in
@@ -75,6 +76,9 @@ source above.
 - Respect the sources' limits. Market Radar paces its requests and pauses a host that asks it to slow down (see
   the *Operations* page). Don't remove that throttling or point many copies at one server.
 - When you quote a number in something you publish, name the source.
+- `/scout` and `/market-brief` search the web through Claude. The reports keep links and Claude's own wording,
+  not the articles; keep it that way when you edit them, and don't build anything that stores or republishes
+  what the searches return.
 - The brief's listening version (`/market-brief podcast`) is meant to be uploaded to your own NotebookLM
   notebook for your own listening. That sends the text to Google, so keep the notebook and the generated
   audio private: sharing or publishing them redistributes the data in them.

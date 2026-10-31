@@ -2952,6 +2952,7 @@ export interface components {
             abtest: components["schemas"]["ForwardGroup"];
             paper_trail: components["schemas"]["ForwardGroup"];
             proposals: components["schemas"]["ForwardGroup"];
+            scout: components["schemas"]["ForwardGroup"];
         };
         /** EvidenceItem */
         EvidenceItem: {
@@ -3882,6 +3883,8 @@ export interface components {
          * @description A journal entry's front matter (missing fields are None, never guessed).
          */
         JournalMeta: {
+            /** Type */
+            type?: string | null;
             /** Ticker */
             ticker?: string | null;
             /** Action */
@@ -4541,7 +4544,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -4568,7 +4571,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -4597,6 +4600,8 @@ export interface components {
             proposals: components["schemas"]["NotebookEntry"][];
             /** Proposal Reviews */
             proposal_reviews: components["schemas"]["NotebookEntry"][];
+            /** Scout */
+            scout: components["schemas"]["NotebookEntry"][];
             /** Journal */
             journal: components["schemas"]["NotebookEntry"][];
             /** Reviews */
@@ -7628,6 +7633,8 @@ export interface components {
             indicators: components["schemas"]["ViewIndicator"][];
             /** Id */
             id: number;
+            /** Origin */
+            origin?: string | null;
             /** Created At */
             created_at: string;
             /** Updated At */

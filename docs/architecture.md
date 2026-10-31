@@ -9,7 +9,7 @@ interfaces       api, cli, mcp/
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
                  reporting/, rulecheck, studyrun, tax, updater, xray
 kernel           model/
-domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, snapshot,
+domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, scout, snapshot,
                  trading_rules, universe, userstore/
 data sources     discovery/, fundamentals/, sources/, updates
 pure readings    signals/
@@ -156,9 +156,11 @@ for one.
   summary and discovery scan in slices, study ages, the notebook. `book.py`: portfolios, returns, X-ray,
   attribution, calendar, evidence, ticker profiles. `jobs.py`: the update, the rebuild and a study, run like the
   app's, checking the same locks; `job_status` shows the steps, phase, issues and paused hosts, and an update
-  another process runs when this one runs none. `engine.py`: proposals (`radar.propose`) and the hindsight basket (`radar sim` as
-  a child). `writes.py`: `write_memo` (the notebook's folders only, atomic, never over a document unless asked) and
-  `add_trade` (checked like the app, saved only with `confirm`). `server.py` registers them with annotations that
+  another process runs when this one runs none. `engine.py`: proposals (`radar.propose`), the hindsight basket (`radar sim` as
+  a child) and /scout's frozen candidates (`scout_freeze`, `scout_review`). `writes.py`: `write_memo` (the notebook's
+  folders only, atomic, never over a document unless asked), `add_trade` (checked like the app, saved only with
+  `confirm`) and `add_view` (validated like the app's view editor, with its evidence and overlaps, saved only with
+  `confirm`). `server.py` registers them with annotations that
   say which only read, which may replace a file and which reach the network (`tests/test_mcp.py`,
   `tests/test_mcp_engine.py`).
 
@@ -221,9 +223,11 @@ for one.
   so a rebuild gives the same items.
 - `evidence.py`: the Evidence page: a card per score study and the long-run study (status, age, the rule tested
   and today's, the baseline per horizon with a t next to every mean, the verdicts), the rule studies' header rows,
-  and a forward scoreboard of the A/B test, the `picks-live` baskets and the frozen proposals against ACWI, where a
-  record younger than its minimum is *too short* and left out of any mean. It only reads (`model/artifacts.py`,
-  `portfolios/`, `abtest`, `propose.store.review`); a stale report's numbers stay inside its own card.
+  and a forward scoreboard of the A/B test, the `picks-live` baskets, the frozen proposals and /scout's frozen
+  candidates against ACWI, where a record younger than its minimum is *too short* and left out of any mean.
+  `scout_review` is the candidates' follow-up (`radar scout review`): each one's proxy basket through
+  `propose.store.basket_path`, and the means per decision and stage. It only reads (`model/artifacts.py`,
+  `portfolios/`, `abtest`, `propose.store`, `scout`); a stale report's numbers stay inside its own card.
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
   exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
@@ -272,7 +276,11 @@ for one.
     and active risk and its marginal contribution, concentration and correlated pairs, the weekly path of fixed
     weights, stress windows, realised drawdown and factor tilts.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
-- `market_views.py`: the user's market views with their evidence and alignment.
+- `market_views.py`: the user's market views with their evidence and alignment. A view's `origin`
+  (`scout:<date>:<slug>`) is set when a skill adds it and kept through edits.
+- `scout.py`: /scout's forward record: a shortlisted hypothesis candidate frozen in `exports/scout/` with its stage,
+  the user's decision and a proxy basket, dated today and never overwritten; `symbols()` puts its tickers in the
+  daily update (`universe.all_price_tickers`). The follow-up is `evidence.scout_review`.
 - `trading_rules.py`: the user's trading rules as they may be stored (`validate`), the kinds, templates and the
   editor's catalogue from `config/rules.yaml` (generic templates only, never anyone's own rules).
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.
@@ -282,7 +290,8 @@ for one.
     a restore verifies, backs up first and swaps part by part.
   - `export.py`: the open-format export and the holdings bundle.
 - `guide.py`: the Danish books in `guide/`, reached only through `guide/guide.yaml`, with settings placeholders.
-- `notebook.py`: a read-only view of what the skills write (briefs, research, journal), with review dates.
+- `notebook.py`: a read-only view of what the skills write (briefs, research, scout reports, journal), with review
+  dates; a journal entry with `type: hypothesis` (a /scout run's decisions) has no ticker.
 
 ### Data sources
 Each downloads, checks what it got, caches it and logs it in the source log; a source that parses to nothing

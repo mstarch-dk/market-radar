@@ -211,11 +211,12 @@ Ved hvert gennemsnit står dets t-tal, fx *0,045 t +2,4*. Et t-tal på 2 eller m
 
 ### Resultaterne fremad
 
-Tre tabeller med resultater, der er valgt, før afkastet var kendt, hver mod ACWI over de samme dage:
+Fire tabeller med resultater, der er valgt, før afkastet var kendt, hver mod ACWI over de samme dage:
 
 - **A/B-testen**: kvalitet + værdi, momentum og 50/50 som virtuelle porteføljer. En kurv, der har kørt kortere end {{settings:evidence.forward_min_months}} måneder, står som *too short*.
 - **Papirsporet** (`picks-live`): hver måneds kurv fra den første købsdag. En kurv yngre end {{settings:evidence.cohort_age_months}} måneder står som *too short*. Gennemsnittet vises fra {{settings:evidence.cohort_min}} kurve, der er gamle nok.
 - **De frosne porteføljeforslag**: hvert forslags valg fra dets dag. Et forslag yngre end {{settings:evidence.cohort_age_months}} måneder står som *too short*, og gennemsnittet vises fra {{settings:propose.review_min}} forslag.
+- **Scout-kandidaterne** (*Scout candidates*): hver hypotese fra `/scout`, som du har adopteret, fulgt eller afvist, med sin proxy-kurv fra den dag, du så den. Mærket viser navn, valg og stadie. En kandidat yngre end {{settings:evidence.cohort_age_months}} måneder står som *too short*, og gennemsnittet vises fra {{settings:evidence.scout_min}} kandidater. Gennemsnittet pr. valg og pr. stadie står i `uv run radar scout review`; se [Scout](brugervejledning/scout#resultaterne).
 
 En række markeret *too short* står med sine tal, men er gråtonet, tæller ikke med i gennemsnittet og sorteres sidst. Gennemsnittene har intet t-tal, fordi perioderne overlapper og der er få af dem; se [Test af momentumscoren](laerebog/test-af-scoren#fremad-uden-t-tal). Uden kurser i radaren mangler tabellerne, mens kortene over testene stadig vises.
 

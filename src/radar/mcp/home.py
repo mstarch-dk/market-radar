@@ -118,8 +118,8 @@ def study_reports() -> dict:
 
 def documents(kind: str | None = None, ticker: str | None = None) -> dict:
     """The notebook: what the skills wrote, newest first, per kind (briefs, research, compare, proposals,
-    proposal_reviews, journal, reviews), with title, date and for journal entries their front matter (ticker,
-    action, account, horizon, status, review_by, views) and `review_due`. Filter by `kind` and/or `ticker`."""
+    proposal_reviews, scout, journal, reviews), with title, date and for journal entries their front matter (type,
+    ticker, action, account, horizon, status, review_by, views) and `review_due`. Filter by `kind` and/or `ticker`."""
     listing = notebook.listing()
     if kind and kind not in listing:
         raise errors.Invalid(f"kind must be one of {', '.join(listing)}")

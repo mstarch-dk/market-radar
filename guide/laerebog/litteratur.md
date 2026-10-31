@@ -237,6 +237,16 @@ Alle kilder, som lærebogens kapitler henviser til under *Videre læsning*, saml
   *Bruges i:* [Put/call og AAII: kontrær sentiment](laerebog/sentiment)
 - Jun Pan og Allen M. Poteshman: "The Information in Option Volume for Future Stock Prices", *Review of Financial Studies* 19(3), 2006.  
   *Bruges i:* [Put/call og AAII: kontrær sentiment](laerebog/sentiment)
+- Brad M. Barber og Terrance Odean: "All That Glitters: The Effect of Attention and News on the Buying Behavior of Individual and Institutional Investors", *Review of Financial Studies* 21(2), 2008.  
+  *Bruges i:* [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed)
+- Zhi Da, Joseph Engelberg og Pengjie Gao: "In Search of Attention", *Journal of Finance* 66(5), 2011.  
+  *Bruges i:* [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed)
+- Paul C. Tetlock: "Giving Content to Investor Sentiment: The Role of Media in the Stock Market", *Journal of Finance* 62(3), 2007.  
+  *Bruges i:* [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed)
+- Robert J. Shiller: *Narrative Economics: How Stories Go Viral and Drive Major Economic Events*, Princeton University Press, 2019.  
+  *Bruges i:* [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed)
+- Itzhak Ben-David, Francesco Franzoni, Byungwook Kim og Rabih Moussawi: "Competition for Attention in the ETF Space", *Review of Financial Studies* 36(3), 2023.  
+  *Bruges i:* [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed)
 
 ## VII. Risiko og porteføljestyring
 

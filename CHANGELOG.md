@@ -4,6 +4,30 @@ What changed in each release, newest first. The user-facing version, in Danish, 
 (`guide/brugervejledning/nyheder.md`). `scripts/release.py prepare X.Y.Z` refuses to bump the version until both
 have a `## X.Y.Z` section; the release workflow uses this file's section as the release notes.
 
+## Unreleased
+
+- **/scout: hypotheses from what the market talks about.** A new Claude skill searches the web through fixed lenses
+  (flows and ETF launches, fund-manager surveys, policy and public money, capex and supply chains, outlooks,
+  regulatory and technology milestones, emerging and frontier markets, commodities, a contrarian lens). It checks
+  each story against the radar's numbers (`ticker_profile`, rotation, revisions, positioning, the user's views) and
+  writes `research/scout/YYYY-MM-DD.md` with 3–5 candidates. Each has a narrative stage (whisper / confirming /
+  consensus: "buy on the rumour, sell on the fact"), a seven-axis rubric, a red team and a falsifier. The user
+  adopts, watches or dismisses each; the run can be logged in the journal.
+  - New MCP write `add_view` (dry run with the view's evidence and the views it overlaps or contradicts, saved only
+    with `confirm`). New column `views.origin` (`scout:<date>:<slug>`), set once and kept through edits; the
+    *Market views* page tags such views *from scout*. View validation now also checks the horizon, exposures and
+    indicator directions for every writer.
+  - Forward record: `scout.py` freezes every shortlisted candidate (adopted, watched and dismissed: the control
+    group) in `exports/scout/`, dated today, never overwritten, and its tickers join the daily update.
+    `evidence.scout_review` follows each proxy basket against ACWI, with means per decision and per stage from
+    `evidence.scout_min` candidates. MCP `scout_freeze` / `scout_review`, CLI `radar scout review`, and a *Scout
+    candidates* table on the Evidence page. `propose.store._basket_path` is now the public `basket_path`.
+  - The notebook has a `scout` kind (Notebook → Research → *Scout reports*), and journal entries a `type` field
+    (`hypothesis`: no ticker). `/market-brief` adds a scout line; `/journal review` checks open hypotheses
+    (catalyst arrived, falsifier triggered, basket vs ACWI).
+  - Guide: a new chapter *Scout: hypoteser fra markedets snak* and a textbook chapter *Rygter, opmærksomhed og
+    fortællinger*. The open web, searched by Claude, is listed in `DATA_LICENSE.md` (links and own summaries only).
+
 ## 0.4.0
 
 The radar as tools for Claude, your own trading rules, a tax estimate, a calendar, and live progress for the
