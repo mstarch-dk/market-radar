@@ -16,6 +16,15 @@ The radar's output must be truthful: a missing value is shown as missing, never 
   lookup never overwrite each other. Afterwards, tickers without a bar on the benchmark's last session are fetched
   once more; the rest are reported as `behind` (log, Operations, *Data & coverage*), not hidden: Yahoo's history for a
   whole exchange can lag a session.
+- A split Yahoo hasn't registered yet shows only in the newest bars: the traded close drops to a fraction while the
+  earlier bars aren't re-based, so `rescaled` doesn't see it. `ingest.split_jumps` checks the bars in the overlap
+  window for a one-day move of about a split ratio (`prices.split_ratio_tol` from n:1 or 1:n, n = 2 … 50), at least
+  `prices.split_min_sigmas` × the ticker's own daily volatility (250 sessions; ^VIX's +43 % is no split ratio), on
+  volume under `prices.split_max_volume_surge` × max(n, 1) × its 20-session median (news trades far more: MRNA's
+  +177 %). Such a ticker is downloaded again in full; a jump still there is held out of the store from its day on
+  (`held`: a missing session, never a false −75 %; logged, an Operations event and an update issue) until Yahoo
+  re-bases it or the ticker has `prices.split_hold_sessions` bars after it (`kept`, logged as a real move). A real
+  crash of about a half on quiet volume is therefore held back for that long.
 - The history starts `history_years` back, or `backtest.warmup_days` before your first trade when that is earlier
   (capped at `backtest.max_years`), so your trades can be valued and the rule replayed from the day you bought. A
   shallower stored history is downloaded again in full, once (`data/prices_from.json`).

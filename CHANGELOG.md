@@ -44,6 +44,18 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
     India, Brazil and Saudi Arabia missing from emerging markets). Small-cap, style, minimum-volatility, sector
     and theme index funds are left out on purpose: a country slice would misstate them.
 
+- **A split Yahoo hasn't registered no longer shows as a crash.** On 2026-11-05 Yahoo's newest bar for ITA, MTUM
+  and QUAL sat 68–77 % below the day before (≈ 3:1 and 4:1, no split in Yahoo's split list, earlier bars not
+  re-based), and the false returns reached rotation ranks, factor rows and a market view's evidence. The update
+  now checks the bars in its overlap window (`ingest.split_jumps`): a move within `prices.split_ratio_tol` of a
+  split ratio (2:1 … 50:1 either way), at least `prices.split_min_sigmas` × the ticker's daily volatility, on
+  volume under `prices.split_max_volume_surge` × max(n, 1) × usual. Such a ticker is downloaded again in full; a
+  jump still there is held out of the store from its day on (the update's `held`: log line, Operations event,
+  update issue) until Yahoo re-bases the history or `prices.split_hold_sessions` sessions have passed (`kept`, a
+  real move). On ten years of the radar's prices it flags only those three plus three oil stocks' −50 % on
+  2020-03-09; ^VIX's +43 % and MRNA's +177 % on ~40× volume pass. Bars already stored are taken out at the next
+  update.
+
 ## 0.4.0
 
 The radar as tools for Claude, your own trading rules, a tax estimate, a calendar, and live progress for the

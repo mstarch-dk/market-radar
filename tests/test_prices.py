@@ -263,6 +263,94 @@ def test_tickers_without_the_benchmarks_last_session_are_asked_again(price_store
     assert ingest.update_prices(["EU"])["behind"] == {}          # no benchmark given: nothing to compare with
 
 
+# ---------------- a split Yahoo hasn't registered yet ----------------
+
+def _walk(n, sigma=0.01, seed=1, start=100.0):
+    rng = np.random.default_rng(seed)
+    return list(start * np.exp(np.cumsum(rng.normal(0, sigma, n))))
+
+
+def _recent(p, days=7):
+    return {t: g["date"].max() - pd.Timedelta(days=days) for t, g in p.groupby("ticker")}
+
+
+def test_split_jumps_finds_a_split_ratio_move_but_not_volatile_or_news_driven_ones():
+    base, wild = _walk(60), _walk(59, sigma=0.08, seed=3)
+    news = _hist("NEWS", base[:-1] + [base[-2] * 2.77], start="2026-08-03")
+    news.loc[news.index[-1], "volume"] = 40                       # MRNA, +177 % on 40× its volume: news
+    p = pd.concat([
+        _hist("QUAL", base[:-1] + [base[-2] / 4 * 0.975], start="2026-08-03"),   # 4:1, the market down 2.5 %
+        _hist("REV", base[:-1] + [base[-2] * 3 * 1.02], start="2026-08-03"),     # a 1:3 reverse split
+        _hist("VIX", wild + [wild[-1] * 1.43], start="2026-08-03"),              # +43 %: no split ratio
+        _hist("WILD", wild + [wild[-1] * 2.0], start="2026-08-03"),              # doubles, at 8 % a day: 9σ
+        news,
+        _hist("OLD", base[:40] + [c / 2 for c in base[40:]], start="2026-08-03"),  # 2:1 a month ago
+    ])
+    jumps = ingest.split_jumps(p, _recent(p), 0.10, 15, 5)
+    assert sorted(jumps) == ["QUAL", "REV"]
+    assert jumps["QUAL"]["ratio"] == 4 and jumps["QUAL"]["after"] == 0
+    assert jumps["QUAL"]["date"] == p.query("ticker == 'QUAL'")["date"].max()
+    assert ingest.ratio_text(jumps["QUAL"]["ratio"]) == "4:1" and ingest.ratio_text(jumps["REV"]["ratio"]) == "1:3"
+    assert "OLD" in ingest.split_jumps(p, _recent(p, 60), 0.10, 15, 5)      # found when its day is looked at
+    quiet = news.assign(volume=1)
+    assert "NEWS" in ingest.split_jumps(quiet, _recent(quiet), 0.10, 15, 5)  # the same move on quiet volume
+
+
+def _split_world(after=0):
+    """A and BENCH for 40 sessions; then A's traded price drops to a quarter (4:1, the market −2 % that day),
+    `after` more sessions follow, and Yahoo hasn't re-based A's earlier bars."""
+    a, b = _walk(40, seed=5), list(np.linspace(10, 20, 40))
+    post = [a[-1] / 4 * 0.98 * (1 + 0.001 * i) for i in range(after + 1)]
+    bench = b + [b[-1] * 0.98 * (1 + 0.001 * i) for i in range(after + 1)]
+    return a, {"A": _hist("A", a + post), "BENCH": _hist("BENCH", bench)}
+
+
+def test_a_split_yahoo_has_not_registered_is_downloaded_again_and_held_out_of_the_store(price_store):
+    install, calls = price_store
+    a, world = _split_world()
+    install({t: w.iloc[:-1] for t, w in world.items()})
+    ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    first_start = calls[0][1]
+    install(world)
+    res = ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    assert (["A"], first_start) in calls[2:]                          # asked again, in full
+    held = res["held"]["A"]
+    assert held["ratio"] == "4:1" and held["after"] == 0 and held["prev"] == pytest.approx(a[-1])
+    assert res["behind"] == {} and res["kept"] == {}                 # held, not reported as late too
+    p = ingest.load_prices()
+    assert p.query("ticker == 'A'")["date"].max() == world["A"]["date"].iloc[-2]   # no −75 % bar stored
+    assert p.query("ticker == 'BENCH'")["date"].max() == world["BENCH"]["date"].iloc[-1]
+
+    # a bar stored before the check existed is taken out too
+    pd.concat([p, world["A"].iloc[-1:]]).to_parquet(paths.PRICES_FILE, index=False)
+    res = ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    assert "A" in res["held"] and ingest.load_prices().query("ticker == 'A'")["close"].min() > a[-1] / 2
+
+    # Yahoo registers the split: every earlier bar re-based by a quarter, and the whole history is stored again
+    registered = world["A"].copy()
+    registered.loc[registered.index[:-1], ["close", "high", "low"]] *= 0.25
+    install({"A": registered, "BENCH": world["BENCH"]})
+    res = ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    assert res["held"] == {} and res["rebased"] == ["A"]
+    stored = ingest.load_prices().query("ticker == 'A'")
+    assert stored["date"].max() == registered["date"].max()
+    assert stored["close"].pct_change().abs().max() < 0.1            # no jump left
+
+
+def test_a_split_sized_move_yahoo_never_re_bases_is_kept_after_the_hold(price_store, monkeypatch):
+    install, calls = price_store
+    with_settings(monkeypatch, history_years=1, prices={"split_hold_sessions": 3})
+    _, world = _split_world(after=3)
+    install({t: w.iloc[:40] for t, w in world.items()})
+    ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    install({t: w.iloc[:42] for t, w in world.items()})               # the jump and one session after it
+    assert ingest.update_prices(["A", "BENCH"], bench="BENCH")["held"]["A"]["after"] == 1
+    install(world)                                                    # three sessions after it: a real move
+    res = ingest.update_prices(["A", "BENCH"], bench="BENCH")
+    assert res["held"] == {} and res["kept"]["A"]["after"] == 3
+    assert ingest.load_prices().query("ticker == 'A'")["date"].max() == world["A"]["date"].max()
+
+
 def test_profile_refresh_fetches_a_tracked_tickers_missing_sessions(monkeypatch):
     from types import SimpleNamespace
 

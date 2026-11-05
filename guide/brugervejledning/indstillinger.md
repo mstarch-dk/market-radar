@@ -24,6 +24,10 @@ Procenter skrives i filen som brøker: 0.05 betyder 5 %.
 | Nøgle | Værdi | Betyder |
 |---|---|---|
 | `history_years` | {{settings:history_years}} | År med kurshistorik, der mindst hentes (mere, hvis din første handel kræver det; se `backtest`) |
+| `prices.split_ratio_tol` | {{settings:prices.split_ratio_tol}} | Hvor tæt den nyeste dags kursfald eller -stigning skal ligge på et splitforhold (2:1 til 50:1 eller omvendt), før radaren mistænker en split, Yahoo ikke har registreret |
+| `prices.split_min_sigmas` | {{settings:prices.split_min_sigmas}} | ... og hvor mange gange tickerens egen daglige standardafvigelse bevægelsen mindst skal være (så fx VIX's store dagsudsving ikke tæller) |
+| `prices.split_max_volume_surge` | {{settings:prices.split_max_volume_surge}} | ... og den højeste omsætning den dag, som gange det normale pr. ny aktie; mere end det er en nyhed, ikke en split |
+| `prices.split_hold_sessions` | {{settings:prices.split_hold_sessions}} | Handelsdage efter springet, som en mistænkt split højst holdes ude af kurserne; derefter regnes den for en ægte bevægelse. Se [Data og opdatering](brugervejledning/data-og-opdatering#hentning) |
 | `constituents_max_age_days` | {{settings:constituents_max_age_days}} | Dage før listen over S&P 500-aktier hentes igen |
 | `snapshot_min_gap_days` | {{settings:snapshot_min_gap_days}} | Mindste alder på det snapshot, rangændringer ("Δ rank", "new") sammenlignes med, regnet fra datoen for dataene |
 

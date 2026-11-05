@@ -98,6 +98,18 @@ Hver `radar update` henter kun det nye:
 
 Tærsklen $10^{-5}$ og de 7 dages overlap står i koden (`RESCALE_TOL` og `OVERLAP_DAYS`). Den tidligste fælles dato bruges, fordi sene rettelser typisk rammer de nyeste dage, mens en re-basering flytter hele historikken.
 
+### En split, som Yahoo ikke har registreret endnu
+
+Sammenligningen ovenfor fanger kun en split, når Yahoo har justeret de tidligere kurser. Når splitten er sket på børsen, men endnu ikke er registreret, falder den nyeste kurs til en brøkdel, mens resten af historikken står urørt. Så er det kun den nyeste dag, der springer. Radaren tjekker derfor dagene i overlappet ($C_{-1}$ er den justerede lukkekurs dagen før, $C_0$ den nye dags) for tre ting:
+
+1. **Et splitforhold.** Med $q = C_{-1} / C_0$ og $n$ det nærmeste hele forhold (2 til 50, eller $1/n$ for en omvendt split) må $|n/q - 1|$ højst være {{settings:prices.split_ratio_tol|pct}}. Ved en split 4:1 er $C_0 \cdot 4$ altså tæt på $C_{-1}$, og resten er dagens almindelige kursbevægelse.
+2. **Usandsynligt stort for instrumentet.** $|\ln(C_0/C_{-1})|$ skal være mindst {{settings:prices.split_min_sigmas}} gange standardafvigelsen af tickerens daglige log-afkast over de 250 dage før. VIX stiger 43 % på en dag uden at være i nærheden af et splitforhold, og en meget volatil ticker kan godt fordoble sig.
+3. **Ingen omsætningseksplosion.** Antal handlede aktier den dag må højst være {{settings:prices.split_max_volume_surge}} · max(n, 1) gange medianen for de 20 dage før. En split ganger antallet af aktier med $n$, mens en nyhed, der flytter kursen så meget, handles langt mere (Moderna steg 177 % i august 2026 på omkring 40 gange den normale omsætning).
+
+Opfylder dagen alle tre, hentes tickerens historik igen. Står springet der stadig, gemmes dagene fra springet ikke, før Yahoo registrerer splitten (så hentes alt igen ved re-baseringen) eller der er gået {{settings:prices.split_hold_sessions}} handelsdage. Derefter regnes springet for ægte.
+
+Reglen kan også ramme et ægte krak. Prøvet på ti års kurser for de cirka 800 tickers, radaren følger, fanger den fx tre olieaktier, der faldt omkring 50 % den 9. marts 2020 på kun 6 til 9 gange den normale omsætning. De ville være holdt ude i nogle dage og derefter gemt: en kurs, der mangler i nogle dage, er bedre end et falsk fald på 75 %.
+
 ### Huller og helligdage
 
 Til beregninger stiller `ingest.wide()` kurserne op i en matrix med én række pr. dato og én kolonne pr. ticker. Datoerne er foreningsmængden af alle tickers' handelsdage, inklusive valutakurser, så i praksis alle hverdage. Mangler en ticker en kurs (en lukket børs), fyldes hullet med seneste kurs, **højst 5 rækker** i træk. Længere huller forbliver tomme. Det er rigtigt for afkastvinduer: en helligdag er en dag uden kursændring. Men alt, der vises som en enkelt handelsdag (seneste kurs, dagsændring, grafen på tickerprofilen), bruger tickerens egne bars, så en manglende Yahoo-dag ses som et hul, ikke som en flad dag.
