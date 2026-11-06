@@ -357,6 +357,13 @@ class Updates(_Section):
     repo: str | None = None
 
 
+class Prices(_Section):
+    split_ratio_tol: float = 0.10
+    split_min_sigmas: float = 15.0
+    split_max_volume_surge: float = 5.0
+    split_hold_sessions: int = 5
+
+
 class Ops(_Section):
     keep_requests_days: int = 30
     keep_events_days: int = 180
@@ -450,6 +457,7 @@ class Gauge(_Section):
 class Settings(_Section):
     """The whole of config/settings.yaml."""
     history_years: int
+    prices: Prices = Prices()
     constituents_max_age_days: int
     snapshot_min_gap_days: int
     rotation: Rotation

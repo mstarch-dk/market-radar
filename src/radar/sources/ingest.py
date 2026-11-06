@@ -89,6 +89,69 @@ def rescaled(existing: pd.DataFrame, fresh: pd.DataFrame) -> list[str]:
     return sorted(first.index[changed])
 
 
+SPLIT_MAX_RATIO = 50     # forward splits 2:1 … 50:1 and reverse splits 1:2 … 1:50 are looked for
+VOL_WINDOW = 250         # sessions before a jump that give the instrument's own daily volatility
+VOL_MIN_BARS = 20        # fewer than this: the ratio test alone decides
+
+
+def split_jumps(prices: pd.DataFrame, since: dict[str, pd.Timestamp], ratio_tol: float, min_sigmas: float,
+                max_surge: float) -> dict[str, dict]:
+    """{ticker: the jump} for tickers whose adjusted close moves, on a day on or after `since[ticker]`, by about a
+    split ratio: the close after times n is within `ratio_tol` of the close before (n = 2 … SPLIT_MAX_RATIO, or 1/n
+    for a reverse split), the move is at least `min_sigmas` times the ticker's own daily volatility (log returns
+    over the VOL_WINDOW sessions before it), and the day's volume is under `max_surge` × max(n, 1) times its median
+    over the VOL_MIN_BARS sessions before (a split multiplies the share count by n; news that moves a price this
+    far trades far more: MRNA +177 % on ~40× its volume). A split Yahoo hasn't registered yet looks like that: the
+    traded price drops to a fraction while the earlier bars aren't re-based. A volatile index (^VIX +43 % in a day)
+    is no split ratio away; a quiet crash of about a half can still be flagged (`update_prices` holds it back a
+    few sessions only).
+
+    The jump: {"date", "prev": close before, "close", "ratio": n (0.5 for 1:2), "after": the ticker's bars after
+    the jump}. The first jump on or after `since` counts."""
+    out: dict[str, dict] = {}
+    for t, g in prices[prices["ticker"].isin(set(since))].groupby("ticker", sort=False):
+        g = g.sort_values("date").set_index("date")
+        ok = (g["close"] > 0) & np.isfinite(g["close"].astype(float))
+        c, vol = g.loc[ok, "close"].astype(float), g.loc[ok, "volume"].astype(float)
+        if len(c) < 2:
+            continue
+        logret = np.log(c / c.shift(1))
+        for i in np.flatnonzero(c.index >= since[t]):
+            if i == 0:
+                continue
+            q = c.iloc[i - 1] / c.iloc[i]                     # how many new shares one old one became
+            n = float(round(q)) if q >= 1 else 1 / round(1 / q)
+            if not (2 <= n <= SPLIT_MAX_RATIO or 1 / SPLIT_MAX_RATIO <= n <= 0.5):
+                continue
+            if abs(n / q - 1) > ratio_tol:
+                continue
+            prior = logret.iloc[max(1, i - VOL_WINDOW):i].dropna()
+            if len(prior) >= VOL_MIN_BARS and abs(logret.iloc[i]) < min_sigmas * prior.std():
+                continue
+            usual = vol.iloc[max(0, i - VOL_MIN_BARS):i].median()
+            if usual > 0 and vol.iloc[i] > max_surge * max(n, 1.0) * usual:   # an index has no volume: no test
+                continue
+            out[t] = {"date": c.index[i], "prev": float(c.iloc[i - 1]), "close": float(c.iloc[i]), "ratio": n,
+                      "after": len(c) - i - 1}
+            break
+    return out
+
+
+def ratio_text(n: float) -> str:
+    """A split ratio as people write it: 3:1 forward, 1:4 reverse."""
+    return f"{round(n)}:1" if n >= 1 else f"1:{round(1 / n)}"
+
+
+def _withhold(df: pd.DataFrame, held: dict[str, dict]) -> pd.DataFrame:
+    """The store without each held ticker's bars from its jump on."""
+    if not held:
+        return df
+    drop = pd.Series(False, index=df.index)
+    for t, j in held.items():
+        drop |= (df["ticker"] == t) & (df["date"] >= j["date"])
+    return df[~drop].reset_index(drop=True)
+
+
 def _load_from() -> dict[str, str]:
     f = CACHE / FROM_FILE
     try:
@@ -116,6 +179,11 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
 
     With `bench`, tickers still without a bar on the benchmark's last session are fetched once more and the ones
     left over are returned as `behind` ({ticker: last bar}); `asof` is that session.
+
+    A ticker whose recent adjusted close jumps by about a split ratio (`split_jumps`: a split Yahoo hasn't
+    registered, so the earlier bars aren't re-based) is downloaded again in full. Still there, its bars from the
+    jump on are left out of the store (`held`, not `behind`): a missing session rather than a false −75 % return.
+    Once it has `prices.split_hold_sessions` bars after the jump, they are stored as a real move (`kept`).
 
     The downloads run without a lock; the store is then re-read and written under `locks.file_lock`, so an update
     started elsewhere meanwhile (the app looking up a ticker, `radar update` in a terminal) isn't overwritten."""
@@ -147,10 +215,29 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
             full = pd.concat([full, again], ignore_index=True)
     full = norm_dates(full)
 
+    # a newest bar that moved by a split ratio: downloaded again in full; still there, it is held back (`held`)
+    # until Yahoo registers the split, or kept once the ticker has `split_hold_sessions` bars after it (`kept`)
+    sc = typed().prices
+    df, _, _ = _merge(existing, full, [inc], limit)
+    since = {t: pd.Timestamp(d) - pd.Timedelta(days=OVERLAP_DAYS)
+             for t, d in df[df["ticker"].isin(set(tickers))].groupby("ticker")["date"].max().items()}
+    since |= {t: pd.Timestamp(d) - pd.Timedelta(days=OVERLAP_DAYS) for t, d in last.items() if t in since}
+    test = (sc.split_ratio_tol, sc.split_min_sigmas, sc.split_max_volume_surge)
+    jumps = split_jumps(df, since, *test)
+    if jumps:
+        again = norm_dates(download_bars(sorted(jumps), full_start, labelled(progress, "Suspected splits (asked again)")))
+        redone = set(again["ticker"])
+        inc = inc[~inc["ticker"].isin(redone)]
+        full = pd.concat([full[~full["ticker"].isin(redone)], again], ignore_index=True)
+        df, _, _ = _merge(existing, full, [inc], limit)
+        jumps = split_jumps(df, {t: since[t] for t in jumps}, *test)
+    held = {t: j for t, j in jumps.items() if j["after"] < sc.split_hold_sessions}
+    kept = {t: j for t, j in jumps.items() if t not in held}
+    df = _withhold(df, held)
+
     # Yahoo sometimes answers without the latest session for a whole exchange; ask once more for those
     more = pd.DataFrame(columns=COLUMNS)
-    df, _, _ = _merge(existing, full, [inc], limit)
-    late = behind(df, tickers, bench)
+    late = {t: d for t, d in behind(df, tickers, bench).items() if t not in held}
     if late:
         since = min(date.fromisoformat(d) for d in late.values()) - timedelta(days=OVERLAP_DAYS)
         more = norm_dates(download_bars(sorted(late), since, labelled(progress, "Late tickers (asked again)")))
@@ -159,14 +246,20 @@ def update_prices(tickers: list[str], progress=None, start: date | None = None, 
     with locks.file_lock(PRICES_FILE, what="the price store is busy: another update is writing it"):
         current = _load_current()        # what is stored now, with anything written while we downloaded
         df, short, reached = _merge(current, full, [inc, more], limit)
+        df = _withhold(df, held)
         write_parquet(df, PRICES_FILE, index=False)
         _save_from(_load_from() | {t: full_start.isoformat() for t in reached})
-    late = behind(df, tickers, bench)
+    late = {t: d for t, d in behind(df, tickers, bench).items() if t not in held}
 
     got = set(inc["ticker"]) | set(full["ticker"])
     return {"requested": len(tickers), "new": len(new), "rebased": rebased, "deepened": len(deepen),
             "missing": sorted(set(tickers) - got - set(known)), "rows": len(df), "behind": late,
-            "short": short, "asof": _last(df, bench)}
+            "short": short, "asof": _last(df, bench), "held": _jumps_out(held), "kept": _jumps_out(kept)}
+
+
+def _jumps_out(jumps: dict[str, dict]) -> dict[str, dict]:
+    return {t: {"date": pd.Timestamp(j["date"]).date().isoformat(), "prev": j["prev"], "close": j["close"],
+                "ratio": ratio_text(j["ratio"]), "after": j["after"]} for t, j in sorted(jumps.items())}
 
 
 def _load_current() -> pd.DataFrame:

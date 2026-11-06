@@ -117,6 +117,21 @@ def _update(log: Log, refresh_constituents: bool, progress: Prog) -> None:
             ops.event("warn", "source", f"prices: {late}", detail=", ".join(names))
             warn(late)
             msg += f"; {late}"
+        if res.get("held"):
+            jumps = [f"{t} {j['prev']:.2f} → {j['close']:.2f} on {j['date']} (≈ {j['ratio']})"
+                     for t, j in res["held"].items()]
+            held = (f"{len(jumps)} with a newest bar that looks like a split Yahoo hasn't registered, still there "
+                    f"after a fresh download; left out until it is, so no false return is shown: " + _names(jumps))
+            ops.event("warn", "source", f"prices: {held}", detail=", ".join(res["held"]))
+            warn(held)
+            msg += f"; {held}"
+        if res.get("kept"):
+            jumps = [f"{t} on {j['date']} (≈ {j['ratio']})" for t, j in res["kept"].items()]
+            kept = (f"{len(jumps)} with a split-sized move still unregistered by Yahoo after "
+                    f"{typed().prices.split_hold_sessions} sessions, now kept as a real move: " + _names(jumps))
+            ops.event("warn", "source", f"prices: {kept}", detail=", ".join(res["kept"]))
+            warn(kept)
+            msg += f"; {kept}"
         if res.get("short"):
             names = sorted(res["short"])
             short = (f"{len(names)} with a Yahoo history shorter than the one stored (kept the stored bars; "

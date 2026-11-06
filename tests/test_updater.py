@@ -79,7 +79,9 @@ def test_the_prices_step_says_which_tickers_are_late_short_or_missing(tmp_data, 
     monkeypatch.setattr(universe, "all_price_tickers", lambda *a, **k: ["A"])
     monkeypatch.setattr(ingest, "update_prices", lambda *a, **k: {
         "rows": 1234, "new": 1, "asof": "2026-10-16", "behind": set(late), "short": {"S1"}, "deepened": 2,
-        "rebased": ["R1"], "missing": ["M1", "M2"]})
+        "rebased": ["R1"], "missing": ["M1", "M2"],
+        "held": {"QUAL": {"date": "2026-11-05", "prev": 227.02, "close": 55.35, "ratio": "4:1", "after": 0}},
+        "kept": {"K1": {"date": "2026-10-28", "prev": 40.0, "close": 20.5, "ratio": "2:1", "after": 5}}})
     monkeypatch.setattr(universe, "names", lambda t, progress=None: None)
     monkeypatch.setattr(universe, "sectors", lambda t, progress=None: None)
     monkeypatch.setattr(tracked, "stock_groups", lambda: {})
@@ -95,6 +97,9 @@ def test_the_prices_step_says_which_tickers_are_late_short_or_missing(tmp_data, 
     assert msg.endswith("no data for 2: M1, M2")
     warns = [e["message"] for e in ops.events() if e["kind"] == "source" and e["level"] == "warn"]
     assert any("14 without a bar" in w for w in warns) and any("shorter than the one stored" in w for w in warns)
+    assert "QUAL 227.02 → 55.35 on 2026-11-05 (≈ 4:1)" in msg and "left out until it is" in msg
+    assert "K1 on 2026-10-28 (≈ 2:1)" in msg and "now kept as a real move" in msg
+    assert any("looks like a split" in w for w in warns) and any("kept as a real move" in w for w in warns)
     assert log["fred"]["error"] == "RuntimeError: failed: DGS10; those series keep their cached values"
 
 

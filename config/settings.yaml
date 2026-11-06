@@ -1,4 +1,9 @@
 history_years: 10         # price history kept at least; deeper when your first trade needs it (backtest.warmup_days)
+prices:                    # sources/ingest.py: a newest bar that looks like a split Yahoo hasn't registered yet
+  split_ratio_tol: 0.10      # the close after × n within 10 % of the close before (n = 2 … 50, or 1/n) ...
+  split_min_sigmas: 15       # ... and a move at least this many times the ticker's own daily volatility
+  split_max_volume_surge: 5  # ... on volume under this × max(n, 1) × its 20-session median (news trades far more)
+  split_hold_sessions: 5     # held out of the store until Yahoo re-bases it, or for at most this many of its sessions
 constituents_max_age_days: 30
 
 rotation:
