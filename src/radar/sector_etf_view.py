@@ -32,6 +32,8 @@ TER_TOLERANCE = 0.0005         # recorded vs Yahoo TER: a gap above 0.05 pp is f
 SPARK_WEEKS = 52
 MAX_POOL = 15                  # discovery-pool candidates per sector, for the skill
 EXCLUDE = ("LEVERAGED", "SHORT", " 2X", " 3X", "DAILY", "INVERSE", "COVERED CALL", "BOND")
+BLANK = {"issuer": None, "index": None, "ter": None, "distribution": None, "domicile": None, "currency": None,
+         "aum_musd": None, "tracking_diff": None, "sources": [], "checked": None}   # what the skill fills in
 
 
 # ---------------- tax ----------------
@@ -236,10 +238,63 @@ def history() -> list[dict]:
     return out
 
 
+# ---------------- what a new run changes ----------------
+
+def changes(new: list[dict], base: dict | None) -> list[dict]:
+    """Per sector of a new run (checked sectors), what differs from the latest record: the pick, ETFs added or
+    dropped, a TER that moved. A sector the record didn't have is `new`."""
+    old = {s["key"]: s for s in (base or {}).get("sectors", [])}
+    out = []
+    for s in new:
+        o = old.get(s["key"])
+        if o is None:
+            out.append({"key": s["key"], "new": True, "pick": {"from": None, "to": s["pick"]}})
+            continue
+        before = {e["isin"]: e for e in o["etfs"]}
+        after = {e["isin"]: e for e in s["etfs"]}
+        ter = [{"isin": i, "from": before[i]["ter"], "to": after[i]["ter"]} for i in after
+               if i in before and before[i]["ter"] != after[i]["ter"]]
+        out.append({"key": s["key"], "new": False,
+                    "pick": {"from": o["pick"], "to": s["pick"]} if o["pick"] != s["pick"] else None,
+                    "added": [i for i in after if i not in before], "dropped": [i for i in before if i not in after],
+                    "ter": ter})
+    return out
+
+
+def preview(record: dict, market: Market | None, today: date | None = None) -> dict:
+    """A run before it is saved: the checked sectors, each ranked with today's data (so the pick can be held against
+    the rule), and the changes against the latest record. Invalid when the run doesn't pass sector_etfs.check."""
+    today = today or date.today()
+    rec = sector_etfs.check(record)
+    prices = Prices(market) if market is not None else None
+    bench = bench_dkk(market) if market is not None else pd.Series(dtype=float)
+    years, ts = positive_list_years(), pd.Timestamp(today)
+    sectors = []
+    for s in rec["sectors"]:
+        ranked = rank([enrich(e, prices, bench, years, today.year, ts) for e in s["etfs"]])
+        first = ranked[0]["isin"]
+        warn = []
+        if first != s["pick"] and not s["rank_override"]:
+            warn.append(f"the pick isn't the ranking's first ({first}): set rank_override with a reason, or pick it")
+        pick = next(e for e in ranked if e["isin"] == s["pick"])
+        if pick["tax"]["status"] != "yes":
+            warn.append(f"the pick is {pick['tax']['tax_class']} for {today.year}: not allowed on an aktiesparekonto")
+        sectors.append({"key": s["key"], "pick": s["pick"], "rank_override": s["rank_override"],
+                        "reason": s["reason"], "warnings": warn,
+                        "ranking": [{k: e[k] for k in ("rank", "isin", "ticker", "name", "ter", "aum_musd",
+                                                       "returns_dkk", "tax", "reasons")} for e in ranked]})
+    base = sector_etfs.latest()
+    covered = {x["key"] for x in rec["sectors"]}
+    carried = [s["key"] for s in (base or {}).get("sectors", []) if s["key"] not in covered]
+    return {"sectors": sectors, "changes": changes(rec["sectors"], base), "carried_over": carried,
+            "latest": base["id"] if base else None}
+
+
 # ---------------- candidates for the skill ----------------
 
 def _pool(key: str, words: list[str], known: set[str]) -> list[dict]:
-    """ETFs of the discovery scan (positive-list funds mapped to Yahoo) whose name matches the sector's words."""
+    """ETFs of the discovery scan (positive-list funds mapped to Yahoo) whose name says ETF and matches the
+    sector's words (active funds, leveraged, short and bond funds left out)."""
     from .discovery import scan
 
     df = scan.load_universe()
@@ -247,13 +302,14 @@ def _pool(key: str, words: list[str], known: set[str]) -> list[dict]:
         return []
     df = df[df["kind"] == "etf"]
     up = df["name"].astype(str).str.upper()
-    hit = up.apply(lambda n: any(w in n for w in words) and not any(x in n for x in EXCLUDE))
+    hit = up.apply(lambda n: "ETF" in n and any(w in n for w in words) and not any(x in n for x in EXCLUDE))
     out = []
     for _, r in df[hit].iterrows():
         code = str(r.get("isin") or "").strip().upper()
         if not code or code in known:
             continue
-        out.append({"isin": code, "ticker": r["ticker"], "name": r["name"], "scope": None, "source": "discovery",
+        out.append({**BLANK, "isin": code, "ticker": r["ticker"], "name": r["name"], "scope": None,
+                    "source": "discovery",
                     "category": r.get("category") or None, "exchange": r.get("exchange") or None})
         known.add(code)
         if len(out) >= MAX_POOL:
@@ -278,7 +334,8 @@ def candidates(key: str, market: Market, today: date | None = None) -> dict:
     known = {e["isin"] for e in rows}
     for s in d.seeds:
         if s.isin not in known:
-            rows.append({"isin": s.isin, "ticker": s.ticker, "name": s.name, "scope": s.scope, "source": "seed"})
+            rows.append({**BLANK, "isin": s.isin, "ticker": s.ticker, "name": s.name, "scope": s.scope,
+                         "source": "seed"})
             known.add(s.isin)
     pool = _pool(key, d.match, known)
     prices, bench, years = Prices(market), bench_dkk(market), positive_list_years()

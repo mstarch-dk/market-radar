@@ -1,6 +1,6 @@
 """Tools on the engines: a basket proposal for one of your portfolios, from shortlist to frozen picks, evaluation,
 shadow portfolios, review and exit check; the hindsight basket (`radar sim picks`); and /scout's frozen hypothesis
-candidates and their follow-up. A proposal's picks go in as
+candidates and their follow-up; /sector-etfs' go-to UCITS ETF per sector. A proposal's picks go in as
 structured input and are frozen before the model's numbers are seen; a frozen proposal is named by its id.
 
 The sim tools run `radar sim …` as a child process: the server, like the app, never runs a study in its own process
@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .. import errors, evidence, profile, propose, scout, studyrun
+from .. import errors, evidence, profile, propose, scout, sector_etf_view, sector_etfs, studyrun
 from ..config import write_text
 from ..jsonsafe import dumps
 from .common import market
@@ -211,5 +211,63 @@ def scout_review() -> dict:
     return evidence.scout_review(market())
 
 
+def _market_or_none():
+    try:
+        return market()
+    except errors.NotFound:                       # no price data yet: returns are null
+        return None
+
+
+def sector_etfs_view() -> dict:
+    """The Sector ETFs page: every sector of config/sector_etfs.yaml (the 11 GICS sectors, then the EU supersectors
+    with a UCITS ETF of their own) with the go-to UCITS ETF and its peers of /sector-etfs' latest record, ranked by
+    the rule (on SKAT's positive list first, then the size floor, TER, tracking difference, accumulating), each
+    with returns in DKK and vs ACWI in DKK (`returns_dkk`, `vs_acwi`: r1m r3m r6m r1y ytd), the recorded and Yahoo's
+    TER, size, and the Danish tax status (`tax.tax_class` aktiebaseret | kapitalindkomst | ukendt, `tax.ask_ok`).
+    `recheck`: the pick is no longer first and the record gave no reason; `stale`: the record is older than
+    `stale_days`. Before the first run `as_of` is null and no sector has ETFs."""
+    return sector_etf_view.cached(_market_or_none())
+
+
+def sector_etf_candidates(sector: str) -> dict:
+    """Where /sector-etfs starts for one sector (`sector`: a key of sector_etfs_view, e.g. Technology, Banks):
+    the latest record's ETFs, the known seed UCITS funds and matching funds of the discovery pool (positive-list
+    funds mapped to Yahoo), each with its returns in DKK, Yahoo's cached TER and its tax status, ranked by the rule
+    with what is known so far. Fill in TER, size, distribution, domicile and tracking difference from the issuers
+    (with each source and the day read) before sector_etfs_save."""
+    return sector_etf_view.candidates(sector, _market_or_none())
+
+
+def sector_etfs_save(sectors: list[dict[str, Any]], note: str | None = None, report: str | None = None,
+                     confirm: bool = False) -> dict:
+    """Record /sector-etfs' go-to UCITS ETF and peers for the sectors researched in this run. `sectors`: per sector
+    {key, pick (the go-to's ISIN), reason, rank_override (true when the pick isn't the ranking's first: then the
+    reason is required), etfs: [{isin, ticker (Yahoo), name, scope world|us|europe|other, issuer, index, ter
+    (fraction: 0.0025 = 0.25 %), distribution acc|dist, domicile (IE), currency (USD), aum_musd, tracking_diff
+    (fraction a year), sources (URLs), checked (YYYY-MM-DD)}]}; unknown figures are null, never guessed. `note`:
+    the run's caveats; `report`: the memo's name. Without `confirm` nothing is saved: a dry run that returns each
+    sector ranked with today's data, its warnings and the changes against the latest record, to show the user.
+    With `confirm` (only after the user said yes) every ticker's prices are downloaded if the radar lacks them, and
+    the run is stored in exports/sector_etfs/, dated today, never overwritten; sectors not in this run are carried
+    over from the latest record."""
+    record = {"sectors": sectors, "note": note, "report": report}
+    m = _market_or_none()
+    draft = sector_etf_view.preview(record, m)
+    if not confirm:
+        return {"saved": False, **draft}
+    unknown = []
+    for t in sorted({e["ticker"] for s in sector_etfs.check(record)["sectors"] for e in s["etfs"]}):
+        try:
+            m = profile.ensure_prices(t, m)
+        except profile.TickerNotFound:
+            unknown.append(t)
+    if unknown:
+        raise errors.Invalid(f"Not saved: no Yahoo prices for {', '.join(unknown)} (check the symbols, e.g. with "
+                             f"ticker_profile, or use another listing of the fund).")
+    saved = sector_etfs.freeze(record)
+    return {"saved": True, "id": saved["id"], "file": saved["file"], "carried": saved["carried"], **draft}
+
+
 TOOLS = (propose_candidates, propose_freeze, propose_evaluate, propose_shadow, propose_picks, propose_review,
-         propose_check, sim_picks_candidates, sim_picks, scout_freeze, scout_review)
+         propose_check, sim_picks_candidates, sim_picks, scout_freeze, scout_review, sector_etfs_view,
+         sector_etf_candidates, sector_etfs_save)

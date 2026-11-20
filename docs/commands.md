@@ -126,6 +126,12 @@ Always run Python through uv; the frontend uses pnpm.
   each one's proxy basket (its ETFs, or its stocks without one) vs ACWI, tickers without prices, and the mean excess
   per decision (adopted / watch / dismissed) and per stage (whisper / confirming / consensus) once
   `evidence.scout_min` candidates are `evidence.cohort_age_months` old. The skill freezes them (`scout_freeze`).
+- `uv run radar sector-etfs [--json]`: the Sector ETFs page on the command line (`sector_etf_view.py`): per sector the
+  go-to UCITS ETF (*) and its peers from /sector-etfs' latest record (`exports/sector_etfs/`), in the ranking's order
+  (positive list, size floor, TER, tracking, accumulating), with TER, tax status (PL: on SKAT's positive list),
+  returns in DKK and vs ACWI, and `re-check` when the pick is no longer first. `candidates SECTOR [--json]`: where the
+  skill starts (the record, the seeds of `config/sector_etfs.yaml`, matching discovery-pool ETFs). `history
+  [--json]`: what each run picked. The skill writes the record (`sector_etfs_save`).
 - `uv run radar evidence [--json]`: the Evidence page on the command line (`evidence.py`): each study report's status
   (ok, older rule, not run yet, unreadable), age and rule; each score's IC with t over all dates and the holdout and
   the top N vs ACWI with t; the long-run panels; and the forward record (A/B test, `picks-live` baskets, frozen
@@ -220,7 +226,8 @@ Always run Python through uv; the frontend uses pnpm.
   (`data_paths`, `investor_notes`, `market_views`, `summary(sections)`, `discovery`, `study_reports`, `documents`,
   `journal_entries`, `read_document`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`,
   `evidence_view`, `ticker_profile`, `trading_rules`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
-  (`propose_*`, `sim_picks_candidates`, `sim_picks`, `scout_freeze`, `scout_review`), the writes (`write_memo`,
+  (`propose_*`, `sim_picks_candidates`, `sim_picks`, `scout_freeze`, `scout_review`, `sector_etfs_view`, `sector_etf_candidates`,
+  `sector_etfs_save` with `confirm`: a dry run first), the writes (`write_memo`,
   `add_trade` with `confirm`, which also returns the trade's rule verdicts; `add_view` with `confirm`, which first
   returns the view's evidence and the views it overlaps or contradicts) and the trading rules (`rules_check`, which writes only with `log`; `add_rule` with `confirm`;
   `rule_decision`). Each

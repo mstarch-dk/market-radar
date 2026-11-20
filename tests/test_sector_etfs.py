@@ -14,6 +14,7 @@ from radar.config import sector_etf_taxonomy
 from radar.errors import Invalid, NotFound
 from radar.market import Market
 from radar.reporting import dashboard
+from radar.sources import ingest
 
 TECH = {"key": "Technology", "pick": "IE00BM67HT60", "reason": None, "etfs": [
     {"isin": "IE00BM67HT60", "ticker": "XDWT.L", "name": "Xtrackers MSCI World IT 1C", "scope": "world",
@@ -130,6 +131,7 @@ def test_tax_status_follows_the_positive_list_of_the_year():
 @pytest.fixture
 def radar(tmp_data, monkeypatch):
     world.install(tmp_data, monkeypatch)
+    monkeypatch.setattr(ingest, "update_prices", lambda tickers: {})   # Yahoo knows nothing new
     year = date.today().year
     monkeypatch.setattr(sector_etf_view, "positive_list_years", lambda: {year: {"IE00BM67HT60", "DE000A0F5UJ7"}})
     dashboard.reset()
@@ -235,3 +237,49 @@ def test_the_discovery_pool_offers_matching_funds_but_not_leveraged_ones(radar, 
          "isin": "IE00BM67HT60"}]))                    # already a seed: not offered twice
     pool = sector_etf_view.candidates("Technology", Market.load())["pool"]
     assert [p["ticker"] for p in pool] == ["A.L"] and pool[0]["source"] == "discovery"
+
+
+# ---------------- MCP and CLI ----------------
+
+def test_save_is_a_dry_run_until_confirmed(radar, monkeypatch):
+    from radar import profile
+    from radar.mcp import common
+    from test_mcp import ok, refused
+
+    common.reset()
+    rec = _record()
+    draft = ok("sector_etfs_save", sectors=rec["sectors"], note="first run")
+    assert not draft["saved"] and sector_etfs.records() == []
+    tech = next(s for s in draft["sectors"] if s["key"] == "Technology")
+    assert [r["isin"] for r in tech["ranking"]] == ["IE00BM67HT60", "IE00B3WJKG14"] and tech["warnings"] == []
+    assert draft["changes"][0] == {"key": "Technology", "new": True, "pick": {"from": None, "to": "IE00BM67HT60"}}
+    assert "no Yahoo prices for NOPRICE" in refused("sector_etfs_save", sectors=rec["sectors"], confirm=True)
+    monkeypatch.setattr(profile, "ensure_prices", lambda t, m=None, refresh=False: m)
+    saved = ok("sector_etfs_save", sectors=rec["sectors"], confirm=True)
+    assert saved["saved"] and saved["id"] == date.today().isoformat() and len(sector_etfs.records()) == 1
+    rec["sectors"][0]["pick"] = "IE00B3WJKG14"                          # off the list, not first, no override
+    again = ok("sector_etfs_save", sectors=rec["sectors"][:1])
+    warn = again["sectors"][0]["warnings"]
+    assert any("isn't the ranking's first" in w for w in warn) and any("kapitalindkomst" in w for w in warn)
+    assert again["changes"][0]["pick"] == {"from": "IE00BM67HT60", "to": "IE00B3WJKG14"}
+    assert again["carried_over"] == ["Banks"]
+    assert "the pick is the ISIN" in refused("sector_etfs_save", sectors=[{**rec["sectors"][0], "pick": "x"}])
+    view = ok("sector_etfs_view")
+    assert view["as_of"] == date.today().isoformat()
+    assert ok("sector_etf_candidates", sector="Banks")["current_pick"] == "DE000A0F5UJ7"
+    assert "not a sector" in refused("sector_etf_candidates", sector="Nope")
+
+
+def test_the_cli_shows_the_record_candidates_and_history(radar):
+    from typer.testing import CliRunner
+
+    from radar import cli
+
+    run = CliRunner()
+    assert "No sector ETF record yet" in run.invoke(cli.app, ["sector-etfs"]).output
+    sector_etfs.freeze(_record())
+    out = run.invoke(cli.app, ["sector-etfs"]).output
+    assert "Technology (Teknologi)" in out and " *1 THEME1" in out and "PL" in out
+    assert json.loads(run.invoke(cli.app, ["sector-etfs", "--json"]).output)["record_id"] == date.today().isoformat()
+    assert "IE00BM67HT60" in run.invoke(cli.app, ["sector-etfs", "candidates", "Technology"]).output
+    assert "Technology THEME1" in run.invoke(cli.app, ["sector-etfs", "history"]).output
