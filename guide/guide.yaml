@@ -19,6 +19,7 @@ books:
           - {slug: regime, title: Regime}
           - {slug: sektorrotation, title: Sektorrotation}
           - {slug: temaer-og-faktorer, title: Temaer og faktorer}
+          - {slug: sektor-etfer, title: Sektor-ETF'er}
           - {slug: momentum, title: Momentum}
           - {slug: kvalitet-og-vaerdi, title: Kvalitet og værdi}
           - {slug: discover, title: Discover}
@@ -125,6 +126,7 @@ page_links:
   /regime: brugervejledning/regime
   /rotation: brugervejledning/sektorrotation
   /themes: brugervejledning/temaer-og-faktorer
+  /sectoretfs: brugervejledning/sektor-etfer
   /momentum: brugervejledning/momentum
   /quality: brugervejledning/kvalitet-og-vaerdi
   /evidence: brugervejledning/scoretest
@@ -176,6 +178,8 @@ glossary_links:
   positive_list: laerebog/skat#positivlisten
   tax_share_income: laerebog/skat#aktieindkomst-og-kapitalindkomst
   tax_lager: laerebog/skat#realisations--og-lagerbeskatning
+  tax_class: laerebog/skat#aktieindkomst-og-kapitalindkomst
+  lager: laerebog/skat#realisations--og-lagerbeskatning
   tax_pool: laerebog/skat#aktiesparekontoen
   signal: laerebog/afstemningsmodellen#status-for-en-række
   not_voting: laerebog/afstemningsmodellen#grupper-der-kan-slås-fra
