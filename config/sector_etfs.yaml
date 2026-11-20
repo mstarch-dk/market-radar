@@ -8,6 +8,8 @@
 # `rotation:` the tickers of etf_groups.us_sectors / eu_sectors (universe.yaml) that stand for the sector there;
 # every one of them belongs to exactly one entry (tests/test_config.py).
 #
+# `match:` words (upper case) a fund's name holds to be offered from the discovery pool (positive-list funds the
+# scan mapped to Yahoo) as a further candidate for the skill; leveraged, short and bond funds are left out.
 # `seeds:` known UCITS candidates the skill starts from, never a pick. Each ISIN is on SKAT's positive list (2026
 # sheet, imports/positivliste.xlsx) and each ticker is the Yahoo listing the discovery scan mapped it to
 # (discovery/isin_map.csv), both read 2026-11-20. TER, size and tracking are not kept here: the skill records them
@@ -17,6 +19,7 @@ sectors:
   Technology:
     label: Teknologi
     rotation: [XLK, EXV3.DE]
+    match: ["INFORMATION TECHNOLOGY", "TECHNOLOGY"]
     seeds:
       - {isin: IE00BM67HT60, ticker: XDWT.L,  scope: world,  name: Xtrackers MSCI World Information Technology UCITS ETF 1C}
       - {isin: IE00BJ5JNY98, ticker: WITS.AS, scope: world,  name: iShares MSCI World Information Technology Sector Advanced UCITS ETF (Dist)}
@@ -26,6 +29,7 @@ sectors:
   Healthcare:
     label: Sundhed
     rotation: [XLV, EXV4.DE]
+    match: ["HEALTH CARE", "HEALTHCARE"]
     seeds:
       - {isin: IE00BM67HK77, ticker: XDWH.L,  scope: world,  name: Xtrackers MSCI World Health Care UCITS ETF 1C}
       - {isin: IE00B43HR379, ticker: IUHC.L,  scope: us,     name: iShares S&P 500 Health Care Sector UCITS ETF (Acc)}
@@ -34,6 +38,7 @@ sectors:
   Financial Services:
     label: Finans
     rotation: [XLF, EXH2.DE]
+    match: ["FINANCIALS", "FINANCIAL SERVICES"]
     seeds:
       - {isin: IE00BM67HL84, ticker: XDWF.L,  scope: world,  name: Xtrackers MSCI World Financials UCITS ETF 1C}
       - {isin: IE00BJ5JP097, ticker: WFNS.AS, scope: world,  name: iShares MSCI World Financials Sector Advanced UCITS ETF (Dist)}
@@ -43,6 +48,7 @@ sectors:
   Industrials:
     label: Industri
     rotation: [XLI, EXH4.DE]
+    match: ["INDUSTRIALS", "INDUSTRIAL GOODS"]
     seeds:
       - {isin: IE00BM67HV82, ticker: XDWI.L,  scope: world,  name: Xtrackers MSCI World Industrials UCITS ETF 1C}
       - {isin: IE00B4LN9N13, ticker: 2B7C.DE, scope: us,     name: iShares S&P 500 Industrials Sector UCITS ETF (Acc)}
@@ -51,18 +57,21 @@ sectors:
   Consumer Cyclical:
     label: Cyklisk forbrug
     rotation: [XLY]
+    match: ["CONSUMER DISCRETIONARY"]
     seeds:
       - {isin: IE00BM67HP23, ticker: XDWC.L,  scope: world,  name: Xtrackers MSCI World Consumer Discretionary UCITS ETF 1C}
       - {isin: IE00B4MCHD36, ticker: IUCD.L,  scope: us,     name: iShares S&P 500 Consumer Discretionary Sector UCITS ETF (Acc)}
   Consumer Defensive:
     label: Defensivt forbrug
     rotation: [XLP]
+    match: ["CONSUMER STAPLES"]
     seeds:
       - {isin: IE00BM67HN09, ticker: XDWS.L,  scope: world,  name: Xtrackers MSCI World Consumer Staples UCITS ETF 1C}
       - {isin: IE00B40B8R38, ticker: 2B7D.DE, scope: us,     name: iShares S&P 500 Consumer Staples Sector UCITS ETF (Acc)}
   Energy:
     label: Energi
     rotation: [XLE, EXH1.DE]
+    match: ["WORLD ENERGY", "S&P 500 ENERGY", "EUROPE ENERGY", "OIL & GAS"]
     seeds:
       - {isin: IE00BM67HM91, ticker: XDW0.L,  scope: world,  name: Xtrackers MSCI World Energy UCITS ETF 1C}
       - {isin: IE00B42NKQ00, ticker: IUES.L,  scope: us,     name: iShares S&P 500 Energy Sector UCITS ETF (Acc)}
@@ -70,12 +79,14 @@ sectors:
   Basic Materials:
     label: Materialer
     rotation: [XLB]
+    match: ["MATERIALS"]
     seeds:
       - {isin: IE00BM67HS53, ticker: XDWM.L,  scope: world,  name: Xtrackers MSCI World Materials UCITS ETF 1C}
       - {isin: IE00B4MKCJ84, ticker: 2B7B.DE, scope: us,     name: iShares S&P 500 Materials Sector UCITS ETF (Acc)}
   Utilities:
     label: Forsyning
     rotation: [XLU, EXH9.DE]
+    match: ["UTILITIES"]
     seeds:
       - {isin: IE00BM67HQ30, ticker: XDWU.L,  scope: world,  name: Xtrackers MSCI World Utilities UCITS ETF 1C}
       - {isin: IE00B4KBBD01, ticker: 2B7A.DE, scope: us,     name: iShares S&P 500 Utilities Sector UCITS ETF (Acc)}
@@ -83,6 +94,7 @@ sectors:
   Communication Services:
     label: Kommunikation
     rotation: [XLC, EXV2.DE]
+    match: ["COMMUNICATION", "TELECOM"]
     seeds:
       - {isin: IE00BM67HR47, ticker: XWTS.L,  scope: world,  name: Xtrackers MSCI World Communication Services UCITS ETF 1C}
       - {isin: IE00BDDRF478, ticker: IUCM.L,  scope: us,     name: iShares S&P 500 Communication Sector UCITS ETF (Acc)}
@@ -90,6 +102,7 @@ sectors:
   Real Estate:
     label: Ejendomme
     rotation: [XLRE]
+    match: ["REAL ESTATE", "PROPERTY"]
     seeds:                           # no MSCI World real estate UCITS on the list; property-yield indexes instead
       - {isin: IE00B1FZS350, ticker: IWDP.SW, scope: world,  name: iShares Developed Markets Property Yield UCITS ETF}
       - {isin: IE00B1FZSF77, ticker: IDUP.L,  scope: us,     name: iShares US Property Yield UCITS ETF}
@@ -100,59 +113,69 @@ sectors:
     label: Banker
     parent: Financial Services
     rotation: [EXV1.DE]
+    match: ["BANKS"]
     seeds:
       - {isin: DE000A0F5UJ7, ticker: EXV1.DE, scope: europe, name: iShares STOXX Europe 600 Banks UCITS ETF (DE)}
   Insurance:
     label: Forsikring
     parent: Financial Services
     rotation: [EXH5.DE]
+    match: ["INSURANCE"]
     seeds:
       - {isin: DE000A0H08K7, ticker: EXH5.DE, scope: europe, name: iShares STOXX Europe 600 Insurance UCITS ETF (DE)}
   Construction & Materials:
     label: Byggeri og byggematerialer
     parent: Industrials
     rotation: [EXV8.DE]
+    match: ["CONSTRUCTION"]
     seeds:
       - {isin: DE000A0H08F7, ticker: EXV8.DE, scope: europe, name: iShares STOXX Europe 600 Construction & Materials UCITS ETF (DE)}
   Autos & Parts:
     label: Biler og bildele
     parent: Consumer Cyclical
     rotation: [EXV5.DE]
+    match: ["AUTOMOBILE", "AUTOS"]
     seeds:
       - {isin: DE000A0Q4R28, ticker: EXV5.DE, scope: europe, name: iShares STOXX Europe 600 Automobiles & Parts UCITS ETF (DE)}
   Retail:
     label: Detailhandel
     parent: Consumer Cyclical
     rotation: [EXH8.DE]
+    match: ["RETAIL"]
     seeds:
       - {isin: DE000A0H08P6, ticker: EXH8.DE, scope: europe, name: iShares STOXX Europe 600 Retail UCITS ETF (DE)}
   Travel & Leisure:
     label: Rejser og fritid
     parent: Consumer Cyclical
     rotation: [EXV9.DE]
+    match: ["TRAVEL"]
     seeds:
       - {isin: DE000A0H08S0, ticker: EXV9.DE, scope: europe, name: iShares STOXX Europe 600 Travel & Leisure UCITS ETF (DE)}
   Food & Beverage:
     label: Fødevarer og drikkevarer
     parent: Consumer Defensive
     rotation: [EXH3.DE]
+    match: ["FOOD"]
     seeds:
       - {isin: DE000A0H08H3, ticker: EXH3.DE, scope: europe, name: iShares STOXX Europe 600 Food & Beverage UCITS ETF (DE)}
   Personal & Household Goods:
     label: Personlige og husholdningsvarer
     parent: Consumer Defensive
     rotation: [EXH7.DE]
+    match: ["PERSONAL & HOUSEHOLD"]
     seeds:
       - {isin: DE000A0H08N1, ticker: EXH7.DE, scope: europe, name: iShares STOXX Europe 600 Personal & Household Goods UCITS ETF (DE)}
   Basic Resources:
     label: Råstoffer
     parent: Basic Materials
     rotation: [EXV6.DE]
+    match: ["BASIC RESOURCES"]
     seeds:
       - {isin: DE000A0F5UK5, ticker: EXV6.DE, scope: europe, name: iShares STOXX Europe 600 Basic Resources UCITS ETF (DE)}
   Chemicals:
     label: Kemi
     parent: Basic Materials
     rotation: [EXV7.DE]
+    match: ["CHEMICALS"]
     seeds:
       - {isin: DE000A0H08E0, ticker: EXV7.DE, scope: europe, name: iShares STOXX Europe 600 Chemicals UCITS ETF (DE)}

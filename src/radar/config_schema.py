@@ -607,10 +607,12 @@ class SectorSeed(_Section):
 
 class SectorDef(_Section):
     """A sector of the Sector ETFs page: a GICS sector (Yahoo's name, no parent) or an EU supersector (`parent`:
-    its GICS sector), the rotation tickers that stand for it, and the seed candidates."""
+    its GICS sector), the rotation tickers that stand for it, the name words of its discovery-pool funds and the
+    seed candidates."""
     label: str
     parent: str | None = None
     rotation: list[str] = []
+    match: list[str] = []          # name words that offer a discovery-pool fund
     seeds: list[SectorSeed] = []
 
 

@@ -7,8 +7,13 @@ from datetime import date
 
 import pytest
 
-from radar import sector_etfs, universe
-from radar.errors import Invalid
+import world
+from conftest import with_settings
+from radar import sector_etf_view, sector_etfs, universe
+from radar.config import sector_etf_taxonomy
+from radar.errors import Invalid, NotFound
+from radar.market import Market
+from radar.reporting import dashboard
 
 TECH = {"key": "Technology", "pick": "IE00BM67HT60", "reason": None, "etfs": [
     {"isin": "IE00BM67HT60", "ticker": "XDWT.L", "name": "Xtrackers MSCI World IT 1C", "scope": "world",
@@ -86,3 +91,147 @@ def test_the_latest_records_tickers_are_in_the_daily_update(tmp_data, monkeypatc
     monkeypatch.setattr(universe, "stock_groups", lambda refresh=False, offline=False: {})
     assert {"XDWT.L", "IUIT.L", "EXV1.DE"} <= set(universe.all_price_tickers(offline=True))
 
+
+# ---------------- ranking and the page's view (sector_etf_view.py) ----------------
+
+def _etf(code, tax="yes", **kw):
+    return {"isin": code, "ticker": "T", "name": code, "scope": "world", "ter": None, "aum_musd": None,
+            "tracking_diff": None, "distribution": None, "tax": {"status": tax}, **kw}
+
+
+def test_rank_puts_tax_first_then_size_ter_tracking_and_accumulating():
+    etfs = [_etf("off", tax="no", ter=0.0001),
+            _etf("small", ter=0.0005, aum_musd=10),
+            _etf("dear", ter=0.0040, aum_musd=900),
+            _etf("cheap", ter=0.0015, aum_musd=900, tracking_diff=-0.001, distribution="dist"),
+            _etf("cheap_acc", ter=0.0015, aum_musd=900, tracking_diff=-0.001, distribution="acc"),
+            _etf("cheap_tracks", ter=0.0015, tracking_diff=0.0005),
+            _etf("unknown", tax="no_sheet", ter=0.0001)]
+    order = [e["isin"] for e in sector_etf_view.rank(etfs, min_aum_musd=100)]
+    assert order == ["cheap_tracks", "cheap_acc", "cheap", "dear", "small", "unknown", "off"]
+    first = sector_etf_view.rank(etfs, min_aum_musd=100)[0]
+    assert first["rank"] == 1 and first["reasons"][0].startswith("on the positive list")
+    assert "TER 0.15 %" in first["reasons"]
+    assert any("smaller than 100m" in r for r in sector_etf_view.rank(etfs, 100)[4]["reasons"])
+
+
+def test_tax_status_follows_the_positive_list_of_the_year():
+    years = {2026: {"IE00BM67HT60"}, 2027: set()}
+    on = sector_etf_view.tax_status("IE00BM67HT60", years, 2026)
+    assert on == {"status": "yes", "tax_class": "aktiebaseret", "ask_ok": True, "sheet_year": 2026, "next_year": "no"}
+    off = sector_etf_view.tax_status("IE00B3WJKG14", years, 2026)
+    assert (off["tax_class"], off["ask_ok"]) == ("kapitalindkomst", False)
+    gap = sector_etf_view.tax_status("IE00BM67HT60", years, 2025)       # never borrowed from another year
+    assert gap == {"status": "no_sheet", "tax_class": "ukendt", "ask_ok": None, "sheet_year": None,
+                   "next_year": "yes"}
+    assert sector_etf_view.tax_status(None, None, 2026)["status"] == "no_isin"
+
+
+@pytest.fixture
+def radar(tmp_data, monkeypatch):
+    world.install(tmp_data, monkeypatch)
+    year = date.today().year
+    monkeypatch.setattr(sector_etf_view, "positive_list_years", lambda: {year: {"IE00BM67HT60", "DE000A0F5UJ7"}})
+    dashboard.reset()
+    return tmp_data
+
+
+def _record():
+    tech = {**TECH, "etfs": [{**TECH["etfs"][0], "ticker": "THEME1"},
+                             {**TECH["etfs"][1], "ticker": "NOPRICE"}]}
+    return {"sectors": [tech, {**BANKS, "etfs": [{**BANKS["etfs"][0], "ticker": "THEME2"}]}]}
+
+
+def test_the_view_before_the_first_run_lists_every_sector_without_etfs(radar):
+    v = sector_etf_view.view(Market.load())
+    assert v["as_of"] is None and not v["stale"] and v["problems"] == []
+    assert [s["key"] for s in v["sectors"]] == list(sector_etf_taxonomy().sectors)
+    assert all(s["etfs"] == [] and s["pick"] is None for s in v["sectors"])
+
+
+def test_the_view_gives_dkk_returns_vs_acwi_and_missing_as_none(radar):
+    sector_etfs.freeze(_record())
+    v = sector_etf_view.view(Market.load())
+    tech = next(s for s in v["sectors"] if s["key"] == "Technology")
+    by = {e["isin"]: e for e in tech["etfs"]}
+    xdwt, iuit = by["IE00BM67HT60"], by["IE00B3WJKG14"]
+    want = (1 + world.G["THEME1"]) ** 21 - 1
+    assert xdwt["returns_dkk"]["1m"] == pytest.approx(want)
+    assert xdwt["vs_acwi"]["1m"] == pytest.approx(want - ((1 + world.G["ACWI"]) ** 21 - 1))
+    assert xdwt["returns_dkk"]["1y"] == pytest.approx((1 + world.G["THEME1"]) ** 252 - 1)   # 300 bars: a year
+    assert iuit["returns_dkk"] == dict.fromkeys(["1m", "3m", "6m", "1y", "ytd"]) and iuit["spark"] == []
+    assert iuit["last_close"] is None and xdwt["spark"][0] == 1.0
+    assert (xdwt["tax"]["tax_class"], iuit["tax"]["tax_class"]) == ("aktiebaseret", "kapitalindkomst")
+    assert xdwt["yahoo_ter"] is None and not xdwt["ter_mismatch"]
+    # the ranking: IUIT is cheaper but off the list, so XDWT (the pick) is first and nothing needs a re-check
+    assert [e["isin"] for e in tech["etfs"]] == ["IE00BM67HT60", "IE00B3WJKG14"]
+    assert xdwt["pick"] and xdwt["rank"] == 1 and not tech["recheck"]
+    assert tech["updated"] == date.today().isoformat() and v["as_of"] == date.today().isoformat()
+
+
+def test_a_pick_the_ranking_puts_second_is_flagged_unless_overridden(radar):
+    rec = _record()
+    rec["sectors"][0]["pick"] = "IE00B3WJKG14"
+    sector_etfs.freeze(rec)
+    tech = next(s for s in sector_etf_view.view(Market.load())["sectors"] if s["key"] == "Technology")
+    assert tech["recheck"]
+    rec["sectors"][0].update(rank_override=True, reason="cheaper, and held on frie midler only")
+    sector_etfs.freeze(rec)
+    tech = next(s for s in sector_etf_view.view(Market.load())["sectors"] if s["key"] == "Technology")
+    assert not tech["recheck"] and tech["rank_override"] and tech["reason"].startswith("cheaper")
+
+
+def test_the_view_is_stale_after_stale_days_and_shows_the_rotation(radar, monkeypatch):
+    sector_etfs.freeze(_record(), today=date(2026, 1, 2))
+    (sector_etfs.RECORDS / "2026-02-01.json").write_text("{", encoding="utf-8")
+    p = dashboard.path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"rotation": {"groups": [{"key": "us_sectors", "label": "US sectors", "rows": [
+        {"ticker": "XLK", "name": "Technology", "quadrant": "Leading", "rank": 1, "rs_score": 0.05}]}]}}),
+        encoding="utf-8")
+    with_settings(monkeypatch, sector_etfs={"stale_days": 30, "min_aum_musd": 100})
+    v = sector_etf_view.view(Market.load(), today=date(2026, 3, 1))
+    assert v["age_days"] == 58 and v["stale"] and [p["id"] for p in v["problems"]] == ["2026-02-01"]
+    tech = next(s for s in v["sectors"] if s["key"] == "Technology")
+    assert tech["rotation"] == [{"ticker": "XLK", "group": "us_sectors", "group_label": "US sectors",
+                                 "name": "Technology", "quadrant": "Leading", "rank": 1, "rs_score": 0.05,
+                                 "r3m": None, "rel_r3m": None}]
+    assert tech["age_days"] == 58
+
+
+def test_history_lists_each_runs_picks(radar):
+    sector_etfs.freeze(_record(), today=date(2026, 1, 2))
+    sector_etfs.freeze({"sectors": [{**TECH, "pick": "IE00B3WJKG14"}]}, today=date(2026, 3, 1))
+    h = sector_etf_view.history()
+    assert [r["date"] for r in h] == ["2026-01-02", "2026-03-01"]
+    assert h[1]["picks"]["Technology"]["isin"] == "IE00B3WJKG14" and h[1]["picks"]["Banks"]["carried"]
+
+
+def test_candidates_start_from_the_record_and_the_seeds(radar):
+    sector_etfs.freeze(_record())
+    c = sector_etf_view.candidates("Technology", Market.load())
+    src = {e["isin"]: e["source"] for e in c["candidates"]}
+    assert src["IE00BM67HT60"] == "record" and src["DE000A0H08Q4"] == "seed"
+    assert c["current_pick"] == "IE00BM67HT60" and c["pool"] == []      # no discovery scan in the test world
+    with pytest.raises(NotFound, match="not a sector"):
+        sector_etf_view.candidates("Tech", Market.load())
+
+
+def test_the_shipped_positive_list_is_read_by_year():
+    years = sector_etf_view.positive_list_years()
+    assert years and 2026 in years and "IE00BM67HT60" in years[2026]
+
+
+def test_the_discovery_pool_offers_matching_funds_but_not_leveraged_ones(radar, monkeypatch):
+    import pandas as pd
+
+    from radar.discovery import scan
+    monkeypatch.setattr(scan, "load_universe", lambda: pd.DataFrame([
+        {"ticker": "A.L", "name": "Some MSCI World Information Technology UCITS ETF", "kind": "etf",
+         "isin": "IE00B6R52259", "category": "Technology & AI", "exchange": "LSE"},
+        {"ticker": "B.L", "name": "Leveraged Technology 3x Daily", "kind": "etf", "isin": "US0378331005"},
+        {"ticker": "C.L", "name": "Technology Co", "kind": "stock", "isin": "DE000A0F5UJ7"},
+        {"ticker": "XDWT.L", "name": "Xtrackers MSCI World Information Technology", "kind": "etf",
+         "isin": "IE00BM67HT60"}]))                    # already a seed: not offered twice
+    pool = sector_etf_view.candidates("Technology", Market.load())["pool"]
+    assert [p["ticker"] for p in pool] == ["A.L"] and pool[0]["source"] == "discovery"
