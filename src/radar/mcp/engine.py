@@ -225,7 +225,11 @@ def sector_etfs_view() -> dict:
     with returns in DKK and vs ACWI in DKK (`returns_dkk`, `vs_acwi`: r1m r3m r6m r1y ytd), the recorded and Yahoo's
     TER, size, and the Danish tax status (`tax.tax_class` aktiebaseret | kapitalindkomst | ukendt, `tax.ask_ok`).
     `recheck`: the pick is no longer first and the record gave no reason; `stale`: the record is older than
-    `stale_days`. Before the first run `as_of` is null and no sector has ETFs."""
+    `stale_days`. `replace`: the user marked the sector's go-to for replacement on the page (with their `reason`);
+    an ETF's `rejected`: a go-to replaced after such a mark, which can't be the go-to again (it may stay a peer).
+    `run_scope`: the sectors a run without arguments re-selects (`mode` first: every sector, no record yet;
+    replace: the marked and the uncovered sectors; none: nothing to do). Before the first run `as_of` is null and
+    no sector has ETFs."""
     return sector_etf_view.cached(_market_or_none())
 
 
@@ -233,27 +237,30 @@ def sector_etf_candidates(sector: str) -> dict:
     """Where /sector-etfs starts for one sector (`sector`: a key of sector_etfs_view, e.g. Technology, Banks):
     the latest record's ETFs, the known seed UCITS funds and matching funds of the discovery pool (positive-list
     funds mapped to Yahoo), each with its returns in DKK, Yahoo's cached TER and its tax status, ranked by the rule
-    with what is known so far. Fill in TER, size, distribution, domicile and tracking difference from the issuers
-    (with each source and the day read) before sector_etfs_save."""
+    with what is known so far. `rejected`: the user marked that fund for replacement as this sector's go-to (their
+    `rejected_reason`, e.g. not traded at their broker): never pick it as the go-to; `replace_requested`: the open
+    mark. Fill in TER, size, distribution, domicile and tracking difference from the issuers (with each source and
+    the day read) before sector_etfs_save."""
     return sector_etf_view.candidates(sector, _market_or_none())
 
 
 def sector_etfs_save(sectors: list[dict[str, Any]], note: str | None = None, report: str | None = None,
-                     confirm: bool = False) -> dict:
+                     save: bool = False) -> dict:
     """Record /sector-etfs' go-to UCITS ETF and peers for the sectors researched in this run. `sectors`: per sector
     {key, pick (the go-to's ISIN), reason, rank_override (true when the pick isn't the ranking's first: then the
     reason is required), etfs: [{isin, ticker (Yahoo), name, scope world|us|europe|other, issuer, index, ter
     (fraction: 0.0025 = 0.25 %), distribution acc|dist, domicile (IE), currency (USD), aum_musd, tracking_diff
     (fraction a year), sources (URLs), checked (YYYY-MM-DD)}]}; unknown figures are null, never guessed. `note`:
-    the run's caveats; `report`: the memo's name. Without `confirm` nothing is saved: a dry run that returns each
-    sector ranked with today's data, its warnings and the changes against the latest record, to show the user.
-    With `confirm` (only after the user said yes) every ticker's prices are downloaded if the radar lacks them, and
-    the run is stored in exports/sector_etfs/, dated today, never overwritten; sectors not in this run are carried
-    over from the latest record."""
+    the run's caveats; `report`: the memo's name. Refused: a pick the user rejected (marked for replacement). Without
+    `save` nothing is saved: a dry run that returns each sector ranked with today's data, its warnings and the
+    changes against the latest record. With `save` (once the dry run's warnings are handled; the user isn't asked)
+    every ticker's prices are downloaded if the radar lacks them, and the run is stored in exports/sector_etfs/,
+    dated today, never overwritten; sectors not in this run are carried over from the latest record. A sector the
+    user marked for replacement that now has another go-to is `resolved`."""
     record = {"sectors": sectors, "note": note, "report": report}
     m = _market_or_none()
     draft = sector_etf_view.preview(record, m)
-    if not confirm:
+    if not save:
         return {"saved": False, **draft}
     unknown = []
     for t in sorted({e["ticker"] for s in sector_etfs.check(record)["sectors"] for e in s["etfs"]}):
@@ -264,8 +271,9 @@ def sector_etfs_save(sectors: list[dict[str, Any]], note: str | None = None, rep
     if unknown:
         raise errors.Invalid(f"Not saved: no Yahoo prices for {', '.join(unknown)} (check the symbols, e.g. with "
                              f"ticker_profile, or use another listing of the fund).")
-    saved = sector_etfs.freeze(record)
-    return {"saved": True, "id": saved["id"], "file": saved["file"], "carried": saved["carried"], **draft}
+    saved = sector_etf_view.commit(record)
+    return {"saved": True, "id": saved["id"], "file": saved["file"], "carried": saved["carried"],
+            "resolved": saved["resolved"], **draft}
 
 
 TOOLS = (propose_candidates, propose_freeze, propose_evaluate, propose_shadow, propose_picks, propose_review,

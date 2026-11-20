@@ -46,16 +46,23 @@ def sector_etfs(ctx: typer.Context,
                f"{v['tax_year']} (share income, ASK allowed); off: capital income. Analysis, not advice.")
     for p in v["problems"]:
         typer.echo(f"  ! {p['id']}: {p['problem']}")
+    scope = v["run_scope"]
+    if scope["mode"] == "replace":
+        typer.echo(f"The next /sector-etfs run re-selects: {', '.join(scope['sectors'])}")
     for s in v["sectors"]:
         if not s["etfs"]:
             continue
         flag = "  re-check: the pick is no longer first" if s["recheck"] else ""
+        if s["replace"]:
+            why = f" ({s['replace']['reason']})" if s["replace"]["reason"] else ""
+            flag += f"  marked for replacement {s['replace']['flagged_at'][:10]}{why}"
         typer.echo(f"\n{s['key']} ({s['label']}), updated {s['updated']}{flag}")
         for e in s["etfs"]:
             r, vs = e["returns_dkk"], e["vs_acwi"]
+            gone = "  [rejected as go-to]" if e.get("rejected") else ""
             typer.echo(f" {'*' if e['pick'] else ' '}{e['rank']} {e['ticker']:<9} {e['isin']} {e['scope']:<6} "
                        f"TER {_ter(e['ter']):>6} {TAX[e['tax']['tax_class']]:<3} 3m {fmt_pct(r['r3m']):>7} "
-                       f"1y {fmt_pct(r['r1y']):>7} vs ACWI 3m {fmt_pct(vs['r3m']):>7}  {e['name']}")
+                       f"1y {fmt_pct(r['r1y']):>7} vs ACWI 3m {fmt_pct(vs['r3m']):>7}  {e['name']}{gone}")
         if s["reason"]:
             typer.echo(f"   why: {s['reason']}")
 
@@ -71,9 +78,13 @@ def candidates(sector: str = typer.Argument(..., help="A sector key, e.g. Techno
         typer.echo(to_json(c, indent=1, ensure_ascii=False))
         return
     typer.echo(f"{c['key']} ({c['label']}): pick now {c['current_pick'] or 'none'}")
+    ask = c["replace_requested"]
+    if ask:
+        typer.echo(f"  marked for replacement: {ask['isin']}{' (' + ask['reason'] + ')' if ask['reason'] else ''}")
     for e in c["candidates"]:
+        gone = "  [rejected as go-to]" if e["rejected"] else ""
         typer.echo(f"  {e['rank']} {e['ticker']:<9} {e['isin']} {e['source']:<6} TER {_ter(e['ter']):>6} "
-                   f"Yahoo {_ter(e['yahoo_ter']):>6} {TAX[e['tax']['tax_class']]:<3} {e['name']}")
+                   f"Yahoo {_ter(e['yahoo_ter']):>6} {TAX[e['tax']['tax_class']]:<3} {e['name']}{gone}")
     for e in c["pool"]:
         typer.echo(f"  - {e['ticker']:<9} {e['isin']} pool   {TAX[e['tax']['tax_class']]:<3} {e['name']}")
 

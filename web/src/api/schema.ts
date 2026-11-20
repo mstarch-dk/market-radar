@@ -1779,13 +1779,55 @@ export interface paths {
         /**
          * Get Sector Etfs
          * @description Every sector of config/sector_etfs.yaml with the go-to UCITS ETF and its peers of the latest /sector-etfs
-         *     run: returns in DKK and vs ACWI, TER (recorded and Yahoo's), size, the tax status and the ranking. Before the
-         *     first run every sector comes back without ETFs (200, `as_of` null); without prices the returns are null.
+         *     run: returns in DKK and vs ACWI, TER (recorded and Yahoo's), size, the tax status, the ranking and your marks.
+         *     Before the first run every sector comes back without ETFs (200, `as_of` null); without prices the returns are
+         *     null.
          */
         get: operations["get_sector_etfs_api_sector_etfs_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sector-etfs/{key}/replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark For Replacement
+         * @description Mark the sector's go-to for replacement (with an optional reason): it stays on the page, and the next
+         *     /sector-etfs run picks another fund for this sector. 409 when the sector has no go-to yet.
+         */
+        put: operations["mark_for_replacement_api_sector_etfs__key__replace_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sector-etfs/{key}/flags/{isin}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Flag
+         * @description Undo a mark for replacement, or allow a replaced fund as the sector's go-to again. 404 without such a mark.
+         */
+        delete: operations["remove_flag_api_sector_etfs__key__flags__isin__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6497,12 +6539,32 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /**
+         * SectorEtfFlag
+         * @description The sector's go-to you marked for replacement: the next /sector-etfs run picks another fund.
+         */
+        SectorEtfFlag: {
+            /** Isin */
+            isin: string;
+            /** Reason */
+            reason?: string | null;
+            /** Flagged At */
+            flagged_at: string;
+        };
         /** SectorEtfProblem */
         SectorEtfProblem: {
             /** Id */
             id: string;
             /** Problem */
             problem: string;
+        };
+        /**
+         * SectorEtfReplaceIn
+         * @description Why the go-to should be replaced (optional): not traded at your broker, too expensive …
+         */
+        SectorEtfReplaceIn: {
+            /** Reason */
+            reason?: string | null;
         };
         /**
          * SectorEtfReturns
@@ -6585,11 +6647,39 @@ export interface components {
             reasons: string[];
             /** Pick */
             pick: boolean;
+            /**
+             * Rejected
+             * @default false
+             */
+            rejected: boolean;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Rejected Reason */
+            rejected_reason?: string | null;
+        };
+        /**
+         * SectorEtfRunScope
+         * @description The sectors /sector-etfs re-selects when run without arguments: every sector before the first record
+         *     (first), the marked and the uncovered ones (replace), or none.
+         */
+        SectorEtfRunScope: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "first" | "replace" | "none";
+            /** Sectors */
+            sectors: string[];
+            /** Marked */
+            marked: string[];
+            /** Uncovered */
+            uncovered: string[];
         };
         /**
          * SectorEtfSector
          * @description A sector: GICS (parent null) or an EU supersector. `recheck`: the pick is no longer first in the ranking
-         *     and the record gave no reason to override it. No ETFs: not covered by a /sector-etfs run yet.
+         *     and the record gave no reason to override it. `replace`: you marked the go-to for replacement. No ETFs: not
+         *     covered by a /sector-etfs run yet.
          */
         SectorEtfSector: {
             /** Key */
@@ -6618,6 +6708,7 @@ export interface components {
             updated?: string | null;
             /** Age Days */
             age_days?: number | null;
+            replace?: components["schemas"]["SectorEtfFlag"] | null;
             /** Etfs */
             etfs: components["schemas"]["SectorEtfRow"][];
         };
@@ -6673,6 +6764,7 @@ export interface components {
             note?: string | null;
             /** Problems */
             problems: components["schemas"]["SectorEtfProblem"][];
+            run_scope: components["schemas"]["SectorEtfRunScope"];
             /** Sectors */
             sectors: components["schemas"]["SectorEtfSector"][];
         };
@@ -11226,6 +11318,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SectorEtfsView"];
+                };
+            };
+        };
+    };
+    mark_for_replacement_api_sector_etfs__key__replace_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SectorEtfReplaceIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorEtfsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_flag_api_sector_etfs__key__flags__isin__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                isin: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorEtfsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

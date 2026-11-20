@@ -227,7 +227,7 @@ Always run Python through uv; the frontend uses pnpm.
   `journal_entries`, `read_document`, `portfolios`, `performance`, `portfolio_xray`, `attribution`, `calendar`,
   `evidence_view`, `ticker_profile`, `trading_rules`), the jobs (`job_start`, `job_status`: update, rebuild, study), the engines
   (`propose_*`, `sim_picks_candidates`, `sim_picks`, `scout_freeze`, `scout_review`, `sector_etfs_view`, `sector_etf_candidates`,
-  `sector_etfs_save` with `confirm`: a dry run first), the writes (`write_memo`,
+  `sector_etfs_save` with `save`: a dry run first; it refuses a go-to the user marked for replacement), the writes (`write_memo`,
   `add_trade` with `confirm`, which also returns the trade's rule verdicts; `add_view` with `confirm`, which first
   returns the view's evidence and the views it overlaps or contradicts) and the trading rules (`rules_check`, which writes only with `log`; `add_rule` with `confirm`;
   `rule_decision`). Each

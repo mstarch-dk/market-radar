@@ -264,7 +264,9 @@ for one.
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
   symbol map, meta, the tax inputs (tax persons and who owns which account, instruments with ISIN and class, losses
   carried in); market views in `viewstore.py`, trading rules and the logged checks against them (`trading_rules`,
-  `rule_checks`) in `rulestore.py`, backup copies in `backups.py`. It is the one place that decides which
+  `rule_checks`) in `rulestore.py`, the go-tos marked for replacement on the Sector ETFs page (`sector_etf_flags`:
+  open until a /sector-etfs run picks another, then kept as rejected) in `sectorflags.py`, backup copies in
+  `backups.py`. It is the one place that decides which
   portfolios count, and holds the one list of row types. New stateful data gets a table here.
 - `portfolios/`: your portfolios, from the transactions in `userstore/`.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.

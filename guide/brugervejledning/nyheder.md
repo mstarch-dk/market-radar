@@ -6,7 +6,7 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 **Sektor-ETF'er: hvilken ETF køber du for en sektor?** Rotationen måler sektorerne med amerikanske ETF'er, som du ikke kan købe. Den nye side *Sector ETFs* under *Markets* viser for hver sektor én go-to-UCITS-ETF og dens alternativer: TER, størrelse, akkumulerende eller udbyttebetalende, skattestatus efter positivlisten (må den ligge på en aktiesparekonto?) og afkastet i kroner og mod ACWI. Se [Sektor-ETF'er](brugervejledning/sektor-etfer).
 
-- **Listen laves med Claude:** den nye skill `/sector-etfs` læser tallene hos fondsudbyderne med link og dato, rangordner fondene efter en fast regel og gemmer kun de sektorer, du siger ja til. Kør den igen et par gange om året; siden siger til, når listen er ældre end {{settings:sector_etfs.stale_days}} dage.
+- **Listen laves med Claude:** den nye skill `/sector-etfs` læser tallene hos fondsudbyderne med link og dato, rangordner fondene efter en fast regel og vælger en go-to-fond for alle sektorer uden at spørge. Passer et valg dig ikke, så klik *Mark for replacement* på siden; næste `/sector-etfs` vælger kun en ny dér. `/sector-etfs reselect-all` vælger forfra i alle sektorer; siden siger til, når listen er ældre end {{settings:sector_etfs.stale_days}} dage.
 - **Fra andre sider:** kolonnen *UCITS go-to* på *Sector rotation*, et link ved hver sektor i porteføljens røntgen og en linje på tickerprofilen fører til sektorens kort.
 - **Porteføljeforslag:** alternativet med sektor-ETF'er (A5) bruger nu go-to-fondene, når de er valgt.
 - **Ved opdatering** skal du ikke gøre noget. Siden er tom, til du har kørt `/sector-etfs` første gang.

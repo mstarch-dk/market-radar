@@ -152,7 +152,8 @@ def test_xray_api_contract(client, monkeypatch):
     at = paths_.index("/api/studies/run")
     assert paths_[at:at + 2] == ["/api/studies/run", "/api/studies/run/{key}"]
     at = paths_.index("/api/rules/replay")
-    assert paths_[at:] == ["/api/rules/replay", "/api/sector-etfs"]      # newest last
+    assert paths_[at:] == ["/api/rules/replay", "/api/sector-etfs", "/api/sector-etfs/{key}/replace",
+                           "/api/sector-etfs/{key}/flags/{isin}"]      # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -285,6 +286,27 @@ def test_sector_etfs_api_contract(client, monkeypatch):
     assert gone.status_code == 200, gone.json()
     g = api_models.SectorEtfsView.model_validate(gone.json())
     assert not g.prices and all(e.returns_dkk.r1m is None for s in g.sectors for e in s.etfs)
+
+
+def test_sector_etfs_mark_for_replacement(client):
+    """PUT …/replace marks the go-to (the page still shows it), DELETE …/flags/{isin} undoes it; an unknown sector is
+    404, a sector without a go-to 409, a mark that isn't there 404."""
+    from radar import sector_etfs
+
+    assert client.put("/api/sector-etfs/Nope/replace", json={}).status_code == 404
+    assert client.put("/api/sector-etfs/Technology/replace", json={}).status_code == 409
+    sector_etfs.freeze({"sectors": [{"key": "Technology", "pick": "IE00BM67HT60", "etfs": [
+        {"isin": "IE00BM67HT60", "ticker": "THEME1", "name": "World IT", "scope": "world", "ter": 0.0025}]}]})
+    r = client.put("/api/sector-etfs/Technology/replace", json={"reason": "not at my broker"})
+    assert r.status_code == 200, r.json()
+    v = api_models.SectorEtfsView.model_validate(r.json())
+    tech = next(s for s in v.sectors if s.key == "Technology")
+    assert tech.replace is not None and tech.replace.reason == "not at my broker" and tech.etfs[0].pick
+    assert "Technology" in v.run_scope.marked
+    assert client.put("/api/sector-etfs/Technology/replace", json={"reason": "x" * 201}).status_code == 422
+    r = client.delete("/api/sector-etfs/Technology/flags/ie00bm67ht60")
+    assert r.status_code == 200 and next(s for s in r.json()["sectors"] if s["key"] == "Technology")["replace"] is None
+    assert client.delete("/api/sector-etfs/Technology/flags/IE00BM67HT60").status_code == 404
 
 
 def test_watchlist_add_and_remove(client):

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import Field
+
 from .common import Num, Quadrant, Strict
 
 TaxListStatus = Literal["yes", "no", "no_sheet", "no_isin"]
@@ -58,6 +60,21 @@ class SectorEtfRow(Strict):
     rank: int
     reasons: list[str]
     pick: bool
+    rejected: bool = False
+    rejected_at: str | None = None
+    rejected_reason: str | None = None
+
+
+class SectorEtfFlag(Strict):
+    """The sector's go-to you marked for replacement: the next /sector-etfs run picks another fund."""
+    isin: str
+    reason: str | None = None
+    flagged_at: str
+
+
+class SectorEtfReplaceIn(Strict):
+    """Why the go-to should be replaced (optional): not traded at your broker, too expensive …"""
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class SectorRotationRow(Strict):
@@ -75,7 +92,8 @@ class SectorRotationRow(Strict):
 
 class SectorEtfSector(Strict):
     """A sector: GICS (parent null) or an EU supersector. `recheck`: the pick is no longer first in the ranking
-    and the record gave no reason to override it. No ETFs: not covered by a /sector-etfs run yet."""
+    and the record gave no reason to override it. `replace`: you marked the go-to for replacement. No ETFs: not
+    covered by a /sector-etfs run yet."""
     key: str
     label: str
     parent: str | None = None
@@ -86,12 +104,22 @@ class SectorEtfSector(Strict):
     recheck: bool = False
     updated: str | None = None
     age_days: int | None = None
+    replace: SectorEtfFlag | None = None
     etfs: list[SectorEtfRow]
 
 
 class SectorEtfProblem(Strict):
     id: str
     problem: str
+
+
+class SectorEtfRunScope(Strict):
+    """The sectors /sector-etfs re-selects when run without arguments: every sector before the first record
+    (first), the marked and the uncovered ones (replace), or none."""
+    mode: Literal["first", "replace", "none"]
+    sectors: list[str]
+    marked: list[str]
+    uncovered: list[str]
 
 
 class SectorEtfsView(Strict):
@@ -108,4 +136,5 @@ class SectorEtfsView(Strict):
     prices: bool
     note: str | None = None
     problems: list[SectorEtfProblem]
+    run_scope: SectorEtfRunScope
     sectors: list[SectorEtfSector]

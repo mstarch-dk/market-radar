@@ -239,9 +239,68 @@ def test_the_discovery_pool_offers_matching_funds_but_not_leveraged_ones(radar, 
     assert [p["ticker"] for p in pool] == ["A.L"] and pool[0]["source"] == "discovery"
 
 
+
+# ---------------- marked for replacement ----------------
+
+def test_run_scope_is_every_sector_first_then_only_the_marked_ones(radar):
+    from radar.userstore import sectorflags
+
+    first = sector_etf_view.view(Market.load())["run_scope"]
+    assert first["mode"] == "first" and first["sectors"] == list(sector_etf_taxonomy().sectors)
+    everything = {"sectors": [{"key": k, "pick": BANKS["pick"], "etfs": BANKS["etfs"]}
+                              for k in sector_etf_taxonomy().sectors]}
+    sector_etfs.freeze(everything)
+    assert sector_etf_view.view(Market.load())["run_scope"] == {"mode": "none", "sectors": [], "marked": [],
+                                                                "uncovered": []}
+    sectorflags.flag("Banks", BANKS["pick"], "  not at my broker  ")
+    v = sector_etf_view.view(Market.load())
+    assert v["run_scope"]["mode"] == "replace" and v["run_scope"]["sectors"] == ["Banks"]
+    banks = next(s for s in v["sectors"] if s["key"] == "Banks")
+    assert banks["replace"]["reason"] == "not at my broker" and banks["etfs"][0]["pick"]   # still shown
+    assert not banks["etfs"][0]["rejected"]                       # open: marked, not replaced yet
+    assert sectorflags.remove("Banks", BANKS["pick"]) and not sectorflags.remove("Banks", BANKS["pick"])
+    assert sector_etf_view.view(Market.load())["run_scope"]["mode"] == "none"
+
+
+def test_a_save_replaces_the_marked_go_to_and_keeps_it_rejected(radar):
+    from radar.userstore import sectorflags
+
+    sector_etfs.freeze({"sectors": [TECH]})
+    sectorflags.flag("Technology", TECH["pick"], "too expensive")
+    with pytest.raises(Invalid, match="marked for replacement.*too expensive"):
+        sector_etf_view.preview({"sectors": [TECH]}, Market.load())          # the dry run refuses it too
+    other = {**TECH, "pick": "IE00B3WJKG14"}                                  # the old go-to stays as a peer
+    assert sector_etf_view.preview({"sectors": [other]}, Market.load())["sectors"][0]["pick"] == "IE00B3WJKG14"
+    saved = sector_etf_view.commit({"sectors": [other]})
+    assert saved["resolved"] == [{"sector": "Technology", "isin": TECH["pick"], "reason": "too expensive",
+                                  "new_pick": "IE00B3WJKG14"}]
+    v = sector_etf_view.view(Market.load())
+    tech = next(s for s in v["sectors"] if s["key"] == "Technology")
+    old = next(e for e in tech["etfs"] if e["isin"] == TECH["pick"])
+    assert tech["replace"] is None and old["rejected"] and old["rejected_reason"] == "too expensive"
+    assert v["run_scope"]["marked"] == []
+    with pytest.raises(Invalid, match="marked for replacement"):            # also under reselect-all
+        sector_etf_view.preview({"sectors": [TECH]}, Market.load())
+    c = sector_etf_view.candidates("Technology", Market.load())
+    assert next(e for e in c["candidates"] if e["isin"] == TECH["pick"])["rejected"]
+    assert sectorflags.remove("Technology", TECH["pick"])                     # allowed again
+    assert sector_etf_view.preview({"sectors": [TECH]}, Market.load())["sectors"][0]["pick"] == TECH["pick"]
+
+
+def test_the_cached_view_sees_a_mark_made_elsewhere(radar):
+    from radar.userstore import sectorflags
+
+    sector_etfs.freeze({"sectors": [BANKS]})
+    m = Market.load()
+    assert sector_etf_view.cached(m)["run_scope"]["mode"] == "replace"       # uncovered sectors
+    assert sector_etf_view.cached(m)["run_scope"]["marked"] == []
+    sectorflags.flag("Banks", BANKS["pick"])
+    assert sector_etf_view.cached(m)["run_scope"]["marked"] == ["Banks"]
+
+
 # ---------------- MCP and CLI ----------------
 
-def test_save_is_a_dry_run_until_confirmed(radar, monkeypatch):
+def test_save_is_a_dry_run_until_saved(radar, monkeypatch):
     from radar import profile
     from radar.mcp import common
     from test_mcp import ok, refused
@@ -253,9 +312,9 @@ def test_save_is_a_dry_run_until_confirmed(radar, monkeypatch):
     tech = next(s for s in draft["sectors"] if s["key"] == "Technology")
     assert [r["isin"] for r in tech["ranking"]] == ["IE00BM67HT60", "IE00B3WJKG14"] and tech["warnings"] == []
     assert draft["changes"][0] == {"key": "Technology", "new": True, "pick": {"from": None, "to": "IE00BM67HT60"}}
-    assert "no Yahoo prices for NOPRICE" in refused("sector_etfs_save", sectors=rec["sectors"], confirm=True)
+    assert "no Yahoo prices for NOPRICE" in refused("sector_etfs_save", sectors=rec["sectors"], save=True)
     monkeypatch.setattr(profile, "ensure_prices", lambda t, m=None, refresh=False: m)
-    saved = ok("sector_etfs_save", sectors=rec["sectors"], confirm=True)
+    saved = ok("sector_etfs_save", sectors=rec["sectors"], save=True)
     assert saved["saved"] and saved["id"] == date.today().isoformat() and len(sector_etfs.records()) == 1
     rec["sectors"][0]["pick"] = "IE00B3WJKG14"                          # off the list, not first, no override
     again = ok("sector_etfs_save", sectors=rec["sectors"][:1])

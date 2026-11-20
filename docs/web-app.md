@@ -162,7 +162,12 @@ Python computes every number; the frontend only formats and draws. It is the rad
   `kapitalindkomst` | `ukendt`, `ask_ok`, next year's sheet) and the sector's rotation rows. Never 503: before the
   first run every sector has no ETFs and `as_of` is null; without prices the returns are null (`prices` false).
   `stale` past `sector_etfs.stale_days`; `recheck` when the pick is no longer first and the record gave no override.
-  Cached until a record, the prices, `dashboard.json`, the settings or the day change. Its router is included last.
+  `replace` on a sector: you marked its go-to for replacement; `rejected` on an ETF: a go-to replaced after such a
+  mark; `run_scope`: the sectors the next `/sector-etfs` run re-selects (`first` | `replace` | `none`).
+  Cached until a record, the prices, `dashboard.json`, the settings, the marks or the day change. Its router is
+  included last. `PUT /api/sector-etfs/{key}/replace` (body `{reason?}`, at most 200 characters) marks the sector's
+  go-to for replacement (404 an unknown sector, 409 no go-to yet); `DELETE /api/sector-etfs/{key}/flags/{isin}`
+  undoes a mark or allows a rejected fund again (404 without one). Both return the `SectorEtfsView`.
 - Running a study (`studies.py`, `studyrun.py`): `GET /api/studies/run` → `StudyRunStatus` (an `UpdateStatus` with
   `study`, the running or last `run_key`); `POST /api/studies/run/{key}` starts the study's own command
   (`python -m radar study …`, the command on its card) as a child process, 404 for an unknown key, 409 while a study

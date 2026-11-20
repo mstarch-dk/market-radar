@@ -42,7 +42,7 @@ Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller
 | `/propose-portfolio review` | `research/proposals/reviews/ÅÅÅÅ-MM.md` | Hvordan tidligere forslag er gået, og om deres exitkriterier er udløst |
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
 | `/scout [stikord]` | `research/scout/ÅÅÅÅ-MM-DD.md`, frosne kandidater i `exports/scout/`, og efter dit ja et markedssyn og en journalpost | 3–5 hypoteser fra det, markedet er begyndt at tale om, holdt op mod radarens tal |
-| `/sector-etfs [sektor …]` | `exports/sector_etfs/ÅÅÅÅ-MM-DD.json` (efter dit ja pr. sektor) og et notat i `research/sector-etfs/` | Go-to-UCITS-ETF'en pr. sektor og dens alternativer, med omkostninger og skattestatus, til siden *Sector ETFs* |
+| `/sector-etfs [sektor …] [reselect-all]` | `exports/sector_etfs/ÅÅÅÅ-MM-DD.json` (gemt uden at spørge) og et notat i `research/sector-etfs/` | Go-to-UCITS-ETF'en pr. sektor og dens alternativer, med omkostninger og skattestatus, til siden *Sector ETFs* |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
 Alle mapperne ligger i din datamappe og er lokale og personlige; de kommer med i dine backupper, men aldrig i git. Undtagelsen er `marketing/`, som ligger i programmappen; se nedenfor.
@@ -147,7 +147,7 @@ Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger C
 
 ## /sector-etfs
 
-`/sector-etfs` finder for hver sektor i rotationen den UCITS-ETF, en dansk investor kan købe for at få eksponering mod sektoren, og dens nærmeste alternativer. Claude læser TER, størrelse, udbyttepolitik og *tracking difference* hos udbyderne med link og dato, holder fondene op mod positivlisten og radarens rangordningsregel og viser dig et kort pr. sektor. Kun de sektorer, du siger ja til, gemmes. Siden *Sector ETFs* viser dem med dagens afkast i kroner. Se [Sektor-ETF'er](brugervejledning/sektor-etfer).
+`/sector-etfs` finder for hver sektor i rotationen den UCITS-ETF, en dansk investor kan købe for at få eksponering mod sektoren, og dens nærmeste alternativer. Claude læser TER, størrelse, udbyttepolitik og *tracking difference* hos udbyderne med link og dato, holder fondene op mod positivlisten og radarens rangordningsregel og gemmer valget uden at spørge. Første gang vælger den for alle sektorer; derefter kun for de sektorer, hvor du har klikket *Mark for replacement* på siden *Sector ETFs*. `/sector-etfs reselect-all` vælger forfra i alle sektorer. Siden viser fondene med dagens afkast i kroner. Se [Sektor-ETF'er](brugervejledning/sektor-etfer).
 
 ## /marketing
 

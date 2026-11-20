@@ -16,7 +16,8 @@ Everything shown is analysis, not advice.
 - The curated list lives in the data folder as dated, frozen snapshots, never in the repo.
 - Coverage is the 11 GICS sectors plus the EU supersectors that have their own UCITS ETFs.
 - Each sector gets one go-to plus peers.
-- Code ranks the candidates, Claude picks (with a reason when the pick departs from the top rank), and the user confirms before anything is saved.
+- Code ranks the candidates and Claude picks (with a reason when the pick departs from the top rank).
+- **Revised 2026-11-20:** Claude saves without asking. The first run picks every sector. On the page the user marks a go-to for replacement (`userstore/sectorflags.py`, table `sector_etf_flags`); it stays shown, and the next run without arguments re-selects only the marked and the uncovered sectors (`run_scope`). A replaced fund stays rejected as that sector's go-to, also under `reselect-all`, until the user allows it again. This supersedes the confirm cards in §5 step 6 and `sector_etfs_save(confirm)` (now `save`).
 
 **Branch.** The working tree holds uncommitted `/scout` work on `feat/scout-cards-optout`. Land or stash it first, then branch `feat/sector-etfs` from `main`.
 

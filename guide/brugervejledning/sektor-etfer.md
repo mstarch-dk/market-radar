@@ -2,7 +2,7 @@
 
 [Sektorrotationen](brugervejledning/sektorrotation) siger, hvilke sektorer der fører og halter, men den måler dem med amerikanske ETF'er (XLK, XLE …), som du som dansk privatinvestor ikke kan købe, fordi de ikke har et KID-dokument. Siden *Sector ETFs* svarer på det næste spørgsmål: **hvis jeg vil have eksponering mod en sektor, hvilken UCITS-ETF køber jeg så?**
 
-For hver sektor viser siden én *go-to*-ETF og dens nærmeste alternativer, med hvad de koster, hvordan de beskattes i Danmark, og hvordan de har klaret sig i kroner. Listen laves af Claude med skillen `/sector-etfs` og opdateres af dig, når du synes (se nedenfor). Det er analyse, ikke rådgivning: go-to-fonden er den, der passer bedst til reglen nedenfor, ikke en anbefaling om at købe.
+For hver sektor viser siden én *go-to*-ETF og dens nærmeste alternativer, med hvad de koster, hvordan de beskattes i Danmark, og hvordan de har klaret sig i kroner. Listen laves af Claude med skillen `/sector-etfs`, som vælger en go-to-fond for hver sektor uden at spørge. Er du ikke tilfreds med et valg, markerer du det til udskiftning på siden, og næste kørsel finder en anden (se nedenfor). Det er analyse, ikke rådgivning: go-to-fonden er den, der passer bedst til reglen nedenfor, ikke en anbefaling om at købe.
 
 ## Hvad siden viser
 
@@ -17,7 +17,8 @@ Sektorerne står i to lag:
 
 - **Overskriften** viser sektorens kvadrant i rotationen (fører, svækkes, halter, forbedres) for hver af dens rotations-ETF'er, fx XLK for USA og EXV3.DE for Europa.
 - **In the rotation**: placeringen i gruppen og afkastet over 3 måneder mod ACWI, som på siden [Sector rotation](/rotation).
-- **Go-to**: den valgte fond med omfang, TER og skattestatus, og Claudes begrundelse, når valget afviger fra reglen. Mærket *re-check* betyder, at reglen i dag sætter en anden fond først, og at optegnelsen ikke gav en grund til at beholde denne. Så er det tid til at køre `/sector-etfs` for sektoren igen.
+- **Go-to**: den valgte fond med omfang, TER og skattestatus, og Claudes begrundelse, når valget afviger fra reglen. Mærket *re-check* betyder, at reglen i dag sætter en anden fond først, og at optegnelsen ikke gav en grund til at beholde denne. Vil du have en ny vurdering, så markér fonden til udskiftning.
+- ***Mark for replacement***: knappen på go-to-linjen (se [Udskift en go-to-fond](#udskift-en-go-to-fond)).
 - **Tabellen** med go-to-fonden og dens alternativer i reglens rækkefølge.
 
 ### Kolonnerne
@@ -25,7 +26,7 @@ Sektorerne står i to lag:
 | Kolonne | Betydning |
 |---|---|
 | *#* | Placeringen efter reglen nedenfor |
-| *Fund* | Fondens navn og Yahoo-ticker; *go-to* markerer valget |
+| *Fund* | Fondens navn og Yahoo-ticker; *go-to* markerer valget, *rejected* en fond, du har fået udskiftet (se nedenfor) |
 | *Scope* | Hvad fonden dækker: *World* (MSCI World-sektoren), *US* (S&P 500-sektoren) eller *Europe* (STOXX Europe 600-sektoren) |
 | *TER* | De årlige omkostninger, som fondsudbyderen oplyser dem. Hold musen over for Yahoos tal; ≠ betyder, at de to afviger med mere end 0,05 procentpoint, så tjek udbyderens side |
 | *Size* | Fondens størrelse i mio. USD |
@@ -60,19 +61,29 @@ Radaren slår hver fonds ISIN op på [positivlisten](laerebog/skat#positivlisten
 
 Positivlisten afgør kun, om en fond er aktiebaseret. Den siger intet om, hvorvidt din bank eller dit depot tilbyder netop den notering. Se [Skat](laerebog/skat) for reglerne og [UCITS-tvillinger og positivlisten](laerebog/rotation-og-cyklus#ucits-tvillinger-og-positivlisten).
 
-## Sådan opdaterer du listen
+## Sådan laves listen
 
 Skriv `/sector-etfs` i Claude Code i programmappen:
 
-- `/sector-etfs`: de sektorer, der mangler, har mærket *re-check* eller er ældre end {{settings:sector_etfs.stale_days}} dage
-- `/sector-etfs Technology Banks`: kun de nævnte sektorer
-- `/sector-etfs --all`: alle sektorerne
+- `/sector-etfs`: første gang vælger Claude en go-to-fond for alle sektorer. Derefter vælger den kun en ny i de sektorer, du har markeret til udskiftning, og i sektorer, der endnu ikke er dækket. Er intet markeret, laver den ingenting og siger det.
+- `/sector-etfs reselect-all`: et nyt valg i alle sektorerne.
+- `/sector-etfs Technology Banks`: et nyt valg i de nævnte sektorer.
 
 Claude henter kandidaterne for hver sektor (`radar sector-etfs candidates`): de fonde, optegnelsen har i forvejen, kendte UCITS-fonde fra `config/sector_etfs.yaml` og fonde fra positivlisten, som [Discover](brugervejledning/discover) har koblet til Yahoo. Derefter læser Claude TER, størrelse, udbyttepolitik, domicil og *tracking difference* på udbydernes egne sider (iShares, Xtrackers, SPDR, Amundi, Invesco) og på justETF, med link og dato for hvert tal. Et tal, Claude ikke kan finde, gemmes som ukendt.
 
-Du ser ét kort pr. sektor med go-to-fonden, alternativerne og hvad der har ændret sig siden sidst, og vælger *Gem* eller *Spring over* for hver. Kun de sektorer, du siger ja til, gemmes; de andre beholder deres tidligere valg og dato. Hver kørsel gemmes som en ny fil i `exports/sector_etfs/` i datamappen og overskriver aldrig en ældre, så `uv run radar sector-etfs history` kan vise, hvad hver kørsel valgte. Claudes notat ligger under fanen *Research* på [Notebook](/notebook).
+Claude gemmer valget med det samme; du bliver ikke spurgt sektor for sektor. Bagefter fortæller Claude, hvad der er valgt eller skiftet, og hvorfor. De sektorer, kørslen ikke rører, beholder deres valg og dato. Hver kørsel gemmes som en ny fil i `exports/sector_etfs/` i datamappen og overskriver aldrig en ældre, så `uv run radar sector-etfs history` kan vise, hvad hver kørsel valgte. Claudes notat ligger under fanen *Research* på [Notebook](/notebook).
 
-Siden viser en advarsel, når listen er ældre end {{settings:sector_etfs.stale_days}} dage. Omkostninger ændrer sig, og nye fonde kommer til, så kør den igen et par gange om året. Kurserne, skattestatus og rotationen er altid dagens.
+Siden viser en advarsel, når listen er ældre end {{settings:sector_etfs.stale_days}} dage. Omkostninger ændrer sig, og nye fonde kommer til, så kør `/sector-etfs reselect-all` et par gange om året. Kurserne, skattestatus og rotationen er altid dagens.
+
+## Udskift en go-to-fond
+
+Passer en go-to-fond dig ikke, fx fordi din bank ikke handler den, eller fordi den er for dyr, så klik ***Mark for replacement*** på go-to-linjen. Skriv gerne hvorfor (højst 200 tegn); Claude læser begrundelsen og vælger efter den, fx en notering, din bank har. Klik *Mark*.
+
+- Fonden bliver stående på siden med mærket *marked for replacement* og datoen, til næste kørsel har valgt en anden. *Undo* fjerner markeringen igen.
+- Øverst på siden står, hvor mange sektorer der er markeret. Næste `/sector-etfs` vælger kun en ny i dem.
+- Efter udskiftningen står den gamle fond måske stadig som alternativ, med mærket *rejected*. Claude vælger den ikke som go-to i sektoren igen, heller ikke med `reselect-all`. Ombestemmer du dig, så klik *Allow again* ud for den.
+
+Markeringerne ligger i `radar.db` i datamappen.
 
 ## Fra andre sider
 

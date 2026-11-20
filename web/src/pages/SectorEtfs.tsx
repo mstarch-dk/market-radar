@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { api, type SectorEtfRow, type SectorEtfSector, type SectorEtfsView } from "../api/client";
@@ -29,12 +29,21 @@ function TaxBadge({ e, year }: { e: SectorEtfRow; year: number }) {
   return <Badge kind="na" title={t.status === "no_sheet" ? `No positive list for ${year} yet.` : "No ISIN to look up."}>?</Badge>;
 }
 
-function cols(year: number): Col<SectorEtfRow>[] {
+function Rejected({ e, onAllow, busy }: { e: SectorEtfRow; onAllow: () => void; busy: boolean }) {
+  const why = e.rejected_reason ? ` ("${e.rejected_reason}")` : "";
+  return <>{" "}<Badge kind="neg" title={`You marked it for replacement${why}; replaced ${date(e.rejected_at)}. It isn't picked as the go-to again until you allow it.`}>
+    rejected</Badge>{" "}
+    <button type="button" className="linkish small" disabled={busy} onClick={onAllow}
+      title="Let /sector-etfs pick this fund as the go-to again">Allow again</button></>;
+}
+
+function cols(year: number, onAllow: (e: SectorEtfRow) => void, busy: boolean): Col<SectorEtfRow>[] {
   return [
     { key: "rank", label: "#", sort: (e) => e.rank, render: (e) => e.rank, help: "sector_rank" },
     { key: "name", label: "Fund", align: "l", sort: (e) => e.name, search: (e) => `${e.name} ${e.ticker} ${e.isin} ${e.issuer ?? ""}`,
       render: (e) => <>{e.pick && <Badge kind="accent" title="The go-to ETF of the latest /sector-etfs run">go-to</Badge>}{" "}
-        <TickerLink symbol={e.ticker} name={e.name} nameFirst /></>, csv: (e) => e.ticker, csvHeader: "Ticker" },
+        <TickerLink symbol={e.ticker} name={e.name} nameFirst />
+        {e.rejected && <Rejected e={e} onAllow={() => onAllow(e)} busy={busy} />}</>, csv: (e) => e.ticker, csvHeader: "Ticker" },
     { key: "scope", label: "Scope", align: "l", sort: (e) => e.scope, render: (e) => SCOPE[e.scope] ?? e.scope, help: "fund_scope",
       filter: { kind: "enum" } },
     { key: "isin", label: "ISIN", align: "l", sort: (e) => e.isin, render: (e) => <code>{e.isin}</code>, help: "isin", hidden: true },
@@ -61,9 +70,44 @@ function cols(year: number): Col<SectorEtfRow>[] {
   ];
 }
 
+function useFlags(key: string) {
+  const qc = useQueryClient();
+  const done = (view: SectorEtfsView) => qc.setQueryData(["sector-etfs"], view);
+  const mark = useMutation({ mutationFn: (reason: string | null) => api.markSectorEtf(key, reason), onSuccess: done });
+  const unflag = useMutation({ mutationFn: (isin: string) => api.unflagSectorEtf(key, isin), onSuccess: done });
+  return { mark, unflag, busy: mark.isPending || unflag.isPending, error: mark.error ?? unflag.error };
+}
+
+function ReplaceControl({ s, f }: { s: SectorEtfSector; f: ReturnType<typeof useFlags> }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  if (s.replace)
+    return <>{" "}<Badge kind="warn" title={`The next /sector-etfs run picks another fund for ${s.label}`}>
+      marked for replacement {date(s.replace.flagged_at)}</Badge>
+      {s.replace.reason && <span className="muted"> &ldquo;{s.replace.reason}&rdquo;</span>}{" "}
+      <span className="muted small">The next <code>/sector-etfs</code> run picks another fund.</span>{" "}
+      <button type="button" className="btn small" disabled={f.busy} onClick={() => f.unflag.mutate(s.replace!.isin)}>Undo</button></>;
+  if (!open)
+    return <>{" "}<button type="button" className="btn small" onClick={() => setOpen(true)}
+      title="Not traded at your broker, too expensive …: keep it on the page, and let the next /sector-etfs run pick another go-to">
+      Mark for replacement</button></>;
+  const save = () => f.mark.mutate(reason.trim() || null, { onSuccess: () => setOpen(false) });
+  return (
+    <span>
+      {" "}<input type="text" maxLength={200} placeholder="Why (optional): not at my broker, too expensive …" value={reason}
+        onChange={(ev) => setReason(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") save(); if (ev.key === "Escape") setOpen(false); }}
+        aria-label="Why replace it" size={40} autoFocus />{" "}
+      <button type="button" className="btn small primary" disabled={f.busy} onClick={save}>Mark</button>{" "}
+      <button type="button" className="btn small" onClick={() => setOpen(false)}>Cancel</button>
+    </span>
+  );
+}
+
 function SectorCard({ s, v, parentLabel }: { s: SectorEtfSector; v: SectorEtfsView; parentLabel?: string }) {
   const pick = s.etfs.find((e) => e.pick);
-  const columns = useMemo(() => cols(v.tax_year), [v.tax_year]);
+  const f = useFlags(s.key);
+  const { unflag, busy } = f;
+  const columns = useMemo(() => cols(v.tax_year, (e) => unflag.mutate(e.isin), busy), [v.tax_year, unflag, busy]);
   return (
     <section id={sectorAnchor(s.key)} className="group">
       <h2>
@@ -87,10 +131,12 @@ function SectorCard({ s, v, parentLabel }: { s: SectorEtfSector; v: SectorEtfsVi
                 <b>Go-to:</b> <TickerLink symbol={pick.ticker} name={pick.name} nameFirst /> · {SCOPE[pick.scope]} · TER {ter(pick.ter)} ·{" "}
                 <TaxBadge e={pick} year={v.tax_year} />
                 {s.reason && <> · <span className="muted">{s.reason}</span></>}
-                {s.recheck && <> <Badge kind="warn" title="The rule now ranks another fund first, and the record gave no reason to keep this one">re-check</Badge></>}
+                {s.recheck && <> <Badge kind="warn" title="The rule now ranks another fund first, and the record gave no reason to keep this one. Mark it for replacement to have the next /sector-etfs run pick again.">re-check</Badge></>}
                 {" "}<span className="muted">Updated {date(s.updated)}.</span>
+                <ReplaceControl s={s} f={f} />
               </p>
             )}
+            {f.error && <div className="error">Couldn&apos;t save the mark: {f.error.message}</div>}
             <DataTable id={`sector-${sectorAnchor(s.key)}`} csvName={`sector-etfs-${sectorAnchor(s.key)}`} rows={s.etfs} cols={columns}
               rowKey={(e) => e.isin} />
           </>
@@ -126,12 +172,17 @@ export function SectorEtfs() {
             </PageHead>
             {v.stale && <div className="notes" role="alert">The record is {v.age_days} days old (more than {v.stale_days}): run <code>/sector-etfs</code> again
               to check costs, launches and closures.</div>}
+            {v.run_scope.mode === "replace" && v.run_scope.marked.length > 0 && <div className="notes">
+              {v.run_scope.marked.length === 1 ? "1 sector is" : `${v.run_scope.marked.length} sectors are`} marked for
+              replacement ({v.run_scope.marked.map((k, i) => <span key={k}>{i > 0 && ", "}<a href={`#${sectorAnchor(k)}`}>{label[k] ?? k}</a></span>)}): run <code>/sector-etfs</code> in
+              Claude Code to pick another go-to there. Nothing else changes.</div>}
             {!v.prices && <div className="notes">No price data yet: returns show as –. Download market data on the Data page.</div>}
             {v.problems.map((p) => <div key={p.id} className="error">Record {p.id}: {p.problem}</div>)}
             {!v.as_of ? (
               <div className="card">
                 <p>No sector ETF list yet. Run <code>/sector-etfs</code> in Claude Code: it researches the UCITS candidates for each sector
-                  (TER, size, tracking, the positive list), ranks them and asks you to confirm each sector before it is saved here.</p>
+                  (TER, size, tracking, the positive list), ranks them and picks a go-to for every sector by itself. If you don&apos;t want a
+                  pick, mark it for replacement here and run <code>/sector-etfs</code> again.</p>
               </div>
             ) : (
               <>

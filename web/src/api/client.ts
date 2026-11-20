@@ -253,6 +253,10 @@ export const api = {
     get<AgendaView>(withSel(days ? `/api/calendar?days=${days}` : "/api/calendar", sel)),
   evidence: () => get<EvidenceView>("/api/evidence"),
   sectorEtfs: () => get<SectorEtfsView>("/api/sector-etfs"),
+  markSectorEtf: (key: string, reason: string | null) =>
+    get<SectorEtfsView>(`/api/sector-etfs/${enc(key)}/replace`, "PUT", JSON.stringify({ reason }), "application/json"),
+  unflagSectorEtf: (key: string, isin: string) =>
+    get<SectorEtfsView>(`/api/sector-etfs/${enc(key)}/flags/${enc(isin)}`, "DELETE"),
   studyStatus: () => get<StudyRunStatus>("/api/studies/run"),
   startStudy: (key: string) => get<StudyRunStatus>(`/api/studies/run/${enc(key)}`, "POST"),
   cancelStudy: () => get<StudyRunStatus>("/api/studies/run", "DELETE"),

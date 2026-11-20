@@ -11,7 +11,10 @@ The ranking is a rule, not a recommendation, applied in this order:
   3. TER, lowest first (unknown last);
   4. tracking difference, highest first (unknown last);
   5. accumulating before distributing (unknown last).
-Ties keep the record's order. Missing data stays missing (None), never 0."""
+Ties keep the record's order. Missing data stays missing (None), never 0.
+
+The user marks a go-to for replacement on the page (userstore/sectorflags.py): that fund is rejected as the sector's
+go-to, and the next /sector-etfs run without arguments re-selects only the marked sectors (`run_scope`)."""
 from __future__ import annotations
 
 from datetime import date
@@ -21,11 +24,13 @@ import pandas as pd
 
 from . import sector_etfs
 from .config import sector_etf_taxonomy, settings, typed
+from .errors import Invalid
 from .market import Market
 from .portfolios.performance import PERIODS, bench_dkk, period_return
 from .portfolios.prices import Prices
 from .reporting import dashboard
 from .sources import external, positive_list
+from .userstore import sectorflags
 from .values import num
 
 TER_TOLERANCE = 0.0005         # recorded vs Yahoo TER: a gap above 0.05 pp is flagged
@@ -173,20 +178,29 @@ def view(market: Market | None, today: date | None = None) -> dict:
     prices = Prices(market) if market is not None else None
     bench = bench_dkk(market) if market is not None else pd.Series(dtype=float)
     by_key = {s["key"]: s for s in (rec or {}).get("sectors", [])}
+    marks = sectorflags.flags()
     sectors = []
     for key, d in tax.sectors.items():
         row: dict[str, Any] = {"key": key, "label": d.label, "parent": d.parent,
                "rotation": [rot[t] for t in d.rotation if t in rot], "pick": None, "reason": None,
-               "rank_override": False, "recheck": False, "updated": None, "age_days": None, "etfs": []}
+               "rank_override": False, "recheck": False, "updated": None, "age_days": None, "replace": None,
+               "etfs": []}
         s = by_key.get(key)
         if s is not None:
+            gone = {f["isin"]: f for f in marks if f["sector"] == key}
             etfs = rank([enrich(e, prices, bench, years, year, ts) for e in s["etfs"]], cfg.min_aum_musd)
             for e in etfs:
                 e["pick"] = e["isin"] == s["pick"]
+                f = gone.get(e["isin"])
+                done = f is not None and f["resolved_at"] is not None
+                e.update(rejected=done, rejected_at=f["resolved_at"] if done and f else None,
+                         rejected_reason=f["reason"] if done and f else None)
             pick = next(e for e in etfs if e["pick"])
+            mark = gone.get(s["pick"])
             row.update(pick=s["pick"], reason=s.get("reason"), rank_override=bool(s.get("rank_override")),
                        recheck=pick["rank"] != 1 and not s.get("rank_override"), updated=s["updated"],
-                       age_days=(today - date.fromisoformat(s["updated"])).days, etfs=etfs)
+                       age_days=(today - date.fromisoformat(s["updated"])).days, etfs=etfs,
+                       replace={k: mark[k] for k in ("isin", "reason", "flagged_at")} if mark else None)
         sectors.append(row)
     age = (today - date.fromisoformat(rec["date"])).days if rec else None
     return {"as_of": rec["date"] if rec else None, "record_id": rec["id"] if rec else None, "age_days": age,
@@ -194,7 +208,19 @@ def view(market: Market | None, today: date | None = None) -> dict:
             "min_aum_musd": cfg.min_aum_musd, "tax_year": year, "prices": market is not None,
             "tax_sheet": year in years if years else False, "note": rec.get("note") if rec else None,
             "problems": [{"id": r["id"], "problem": r["problem"]} for r in recs if "problem" in r],
-            "sectors": sectors}
+            "run_scope": run_scope(rec, sectors), "sectors": sectors}
+
+
+def run_scope(rec: dict | None, sectors: list[dict]) -> dict:
+    """Which sectors /sector-etfs re-selects when it runs without arguments: every sector before the first record
+    (`first`); the sectors marked for replacement and those not covered yet (`replace`); none (`none`). The skill's
+    `reselect-all` and named sectors override it."""
+    if rec is None:
+        return {"mode": "first", "sectors": [s["key"] for s in sectors], "marked": [], "uncovered": []}
+    marked = [s["key"] for s in sectors if s["replace"]]
+    uncovered = [s["key"] for s in sectors if not s["etfs"]]
+    todo = [s["key"] for s in sectors if s["replace"] or not s["etfs"]]
+    return {"mode": "replace" if todo else "none", "sectors": todo, "marked": marked, "uncovered": uncovered}
 
 
 _cache: dict = {}
@@ -211,7 +237,7 @@ def cached(market: Market | None, today: date | None = None) -> dict:
     recs = tuple(sorted(_stamp(f) for f in sector_etfs.RECORDS.glob("*.json"))) if sector_etfs.RECORDS.is_dir() else ()
     dash = dashboard.path()
     key = (recs, market.mtime if market is not None else None, _stamp(dash) if dash.exists() else None,
-           id(settings()), today)
+           id(settings()), today, sectorflags.signature())
     if key not in _cache:
         _cache.clear()
         _cache[key] = view(market, today)
@@ -266,6 +292,12 @@ def preview(record: dict, market: Market | None, today: date | None = None) -> d
     the rule), and the changes against the latest record. Invalid when the run doesn't pass sector_etfs.check."""
     today = today or date.today()
     rec = sector_etfs.check(record)
+    for s in rec["sectors"]:
+        f = sectorflags.rejected(s["key"]).get(s["pick"])
+        if f is not None:
+            why = f' ("{f["reason"]}")' if f["reason"] else ""
+            raise Invalid(f"{s['key']}: {s['pick']} was marked for replacement on {f['flagged_at'][:10]}{why}: "
+                          f"pick another fund as the go-to (it may stay as a peer).")
     prices = Prices(market) if market is not None else None
     bench = bench_dkk(market) if market is not None else pd.Series(dtype=float)
     years, ts = positive_list_years(), pd.Timestamp(today)
@@ -288,6 +320,20 @@ def preview(record: dict, market: Market | None, today: date | None = None) -> d
     carried = [s["key"] for s in (base or {}).get("sectors", []) if s["key"] not in covered]
     return {"sectors": sectors, "changes": changes(rec["sectors"], base), "carried_over": carried,
             "latest": base["id"] if base else None}
+
+
+def commit(record: dict, today: date | None = None) -> dict:
+    """Save a run (sector_etfs.freeze) and resolve each open mark whose sector it re-selected with another go-to:
+    that fund stays rejected as the go-to. Returns the frozen record with the marks it `resolved`. Check the run
+    with `preview` first (it refuses a rejected pick)."""
+    saved = sector_etfs.freeze(record, today)
+    covered = {s["key"]: s["pick"] for s in sector_etfs.check(record)["sectors"]}
+    resolved = []
+    for key, f in sectorflags.open_flags().items():
+        if key in covered and covered[key] != f["isin"]:
+            sectorflags.resolve(key, f["isin"], saved["id"])
+            resolved.append({"sector": key, "isin": f["isin"], "reason": f["reason"], "new_pick": covered[key]})
+    return {**saved, "resolved": resolved}
 
 
 # ---------------- candidates for the skill ----------------
@@ -341,11 +387,20 @@ def candidates(key: str, market: Market, today: date | None = None) -> dict:
     prices, bench, years = Prices(market), bench_dkk(market), positive_list_years()
     ts = pd.Timestamp(today)
     known_rows = rank([enrich(e, prices, bench, years, today.year, ts) for e in rows])
+    gone = sectorflags.rejected(key)
+
+    def mark(e: dict) -> dict:
+        f = gone.get(e["isin"])
+        return {**e, "rejected": f is not None, "rejected_reason": f["reason"] if f else None}
+
+    ask = sectorflags.open_flags().get(key)
     return {"key": key, "label": d.label, "parent": d.parent, "rotation": d.rotation,
             "current_pick": current["pick"] if current else None,
             "current_updated": current["updated"] if current else None,
-            "candidates": known_rows,
-            "pool": [{**e, "tax": tax_status(e["isin"], years, today.year)} for e in pool],
+            "replace_requested": {k: ask[k] for k in ("isin", "reason", "flagged_at")} if ask else None,
+            "candidates": [mark(e) for e in known_rows],
+            "pool": [mark({**e, "tax": tax_status(e["isin"], years, today.year)}) for e in pool],
             "fields": "per ETF: isin, ticker, name, scope (world|us|europe|other), issuer, index, ter (fraction), "
                       "distribution (acc|dist), domicile, currency, aum_musd, tracking_diff (fraction a year), "
-                      "sources (URLs), checked (date); unknown is null"}
+                      "sources (URLs), checked (date); unknown is null. A `rejected` fund can't be the go-to "
+                      "(the user marked it for replacement); it may stay as a peer"}
