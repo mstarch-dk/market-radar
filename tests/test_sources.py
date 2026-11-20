@@ -4,6 +4,7 @@ A source that changes its layout should fail here, not show up as "n/a" or a wro
 """
 import io
 import json
+import re
 
 import numpy as np
 import openpyxl
@@ -124,6 +125,16 @@ def test_factset_report_text():
                  "rev_up_sectors": "Utilities, Industrials, Energy",
                  "rev_down_sectors": "Real Estate, Materials"}
     # the same text also holds the *trailing* P/E averages (23.9 / 22.4): the forward ones must win
+
+
+def test_factset_quarter_start_in_season_wording():
+    # 20 Nov 2026: late in the season the start estimate is only given as of the quarter's end
+    text = (FIXTURES / "factset_excerpt.txt").read_text(encoding="utf-8")
+    start = re.search(r"On \w+ \d+, the estimated[^%]*%\.", text, re.S)
+    assert start
+    reworded = text.replace(start.group(0), "The blended (year-over-year) earnings growth rate for Q3 2026 of 11.4% "
+                            "is above the estimate of 9.8% at the end of the third quarter (September 30).")
+    assert external.parse_factset([reworded])["growth_start"] == 9.8
 
 
 def _factset_env(tmp_path, monkeypatch, text):

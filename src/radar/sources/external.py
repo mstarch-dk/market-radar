@@ -222,12 +222,16 @@ FACTSET_TEXT_PAGES = ("Key Metrics", "Earnings Revisions", "Forward Estimates & 
 
 _NUM = r"(-?\d+(?:\.\d+)?)"
 FACTSET_REQUIRED = ("growth_now", "growth_start")  # the regime vote; without them the report is useless
-FACTSET_PATTERNS = {
+FACTSET_PATTERNS: dict[str, str | tuple[str, ...]] = {  # a tuple: alternative wordings, the first that matches wins
     # "estimated" before the season, "blended" (actuals + estimates) once companies report
     "quarter": r"For (Q\d \d{4}), the (?:estimated|blended) \(year-over-year\) earnings growth rate",
     "growth_now": r"earnings growth rate for the S&P 500 is " + _NUM + "%",
-    "growth_start": r"On \w+ \d+, the estimated \(year-over-year\) earnings growth rate for the S&P 500 for Q\d\s+\d{4}\s+was "
-                    + _NUM + "%",
+    # the estimate the quarter's revisions are measured from; once the season is under way FactSet words it
+    # "… of 29.1% at the end of the third quarter (September 30)" instead: the same date, the same figure
+    "growth_start": (r"On \w+ \d+, the estimated \(year-over-year\) earnings growth rate for the S&P 500 for Q\d\s+\d{4}\s+was "
+                     + _NUM + "%",
+                     r"(?:estimate|earnings growth rate) of " + _NUM
+                     + r"% at the end of the (?:first|second|third|fourth) quarter \(\w+ \d+\)"),
     "guidance_neg": r"(\d+) S&P 500 companies have issued negative EPS guidance",
     "guidance_pos": r"(\d+) S&P 500\s+companies have issued positive EPS guidance",
     "fwd_pe": r"forward 12-month P/E ratio for the S&P 500 is " + _NUM,
@@ -243,8 +247,8 @@ def parse_factset(pages: list[str]) -> dict:
     text = "\n".join(pages)
     flat = re.sub(r"\s+", " ", text)
     out: dict = {}
-    for key, pat in FACTSET_PATTERNS.items():
-        m = re.search(pat, flat)
+    for key, pats in FACTSET_PATTERNS.items():
+        m = next((m for pat in ((pats,) if isinstance(pats, str) else pats) if (m := re.search(pat, flat))), None)
         if not m:
             out[key] = None
         elif key.endswith("_sectors"):
