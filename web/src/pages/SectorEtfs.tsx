@@ -11,9 +11,8 @@ import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { date, num } from "../lib/format";
 import { pageChapter, useGuideTree } from "../lib/guide";
+import { sectorAnchor } from "../lib/sectorEtfs";
 
-/** A sector key as a page anchor: "Autos & Parts" → "autos-parts" (the Rotation, X-ray and Ticker links use it). */
-export const sectorAnchor = (key: string) => key.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const SCOPE: Record<string, string> = { world: "World", us: "US", europe: "Europe", other: "Other" };
 

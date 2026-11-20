@@ -13,6 +13,7 @@ type RiskWindow = components["schemas"]["RiskWindow"];
 import { compact, date, daysUntil, isNum, num, pct, price, tone, type Maybe } from "../lib/format";
 import { Badge, Card, KV, Signed } from "./ui";
 import { Quadrant } from "./cells";
+import { useSectorGoTo } from "../lib/sectorEtfs";
 
 const yesNo = (v: boolean | null | undefined, yes: string, no: string) => (v === null || v === undefined ? "–" : v ? yes : no);
 
@@ -85,6 +86,8 @@ export function Glance({ p }: { p: Profile }) {
 
 export function Returns({ p }: { p: Profile }) {
   const pr = p.price;
+  const { byTicker } = useSectorGoTo();
+  const goto = pr.sector_etf ? byTicker.get(pr.sector_etf) : undefined;
   return (
     <Card title="Price development" meta={pr}>
       <div className="scroll">
@@ -99,6 +102,13 @@ export function Returns({ p }: { p: Profile }) {
         </table>
       </div>
       <p className="small muted">Total returns (adjusted closes); "vs" rows are the difference in percentage points. Bold: 3M and 6M, the momentum horizon.</p>
+      {goto && (
+        <p className="small">
+          {goto.label} as a UCITS ETF:{" "}
+          {goto.pick ? <><TickerLink symbol={goto.pick.ticker} name={goto.pick.name} nameFirst /> (the go-to) · </> : null}
+          <Link to={goto.href}>{goto.pick ? "peers, costs and tax status" : "Sector ETFs"} →</Link>
+        </p>
+      )}
       <h3>52-week range <span className="muted">(adjusted closes, not intraday)</span></h3>
       <KV rows={[
         ["High", price(pr.high_52w, pr.currency), { hint: pct(pr.from_high) }],

@@ -177,6 +177,7 @@ export const GLOSSARY = {
   ret_dkk: "Total return in DKK over the window (1m = 21 trading days, 3m 63, 6m 126, 1y 252; YTD from last year's last close), currency moves included.",
   vs_acwi_dkk: "The fund's DKK return minus ACWI's DKK return over the same window, in percentage points.",
   sector_rank: "The fund's place in the ranking rule: on the positive list first, then funds above the size floor, then lowest TER, best tracking difference, accumulating before distributing.",
+  sector_goto: "The UCITS ETF that /sector-etfs recorded as the go-to for this sector: one a Danish investor can buy (the US sector ETFs can't be, no KID). The arrow leads to its peers, costs and tax status on the Sector ETFs page.",
 } as const;
 
 /** A term's hover text, with each `{{settings:…}}` filled in from settings.yaml's values (the guide tree serves them;
