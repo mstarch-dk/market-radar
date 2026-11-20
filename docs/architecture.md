@@ -58,6 +58,10 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
   stocks) and the index each tracks, as a list of countries; `portfolios/exposure.py` counts such a fund as ACWI's
   holdings in those countries (a hedged share class in its hedge currency). Checked on load against
   `config_schema.IndexFunds` (`config.index_funds()`).
+- `config/sector_etfs.yaml`: the sectors of the Sector ETFs page (the 11 GICS sectors by Yahoo's names, and the EU
+  supersectors with a UCITS ETF of their own, each with its GICS `parent`), the rotation tickers that stand for each,
+  and seed UCITS candidates (ISINs on SKAT's positive list) for `/sector-etfs` to start from. Checked on load against
+  `config_schema.SectorEtfTaxonomy` (`config.sector_etf_taxonomy()`); plans/F13-sector-etfs.md.
 - `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
 
 ## Where data lives
