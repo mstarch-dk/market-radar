@@ -34,14 +34,19 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
   regulatory and technology milestones, emerging and frontier markets, commodities, a contrarian lens). It checks
   each story against the radar's numbers (`ticker_profile`, rotation, revisions, positioning, the user's views) and
   writes `research/scout/YYYY-MM-DD.md` with 3–5 candidates. Each has a narrative stage (whisper / confirming /
-  consensus: "buy on the rumour, sell on the fact"), a seven-axis rubric, a red team and a falsifier. The user
-  adopts, watches or dismisses each; the run can be logged in the journal.
+  consensus: "buy on the rumour, sell on the fact"), a seven-axis rubric, a red team and a falsifier. After an
+  overview, each candidate is shown as a card in chat (stage and why, sources, the radar's numbers, catalyst, bull
+  and bear, falsifier, basket) before the user adopts, watches or dismisses it and chooses whether to follow its
+  basket; the run can be logged in the journal.
   - New MCP write `add_view` (dry run with the view's evidence and the views it overlaps or contradicts, saved only
     with `confirm`). New column `views.origin` (`scout:<date>:<slug>`), set once and kept through edits; the
     *Market views* page tags such views *from scout*. View validation now also checks the horizon, exposures and
     indicator directions for every writer.
   - Forward record: `scout.py` freezes every shortlisted candidate (adopted, watched and dismissed: the control
-    group) in `exports/scout/`, dated today, never overwritten, and its tickers join the daily update.
+    group) in `exports/scout/`, dated today, never overwritten, and its tickers join the daily update. A candidate
+    the user chooses not to follow (`scout_freeze(follow=false)`) is recorded with `followed: false` and no basket;
+    `scout_review` counts it (`shown`, `not_followed`, per group) and leaves it out of the means, and the Evidence
+    page says how many were left out.
     `evidence.scout_review` follows each proxy basket against ACWI, with means per decision and per stage from
     `evidence.scout_min` candidates. MCP `scout_freeze` / `scout_review`, CLI `radar scout review`, and a *Scout
     candidates* table on the Evidence page. `propose.store._basket_path` is now the public `basket_path`.

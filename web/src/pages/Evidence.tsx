@@ -420,7 +420,7 @@ export function Evidence() {
                   <ForwardBlock id="evpr" title="Frozen proposals" g={d.forward.proposals}
                     help="Each proposal's picks, frozen before the model's numbers, against ACWI over the same days." />
                   <ForwardBlock id="evsc" title="Scout candidates" g={d.forward.scout}
-                    help="Each /scout hypothesis, adopted, dismissed or watched, frozen with its proxy basket the day it was shown, against ACWI over the same days. The dismissed are the control group." />
+                    help="Each /scout hypothesis, adopted, dismissed or watched, frozen with its proxy basket the day it was shown, against ACWI over the same days, unless you chose not to follow it (those are counted in the note below, not averaged). The dismissed are the control group." />
                 </div>
               ) : <p className="note">{d.notes.join(" ")}</p>}
             </section>
