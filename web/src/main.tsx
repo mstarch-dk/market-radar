@@ -23,6 +23,7 @@ import { Views } from "./pages/Views";
 import { Xray } from "./pages/Xray";
 import { Calendar } from "./pages/Calendar";
 import { Evidence } from "./pages/Evidence";
+import { SectorEtfs } from "./pages/SectorEtfs";
 import { Ticker } from "./pages/Ticker";
 import { pageChapter, useGuideTree } from "./lib/guide";
 import { ALL_PAGES, groupOf, lastPage, NAV, remember, rememberFrom, tickerLocation } from "./lib/nav";
@@ -36,7 +37,7 @@ const lazyPage = (el: ReactNode) => <Suspense fallback={<div className="skeleton
 
 // what each page in lib/nav.ts shows (the groups, labels and order live there)
 const ELEMENTS: Record<string, ReactNode> = {
-  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />, "/evidence": <Evidence />,
+  "/regime": <Regime />, "/rotation": <Rotation />, "/themes": <Themes />, "/momentum": <Momentum />, "/quality": <Quality />, "/evidence": <Evidence />, "/sectoretfs": <SectorEtfs />,
   "/discover": <Discover />, "/positioning": <Positioning />,
   "/me": <Me />, "/xray": <Xray />, "/calendar": <Calendar />, "/portfolio": <Portfolio />, "/returns": <Performance />, "/experiments": <Experiments />, "/views": <Views />,
   "/rules": <Rules />,

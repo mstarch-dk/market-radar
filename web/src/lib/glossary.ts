@@ -168,6 +168,15 @@ export const GLOSSARY = {
   tax_lager: "Lager taxation: each year the change in value is taxed whether you sold or not: value at year end, plus what sales brought in, minus the value at the start of the year and what buys cost.",
   tax_pool: "An aktiesparekonto or a pension account is taxed on its whole return each year: value at the end minus value at the start minus deposits plus withdrawals. A losing year gives a negative tax that is set against later years' tax.",
   ev_too_short: "Younger than its minimum: its numbers are listed, but it isn't judged, ranked or counted in the mean.",
+  ter: "Total expense ratio: the fund's yearly running cost, taken from its value (0.25% = 25 DKK a year on 10,000 DKK). Recorded from the issuer by /sector-etfs; Yahoo's figure is shown next to it, and a gap above 0.05 percentage points is flagged.",
+  tracking_diff: "Tracking difference: the fund's return minus its index's over a year (−0.12% = the fund lagged its index by 0.12 percentage points, usually about its TER). From the issuer or justETF when stated; – when unknown.",
+  aum: "Fund size in USD millions. A fund below {{settings:sector_etfs.min_aum_musd}}m ranks below every larger one: a small fund is more likely to close or be merged.",
+  fund_scope: "What the fund holds: world (an MSCI World sector index, developed markets), us (an S&P 500 sector) or europe (a STOXX Europe 600 or MSCI Europe sector).",
+  tax_class: "Danish tax status for the year from SKAT's positive list. aktiebaseret: on the list, lagerbeskattet as share income in frie midler and allowed on an aktiesparekonto. kapitalindkomst: off the list, lagerbeskattet as capital income and not allowed on an aktiesparekonto. ukendt: no list for the year yet, or no ISIN.",
+  lager: "Lagerbeskatning: gains and losses are taxed every year on the value at year end, sold or not. Danish tax on accumulating and distributing ETFs works this way; a Danish distributing fund (udbyttebaseret) is taxed when sold instead.",
+  ret_dkk: "Total return in DKK over the window (1m = 21 trading days, 3m 63, 6m 126, 1y 252; YTD from last year's last close), currency moves included.",
+  vs_acwi_dkk: "The fund's DKK return minus ACWI's DKK return over the same window, in percentage points.",
+  sector_rank: "The fund's place in the ranking rule: on the positive list first, then funds above the size floor, then lowest TER, best tracking difference, accumulating before distributing.",
 } as const;
 
 /** A term's hover text, with each `{{settings:…}}` filled in from settings.yaml's values (the guide tree serves them;
