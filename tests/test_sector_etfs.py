@@ -75,6 +75,20 @@ def test_freeze_never_overwrites_and_carries_the_other_sectors(tmp_data):
     assert sector_etfs.latest()["sectors"][0]["pick"] == "IE00B3WJKG14"
 
 
+def test_records_order_by_day_and_run_not_by_file_time(tmp_data):
+    """Two runs in the same second share a file time on Windows, and a copied data folder gets new times: the order
+    is the day, then the run's number (-2 after the first, -10 after -9)."""
+    import os
+
+    ids = [sector_etfs.freeze({"sectors": [TECH]}, today=date(2026, 8, 1))["id"] for _ in range(10)]
+    ids.append(sector_etfs.freeze({"sectors": [BANKS]}, today=date(2026, 7, 31))["id"])
+    for n, f in enumerate(sorted(sector_etfs.RECORDS.glob("*.json"), reverse=True)):
+        os.utime(f, ns=(1_700_000_000_000_000_000 + n, 1_700_000_000_000_000_000 + n))   # newest file time first
+    assert [r["id"] for r in sector_etfs.records()] == ["2026-07-31", "2026-08-01",
+                                                        *(f"2026-08-01-{k}" for k in range(2, 11))]
+    assert sector_etfs.latest()["id"] == "2026-08-01-10"
+
+
 def test_latest_skips_and_flags_an_unreadable_record(tmp_data):
     assert sector_etfs.latest() is None and sector_etfs.symbols() == set()
     sector_etfs.freeze({"sectors": [TECH]}, today=date(2026, 8, 1))

@@ -27,6 +27,7 @@ TICKER = re.compile(r"[A-Z0-9][A-Z0-9.^=-]{0,19}")
 COUNTRY = re.compile(r"[A-Z]{2}")
 CURRENCY = re.compile(r"[A-Z]{3}")
 URL = re.compile(r"https?://\S+")
+RUN = re.compile(r"(?:-(\d+))?")              # what follows the day in a record's id: nothing, -2, -3 …
 MAX_ETFS = 8
 MAX_TER = 0.03                 # a fraction: 0.0025 is 0.25 % a year
 MAX_TRACKING = 0.2             # a tracking difference beyond ±20 % a year is a typo, not a fund
@@ -179,11 +180,18 @@ def records() -> list[dict]:
     out = []
     for f in RECORDS.glob("*.json"):
         try:
-            out.append({**_read(f), "_order": f.stat().st_mtime_ns})
+            out.append(_read(f))
         except (ValueError, KeyError, TypeError, Invalid) as e:
-            out.append({"id": f.stem, "problem": f"can't be read: {e}", "_order": f.stat().st_mtime_ns})
-    out.sort(key=lambda r: (r.get("date") or r["id"][:10], r.get("frozen_at") or "", r.pop("_order")))   # -2 after its first
+            out.append({"id": f.stem, "problem": f"can't be read: {e}"})
+    out.sort(key=_order)
     return out
+
+
+def _order(r: dict) -> tuple[str, int]:
+    """By day, then by the run's number that day (freeze names them <day>, <day>-2, <day>-3 …). Not by the file's
+    time: two runs in the same second can share it (Windows), and a copied folder gets new times."""
+    run = RUN.fullmatch(r["id"][10:])
+    return (r.get("date") or r["id"][:10], int(run.group(1)) if run and run.group(1) else 1)
 
 
 def latest() -> dict | None:
