@@ -5,7 +5,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import net, scout
+from . import net, scout, sector_etfs
 from .config import typed, write_csv
 from .paths import CACHE
 from .portfolios import trades
@@ -114,6 +114,7 @@ def all_price_tickers(refresh: bool = False, offline: bool = False) -> list[str]
     tickers |= set(fxrates.FX_TICKERS)
     tickers |= attribution_tickers()                       # attribution's benchmark segments
     tickers |= scout.symbols()                             # /scout's frozen candidates, for their follow-up
+    tickers |= sector_etfs.symbols()                       # /sector-etfs' latest record: the Sector ETFs page
     return sorted(tickers)
 
 
