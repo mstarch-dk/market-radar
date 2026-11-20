@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from .. import sector_etfs
 from ..config import typed, universe_config
 from ..config_schema import Propose
 from ..jsonsafe import clean as _clean
@@ -290,19 +291,35 @@ def alternatives(ctx: draft.Ctx, scored: pd.DataFrame, raw: pd.DataFrame, ticker
                         {"tickets_below_min": sum(a < c.min_ticket_dkk for a in top.values())})
     else:
         out["A4"] = {"label": "Top up current holdings pro rata", "tests": "no new names", "note": "nothing held to top up"}
+    go_to = sector_go_to(ctx.prices)
+    today_map = universe_config().get("sector_etfs") or {}
     etf_of = {}
     for t in tickers:
         reg = "europe" if meta["region"].get(t) in ("europe", "nordic") else "us"
-        se = ((universe_config().get("sector_etfs") or {}).get(reg) or {}).get(meta["sector"].get(t))
+        sec = meta["sector"].get(t)
+        se = go_to.get(sec) or (today_map.get(reg) or {}).get(sec)
         etf_of[t] = se if isinstance(se, str) else bench
     a5: dict[str, float] = {}
     for t in tickers:
         a5[etf_of[t]] = a5.get(etf_of[t], 0.0) + amount / len(tickers)
     out["A5"] = rec("Sector ETFs with the basket's sector mix", a5, None,
                     _mean_known([_cost_one(ctx.prices, ctx.sf, t, v) for t, v in a5.items()]),
-                    "whether picking stocks adds anything beyond the exposure (US/EU sector ETFs as proxies: buy "
-                    "UCITS equivalents)", {"map": etf_of})
+                    "whether picking stocks adds anything beyond the exposure (each sector's go-to UCITS ETF from "
+                    "/sector-etfs where recorded, else the US/EU sector ETF as a proxy)",
+                    {"map": etf_of, "ucits": sorted({v for v in etf_of.values() if v in go_to.values()})})
     out["A6"] = randoms(scored, tickers, amount, n, ctx, R, vals, c)
+    return out
+
+
+def sector_go_to(prices: Prices) -> dict[str, str]:
+    """Sector (Yahoo's GICS name) → the go-to UCITS ETF of /sector-etfs' latest record, where the radar has its
+    prices; empty before the first run (A5 then uses the US/EU sector ETFs of universe.yaml)."""
+    rec = sector_etfs.latest()
+    out = {}
+    for s in (rec or {}).get("sectors", []):
+        t = next((e["ticker"] for e in s["etfs"] if e["isin"] == s["pick"]), None)
+        if t is not None and prices.dkk(t) is not None:
+            out[s["key"]] = t
     return out
 
 
