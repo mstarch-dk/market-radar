@@ -4,6 +4,13 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 ## Unreleased
 
+**Sektor-ETF'er: hvilken ETF køber du for en sektor?** Rotationen måler sektorerne med amerikanske ETF'er, som du ikke kan købe. Den nye side *Sector ETFs* under *Markets* viser for hver sektor én go-to-UCITS-ETF og dens alternativer: TER, størrelse, akkumulerende eller udbyttebetalende, skattestatus efter positivlisten (må den ligge på en aktiesparekonto?) og afkastet i kroner og mod ACWI. Se [Sektor-ETF'er](brugervejledning/sektor-etfer).
+
+- **Listen laves med Claude:** den nye skill `/sector-etfs` læser tallene hos fondsudbyderne med link og dato, rangordner fondene efter en fast regel og gemmer kun de sektorer, du siger ja til. Kør den igen et par gange om året; siden siger til, når listen er ældre end {{settings:sector_etfs.stale_days}} dage.
+- **Fra andre sider:** kolonnen *UCITS go-to* på *Sector rotation*, et link ved hver sektor i porteføljens røntgen og en linje på tickerprofilen fører til sektorens kort.
+- **Porteføljeforslag:** alternativet med sektor-ETF'er (A5) bruger nu go-to-fondene, når de er valgt.
+- **Ved opdatering** skal du ikke gøre noget. Siden er tom, til du har kørt `/sector-etfs` første gang.
+
 **Scout: hypoteser fra det, markedet taler om.** Den nye Claude-skill `/scout` søger på nettet efter de historier, investorer og medier er begyndt at fortælle, fx kernekraft eller sundhed i afrikanske lande. Den holder dem op mod radarens tal og giver dig 3–5 hypoteser. Hver har et stadie: *hvisken* (omtalen vokser, men kursen har ikke fulgt med), *bekræftes* eller *konsensus* (et advarselsflag). Se [Scout: hypoteser fra markedets snak](brugervejledning/scout).
 
 - **Du vælger:** adoptér en kandidat som markedssyn (Claude viser det først og gemmer kun efter dit ja), følg den, eller afvis den. Beslutningerne kan skrives i journalen, og `/journal review` gennemgår dem.
