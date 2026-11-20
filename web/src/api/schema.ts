@@ -4566,7 +4566,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "sector_etfs" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -4593,7 +4593,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "journal" | "reviews";
+            kind: "briefs" | "research" | "compare" | "proposals" | "proposal_reviews" | "scout" | "sector_etfs" | "journal" | "reviews";
             /** Name */
             name: string;
             /** Title */
@@ -4624,6 +4624,8 @@ export interface components {
             proposal_reviews: components["schemas"]["NotebookEntry"][];
             /** Scout */
             scout: components["schemas"]["NotebookEntry"][];
+            /** Sector Etfs */
+            sector_etfs: components["schemas"]["NotebookEntry"][];
             /** Journal */
             journal: components["schemas"]["NotebookEntry"][];
             /** Reviews */

@@ -32,8 +32,8 @@ TER_TOLERANCE = 0.0005         # recorded vs Yahoo TER: a gap above 0.05 pp is f
 SPARK_WEEKS = 52
 MAX_POOL = 15                  # discovery-pool candidates per sector, for the skill
 EXCLUDE = ("LEVERAGED", "SHORT", " 2X", " 3X", "DAILY", "INVERSE", "COVERED CALL", "BOND")
-BLANK = {"issuer": None, "index": None, "ter": None, "distribution": None, "domicile": None, "currency": None,
-         "aum_musd": None, "tracking_diff": None, "sources": [], "checked": None}   # what the skill fills in
+BLANK: dict[str, Any] = {"issuer": None, "index": None, "ter": None, "distribution": None, "domicile": None, "currency": None,
+                         "aum_musd": None, "tracking_diff": None, "sources": [], "checked": None}   # the skill fills in
 
 
 # ---------------- tax ----------------

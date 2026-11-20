@@ -29,6 +29,7 @@ FOLDERS = {
     "proposals": HOME / "research" / "proposals",
     "proposal_reviews": HOME / "research" / "proposals" / "reviews",
     "scout": HOME / "research" / "scout",
+    "sector_etfs": HOME / "research" / "sector-etfs",
     "journal": HOME / "journal",
     "reviews": HOME / "journal" / "reviews",
 }

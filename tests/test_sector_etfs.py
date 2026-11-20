@@ -283,3 +283,12 @@ def test_the_cli_shows_the_record_candidates_and_history(radar):
     assert json.loads(run.invoke(cli.app, ["sector-etfs", "--json"]).output)["record_id"] == date.today().isoformat()
     assert "IE00BM67HT60" in run.invoke(cli.app, ["sector-etfs", "candidates", "Technology"]).output
     assert "Technology THEME1" in run.invoke(cli.app, ["sector-etfs", "history"]).output
+
+
+def test_the_skills_memo_is_a_notebook_kind(radar):
+    from test_mcp import ok
+
+    w = ok("write_memo", kind="sector_etfs", name="2026-11-20", markdown="---\ndate: 2026-11-20\n---\n# Sektor-ETF'er\n")
+    assert w["file"].replace("\\", "/").endswith("research/sector-etfs/2026-11-20.md")
+    assert [d["name"] for d in ok("documents", kind="sector_etfs")["sector_etfs"]] == ["2026-11-20"]
+    assert ok("read_document", kind="sector_etfs", name="2026-11-20")["title"].startswith("Sektor-ETF")

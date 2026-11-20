@@ -20,11 +20,11 @@ NAME = re.compile(r"\w[\w.^+ -]{0,150}")      # a file name, no folders: NVDA, 2
 
 
 def write_memo(kind: str, name: str, markdown: str, replace: bool = False) -> dict:
-    """Write a skill's Markdown document into the data folder: `kind` research (research/<TICKER>), compare,
-    proposals, proposal_reviews, hindsight, scout (a /scout report), briefs, listening (a brief's NotebookLM version),
-    journal or reviews; `name` the file name without .md (e.g. NVDA, 2026-10-27_NVDA-AMD). An existing document is
-    replaced only with `replace` (read it first with `read_document` and keep its content). Written whole or not at
-    all; returns where it went."""
+    """Write a skill's Markdown document into the data folder: `kind` research (research/<TICKER>), compare, proposals,
+    proposal_reviews, hindsight, scout (a /scout report), sector_etfs (a /sector-etfs memo), briefs, listening (a
+    brief's NotebookLM version), journal or reviews; `name` the file name without .md (e.g. NVDA,
+    2026-10-27_NVDA-AMD). An existing document is replaced only with `replace` (read it first with `read_document` and keep its
+    content). Written whole or not at all; returns where it went."""
     if kind not in FOLDERS:
         raise errors.Invalid(f"kind must be one of {', '.join(FOLDERS)}")
     stem = name.removesuffix(".md").strip()

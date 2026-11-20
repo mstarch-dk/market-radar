@@ -65,7 +65,8 @@ class GuideHit(Strict):
     snippet: str
 
 
-NotebookKind = Literal["briefs", "research", "compare", "proposals", "proposal_reviews", "scout", "journal", "reviews"]
+NotebookKind = Literal["briefs", "research", "compare", "proposals", "proposal_reviews", "scout", "sector_etfs",
+                       "journal", "reviews"]
 
 
 class JournalMeta(Strict):
@@ -100,6 +101,7 @@ class NotebookListing(Strict):
     proposals: list[NotebookEntry]
     proposal_reviews: list[NotebookEntry]
     scout: list[NotebookEntry]
+    sector_etfs: list[NotebookEntry]
     journal: list[NotebookEntry]
     reviews: list[NotebookEntry]
 
