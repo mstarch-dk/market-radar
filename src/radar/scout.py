@@ -86,12 +86,21 @@ def records() -> list[dict]:
     for f in RECORDS.glob("*.json"):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
-            out.append({"id": f.stem, **check(d), "date": str(d["date"])[:10], "frozen_at": d.get("frozen_at"),
-                        "_order": f.stat().st_mtime_ns})
+            out.append({"id": f.stem, **check(d), "date": str(d["date"])[:10], "frozen_at": d.get("frozen_at")})
         except (ValueError, KeyError, Invalid) as e:
-            out.append({"id": f.stem, "problem": f"can't be read: {e}", "_order": f.stat().st_mtime_ns})
-    out.sort(key=lambda r: (r.get("date") or "", r.get("frozen_at") or "", r.pop("_order")))   # -2 after its first
+            out.append({"id": f.stem, "problem": f"can't be read: {e}"})
+    out.sort(key=_order)
     return out
+
+
+def _order(r: dict) -> tuple[str, str, str, int]:
+    """By day and the moment it was frozen, then (same second) by slug and the run's number that freeze put in the
+    id (<day>_<slug>, -2, -3 …). Not by the file's time: two freezes in the same second can share it (Windows), and a
+    copied folder gets new times. An unreadable file sorts by its id."""
+    day = r.get("date") or r["id"][:10]
+    slug = r.get("slug") or r["id"][11:]
+    run = re.fullmatch(r"-(\d+)", r["id"][len(f"{day}_{slug}"):]) if "slug" in r else None
+    return (day, r.get("frozen_at") or "", slug, int(run.group(1)) if run else 1)
 
 
 def symbols() -> set[str]:
