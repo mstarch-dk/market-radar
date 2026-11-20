@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 import world
 from conftest import with_settings
 from radar import cli, evidence, notebook, scout, universe
+from radar.errors import Invalid
 from radar.market import Market
 from radar.mcp import common
 from radar.reporting import dashboard
@@ -115,6 +116,40 @@ def test_scout_review_by_decision_and_stage(radar, monkeypatch):
     assert fwd["running"] and len(fwd["records"]) == 4
     labels = [r["label"] for r in fwd["records"]]
     assert "nuclear-smr · adopted · whisper" in labels and "broken · ? · ?" in labels   # an unreadable one is listed
+
+
+def test_a_candidate_not_followed_is_recorded_without_a_basket(radar, monkeypatch):
+    rec = ok("scout_freeze", **(CANDIDATE | {"decision": "dismissed", "stocks": ["NOPE"]}), follow=False)
+    assert rec["followed"] is False and rec["proxies"] == [] and rec["stocks"] == []   # no prices fetched for NOPE
+    with pytest.raises(Invalid, match="followed"):
+        scout.check(CANDIDATE | {"followed": "no"})
+    assert scout.symbols() == set()
+
+    old = IDX[150].date()
+    (scout.RECORDS / f"{old}_legacy.json").write_text(json.dumps(       # from before the field: reads as followed
+        {"type": "scout-candidate", "date": str(old), **(CANDIDATE | {"slug": "legacy"})}), encoding="utf-8")
+    assert scout.symbols() == {"THEME1", "S1", "S2"}
+
+    with_settings(monkeypatch, evidence={"scout_min": 1})
+    rv = evidence.scout_review(Market.load())
+    rows = {r["slug"]: r for r in rv["candidates"]}
+    assert rows["legacy"]["followed"] is True and rows["legacy"]["excess"] is not None
+    assert rows["nuclear-smr"]["note"] == "not followed (your choice)" and rows["nuclear-smr"].get("excess") is None
+    assert (rv["shown"], rv["not_followed"]) == (2, 1)
+    by = {g["decision"]: g for g in rv["by_decision"]}
+    assert by["dismissed"]["not_followed"] == 1 and by["dismissed"]["count"] == 0 and by["dismissed"]["mean_excess"] is None
+    assert by["adopted"]["mean_excess"] == pytest.approx(rows["legacy"]["excess"])
+    fwd = evidence.build(Market.load(), IDX[-1].date())["forward"]["scout"]
+    assert [r["label"] for r in fwd["records"]] == ["legacy · adopted · whisper"]
+    assert fwd["note"].startswith("1 of 2 shown candidate(s) aren't followed")
+    res = CliRunner().invoke(cli.app, ["scout", "review"])
+    assert res.exit_code == 0 and "Not followed (your choice): 1 of 2 shown" in res.output
+
+
+def test_only_candidates_not_followed(radar):
+    scout.freeze(CANDIDATE | {"followed": False}, today=IDX[150].date())
+    fwd = evidence.build(Market.load(), IDX[-1].date())["forward"]["scout"]
+    assert not fwd["running"] and fwd["records"] == [] and "1 of 1 shown" in fwd["note"]
 
 
 def test_the_cli_shows_the_same_review(radar):

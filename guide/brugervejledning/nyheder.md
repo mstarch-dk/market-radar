@@ -13,8 +13,9 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 **Scout: hypoteser fra det, markedet taler om.** Den nye Claude-skill `/scout` søger på nettet efter de historier, investorer og medier er begyndt at fortælle, fx kernekraft eller sundhed i afrikanske lande. Den holder dem op mod radarens tal og giver dig 3–5 hypoteser. Hver har et stadie: *hvisken* (omtalen vokser, men kursen har ikke fulgt med), *bekræftes* eller *konsensus* (et advarselsflag). Se [Scout: hypoteser fra markedets snak](brugervejledning/scout).
 
+- **Du ser kandidaten, før du vælger:** først en oversigt med stadierne, så kandidaterne én ad gangen med stadie og begrundelse, kilder, radarens tal, katalysator, argumenter for og imod og hvad der ville modbevise den.
 - **Du vælger:** adoptér en kandidat som markedssyn (Claude viser det først og gemmer kun efter dit ja), følg den, eller afvis den. Beslutningerne kan skrives i journalen, og `/journal review` gennemgår dem.
-- **Alle kandidater måles,** også de afviste: de fryses med en proxy-kurv og står mod ACWI på [Evidens-siden](brugervejledning/scoretest#resultaterne-fremad) under *Scout candidates* og i `uv run radar scout review`.
+- **Kandidaterne måles,** også de afviste: de fryses med en proxy-kurv og står mod ACWI på [Evidens-siden](brugervejledning/scoretest#resultaterne-fremad) under *Scout candidates* og i `uv run radar scout review`. Du kan vælge en kurv fra. Så gemmes dit valg uden kurv, og Evidens-siden siger, hvor mange der ikke følges.
 - **Andre steder:** et syn fra scouten har mærket *from scout* på *My market views*, scout-rapporterne ligger under *Research* på *Notebook*, og månedsbriefen har en linje om dem.
 - **Lærebogen** har et nyt kapitel: [Rygter, opmærksomhed og fortællinger](laerebog/rygter-og-opmaerksomhed).
 - **Ved opdatering** får radar.db en ny kolonne; der tages en backup først. Du skal ikke gøre andet.

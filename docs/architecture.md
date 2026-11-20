@@ -294,7 +294,8 @@ for one.
 - `importers/`: broker exports into trades; a preview never writes, a commit can be undone as a whole.
 - `market_views.py`: the user's market views with their evidence and alignment. A view's `origin`
   (`scout:<date>:<slug>`) is set when a skill adds it and kept through edits.
-- `scout.py`: /scout's forward record: a shortlisted hypothesis candidate frozen in `exports/scout/` with its stage,
+- `scout.py`: /scout's forward record: a shortlisted hypothesis candidate frozen in `exports/scout/` (`followed: false`
+  and no basket when the user opts out; counted, never averaged) with its stage,
   the user's decision and a proxy basket, dated today and never overwritten; `symbols()` puts its tickers in the
   daily update (`universe.all_price_tickers`). The follow-up is `evidence.scout_review`.
 - `sector_etfs.py`: /sector-etfs' records: the go-to UCITS ETF and peers per sector, checked (ISIN check digit,

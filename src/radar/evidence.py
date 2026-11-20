@@ -259,13 +259,14 @@ def forward_proposals(market: Market) -> dict:
 
 def _group(rows: list[dict], key: str, values: tuple[str, ...], need: int, min_months: float) -> list[dict]:
     """Per decision or stage: how many candidates are old enough to judge, and their mean excess vs ACWI once
-    there are `need` of them (else None, with how many there are)."""
+    there are `need` of them (else None, with how many there are), and how many the user chose not to follow."""
     out = []
     for v in values:
         judged = [r["excess"] for r in rows if r.get(key) == v and r.get("excess") is not None
                   and (_months(r.get("days")) or 0) >= min_months]
         enough = len(judged) >= need
         out.append({key: v, "count": len(judged), "need": need, "enough": enough,
+                    "not_followed": sum(r.get(key) == v and r.get("followed") is False for r in rows),
                     "mean_excess": mean(judged) if enough else None,
                     "beat_acwi": mean([float(x > 0) for x in judged]) if enough else None})
     return out
@@ -275,7 +276,8 @@ def scout_review(market: Market) -> dict:
     """Each frozen /scout candidate since its day: its proxy basket (the proxy ETFs, equal DKK weights; the stocks
     when it has no proxy) and its stocks against ACWI over the same days, then the means per decision (did the
     adopted beat the dismissed?) and per stage (did whispers beat consensus?). A ticker without prices is listed
-    under `missing`, never counted as flat."""
+    under `missing`, never counted as flat. A candidate the user chose not to follow is listed and counted, with no
+    return."""
     ev = typed().evidence
     prices = Prices(market)
     last = market.closes.index[-1]
@@ -284,7 +286,11 @@ def scout_review(market: Market) -> dict:
         if "problem" in r:
             rows.append({"id": r["id"], "note": r["problem"]})
             continue
-        head = {k: r[k] for k in ("id", "date", "slug", "statement", "stage", "decision", "horizon", "view_id")}
+        head = {k: r[k] for k in ("id", "date", "slug", "statement", "stage", "decision", "horizon", "view_id",
+                                  "followed")}
+        if not r["followed"]:
+            rows.append(head | {"note": "not followed (your choice)"})
+            continue
         start = pd.Timestamp(r["date"])
         if start >= last:
             rows.append(head | {"note": "no prices since yet"})
@@ -302,7 +308,8 @@ def scout_review(market: Market) -> dict:
                             else names["ret"] - acwi, "missing": missing,
                             "note": None if main else "no prices for its basket"})
     need = ev.scout_min
-    return {"candidates": rows,
+    return {"candidates": rows, "shown": len(rows),
+            "not_followed": sum(r.get("followed") is False for r in rows),
             "by_decision": _group(rows, "decision", scout.DECISIONS, need, ev.cohort_age_months),
             "by_stage": _group(rows, "stage", scout.STAGES, need, ev.cohort_age_months),
             "min_months": ev.cohort_age_months}
@@ -311,14 +318,17 @@ def scout_review(market: Market) -> dict:
 def forward_scout(market: Market) -> dict:
     """/scout's frozen candidates since their day against ACWI over the same days (scout_review)."""
     rv = scout_review(market)
-    rows = rv["candidates"]
+    rows = [r for r in rv["candidates"] if r.get("followed") is not False]
+    left = (f"{rv['not_followed']} of {rv['shown']} shown candidate(s) aren't followed (your choice); the averages "
+            f"cover only the followed ones") if rv["not_followed"] else None
     if not rows:
-        return {"running": False, "records": [], "cohort": None, "note": "No /scout candidates frozen yet"}
+        return {"running": False, "records": [], "cohort": None,
+                "note": left or "No /scout candidates frozen yet"}
     ev = typed().evidence
     recs = [_record(f"{r.get('slug') or r['id']} · {r.get('decision') or '?'} · {r.get('stage') or '?'}",
                     r.get("date"), r.get("days"), r.get("ret"), r.get("acwi"), r.get("excess"), r.get("max_dd"),
                     ev.cohort_age_months, r.get("note")) for r in rows]
-    return {"running": True, "records": recs, "cohort": _cohort(recs, ev.scout_min, "candidate(s)"), "note": None}
+    return {"running": True, "records": recs, "cohort": _cohort(recs, ev.scout_min, "candidate(s)"), "note": left}
 
 
 def forward(market: Market, today: date) -> dict:

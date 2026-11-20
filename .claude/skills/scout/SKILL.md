@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Search what investors and the media are starting to talk about (new themes, sectors, regions, technologies, policy) and turn it into a short list of 3–5 investment hypotheses, each checked against the radar's numbers, placed on a narrative stage (whisper, confirming, consensus) and red-teamed. The user adopts (as a market view), dismisses or watches each one; every shortlisted candidate is frozen and followed against ACWI, and the run can be logged in the journal. Use when the user asks what the market is talking about, for new themes or trends, for investment ideas beyond momentum and value, "what are the rumours", or runs /scout.
+description: Search what investors and the media are starting to talk about (new themes, sectors, regions, technologies, policy) and turn it into a short list of 3–5 investment hypotheses, each checked against the radar's numbers, placed on a narrative stage (whisper, confirming, consensus) and red-teamed. Each candidate is shown in full (stage first) before the user adopts it (as a market view), watches or dismisses it; every shortlisted candidate is frozen and followed against ACWI unless the user opts out, and the run can be logged in the journal. Use when the user asks what the market is talking about, for new themes or trends, for investment ideas beyond momentum and value, "what are the rumours", or runs /scout.
 argument-hint: "[theme hint …] [--region R] [--horizon 3m|6m|12m|3y]"
 ---
 
@@ -62,13 +62,36 @@ Read and write through the `mcp__radar__*` tools; their descriptions carry the u
    - currency or country risk
    - a **falsifier**: one concrete, checkable sentence that becomes the view's "what would change my mind"
 7. **Short list of 3–5**: whispers and confirmings first, and at most one consensus (named as a warning). Write the report (below) with `write_memo(kind="scout", name="YYYY-MM-DD")`. If a report for today exists, read it and write `YYYY-MM-DD-2`.
-8. **Decide with the user.** Present the short list in a few lines each, then one AskUserQuestion call with one question per candidate, the options *Adoptér* (as a market view), *Følg* (watch: freeze and follow, no view) and *Afvis* (dismiss). Ask for a reason in their own words (the free-text option or a follow-up line). Then:
-   - **Adopted:**
-     1. Build the view: statement, conviction (ask; default 2–3 for a whisper), the horizon, rationale, the falsifier, exposures (`etf` for the proxy, plus a `sector`, `industry`, `region` or `ticker` where it is specific) and indicators from the catalogue that would confirm it (e.g. `defence` up, `clean_energy` up, `em` up; leave them out rather than force one).
-     2. Call `add_view(..., origin="scout:YYYY-MM-DD:<slug>")` **without** `confirm` and show the dry run: the view, the radar's evidence now and the issues (an overlap or contradiction with an existing view is worth a sentence).
-     3. Call it again with `confirm=true` only after the user says yes.
-   - **Every shortlisted candidate**, whatever the decision: `scout_freeze(slug, statement, stage, decision, horizon, proxies, stocks, reason, view_id, report)`. The dismissed and watched are the control group that shows whether the adopt calls add anything; say so if the user hesitates. If it refuses a symbol (no Yahoo prices), fix or drop the symbol and freeze again.
-   - Update the report's front matter and *Beslutninger* section with the decisions (`read_document`, then `write_memo(..., replace=true)` keeping everything else).
+8. **Show each candidate, then let the user decide, one at a time.** The user must never be asked about a candidate they haven't been shown. The report is the source, and the chat repeats what is needed to decide.
+   1. **Overview** (no question yet):
+      - one line on what the three stages mean
+      - a table: # · hypothesis · **stage** · proxy 3m vs ACWI · catalyst and its date · proxy (UCITS / positivlisten)
+      - the link to the report (the *Research* tab on Notebook)
+   2. **For each candidate in turn, show its card in chat** (10–12 lines, Danish), then ask about it:
+      - **heading:** the number, the hypothesis and the **stage**
+      - **why this stage:** the talk against price and revisions, with the numbers (relative return vs ACWI over 3 and 6 months, quadrant, EPS revisions; n/a where missing)
+      - **the story:** what is said, by whom, with 2–3 links, and how independent the sources are
+      - **catalyst ("faktum"):** what and when
+      - **bull / bear:** one line each, the bear from the red team
+      - **falsifier**
+      - **novelty:** overlap with the user's views, holdings or the radar's themes
+      - **basket:** the proxies and stocks that would be followed
+   3. **Then one AskUserQuestion call with two questions**, both naming the candidate and its stage in the header or the question:
+      - *Beslutning*: *Adoptér* (as a market view), *Følg* (watch, no view) or *Afvis*. The free-text option takes the reason in the user's own words.
+      - *Følg kurven mod ACWI?*: "Ja, frys og følg" (recommended, first) or "Nej, følg ikke". The second option's description says the decision is still recorded, but with no basket.
+
+      The first time the user chooses *Afvis* and "Nej", say in one line that the dismissed are the control group that shows whether the adopt calls add anything. Don't repeat it.
+   4. **Adopted:**
+      1. Ask for the conviction (default 2–3 for a whisper). Then build the view:
+         - its statement, horizon, rationale and the falsifier
+         - its exposures: `etf` for the proxy, plus a `sector`, `industry`, `region` or `ticker` where it is specific
+         - indicators from the catalogue that would confirm it (e.g. `defence` up, `clean_energy` up, `em` up). Leave them out rather than force one.
+      2. Call `add_view(..., origin="scout:YYYY-MM-DD:<slug>")` **without** `confirm` and show the dry run: the view, the radar's evidence now and the issues. An overlap or contradiction with an existing view is worth a sentence.
+      3. Call it again with `confirm=true` only after the user says yes.
+   5. **Freeze it now, before the next candidate:** `scout_freeze(slug, statement, stage, decision, horizon, proxies, stocks, reason, view_id, report, follow)`, with `follow=false` when the user said no to following. A candidate that isn't followed is still recorded, with no basket, so the Evidence page can say how many were left out. If it refuses a symbol (no Yahoo prices), fix or drop the symbol and freeze again.
+   6. **If the user stops partway**, the candidates not reached are *ikke besluttet* in the report and are not frozen. Say so.
+
+   Then update the report's front matter (`decision`, `followed`, `view_id`, `freeze_id` per candidate) and *Beslutninger* section (`read_document`, then `write_memo(..., replace=true)` keeping everything else).
 9. **Suggest a journal entry** in one line: "Skal jeg skrive beslutningerne i journalen?" Only on a yes, write `write_memo(kind="journal", name="YYYY-MM-DD-scout")` (template below), with `review_by` set to the earliest horizon among the adopted and watched candidates. `/journal review` will then check each hypothesis's catalyst and falsifier and its frozen basket against ACWI.
 10. Reply in Danish: 3–5 lines with the candidates and their stages, what was decided, and links to the report (and journal entry). If the user wants to act on a candidate, point to `/research <ticker>`, `/compare` or `/propose-portfolio`, and to their trading rules. Never suggest a trade size.
 
@@ -79,16 +102,17 @@ Read and write through the `mcp__radar__*` tools; their descriptions carry the u
 date: YYYY-MM-DD
 hint: <the theme hint, or null>
 candidates:              # filled in after step 8
-  - {slug: nuclear-smr, stage: whisper, decision: adopted, view_id: 12, freeze_id: 2026-10-31_nuclear-smr}
+  - {slug: nuclear-smr, stage: whisper, decision: adopted, followed: true, view_id: 12, freeze_id: 2026-10-31_nuclear-smr}
 ---
 # Scout – YYYY-MM-DD
-*Analyse, ikke rådgivning. Kandidaterne er hypoteser, ikke anbefalinger. Hver af dem fryses og følges mod ACWI.*
+*Analyse, ikke rådgivning. Kandidaterne er hypoteser, ikke anbefalinger. Hver af dem fryses og følges mod ACWI, medmindre du vælger det fra.*
 
 ## Kort fortalt
 3–5 bullets: the short list with stage, and the one thing that would most change the picture.
 
 ## Kandidater
 ### 1. <Hypothesis in one sentence> · <Hvisken | Bekræftes | Konsensus>
+- **Hvorfor dette stadie:** the talk against price and revisions, with the numbers
 - **Fortællingen:** what is being said, and since when it has been accelerating (links)
 - **Hvem taler:** the sources and how independent they are
 - **Radarens tal:** a table of the proxy and 3–8 names: 1/3/6m vs ACWI, quadrant, EPS revisions, P/E vs sector, UCITS / positivlisten; n/a where missing
@@ -106,7 +130,7 @@ One line each: the story and why it didn't make the list (already priced, one so
 From `scout_review`: each earlier candidate's excess vs ACWI since it was frozen, by decision and stage. Once `enough`, say whether the adopted beat the dismissed and whether whispers beat consensus. Until then say how many there are, and that it says nothing yet.
 
 ## Beslutninger
-Filled in after step 8: per candidate the decision, the user's reason, the view id and the freeze id.
+Filled in after step 8: per candidate the decision, the user's reason, whether it is followed, the view id and the freeze id (or *ikke besluttet*).
 
 ## Kilder
 ```
@@ -126,7 +150,7 @@ views: [<ids of the adopted views>]
 # Scout-beslutninger – YYYY-MM-DD
 
 ## Kandidater og beslutninger
-A table: hypothesis | stage | decision | reason (the user's words) | view | freeze id
+A table: hypothesis | stage | decision | reason (the user's words) | fulgt | view | freeze id
 
 ## Hvad skal være sandt (per adopted or watched candidate)
 The catalyst ("faktum") with its date, and the falsifier.

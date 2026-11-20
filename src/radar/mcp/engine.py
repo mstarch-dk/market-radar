@@ -178,18 +178,20 @@ def sim_picks(asof: str | None = None, name: str | None = None, picks: list[dict
 
 def scout_freeze(slug: str, statement: str, stage: str, decision: str, horizon: str, proxies: list[str] | None = None,
                  stocks: list[str] | None = None, reason: str | None = None, view_id: int | None = None,
-                 report: str | None = None) -> dict:
+                 report: str | None = None, follow: bool = True) -> dict:
     """Freeze one /scout candidate as shown today, whatever the user decided, so its follow-up can later say whether
     the rumour paid off and whether the decision added anything: `slug` (e.g. nuclear-smr), `statement` (the
     hypothesis), `stage` whisper | confirming | consensus, `decision` adopted | dismissed | watch, `horizon` 3m | 6m
     | 12m | 3y, `proxies` the proxy ETFs and `stocks` the representative stocks (Yahoo symbols, at most 12 each;
     the proxies are the basket that is scored, the stocks when there is none), `reason` the user's own words,
-    `view_id` the view add_view saved (adopted only), `report` the scout report's name. Each ticker's prices are
-    downloaded now if the radar doesn't have them, and the daily update keeps them from then on. Stored in
-    exports/scout/, dated today, never overwritten. Freeze every shortlisted candidate: the dismissed are the
-    control group."""
+    `view_id` the view add_view saved (adopted only), `report` the scout report's name, `follow` false when the
+    user chose not to follow the basket (the decision is still recorded, with no tickers, so the Evidence page can
+    count it). Each followed ticker's prices are downloaded now if the radar doesn't have them, and the daily update
+    keeps them from then on. Stored in exports/scout/, dated today, never overwritten. Freeze every shortlisted
+    candidate, followed unless the user opts out: the dismissed are the control group."""
     c = scout.check({"slug": slug, "statement": statement, "stage": stage, "decision": decision, "horizon": horizon,
-                     "proxies": proxies, "stocks": stocks, "reason": reason, "view_id": view_id, "report": report})
+                     "followed": follow, "proxies": proxies, "stocks": stocks, "reason": reason, "view_id": view_id,
+                     "report": report})
     m, unknown = market(), []
     for t in (*c["proxies"], *c["stocks"]):
         try:

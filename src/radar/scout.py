@@ -1,6 +1,8 @@
 """/scout's forward record: each shortlisted hypothesis candidate frozen on the day it was shown, with the user's
 decision (adopted, dismissed or watch), its narrative stage and a proxy basket, so the Evidence page can later say
-whether the rumours paid off against ACWI and whether the user's adopt/dismiss calls added anything.
+whether the rumours paid off against ACWI and whether the user's adopt/dismiss calls added anything. A candidate the
+user chose not to follow is still recorded (followed false, no basket), so the page can say how many were left out;
+a record from before the field reads as followed.
 
 A record is a JSON file in exports/scout/ (home tier), dated today and never overwritten or back-dated; its tickers
 are in the daily update (universe.all_price_tickers) so the follow-up has prices. The follow-up itself is
@@ -49,14 +51,19 @@ def check(c: dict) -> dict:
         raise Invalid(f"decision is one of {', '.join(DECISIONS)}.")
     if c.get("horizon") not in HORIZONS:
         raise Invalid(f"horizon is one of {', '.join(HORIZONS)}.")
+    followed = c.get("followed", True)
+    if not isinstance(followed, bool):
+        raise Invalid("followed is true or false.")
     proxies, stocks = _tickers(c.get("proxies"), "proxies"), _tickers(c.get("stocks"), "stocks")
-    if not proxies and not stocks:
+    if not followed:                    # the user opted out: the decision is kept, with no basket to follow
+        proxies, stocks = [], []
+    elif not proxies and not stocks:
         raise Invalid("A candidate needs a proxy ETF or some stocks to follow.")
     view_id = c.get("view_id")
     if view_id is not None and (c["decision"] != "adopted" or not isinstance(view_id, int)):
         raise Invalid("view_id is the id add_view returned, and only for an adopted candidate.")
     return {"slug": slug, "statement": statement, "stage": c["stage"], "decision": c["decision"],
-            "horizon": c["horizon"], "proxies": proxies, "stocks": stocks,
+            "horizon": c["horizon"], "followed": followed, "proxies": proxies, "stocks": stocks,
             "reason": (str(c.get("reason") or "").strip() or None), "view_id": view_id,
             "report": (str(c.get("report") or "").strip() or None)}
 

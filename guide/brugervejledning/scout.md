@@ -2,7 +2,7 @@
 
 Radarens tal ser en trend, når den står i kurserne, estimaterne og regnskaberne. `/scout` kigger et skridt tidligere: på de historier, investorer, analytikere, politikere og medier er begyndt at fortælle. Det kan fx være kernekraft, sundhed i afrikanske lande eller elnettet. Claude søger på nettet, holder hver historie op mod radarens tal og giver dig en kort liste med 3–5 hypoteser, som du kan tage til dig, følge eller afvise.
 
-Det er analyse, ikke rådgivning. En hypotese er en idé at undersøge, ikke en købsanbefaling. Hver kandidat fryses den dag, du ser den, og følges mod ACWI, så scoutens træfsikkerhed kan måles som alt andet i radaren.
+Det er analyse, ikke rådgivning. En hypotese er en idé at undersøge, ikke en købsanbefaling. Hver kandidat fryses den dag, du ser den, og følges mod ACWI, medmindre du vælger det fra. Så kan scoutens træfsikkerhed måles som alt andet i radaren.
 
 ## Sådan kører du den
 
@@ -34,7 +34,7 @@ En kørsel tager typisk 5–15 minutter, fordi Claude søger bredt og slår hver
 
    Claude tjekker også, om kurven i virkeligheden bare følger et tema, radaren allerede har, eller et af dine markedssyn.
 5. **Giver point** og et stadie (se nedenfor), og lader en *red team* angribe hver kandidat.
-6. **Viser dig den korte liste** og spørger, hvad du vil gøre med hver.
+6. **Viser dig den korte liste,** først som en oversigt og så én kandidat ad gangen (se [Dine valg](#dine-valg)).
 
 ## Stadierne: købe på rygtet, sælge på nyheden
 
@@ -66,22 +66,39 @@ Stadiet bestemmes af fortællingen holdt op mod kurser og revisioner, ikke af su
 
 ## Dine valg
 
-For hver kandidat vælger du én af tre ting og skriver gerne en begrundelse med dine egne ord:
+Du bliver aldrig spurgt om en kandidat, du ikke har set. Claude viser først en oversigt: hver kandidat med stadie, hvordan proxyen har klaret sig mod ACWI de seneste 3 måneder, og katalysatorens dato. Derefter kommer kandidaterne én ad gangen. Hver vises som et kort i chatten:
+
+- hypotesen og **stadiet**, og hvorfor det er det stadie: omtalen holdt op mod kurser og estimatrevisioner, med tallene
+- historien: hvad der bliver sagt, af hvem, med links, og hvor uafhængige kilderne er
+- katalysatoren ("faktum") og hvornår den kommer
+- det bedste argument for og imod
+- hvad der ville modbevise hypotesen
+- om den overlapper dine markedssyn eller beholdninger
+- kurven, der vil blive fulgt
+
+Hele begrundelsen, med point og red team, står i rapporten. Efter kortet får du to spørgsmål.
+
+**Hvad vil du gøre?** Vælg én af tre ting, og skriv gerne en begrundelse med dine egne ord:
 
 - **Adoptér:** kandidaten bliver et af dine [markedssyn](brugervejledning/markedssyn), med udsagn, overbevisning, horisont, hvad den hjælper og skader, indikatorer og hvad der ville få dig til at skifte mening. Claude viser først synet præcis, som det vil blive gemt, sammen med radarens evidens og eventuelle overlap med dine andre syn. Det gemmes først, når du siger ja. På siden *My market views* står det med mærket *from scout* og datoen.
-- **Følg:** ikke noget markedssyn, men kandidaten fryses og følges.
-- **Afvis:** kandidaten fryses og følges alligevel.
+- **Følg:** ikke noget markedssyn, men du holder øje med kandidaten.
+- **Afvis:** du tror ikke på den.
 
-> **Bemærk:** De afviste følges med vilje. De er kontrolgruppen: kun ved at sammenligne dem med dem, du tog til dig, kan du se, om dine valg tilfører noget.
+**Skal kurven følges mod ACWI?** Svaret er som udgangspunkt ja, uanset hvad du valgte. Siger du nej, gemmes dit valg stadig, men uden kurv. Der hentes ingen kurser, og kandidaten tæller ikke med i gennemsnittene.
+
+> **Bemærk:** Det er en afvejning at fravælge kurven. De afviste kandidater er kontrolgruppen. Kun ved at sammenligne dem med dem, du tog til dig, kan du se, om dine valg tilfører noget. Fravælger du især de afviste, bliver den sammenligning svagere. Derfor viser Evidens-siden, hvor mange kandidater der ikke følges.
+
+Hver kandidat gemmes, så snart du har valgt. Stopper du undervejs, står resten som *ikke besluttet* i rapporten og fryses ikke.
 
 Til sidst spørger Claude, om beslutningerne skal skrives i journalen. Siger du ja, kommer der en post i `journal/ÅÅÅÅ-MM-DD-scout.md` med typen *hypotheses*, katalysatorerne og hvad der ville modbevise hver hypotese. `/journal review` gennemgår den ved næste månedlige gennemgang: er faktum indtruffet, er hypotesen modbevist, og hvordan har kurven klaret sig mod ACWI?
 
 ## Resultaterne
 
-Hver frossen kandidat ligger i `exports/scout/` i din datamappe og bliver aldrig overskrevet eller tilbagedateret. Dens papirer kommer med i den daglige opdatering, så de altid har kurser.
+Hver frossen kandidat ligger i `exports/scout/` i din datamappe og bliver aldrig overskrevet eller tilbagedateret. Papirerne i en fulgt kandidats kurv kommer med i den daglige opdatering, så de altid har kurser.
 
 - **Evidens-siden:** tabellen *Scout candidates* under [Resultaterne fremad](brugervejledning/scoretest#resultaterne-fremad) viser hver kandidats proxy-kurv mod ACWI fra dens dag.
 - **Kommandolinjen:** `uv run radar scout review` viser det samme med gennemsnittet pr. valg (adopteret, fulgt, afvist) og pr. stadie (hvisken, bekræftes, konsensus).
+- **Ikke fulgt:** En kandidat, du har valgt ikke at følge, står i listen uden afkast. Under tabellen står, hvor mange af de viste kandidater der ikke følges.
 
 Et gennemsnit vises først, når der er {{settings:evidence.scout_min}} kandidater i gruppen, der er mindst {{settings:evidence.cohort_age_months}} måneder gamle. Før det siger tallene intet.
 

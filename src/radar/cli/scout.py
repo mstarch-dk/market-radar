@@ -31,6 +31,9 @@ def scout_review(as_json: bool = typer.Option(False, "--json", help="As JSON (fo
         typer.echo(f"{r.get('date') or '':<10} {r.get('slug') or r['id']:<24} {r.get('decision') or '':<9} "
                    f"{r.get('stage') or '':<10} ret {fmt_pct(r.get('ret')):>7} vs ACWI {fmt_pct(r.get('excess')):>7}"
                    f"  DD {fmt_pct(r.get('max_dd')):>7}{miss}{'  ' + r['note'] if r.get('note') else ''}")
+    if rep["not_followed"]:
+        typer.echo(f"Not followed (your choice): {rep['not_followed']} of {rep['shown']} shown; the means leave "
+                   "them out.")
     for key in ("by_decision", "by_stage"):
         parts = [f"{g[key.removeprefix('by_')]} {fmt_pct(g['mean_excess'])} (n={g['count']})" if g["enough"]
                  else f"{g[key.removeprefix('by_')]} n={g['count']} of {g['need']}" for g in rep[key]]
