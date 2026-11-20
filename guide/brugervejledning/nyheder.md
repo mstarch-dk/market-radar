@@ -24,6 +24,8 @@ Hvad der er nyt i hver version af Market Radar, med den nyeste først, og om der
 
 **En split, som Yahoo ikke har registreret, ligner ikke længere et krak.** Den 5. november 2026 viste Yahoo ITA, MTUM og QUAL 68–77 % under dagen før, uden at de tidligere kurser var justeret, og de falske fald nåede rotationen. Nu opdager opdateringen et spring på omtrent et splitforhold, henter tickeren igen og gemmer ikke dagene fra springet, før Yahoo har justeret historikken (eller der er gået {{settings:prices.split_hold_sessions}} handelsdage). Loggen, *Operations* og opdateringspanelet siger det. De forkerte dage, der allerede er gemt, fjernes ved næste opdatering. Se [Data og opdatering](brugervejledning/data-og-opdatering#hentning).
 
+**FactSets rapport læses igen midt i regnskabssæsonen.** Fra 20. november 2026 skriver FactSet startestimatet for kvartalet på en ny måde, så opdateringen fejlede, og indtjeningsrevisionerne i regimet blev stående på ugen før. Nu læser radaren begge formuleringer. Du skal ikke gøre noget, når du opdaterer.
+
 ## 0.4.0
 
 Versionen efter 0.2.0; der er ingen 0.3.0. Du skal ikke gøre noget, når du opdaterer: den nye version finder selv dine data og tager en backup først.

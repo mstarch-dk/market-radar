@@ -84,6 +84,11 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
   2020-03-09; ^VIX's +43 % and MRNA's +177 % on ~40× volume pass. Bars already stored are taken out at the next
   update.
 
+- **FactSet's in-season wording is read.** From 2026-11-20 Earnings Insight gives the quarter's start estimate
+  only as "… of 29.1% at the end of the third quarter (September 30)", so the update failed (`parsed without
+  growth_start`) and the regime's revisions vote stayed on the week before. A pattern in `FACTSET_PATTERNS` can now
+  list alternative wordings, the first that matches wins; the start estimate has both.
+
 ## 0.4.0
 
 The radar as tools for Claude, your own trading rules, a tax estimate, a calendar, and live progress for the
