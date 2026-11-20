@@ -250,6 +250,18 @@ MIGRATIONS = [
     # where a view came from when a skill wrote it (scout:<date>:<slug> for a /scout candidate you adopted); set
     # once when the view is added, kept through edits; NULL for views you wrote yourself
     "ALTER TABLE views ADD COLUMN origin TEXT",
+    # /sector-etfs: a go-to you marked for replacement on the Sector ETFs page (open while resolved_at is NULL);
+    # once a saved record picks another go-to it is resolved and stays rejected as that sector's go-to until you
+    # allow it again (the row is deleted). sectorflags.py
+    """CREATE TABLE sector_etf_flags (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         sector TEXT NOT NULL,
+         isin TEXT NOT NULL,
+         reason TEXT,
+         flagged_at TEXT NOT NULL,
+         resolved_at TEXT,
+         record_id TEXT,
+         UNIQUE (sector, isin))""",
 ]
 
 

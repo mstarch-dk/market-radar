@@ -11,6 +11,7 @@ import { Badge, Card, KV } from "../components/ui";
 import { date, isNum, num, pct, type Maybe } from "../lib/format";
 import { pageChapter, useGuideTree } from "../lib/guide";
 import { formatSel, isDefaultSel } from "../lib/portfolioSel";
+import { goToIndex, useSectorGoTo } from "../lib/sectorEtfs";
 
 type Dim = "sector" | "region" | "currency";
 type ExpRow = XrayView["exposure"]["sector"]["rows"][number];
@@ -41,10 +42,15 @@ function ActiveBar({ v, max }: { v: Maybe; max: number }) {
   );
 }
 
-function expCols(max: number): Col<ExpRow>[] {
+function expCols(max: number, goto?: ReturnType<typeof goToIndex>["byKey"]): Col<ExpRow>[] {
   return [
     { key: "key", label: "Key", align: "l", sort: (r) => r.key, search: (r) => r.key,
-      render: (r) => r.acwi == null && r.active == null ? <span className="muted">{r.key === "?" ? "unknown" : r.key}</span> : r.key },
+      render: (r) => {
+        const s = goto?.get(r.key);
+        const label = r.acwi == null && r.active == null ? <span className="muted">{r.key === "?" ? "unknown" : r.key}</span> : r.key;
+        return s ? <>{label} <Link to={s.href} className="small" title={s.pick ? `UCITS go-to: ${s.pick.name}` : "UCITS ETFs for this sector"}>
+          {s.pick ? s.pick.ticker : "ETFs"} →</Link></> : label;
+      } },
     { key: "weight", label: "Weight", sort: (r) => r.weight, render: (r) => pct(r.weight, 1, false) },
     { key: "acwi", label: "ACWI", sort: (r) => r.acwi, render: (r) => pct(r.acwi, 1, false) },
     { key: "active", label: "Active", help: "xray_active", sort: (r) => r.active, render: (r) => <Pct v={r.active} /> },
@@ -153,13 +159,14 @@ function Header({ d }: { d: XrayView }) {
 function Exposure({ d }: { d: XrayView }) {
   const [dim, setDim] = useTabParam(DIMS.map(([k]) => k), "sector");
   const e = d.exposure[dim];
+  const { byKey } = useSectorGoTo();
   const max = Math.max(0, ...e.rows.map((r) => Math.abs(r.active ?? 0)));
   return (
     <section className="group">
       <h2>Exposure vs ACWI <span className="small muted">(of invested value)</span></h2>
       <Tabs tabs={DIMS} value={dim} onChange={setDim} label="Exposure dimension" />
       <div className="card">
-        <DataTable key={dim} id={`x${dim[0]}`} csvName={`xray-${dim}`} rows={e.rows} cols={expCols(max)} rowKey={(r) => r.key}
+        <DataTable key={dim} id={`x${dim[0]}`} csvName={`xray-${dim}`} rows={e.rows} cols={expCols(max, dim === "sector" ? byKey : undefined)} rowKey={(r) => r.key}
           toolbar={false} empty="No valued holdings." />
         <p className={`small ${e.warn ? "warn-text" : "muted"}`}>
           {e.coverage == null ? `${DIMS.find(([k]) => k === dim)![1]}: coverage unknown.`

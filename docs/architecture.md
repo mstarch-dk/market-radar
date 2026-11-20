@@ -7,13 +7,13 @@ and its docstrings do. The method behind each reading is explained for users in 
 ```
 interfaces       api, cli, mcp/
 features         abtest, agenda, api_models/, attribution, backtest/, evidence, health, mine, profile, propose/,
-                 reporting/, rulecheck, studyrun, tax, updater, xray
+                 reporting/, rulecheck, sector_etf_view, studyrun, tax, updater, xray
 kernel           model/
-domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, scout, snapshot,
+domain           datahome/, guide, importers/, market, market_views, notebook, portfolios/, scout, sector_etfs, snapshot,
                  trading_rules, universe, userstore/
 data sources     discovery/, fundamentals/, sources/, updates
 pure readings    signals/
-infrastructure   config, config_schema, guard, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
+infrastructure   config, config_schema, guard, isin, jsonsafe, locks, manifest, money, net, ops, paths, sourcelog, values
 ```
 A module imports its own layer and the ones below. The `layers` contract in `pyproject.toml` holds every module to
 it (`uv run lint-imports`, `tests/test_layers.py`, CI; indirect imports and imports inside functions count). It
@@ -58,6 +58,10 @@ that only imported it (`tests/test_layers.py` holds this; the package facades `p
   stocks) and the index each tracks, as a list of countries; `portfolios/exposure.py` counts such a fund as ACWI's
   holdings in those countries (a hedged share class in its hedge currency). Checked on load against
   `config_schema.IndexFunds` (`config.index_funds()`).
+- `config/sector_etfs.yaml`: the sectors of the Sector ETFs page (the 11 GICS sectors by Yahoo's names, and the EU
+  supersectors with a UCITS ETF of their own, each with its GICS `parent`), the rotation tickers that stand for each,
+  and seed UCITS candidates (ISINs on SKAT's positive list) for `/sector-etfs` to start from. Checked on load against
+  `config_schema.SectorEtfTaxonomy` (`config.sector_etf_taxonomy()`); plans/F13-sector-etfs.md.
 - `config/discovery.yaml`: the discovery scan's markets, size and liquidity floors, flags and ETF categories.
 
 ## Where data lives
@@ -232,6 +236,12 @@ for one.
   `scout_review` is the candidates' follow-up (`radar scout review`): each one's proxy basket through
   `propose.store.basket_path`, and the means per decision and stage. It only reads (`model/artifacts.py`,
   `portfolios/`, `abtest`, `propose.store`, `scout`); a stale report's numbers stay inside its own card.
+- `sector_etf_view.py`: the Sector ETFs page (`/api/sector-etfs`, `radar sector-etfs`, the MCP tools): every sector
+  of `config/sector_etfs.yaml` with the latest record's ETFs ranked by the rule in its docstring (positive list,
+  size floor, TER, tracking difference, accumulating), each with returns in DKK and vs ACWI, Yahoo's cached TER
+  (never fetched here), the tax status from SKAT's sheets and the sector's rotation rows from the dashboard;
+  `candidates` (record, seeds and the discovery pool) and `preview` (a run's ranking, warnings and changes before
+  `sector_etfs_save` stores it).
 - `backtest/`: the studies, point in time: nothing after the day D is read. `pit.py` is what the radar knew on D;
   `exits.py` and `exit_rules.py` the stop / take-profit rule replayed and tested; `redeploy.py` re-investing an
   exit's proceeds; `study.py` the momentum score at every month-end; `longrun.py` its rule on decades of factor
@@ -254,7 +264,9 @@ for one.
   migration list): portfolios, transactions (the source of truth), simulated runs, watchlist edits, imports,
   symbol map, meta, the tax inputs (tax persons and who owns which account, instruments with ISIN and class, losses
   carried in); market views in `viewstore.py`, trading rules and the logged checks against them (`trading_rules`,
-  `rule_checks`) in `rulestore.py`, backup copies in `backups.py`. It is the one place that decides which
+  `rule_checks`) in `rulestore.py`, the go-tos marked for replacement on the Sector ETFs page (`sector_etf_flags`:
+  open until a /sector-etfs run picks another, then kept as rejected) in `sectorflags.py`, backup copies in
+  `backups.py`. It is the one place that decides which
   portfolios count, and holds the one list of row types. New stateful data gets a table here.
 - `portfolios/`: your portfolios, from the transactions in `userstore/`.
   - `trades.py`: positions from the store: ledgers and holdings for a portfolio selection, average-cost replay.
@@ -285,6 +297,10 @@ for one.
 - `scout.py`: /scout's forward record: a shortlisted hypothesis candidate frozen in `exports/scout/` with its stage,
   the user's decision and a proxy basket, dated today and never overwritten; `symbols()` puts its tickers in the
   daily update (`universe.all_price_tickers`). The follow-up is `evidence.scout_review`.
+- `sector_etfs.py`: /sector-etfs' records: the go-to UCITS ETF and peers per sector, checked (ISIN check digit,
+  a TER as a fraction, the pick among the ETFs, a reason for an override) and frozen in `exports/sector_etfs/`, dated
+  and never overwritten; a run carries the sectors it didn't cover over from the latest record. `symbols()` puts
+  the latest record's tickers in the daily update.
 - `trading_rules.py`: the user's trading rules as they may be stored (`validate`), the kinds, templates and the
   editor's catalogue from `config/rules.yaml` (generic templates only, never anyone's own rules).
 - `snapshot.py`: rank history for "new" and "Δ rank", one file per data date (`asof`), never replaced.

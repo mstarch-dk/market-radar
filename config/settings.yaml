@@ -329,6 +329,10 @@ ops:                       # the operations log (ops.db in the cache folder, the
   keep_requests_days: 30
   keep_events_days: 180    # events and job runs
 
+sector_etfs:               # the Sector ETFs page and /sector-etfs (src/radar/sector_etf_view.py; plans/F13-sector-etfs.md)
+  stale_days: 180          # a record older than this is shown as due for a new /sector-etfs run
+  min_aum_musd: 100        # a fund smaller than this (USD millions) ranks below every fund that isn't
+
 valuation:                 # src/radar/valuation.py and signals/valuation.py
   snapshot_days: 6         # a new P/E snapshot when the last one is older than this (weekly)
   fallback_max: 120        # tracked stocks the screener misses, looked up one by one (yfinance .info)

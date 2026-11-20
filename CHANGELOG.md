@@ -6,6 +6,29 @@ have a `## X.Y.Z` section; the release workflow uses this file's section as the 
 
 ## Unreleased
 
+- **Sector ETFs: the go-to UCITS ETF per sector.** A new page, *Sector ETFs* (`/sectoretfs`, under Markets),
+  shows for each sector of the rotation (the 11 GICS sectors, then 10 EU supersectors with a UCITS ETF of their own,
+  `config/sector_etfs.yaml`) one go-to UCITS ETF and its peers: TER (the issuer's, with Yahoo's beside it and a
+  mismatch flag), size, acc/dist, domicile, tracking difference, the Danish tax status from SKAT's positive list
+  (this year's sheet, and a warning when next year's drops the fund), returns in DKK and vs ACWI, and a sparkline.
+  - A new skill, `/sector-etfs [sector …] [reselect-all]`, researches the candidates (the record's funds, seeds and
+    the discovery pool) on the issuers' pages and justETF, each figure with its URL and day, and saves its picks
+    without asking: the first run covers every sector. On the page *Mark for replacement* (with an optional reason)
+    flags a go-to you don't want; it stays shown, and the next run re-selects only the marked sectors (and any not
+    covered yet). A replaced fund is *rejected* as that sector's go-to, also under `reselect-all`, until you click
+    *Allow again*. The marks are a new `radar.db` table, `sector_etf_flags`. Code ranks by a fixed rule (positive list, the `sector_etfs.min_aum_musd` size floor, TER,
+    tracking difference, accumulating); Claude picks, with a reason when the pick isn't first. The page flags a
+    record older than `sector_etfs.stale_days` and a pick the rule no longer ranks first (*re-check*).
+  - Records: `sector_etfs.py` freezes each run in `exports/sector_etfs/`, dated and never overwritten, carrying
+    over the sectors it didn't cover; their tickers join the daily update. `sector_etf_view.py` ranks and enriches
+    them. API `GET /api/sector-etfs`, `PUT /api/sector-etfs/{key}/replace`, `DELETE
+    /api/sector-etfs/{key}/flags/{isin}`, CLI `radar sector-etfs [candidates SECTOR | history] [--json]`, MCP reads
+    `sector_etfs_view` and `sector_etf_candidates` and the write `sector_etfs_save` (dry run with warnings and the
+    changes, refusing a rejected pick; saved with `save`). The memo is a new notebook kind, `sector_etfs`.
+  - Links: a *UCITS go-to* column on the Rotation page's US and Europe sector groups, the go-to after each X-ray
+    sector row, and a line under the ticker profile's "vs sector" row, each to the sector's card.
+  - `/propose-portfolio`'s alternative A5 now holds each sector through its go-to UCITS ETF when one is recorded.
+  - Guide: a new chapter *Sektor-ETF'er*; the issuers' pages and justETF are listed in `DATA_LICENSE.md`.
 - **/scout: hypotheses from what the market talks about.** A new Claude skill searches the web through fixed lenses
   (flows and ETF launches, fund-manager surveys, policy and public money, capex and supply chains, outlooks,
   regulatory and technology milestones, emerging and frontier markets, commodities, a contrarian lens). It checks

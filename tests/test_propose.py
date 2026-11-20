@@ -447,6 +447,24 @@ def test_candidates_draft_and_evaluate(market, ask):
     assert ev["exposure"]["before"]["weights"]["sector"] == {"Technology": pytest.approx(1)}   # S1 is held
 
 
+def test_a5_uses_the_go_to_ucits_etf_of_the_latest_sector_record(market, ask):
+    from radar import config, sector_etfs
+
+    doc = json.loads(Path(propose.save_picks(json.loads(json.dumps(_draft(market, ask)["draft_picks"])))).read_text(
+        encoding="utf-8"))
+    a5 = propose.evaluate(market, doc, offline=True)["alternatives"]["A5"]
+    before = a5["map"]
+    assert a5["ucits"] == [] and "THEME1" not in before.values()                  # today's mapping: no record yet
+    etf = {"isin": "IE00B3WJKG14", "ticker": "THEME1", "name": "A sector fund", "scope": "world", "ter": 0.0025,
+           "distribution": "acc", "checked": "2026-11-20"}
+    keys = config.sector_etf_taxonomy().gics()
+    sector_etfs.freeze({"sectors": [{"key": k, "pick": etf["isin"], "etfs": [etf]} for k in keys]})
+    a5 = propose.evaluate(market, doc, offline=True)["alternatives"]["A5"]
+    mapped = {t for t, e in before.items() if e != "ACWI"}                          # stocks with a known sector
+    assert mapped and all(a5["map"][t] == "THEME1" for t in mapped) and a5["ucits"] == ["THEME1"]
+    assert "THEME1" in a5["values"]
+
+
 def test_alternatives_with_a_holding_too_young_for_the_covariance(market, ask):
     """A held stock with prices but fewer weeks than the covariance needs is fetched once, not twice: topping it up
     (A4) lists it as missing from the risk model instead of failing on a duplicate column."""

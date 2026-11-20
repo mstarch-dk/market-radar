@@ -154,6 +154,20 @@ Python computes every number; the frontend only formats and draws. It is the rad
   paper trail, frozen proposals vs ACWI; `too_short` records are never averaged; null without prices, the cards still
   come back). Never 503. Cached until a report, the prices, a trade, a frozen proposal, the settings or the day
   change. Its router is included last, after the calendar's. Each header also has `run_key`, the key to run it by.
+- Sector ETFs: `GET /api/sector-etfs` → `SectorEtfsView` (`sector_etf_view.py`): every sector of
+  `config/sector_etfs.yaml` (GICS first, then the EU supersectors) with the go-to UCITS ETF and its peers of
+  /sector-etfs' latest record (`exports/sector_etfs/`), ranked by the rule (positive list, size floor, TER, tracking,
+  accumulating), each with returns `r1m r3m r6m r1y ytd` in DKK and vs ACWI in DKK, a weekly sparkline, the recorded
+  and Yahoo's cached TER (`ter_mismatch` above 0.05 pp), the tax status for the year (`aktiebaseret` |
+  `kapitalindkomst` | `ukendt`, `ask_ok`, next year's sheet) and the sector's rotation rows. Never 503: before the
+  first run every sector has no ETFs and `as_of` is null; without prices the returns are null (`prices` false).
+  `stale` past `sector_etfs.stale_days`; `recheck` when the pick is no longer first and the record gave no override.
+  `replace` on a sector: you marked its go-to for replacement; `rejected` on an ETF: a go-to replaced after such a
+  mark; `run_scope`: the sectors the next `/sector-etfs` run re-selects (`first` | `replace` | `none`).
+  Cached until a record, the prices, `dashboard.json`, the settings, the marks or the day change. Its router is
+  included last. `PUT /api/sector-etfs/{key}/replace` (body `{reason?}`, at most 200 characters) marks the sector's
+  go-to for replacement (404 an unknown sector, 409 no go-to yet); `DELETE /api/sector-etfs/{key}/flags/{isin}`
+  undoes a mark or allows a rejected fund again (404 without one). Both return the `SectorEtfsView`.
 - Running a study (`studies.py`, `studyrun.py`): `GET /api/studies/run` → `StudyRunStatus` (an `UpdateStatus` with
   `study`, the running or last `run_key`); `POST /api/studies/run/{key}` starts the study's own command
   (`python -m radar study …`, the command on its card) as a child process, 404 for an unknown key, 409 while a study

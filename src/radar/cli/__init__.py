@@ -9,6 +9,7 @@ from . import (  # noqa: F401 (registers the commands)
     propose,
     rules,
     scout,
+    sector_etfs,
     server,
     sim,
     study,

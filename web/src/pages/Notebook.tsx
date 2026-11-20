@@ -20,7 +20,7 @@ type Tab = (typeof TABS)[number][0];
 
 const TAB_OF: Record<string, Tab> = {
   briefs: "briefs", research: "research", compare: "research", proposals: "research", proposal_reviews: "research",
-  scout: "research", journal: "journal", reviews: "journal",
+  scout: "research", sector_etfs: "research", journal: "journal", reviews: "journal",
 };
 const docPath = (e: Pick<NotebookEntry, "kind" | "name">) => `/notebook/${e.kind}/${encodeURIComponent(e.name)}`;
 const STATUS_KIND: Record<string, string> = { open: "accent", closed: "", invalidated: "neg" };
@@ -118,6 +118,9 @@ function Listing() {
           <h2>Scout reports</h2>
           <DocList rows={nb.scout} empty={<>None yet. Run <code>/scout</code> in Claude Code: it searches what investors and the media
             are starting to talk about and gives you a short list of hypotheses to adopt or dismiss.</>} />
+          <h2>Sector ETF memos</h2>
+          <DocList rows={nb.sector_etfs} empty={<>None yet. Run <code>/sector-etfs</code> in Claude Code: it records the go-to UCITS
+            ETF per sector, which the Sector ETFs page shows.</>} />
           {nb.proposal_reviews.length > 0 && <>
             <h2>Proposal reviews</h2>
             <DocList rows={nb.proposal_reviews} empty="" />

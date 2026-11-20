@@ -10,6 +10,7 @@ export const NAV: NavGroup[] = [
       { path: "/regime", label: "Regime", blurb: "Risk-on/off vote, breadth, credit, volatility" },
       { path: "/rotation", label: "Sector rotation", blurb: "US & European sectors, regions vs ACWI" },
       { path: "/themes", label: "Themes & factors", blurb: "Theme ETFs with UCITS alternatives, factors" },
+      { path: "/sectoretfs", label: "Sector ETFs", blurb: "The go-to UCITS ETF per sector: costs, tax status, returns" },
       { path: "/momentum", label: "Momentum", blurb: "Leaders per region, clusters, new entrants" },
       { path: "/quality", label: "Quality & value", blurb: "Business quality and price from the statements, the A/B test" },
       { path: "/evidence", label: "Evidence", blurb: "How well the scores have worked: studies, holdout, forward record" },

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import yaml
 
 if TYPE_CHECKING:
-    from .config_schema import IndexFunds, Settings
+    from .config_schema import IndexFunds, SectorEtfTaxonomy, Settings
 
 ROOT = Path(__file__).resolve().parents[2]   # the install folder: app files only; data lives where paths.py says
 CONFIG = ROOT / "config"
@@ -63,6 +63,15 @@ def index_funds() -> IndexFunds:
     from .config_schema import check_index_funds
 
     return check_index_funds(load_yaml("index_funds.yaml"))
+
+
+@cache
+def sector_etf_taxonomy() -> SectorEtfTaxonomy:
+    """config/sector_etfs.yaml as the checked model: the sectors of the Sector ETFs page, the rotation tickers that
+    stand for each, and the seed candidates."""
+    from .config_schema import check_sector_etfs
+
+    return check_sector_etfs(load_yaml("sector_etfs.yaml"))
 
 
 def _tmp(path: Path) -> Path:

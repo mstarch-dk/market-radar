@@ -42,6 +42,7 @@ Er der endnu ikke valgt en datamappe, beder skillen dig om at starte appen eller
 | `/propose-portfolio review` | `research/proposals/reviews/ÅÅÅÅ-MM.md` | Hvordan tidligere forslag er gået, og om deres exitkriterier er udløst |
 | `/hindsight [1M 3M 6M 1Y]` | `research/hindsight/ÅÅÅÅ-MM-DD_<navn>.md` | En kurv valgt på en dag i fortiden, simuleret frem til i dag |
 | `/scout [stikord]` | `research/scout/ÅÅÅÅ-MM-DD.md`, frosne kandidater i `exports/scout/`, og efter dit ja et markedssyn og en journalpost | 3–5 hypoteser fra det, markedet er begyndt at tale om, holdt op mod radarens tal |
+| `/sector-etfs [sektor …] [reselect-all]` | `exports/sector_etfs/ÅÅÅÅ-MM-DD.json` (gemt uden at spørge) og et notat i `research/sector-etfs/` | Go-to-UCITS-ETF'en pr. sektor og dens alternativer, med omkostninger og skattestatus, til siden *Sector ETFs* |
 | `/marketing` | `marketing/` | Den danske brochure (HTML og PDF) |
 
 Alle mapperne ligger i din datamappe og er lokale og personlige; de kommer med i dine backupper, men aldrig i git. Undtagelsen er `marketing/`, som ligger i programmappen; se nedenfor.
@@ -120,7 +121,7 @@ Antal stk. regnes i hele aktier med porteføljens kurtage, valutatillæg og et s
 **Hvad notatet viser.**
 - **Det forventede merafkast over ACWI** kommer fra testen af reglen (`uv run radar study propose`: samme regel på hver tidligere månedsultimo), med fradrag for overlevelsesbias (mindst {{settings:propose.survivorship_haircut|pct}} af et positivt merafkast) og trukket mod den lange historik: hvad de samme egenskaber har givet i alle aktier i udviklede markeder siden {{settings:propose.prior.since}}. Derefter trækkes forslagets egne handelsomkostninger fra. Aktiernes egne historiske afkast bruges ikke: de er valgt, fordi de har været høje. Se [Porteføljeforslag](laerebog/portefoeljeforslag#sådan-gør-radaren).
 - **Forventet maks. drawdown** set på tre måder: testens realiserede drawdowns, en bootstrap af ugentlige afkast skaleret til dagens volatilitet, og historiske stressperioder lagt på dagens vægte. Notatet viser et forventet tal og et dårligt scenarie.
-- **Alternativerne på samme mål**: ACWI for hele beløbet (A0), reglens kurv uden Claudes vurdering (A1), de to andre hældninger (A2), færre eller flere aktier (A3), at købe mere af det, du har (A4), sektor-ETF'er med samme sektorfordeling (A5) og tilfældige kurve under samme lofter (A6).
+- **Alternativerne på samme mål**: ACWI for hele beløbet (A0), reglens kurv uden Claudes vurdering (A1), de to andre hældninger (A2), færre eller flere aktier (A3), at købe mere af det, du har (A4), sektor-ETF'er med samme sektorfordeling (A5: go-to-fondene fra [Sektor-ETF'er](brugervejledning/sektor-etfer), når `/sector-etfs` har valgt dem, ellers de amerikanske og europæiske sektor-ETF'er) og tilfældige kurve under samme lofter (A6).
 - **Konklusionen** følger en regel, der er fastlagt på forhånd: aktier foreslås kun, hvis det forventede merafkast efter omkostninger er over {{settings:propose.min_edge|pct}}, testens holdout-periode peger samme vej, og det dårlige scenarie ligger inden for din tolerance. Ellers er svaret ACWI, og det siger notatet ligeud.
 - **Exitkriterier for hver aktie**: lukkekurs under {{settings:stops.trend_sma}}-dages gennemsnittet (et signal til at se på positionen igen), et signal-exit (momentumscore under {{settings:propose.exit.min_score}} eller K+V under {{settings:propose.exit.min_qv}}), 1–2 punkter fra tesen og en dato for genvurdering.
 
@@ -143,6 +144,10 @@ Claude kender markedet frem til sin vidensgrænse. Til en dag før den vælger C
 ## /scout
 
 `/scout` søger på nettet efter de historier, investorer og medier er begyndt at fortælle, og giver dig 3–5 hypoteser. Hver har et stadie (hvisken, bekræftes eller konsensus), point på syv akser, en *red team* og en proxy-kurv. Du vælger for hver: adoptér den som markedssyn, følg den eller afvis den. Alle kandidater fryses og følges mod ACWI, også de afviste. Se [Scout: hypoteser fra markedets snak](brugervejledning/scout).
+
+## /sector-etfs
+
+`/sector-etfs` finder for hver sektor i rotationen den UCITS-ETF, en dansk investor kan købe for at få eksponering mod sektoren, og dens nærmeste alternativer. Claude læser TER, størrelse, udbyttepolitik og *tracking difference* hos udbyderne med link og dato, holder fondene op mod positivlisten og radarens rangordningsregel og gemmer valget uden at spørge. Første gang vælger den for alle sektorer; derefter kun for de sektorer, hvor du har klikket *Mark for replacement* på siden *Sector ETFs*. `/sector-etfs reselect-all` vælger forfra i alle sektorer. Siden viser fondene med dagens afkast i kroner. Se [Sektor-ETF'er](brugervejledning/sektor-etfer).
 
 ## /marketing
 

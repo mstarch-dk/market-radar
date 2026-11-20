@@ -177,6 +177,8 @@ Factor loadings of the basket (MTUM/VLUE/QUAL/USMV, with t): …
 | A2 other tilts | tilt | | | | | | |
 | A4 top-up | no new names | | | | | | |
 | A5 sector ETFs | picking vs exposure | | | | | | |
+A5 holds each pick's sector through its go-to UCITS ETF from /sector-etfs' latest record (the tickers in `ucits`; the
+Sector ETFs page), else through the US/EU sector ETF as a proxy; say which, and name the UCITS ETFs.
 A3 frontier: n → cost / vol / TE (knee at n = …). A6: the proposal's vol / TE / diversification percentile among
 <draws> random baskets under the same caps.
 

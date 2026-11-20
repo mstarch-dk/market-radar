@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from . import isin
+
 
 class _Section(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -369,6 +371,12 @@ class Ops(_Section):
     keep_events_days: int = 180
 
 
+class SectorEtfsSettings(_Section):
+    """The Sector ETFs page: when a record is due again, and the fund-size floor of the ranking."""
+    stale_days: int = Field(default=180, gt=0)
+    min_aum_musd: float = Field(default=100, ge=0)
+
+
 class Valuation(_Section):
     snapshot_days: int
     fallback_max: int
@@ -480,6 +488,7 @@ class Settings(_Section):
     attribution: Attribution = Attribution()
     updates: Updates = Updates()
     ops: Ops = Ops()
+    sector_etfs: SectorEtfsSettings = SectorEtfsSettings()
     valuation: Valuation
     fundamentals: Fundamentals
     sentiment: Sentiment
@@ -586,3 +595,66 @@ class IndexFunds(_Section):
 def check_index_funds(raw: dict, source: str = "config/index_funds.yaml") -> IndexFunds:
     """The checked index-fund map; SettingsError naming every key that is missing, unknown or of the wrong type."""
     return _validate(IndexFunds, raw, source)
+
+
+# ---------------- config/sector_etfs.yaml ----------------
+
+class SectorSeed(_Section):
+    """A known UCITS candidate for a sector: where /sector-etfs starts, never a pick."""
+    isin: str
+    ticker: str
+    name: str
+    scope: Literal["world", "us", "europe"]
+
+    @model_validator(mode="after")
+    def _isin(self) -> SectorSeed:
+        if not isin.valid(self.isin):
+            raise ValueError(f"{self.isin}: not a valid ISIN (shape or check digit)")
+        return self
+
+
+class SectorDef(_Section):
+    """A sector of the Sector ETFs page: a GICS sector (Yahoo's name, no parent) or an EU supersector (`parent`:
+    its GICS sector), the rotation tickers that stand for it, the name words of its discovery-pool funds and the
+    seed candidates."""
+    label: str
+    parent: str | None = None
+    rotation: list[str] = []
+    match: list[str] = []          # name words that offer a discovery-pool fund
+    seeds: list[SectorSeed] = []
+
+
+class SectorEtfTaxonomy(_Section):
+    sectors: dict[str, SectorDef]
+
+    @model_validator(mode="after")
+    def _consistent(self) -> SectorEtfTaxonomy:
+        problems = []
+        for key, d in self.sectors.items():
+            if d.parent is not None and (d.parent not in self.sectors or self.sectors[d.parent].parent is not None):
+                problems.append(f"{key}: parent {d.parent} isn't a sector without a parent")
+            isins = [s.isin for s in d.seeds]
+            if len(isins) != len(set(isins)):
+                problems.append(f"{key}: a seed ISIN is listed twice")
+        seen: dict[str, str] = {}
+        for key, d in self.sectors.items():
+            for t in d.rotation:
+                if t in seen:
+                    problems.append(f"{t} stands for both {seen[t]} and {key}")
+                seen.setdefault(t, key)
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+    def gics(self) -> list[str]:
+        """The GICS sectors, in file order."""
+        return [k for k, d in self.sectors.items() if d.parent is None]
+
+    def for_ticker(self, ticker: str) -> str | None:
+        """The sector a rotation ticker stands for; None for one that stands for none."""
+        return next((k for k, d in self.sectors.items() if ticker in d.rotation), None)
+
+
+def check_sector_etfs(raw: dict, source: str = "config/sector_etfs.yaml") -> SectorEtfTaxonomy:
+    """The checked sector map; SettingsError naming every key that is missing, unknown or of the wrong type."""
+    return _validate(SectorEtfTaxonomy, raw, source)

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type RotationGroup, type RotationRow, type RrgTrail } from "../api/client";
 import { Check, Loaded, PageHead, Pct, Quadrant, RankChange } from "../components/cells";
 import { DataTable, type Col } from "../components/DataTable";
@@ -9,6 +10,7 @@ import { TickerLink } from "../components/TickerLink";
 import { Badge } from "../components/ui";
 import { WatchStar } from "../components/WatchButton";
 import { date, num } from "../lib/format";
+import { goToIndex, useSectorGoTo } from "../lib/sectorEtfs";
 import { filterRows } from "../lib/tableState";
 import { useTableState } from "../lib/useTableState";
 import { fundValCols } from "../components/valuationCols";
@@ -59,10 +61,26 @@ function ucitsCols(year: string | null | undefined): Col<RotationRow>[] {
   ];
 }
 
+function goToCol(byTicker: ReturnType<typeof goToIndex>["byTicker"]): Col<RotationRow> {
+  return { key: "goto", label: "UCITS go-to", name: "UCITS go-to (Sector ETFs)", align: "l", help: "sector_goto",
+    sort: (r) => byTicker.get(r.ticker)?.pick?.name, csv: (r) => byTicker.get(r.ticker)?.pick?.ticker, csvHeader: "UCITS go-to",
+    render: (r) => {
+      const s = byTicker.get(r.ticker);
+      if (!s) return <span className="muted">–</span>;
+      return s.pick
+        ? <><TickerLink symbol={s.pick.ticker} /> <Link to={s.href} className="small" title={`${s.pick.name}: the go-to and its peers on Sector ETFs`}>peers →</Link></>
+        : <Link to={s.href} className="small muted" title="Not covered by /sector-etfs yet">{s.label} →</Link>;
+    } };
+}
+
+const SECTOR_GROUPS = ["us_sectors", "eu_sectors"];
+
 export function GroupSection({ g, tail, themes, plYear }: { g: RotationGroup; tail: number; themes: boolean; plYear?: string | null }) {
+  const { byTicker } = useSectorGoTo();
+  const goto = SECTOR_GROUPS.includes(g.key) ? [goToCol(byTicker)] : [];
   const cols = themes
     ? [...base, ...rel, above, ...fundValCols<RotationRow>(), ...rs, ...ucitsCols(plYear), star]
-    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...fundValCols<RotationRow>(), ...rs, star];
+    : [...base, ...(g.rrg_local ? [local] : []), ...rel, abs3, above, ...fundValCols<RotationRow>(), ...rs, ...goto, star];
   const [state] = useTableState(g.key);
   const [hovered, setHovered] = useState<string | null>(null);
   // the graphs show the same rows as the filtered table

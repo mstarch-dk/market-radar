@@ -272,6 +272,18 @@ from .rules import (
     StandingFlag,
     StandingResult,
 )
+from .sector_etfs import (
+    SectorEtfFlag,
+    SectorEtfProblem,
+    SectorEtfReplaceIn,
+    SectorEtfReturns,
+    SectorEtfRow,
+    SectorEtfRunScope,
+    SectorEtfSector,
+    SectorEtfsView,
+    SectorEtfTax,
+    SectorRotationRow,
+)
 from .tax import (
     CapitalIncome,
     InstrumentIn,
@@ -405,4 +417,6 @@ __all__ = [
     "RuleVerdict", "RuleCounts", "StandingFlag", "StandingResult", "RulesPage", "ActionIn", "ResolvedAction",
     "CheckResult", "DecisionIn", "ReplayVerdict", "ReplayAfter", "ReplayTrade", "ReplayFlag", "ReplayRule",
     "ReplayResult",
+    "SectorEtfTax", "SectorEtfReturns", "SectorEtfRow", "SectorRotationRow", "SectorEtfSector", "SectorEtfProblem",
+    "SectorEtfsView", "SectorEtfFlag", "SectorEtfReplaceIn", "SectorEtfRunScope",
 ]

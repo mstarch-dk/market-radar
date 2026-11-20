@@ -3,8 +3,9 @@ from collections import Counter
 
 import pytest
 
-from radar import universe
-from radar.config import index_funds, settings, universe_config
+from radar import config_schema, universe
+from radar.config import index_funds, sector_etf_taxonomy, settings, universe_config
+from radar.isin import valid as isin_valid
 from radar.reporting import coverage
 from radar.sources import constituents, fxrates, positive_list, tracked
 from test_levels import CFG as LEVELS_CFG
@@ -153,3 +154,67 @@ def test_index_funds_name_real_countries_currencies_and_isins():
         assert f.isin is None or (positive_list.ISIN_RE.match(f.isin) and _isin_ok(f.isin)), t
     isins = [f.isin for f in cfg.funds.values() if f.isin]
     assert len(isins) == len(set(isins))
+
+
+# ---------------- config/sector_etfs.yaml (plans/F13-sector-etfs.md) ----------------
+
+def test_isin_valid_checks_shape_and_check_digit():
+    assert isin_valid("IE00B6R52259") and isin_valid("DE000A0F5UJ7")
+    assert not isin_valid("IE00B6R52258") and not isin_valid("ie00b6r52259") and not isin_valid(None)
+
+
+def test_every_rotation_sector_ticker_has_exactly_one_sector():
+    tax = sector_etf_taxonomy()
+    groups = universe_config()["etf_groups"]
+    tickers = [i["ticker"] for g in ("us_sectors", "eu_sectors") for i in groups[g]["items"]]
+    counts = Counter(t for d in tax.sectors.values() for t in d.rotation)
+    assert {t: counts[t] for t in tickers} == dict.fromkeys(tickers, 1)
+    assert set(counts) == set(tickers)                     # nothing in the map the rotation doesn't show
+    assert tax.for_ticker("XLK") == "Technology" and tax.for_ticker("EXV1.DE") == "Banks"
+    assert tax.for_ticker("SPY") is None
+
+
+def test_gics_sectors_are_the_sector_names_the_radar_uses():
+    tax = sector_etf_taxonomy()
+    cfg = universe_config()
+    assert set(tax.gics()) == set(cfg["sector_etfs"]["us"]) == set(cfg["attribution"]["sectors"])
+    for key, d in tax.sectors.items():
+        assert d.label and d.seeds, key
+        assert d.parent is None or d.parent in tax.gics(), key
+
+
+def test_sector_seeds_are_on_the_latest_positive_list():
+    listed = positive_list.isins()
+    assert listed is not None
+    for key, d in sector_etf_taxonomy().sectors.items():
+        for s in d.seeds:
+            assert s.isin in listed, (key, s.isin)          # a seed is a fund a Danish investor can hold as shares
+
+
+def test_sector_taxonomy_refuses_what_would_mislead():
+    seed = {"isin": "DE000A0F5UJ7", "ticker": "EXV1.DE", "name": "x", "scope": "europe"}
+    ok = {"sectors": {"Financial Services": {"label": "Finans", "rotation": ["XLF"]},
+                      "Banks": {"label": "Banker", "parent": "Financial Services", "rotation": ["EXV1.DE"],
+                                "seeds": [seed]}}}
+    assert config_schema.check_sector_etfs(ok).for_ticker("EXV1.DE") == "Banks"
+    bad = [
+        ({"Banks": {"label": "B", "parent": "Nowhere"}}, "parent Nowhere"),
+        ({"A": {"label": "A", "parent": "B"}, "B": {"label": "B", "parent": "C"}, "C": {"label": "C"}}, "A: parent B"),
+        ({"A": {"label": "A", "rotation": ["XLF"]}, "B": {"label": "B", "rotation": ["XLF"]}}, "XLF stands for both"),
+        ({"A": {"label": "A", "seeds": [{**seed, "isin": "DE000A0F5UJ8"}]}}, "not a valid ISIN"),
+        ({"A": {"label": "A", "seeds": [seed, seed]}}, "listed twice"),
+        ({"A": {"label": "A", "seeds": [{**seed, "scope": "asia"}]}}, "scope"),
+        ({"A": {"label": "A", "colour": "red"}}, "unknown key"),
+    ]
+    for sectors, match in bad:
+        with pytest.raises(config_schema.SettingsError, match=match):
+            config_schema.check_sector_etfs({"sectors": sectors})
+
+
+def test_sector_etf_settings_have_their_defaults():
+    s = config_schema.SectorEtfsSettings()
+    assert (s.stale_days, s.min_aum_musd) == (180, 100)
+    raw = dict(settings())
+    assert config_schema.check({k: v for k, v in raw.items() if k != "sector_etfs"}).sector_etfs == s
+    with pytest.raises(config_schema.SettingsError, match="sector_etfs.stale_days"):
+        config_schema.check({**raw, "sector_etfs": {"stale_days": 0}})

@@ -86,6 +86,9 @@ export type XrayView = S["XrayView"];
 export type AgendaView = S["AgendaView"];
 export type AgendaItem = S["AgendaItem"];
 export type EvidenceView = S["EvidenceView"];
+export type SectorEtfsView = S["SectorEtfsView"];
+export type SectorEtfSector = S["SectorEtfSector"];
+export type SectorEtfRow = S["SectorEtfRow"];
 export type AttributionView = S["AttributionView"];
 export type TaxYearView = S["TaxYearView"];
 export type TaxPerson = S["TaxPerson"];
@@ -249,6 +252,11 @@ export const api = {
   calendar: (sel?: PortfolioSel, days?: number) =>
     get<AgendaView>(withSel(days ? `/api/calendar?days=${days}` : "/api/calendar", sel)),
   evidence: () => get<EvidenceView>("/api/evidence"),
+  sectorEtfs: () => get<SectorEtfsView>("/api/sector-etfs"),
+  markSectorEtf: (key: string, reason: string | null) =>
+    get<SectorEtfsView>(`/api/sector-etfs/${enc(key)}/replace`, "PUT", JSON.stringify({ reason }), "application/json"),
+  unflagSectorEtf: (key: string, isin: string) =>
+    get<SectorEtfsView>(`/api/sector-etfs/${enc(key)}/flags/${enc(isin)}`, "DELETE"),
   studyStatus: () => get<StudyRunStatus>("/api/studies/run"),
   startStudy: (key: string) => get<StudyRunStatus>(`/api/studies/run/${enc(key)}`, "POST"),
   cancelStudy: () => get<StudyRunStatus>("/api/studies/run", "DELETE"),
