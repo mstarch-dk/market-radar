@@ -4,6 +4,7 @@ journal entry, and the frozen tickers in the daily update."""
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import pytest
 from typer.testing import CliRunner
@@ -63,6 +64,26 @@ def test_add_view_refuses_what_the_app_would(radar):
     assert "Unknown indicator" in refused("add_view", statement="x", indicators=[{"indicator": "vibes", "expect": "up"}])
     assert "origin" in refused("add_view", statement="x", origin="somewhere")
     assert "statement" in refused("add_view", statement="  ")
+
+
+def test_scout_records_order_by_freeze_not_file_time(radar, monkeypatch):
+    """Freezes in the same second share a file time on Windows, and a copied data folder gets new times: the order
+    is the day and the moment frozen, then the slug and the run's number (-10 after -9), never the file's time. A
+    slug ending in digits isn't mistaken for a run number."""
+    import os
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 20, 12, 0, 0)
+
+    monkeypatch.setattr(scout, "datetime", Clock)
+    ids = [scout.freeze(CANDIDATE | {"slug": "ai-power-2", "decision": "watch"})["id"] for _ in range(10)]
+    other = scout.freeze(CANDIDATE | {"slug": "africa-health", "decision": "watch"})["id"]
+    for n, f in enumerate(sorted(scout.RECORDS.glob("*.json"), reverse=True)):
+        os.utime(f, ns=(1_700_000_000_000_000_000 + n, 1_700_000_000_000_000_000 + n))   # newest file time first
+    assert [r["id"] for r in scout.records()] == [other, *ids]
+    assert ids[0].endswith("_ai-power-2") and ids[-1].endswith("_ai-power-2-10")
 
 
 def test_scout_freeze_is_never_overwritten_and_checks_its_tickers(radar):
