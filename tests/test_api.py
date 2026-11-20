@@ -151,7 +151,8 @@ def test_xray_api_contract(client, monkeypatch):
     assert paths_[at:at + 4] == ["/api/xray", "/api/calendar", "/api/evidence", "/api/attribution"]
     at = paths_.index("/api/studies/run")
     assert paths_[at:at + 2] == ["/api/studies/run", "/api/studies/run/{key}"]
-    assert paths_[-1] == "/api/rules/replay"                             # newest last
+    at = paths_.index("/api/rules/replay")
+    assert paths_[at:] == ["/api/rules/replay", "/api/sector-etfs"]      # newest last
     monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
     api.reset()
     gone = client.get("/api/xray")
@@ -257,6 +258,33 @@ def test_evidence_api_contract(client, monkeypatch):
     gone = client.get("/api/evidence")
     assert gone.status_code == 200 and gone.json()["forward"] is None
     assert len(gone.json()["scores"]) == 4 and "radar run" in gone.json()["notes"][0]
+
+
+def test_sector_etfs_api_contract(client, monkeypatch):
+    """GET /api/sector-etfs validates against SectorEtfsView before the first /sector-etfs run (every sector, no
+    ETFs, 200), with a record (returns in DKK, the pick first), cached until a record changes, and without prices
+    (returns null, still 200)."""
+    from radar import sector_etfs
+
+    r = client.get("/api/sector-etfs")
+    assert r.status_code == 200, r.json()
+    v = api_models.SectorEtfsView.model_validate(r.json())
+    assert v.as_of is None and v.prices and v.sectors and all(s.etfs == [] for s in v.sectors)
+    sector_etfs.freeze({"sectors": [{"key": "Technology", "pick": "IE00BM67HT60", "etfs": [
+        {"isin": "IE00BM67HT60", "ticker": "THEME1", "name": "World IT", "scope": "world", "ter": 0.0025},
+        {"isin": "IE00B3WJKG14", "ticker": "THEME2", "name": "S&P 500 IT", "scope": "us", "ter": 0.0015}]}]})
+    v = api_models.SectorEtfsView.model_validate(client.get("/api/sector-etfs").json())
+    tech = next(s for s in v.sectors if s.key == "Technology")
+    assert v.as_of is not None and tech.pick == "IE00BM67HT60" and len(tech.etfs) == 2
+    assert all(e.returns_dkk.r1m is not None for e in tech.etfs)
+    again = client.get("/api/sector-etfs").json()
+    assert again == client.get("/api/sector-etfs").json()                                 # cached
+    monkeypatch.setattr(ingest, "load_prices", lambda: pd.DataFrame(columns=ingest.COLUMNS))
+    api.reset()
+    gone = client.get("/api/sector-etfs")
+    assert gone.status_code == 200, gone.json()
+    g = api_models.SectorEtfsView.model_validate(gone.json())
+    assert not g.prices and all(e.returns_dkk.r1m is None for s in g.sectors for e in s.etfs)
 
 
 def test_watchlist_add_and_remove(client):

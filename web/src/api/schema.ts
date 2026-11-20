@@ -1769,6 +1769,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sector-etfs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sector Etfs
+         * @description Every sector of config/sector_etfs.yaml with the go-to UCITS ETF and its peers of the latest /sector-etfs
+         *     run: returns in DKK and vs ACWI, TER (recorded and Yahoo's), size, the tax status and the ranking. Before the
+         *     first run every sector comes back without ETFs (200, `as_of` null); without prices the returns are null.
+         */
+        get: operations["get_sector_etfs_api_sector_etfs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6473,6 +6495,209 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /** SectorEtfProblem */
+        SectorEtfProblem: {
+            /** Id */
+            id: string;
+            /** Problem */
+            problem: string;
+        };
+        /**
+         * SectorEtfReturns
+         * @description Returns over trading sessions (1m 21, 3m 63, 6m 126, 1y 252) and YTD; None without the history.
+         */
+        SectorEtfReturns: {
+            /** R1M */
+            r1m?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** R6M */
+            r6m?: number | null;
+            /** R1Y */
+            r1y?: number | null;
+            /** Ytd */
+            ytd?: number | null;
+        };
+        /**
+         * SectorEtfRow
+         * @description One ETF as the record has it (unknown figures null) with what the page adds: returns in DKK and vs ACWI in
+         *     DKK, a weekly sparkline (re-based to 1), Yahoo's cached TER, the tax status and its place in the ranking.
+         */
+        SectorEtfRow: {
+            /** Isin */
+            isin: string;
+            /** Ticker */
+            ticker: string;
+            /** Name */
+            name: string;
+            /** Issuer */
+            issuer?: string | null;
+            /** Index */
+            index?: string | null;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "world" | "us" | "europe" | "other";
+            /** Ter */
+            ter?: number | null;
+            /** Distribution */
+            distribution?: ("acc" | "dist") | null;
+            /** Domicile */
+            domicile?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Aum Musd */
+            aum_musd?: number | null;
+            /** Tracking Diff */
+            tracking_diff?: number | null;
+            /**
+             * Sources
+             * @default []
+             */
+            sources: string[];
+            /** Checked */
+            checked?: string | null;
+            returns_dkk: components["schemas"]["SectorEtfReturns"];
+            vs_acwi: components["schemas"]["SectorEtfReturns"];
+            /**
+             * Spark
+             * @default []
+             */
+            spark: number[];
+            /** Last Close */
+            last_close?: string | null;
+            /** Yahoo Ter */
+            yahoo_ter?: number | null;
+            /** Yahoo Fetched */
+            yahoo_fetched?: string | null;
+            /**
+             * Ter Mismatch
+             * @default false
+             */
+            ter_mismatch: boolean;
+            tax: components["schemas"]["SectorEtfTax"];
+            /** Rank */
+            rank: number;
+            /** Reasons */
+            reasons: string[];
+            /** Pick */
+            pick: boolean;
+        };
+        /**
+         * SectorEtfSector
+         * @description A sector: GICS (parent null) or an EU supersector. `recheck`: the pick is no longer first in the ranking
+         *     and the record gave no reason to override it. No ETFs: not covered by a /sector-etfs run yet.
+         */
+        SectorEtfSector: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Parent */
+            parent?: string | null;
+            /** Rotation */
+            rotation: components["schemas"]["SectorRotationRow"][];
+            /** Pick */
+            pick?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Rank Override
+             * @default false
+             */
+            rank_override: boolean;
+            /**
+             * Recheck
+             * @default false
+             */
+            recheck: boolean;
+            /** Updated */
+            updated?: string | null;
+            /** Age Days */
+            age_days?: number | null;
+            /** Etfs */
+            etfs: components["schemas"]["SectorEtfRow"][];
+        };
+        /**
+         * SectorEtfTax
+         * @description SKAT's positive list for the income year: aktiebaseret (lager-taxed share income, allowed on an
+         *     aktiesparekonto), kapitalindkomst (off the list) or ukendt (no sheet for the year, or no ISIN); `next_year` when
+         *     SKAT has published the next year's sheet.
+         */
+        SectorEtfTax: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "yes" | "no" | "no_sheet" | "no_isin";
+            /**
+             * Tax Class
+             * @enum {string}
+             */
+            tax_class: "aktiebaseret" | "kapitalindkomst" | "ukendt";
+            /** Ask Ok */
+            ask_ok?: boolean | null;
+            /** Sheet Year */
+            sheet_year?: number | null;
+            /** Next Year */
+            next_year?: ("yes" | "no" | "no_sheet" | "no_isin") | null;
+        };
+        /**
+         * SectorEtfsView
+         * @description The page. `as_of` null before the first /sector-etfs run (every sector then has no ETFs); `stale` once the
+         *     record is older than `stale_days`; `prices` false when there is no price data yet (returns are then null).
+         */
+        SectorEtfsView: {
+            /** As Of */
+            as_of?: string | null;
+            /** Record Id */
+            record_id?: string | null;
+            /** Age Days */
+            age_days?: number | null;
+            /** Stale */
+            stale: boolean;
+            /** Stale Days */
+            stale_days: number;
+            /** Min Aum Musd */
+            min_aum_musd: number;
+            /** Tax Year */
+            tax_year: number;
+            /** Tax Sheet */
+            tax_sheet: boolean;
+            /** Prices */
+            prices: boolean;
+            /** Note */
+            note?: string | null;
+            /** Problems */
+            problems: components["schemas"]["SectorEtfProblem"][];
+            /** Sectors */
+            sectors: components["schemas"]["SectorEtfSector"][];
+        };
+        /**
+         * SectorRotationRow
+         * @description A rotation ticker that stands for the sector, as the last `radar run` placed it.
+         */
+        SectorRotationRow: {
+            /** Ticker */
+            ticker: string;
+            /** Group */
+            group: string;
+            /** Group Label */
+            group_label?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Quadrant */
+            quadrant?: ("Leading" | "Weakening" | "Lagging" | "Improving" | "n/a") | null;
+            /** Rank */
+            rank?: number | null;
+            /** Rs Score */
+            rs_score?: number | null;
+            /** R3M */
+            r3m?: number | null;
+            /** Rel R3M */
+            rel_r3m?: number | null;
+        };
         /** SectorWeight */
         SectorWeight: {
             /** Sector */
@@ -10979,6 +11204,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sector_etfs_api_sector_etfs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorEtfsView"];
                 };
             };
         };

@@ -30,6 +30,7 @@ from . import (
     readings,
     refresh,
     rules,
+    sector_etfs,
     setup,
     state,
     studies,
@@ -160,7 +161,7 @@ async def _record_errors(request: Request, call_next):
 
 # new routers last: the OpenAPI order of the others stays put
 for _r in (setup, ticker, readings, operations, views, discover, holdings, refresh, transactions, portfolios, docs,
-           imports, xray, agenda, evidence, attribution, tax, studies, rules):
+           imports, xray, agenda, evidence, attribution, tax, studies, rules, sector_etfs):
     app.include_router(_r.router)
 
 

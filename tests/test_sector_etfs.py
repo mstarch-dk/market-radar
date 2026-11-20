@@ -156,10 +156,10 @@ def test_the_view_gives_dkk_returns_vs_acwi_and_missing_as_none(radar):
     by = {e["isin"]: e for e in tech["etfs"]}
     xdwt, iuit = by["IE00BM67HT60"], by["IE00B3WJKG14"]
     want = (1 + world.G["THEME1"]) ** 21 - 1
-    assert xdwt["returns_dkk"]["1m"] == pytest.approx(want)
-    assert xdwt["vs_acwi"]["1m"] == pytest.approx(want - ((1 + world.G["ACWI"]) ** 21 - 1))
-    assert xdwt["returns_dkk"]["1y"] == pytest.approx((1 + world.G["THEME1"]) ** 252 - 1)   # 300 bars: a year
-    assert iuit["returns_dkk"] == dict.fromkeys(["1m", "3m", "6m", "1y", "ytd"]) and iuit["spark"] == []
+    assert xdwt["returns_dkk"]["r1m"] == pytest.approx(want)
+    assert xdwt["vs_acwi"]["r1m"] == pytest.approx(want - ((1 + world.G["ACWI"]) ** 21 - 1))
+    assert xdwt["returns_dkk"]["r1y"] == pytest.approx((1 + world.G["THEME1"]) ** 252 - 1)   # 300 bars: a year
+    assert iuit["returns_dkk"] == dict.fromkeys(["r1m", "r3m", "r6m", "r1y", "ytd"]) and iuit["spark"] == []
     assert iuit["last_close"] is None and xdwt["spark"][0] == 1.0
     assert (xdwt["tax"]["tax_class"], iuit["tax"]["tax_class"]) == ("aktiebaseret", "kapitalindkomst")
     assert xdwt["yahoo_ter"] is None and not xdwt["ter_mismatch"]

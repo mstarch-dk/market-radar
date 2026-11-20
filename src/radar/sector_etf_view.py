@@ -20,7 +20,7 @@ from typing import Any
 import pandas as pd
 
 from . import sector_etfs
-from .config import sector_etf_taxonomy, typed
+from .config import sector_etf_taxonomy, settings, typed
 from .market import Market
 from .portfolios.performance import PERIODS, bench_dkk, period_return
 from .portfolios.prices import Prices
@@ -94,12 +94,13 @@ def rank(etfs: list[dict], min_aum_musd: float | None = None) -> list[dict]:
 # ---------------- prices ----------------
 
 def _returns(s: pd.Series | None, today: pd.Timestamp) -> dict[str, float | None]:
-    """1m, 3m, 6m, 1y over trading sessions, and YTD from the last close of last year; None without the history."""
-    out: dict[str, float | None] = dict.fromkeys([*PERIODS, "ytd"])
+    """r1m, r3m, r6m, r1y over trading sessions, and YTD from the last close of last year; None without the
+    history."""
+    out: dict[str, float | None] = dict.fromkeys([*(f"r{k}" for k in PERIODS), "ytd"])
     if s is None or s.empty:
         return out
     for k, n in PERIODS.items():
-        out[k] = period_return(s, n)
+        out[f"r{k}"] = period_return(s, n)
     start = pd.Timestamp(today.year, 1, 1)
     before = s[s.index < start]
     out["ytd"] = float(s.iloc[-1] / before.iloc[-1] - 1) if len(before) and before.iloc[-1] > 0 else None
@@ -139,9 +140,10 @@ def _diff(a: float | None, b: float | None) -> float | None:
     return a - b if a is not None and b is not None else None
 
 
-def enrich(e: dict, prices: Prices, bench: pd.Series, years, year: int, today: pd.Timestamp) -> dict:
-    """One ETF of a record with its returns (DKK and vs ACWI in DKK), sparkline, Yahoo TER and tax status."""
-    s = prices.dkk(e["ticker"])
+def enrich(e: dict, prices: Prices | None, bench: pd.Series, years, year: int, today: pd.Timestamp) -> dict:
+    """One ETF of a record with its returns (DKK and vs ACWI in DKK), sparkline, Yahoo TER and tax status;
+    without prices (`prices` None) the returns are None."""
+    s = prices.dkk(e["ticker"]) if prices is not None else None
     r = _returns(s, today)
     b = _returns(bench, today)
     vs = {k: _diff(r[k], b[k]) for k in r}
@@ -153,9 +155,10 @@ def enrich(e: dict, prices: Prices, bench: pd.Series, years, year: int, today: p
             "ter_mismatch": gap is not None and gap > TER_TOLERANCE, "tax": tax_status(e["isin"], years, year)}
 
 
-def view(market: Market, today: date | None = None) -> dict:
+def view(market: Market | None, today: date | None = None) -> dict:
     """The whole page: every sector of the taxonomy (in its order), with the latest record's ETFs ranked and
-    enriched; a sector the record doesn't cover has no ETFs. `as_of` None before the first /sector-etfs run."""
+    enriched; a sector the record doesn't cover has no ETFs. `as_of` None before the first /sector-etfs run;
+    without prices (`market` None) the returns are None."""
     today = today or date.today()
     ts = pd.Timestamp(today)
     tax = sector_etf_taxonomy()
@@ -165,8 +168,8 @@ def view(market: Market, today: date | None = None) -> dict:
     rec = good[-1] if good else None
     years, year = positive_list_years(), today.year
     rot = _rotation(dashboard.load())
-    prices = Prices(market)
-    bench = bench_dkk(market)
+    prices = Prices(market) if market is not None else None
+    bench = bench_dkk(market) if market is not None else pd.Series(dtype=float)
     by_key = {s["key"]: s for s in (rec or {}).get("sectors", [])}
     sectors = []
     for key, d in tax.sectors.items():
@@ -186,10 +189,35 @@ def view(market: Market, today: date | None = None) -> dict:
     age = (today - date.fromisoformat(rec["date"])).days if rec else None
     return {"as_of": rec["date"] if rec else None, "record_id": rec["id"] if rec else None, "age_days": age,
             "stale": age is not None and age > cfg.stale_days, "stale_days": cfg.stale_days,
-            "min_aum_musd": cfg.min_aum_musd, "tax_year": year,
+            "min_aum_musd": cfg.min_aum_musd, "tax_year": year, "prices": market is not None,
             "tax_sheet": year in years if years else False, "note": rec.get("note") if rec else None,
             "problems": [{"id": r["id"], "problem": r["problem"]} for r in recs if "problem" in r],
             "sectors": sectors}
+
+
+_cache: dict = {}
+
+
+def _stamp(f) -> tuple:
+    st = f.stat()
+    return (str(f), st.st_mtime_ns, st.st_size)
+
+
+def cached(market: Market | None, today: date | None = None) -> dict:
+    """`view`, kept until a record, the prices, the last `radar run`, the settings or the day change."""
+    today = today or date.today()
+    recs = tuple(sorted(_stamp(f) for f in sector_etfs.RECORDS.glob("*.json"))) if sector_etfs.RECORDS.is_dir() else ()
+    dash = dashboard.path()
+    key = (recs, market.mtime if market is not None else None, _stamp(dash) if dash.exists() else None,
+           id(settings()), today)
+    if key not in _cache:
+        _cache.clear()
+        _cache[key] = view(market, today)
+    return _cache[key]
+
+
+def reset() -> None:
+    _cache.clear()
 
 
 def history() -> list[dict]:
