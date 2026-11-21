@@ -9,7 +9,9 @@ Restart Market Radar from source after a `git pull`, in one step (Windows, for d
 
 It does every step whether or not the pull needed it. The web app is built before the running server is stopped,
 so a failed build leaves the old one running; the Python packages are synced after it stops (Windows locks files
-in use). The old server is stopped wherever it runs; a window opened by `Start Market Radar.cmd` is closed with it.
+in use). The old server is stopped wherever it runs; a window opened by `Start Market Radar.cmd` is closed with it. Anything
+else running from this checkout's .venv is stopped before the sync too, such as the `radar mcp` server Claude starts
+(Claude's radar tools then need a reconnect, /mcp in Claude Code).
 The new server runs in this window: Ctrl+C stops it.
 #>
 param(
@@ -68,6 +70,17 @@ if ($root) {
         Start-Sleep -Milliseconds 250
     }
 }
+
+# Anything else still running from this checkout's .venv (Claude's `radar mcp` server, a `radar run` in another
+# window) holds radar.exe open, and uv sync can't replace it. Stop each such tree once, from its top-most process.
+$venv = (Join-Path (Get-Location) '.venv\')
+$fromVenv = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($venv, 'OrdinalIgnoreCase') })
+$ids = $fromVenv.ProcessId
+foreach ($p in $fromVenv | Where-Object { $_.ParentProcessId -notin $ids }) {
+    Write-Host "`n== Stopping $($p.CommandLine) (PID $($p.ProcessId)): it locks the Python packages" -ForegroundColor Cyan
+    taskkill /PID $p.ProcessId /T /F | Out-Null
+}
+if ($fromVenv) { Start-Sleep -Milliseconds 500 }
 
 Invoke-Step 'Python packages (uv sync)' { uv sync --inexact }
 if ($Report) { Invoke-Step 'Dashboard (radar report)' { uv run --no-sync radar report } }

@@ -218,7 +218,8 @@ Always run Python through uv; the frontend uses pnpm.
   (dashboard pages and ticker profiles). See [web-app.md](web-app.md).
 - `.\scripts\restart.ps1 [-Pull] [-Report] [-Open] [-Port N]` (Windows): after a `git pull`, restart from source in
   one step: `pnpm install` and `build` (the old server keeps running if that fails), stop the server on the port (and
-  the start script's window), `uv sync`, optionally `radar report`, then `radar serve` in this window.
+  the start script's window), stop anything else running from the checkout's `.venv` (such as Claude's `radar mcp`,
+  which would lock `radar.exe`), `uv sync`, optionally `radar report`, then `radar serve` in this window.
 
 ## Claude (MCP server)
 - `uv run radar mcp`: the MCP server over stdio, the radar as tools for Claude. Claude Code starts it from the
