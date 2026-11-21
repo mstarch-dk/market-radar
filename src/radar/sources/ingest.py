@@ -25,9 +25,20 @@ FROM_FILE = "prices_from.json"  # ticker -> the start its stored history was las
 
 
 def load_prices() -> pd.DataFrame:
+    """The stored bars; weekend stubs an older version stored are left out (`sessions`), and the next update
+    writes the store without them (it is cache: rebuilt, never migrated)."""
     if not PRICES_FILE.exists():
         return pd.DataFrame(columns=COLUMNS)
-    return pd.read_parquet(PRICES_FILE)
+    return sessions(pd.read_parquet(PRICES_FILE))
+
+
+def sessions(df: pd.DataFrame) -> pd.DataFrame:
+    """The bars dated Monday to Friday. Nothing the radar tracks trades on a weekend, but Yahoo answers a
+    weekend run with a stub for some symbols (FX pairs on a Sunday: the coming week's first quote, or Friday's
+    close again, no volume). Stored, one such row puts a weekend day into every wide frame, where the others
+    forward-fill Friday's close into it, and the benchmark's last session becomes a Sunday."""
+    weekday = pd.to_datetime(df["date"]).dt.dayofweek < 5
+    return df if weekday.all() else df[weekday].reset_index(drop=True)
 
 
 def download_bars(tickers: list[str], start: date, progress=None) -> pd.DataFrame:
@@ -54,7 +65,7 @@ def download_bars(tickers: list[str], start: date, progress=None) -> pd.DataFram
                 sub = raw[t].dropna(subset=["Close", "Adj Close"])
                 if sub.empty:
                     continue
-                frames.append(adjust(sub.reset_index(), t))
+                frames.append(sessions(adjust(sub.reset_index(), t)))
             if bad:
                 issue(progress, "warn", f"prices: no Close / Adj Close from Yahoo for {', '.join(bad)}")
             unusable += bad
